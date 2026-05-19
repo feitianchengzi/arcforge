@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "sourceDir": "skills",
+  "teamRepo": "github.com/acme/team-skills",
+  "profiles": [
+    {
+      "name": "default",
+      "description": "All skills for local experimentation.",
+      "skills": ["*"],
+      "targets": ["claude", "codex", "cursor"]
+    },
+    {
+      "name": "frontend",
+      "description": "Frontend review and release skills.",
+      "skills": ["frontend-review", "release-writer"],
+      "targets": ["claude", "codex"]
+    }
+  ]
+}
