@@ -33,13 +33,13 @@ try {
     const profile = arg("--profile") ?? "default";
     const target = arg("--target") ?? ".skillops/skills";
     const snapshot = await scanWorkspace(root);
-    print(await driftReport(root, snapshot.config, snapshot.skills, profile, target));
+    print(await driftReport(root, snapshot.config, snapshot.skills, snapshot.assets, profile, target));
   } else if (command === "apply-profile") {
     const root = arg("--root") ?? process.cwd();
     const profile = arg("--profile") ?? "default";
     const target = arg("--target") ?? ".skillops/skills";
     const snapshot = await scanWorkspace(root);
-    print(await applyProfile(root, snapshot.config, snapshot.skills, profile, target));
+    print(await applyProfile(root, snapshot.config, snapshot.skills, snapshot.assets, profile, target));
   } else {
     throw new Error(`Unknown command: ${command}`);
   }

@@ -1,6 +1,6 @@
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import type { SkillSummary } from "../shared/types.js";
+import type { SharedAssetSummary, SkillSummary } from "../shared/types.js";
 import { parseFrontmatter } from "./frontmatter.js";
 import { pathExists, readText } from "./fs.js";
 import type { SkillOpsConfig } from "../shared/types.js";
@@ -34,6 +34,26 @@ export async function discoverSkills(root: string, config: SkillOpsConfig): Prom
   return skills.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export async function discoverSharedAssets(root: string, config: SkillOpsConfig): Promise<SharedAssetSummary[]> {
+  const sourceRoot = path.resolve(root, config.sourceDir);
+  if (!(await pathExists(sourceRoot))) return [];
+
+  const entries = await fs.readdir(sourceRoot, { withFileTypes: true });
+  const assets: SharedAssetSummary[] = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name === ".git" || entry.name === "node_modules") continue;
+    const assetPath = path.join(sourceRoot, entry.name);
+    if (await containsSkillFile(assetPath)) continue;
+    assets.push({
+      name: entry.name,
+      path: assetPath,
+      relativePath: path.relative(root, assetPath)
+    });
+  }
+  return assets.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 async function walk(dir: string, onDir: (dir: string) => Promise<void>): Promise<void> {
   await onDir(dir);
   const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -42,6 +62,17 @@ async function walk(dir: string, onDir: (dir: string) => Promise<void>): Promise
     if (entry.name === ".git" || entry.name === "node_modules") continue;
     await walk(path.join(dir, entry.name), onDir);
   }
+}
+
+async function containsSkillFile(dir: string): Promise<boolean> {
+  if (await pathExists(path.join(dir, "SKILL.md"))) return true;
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name === ".git" || entry.name === "node_modules") continue;
+    if (await containsSkillFile(path.join(dir, entry.name))) return true;
+  }
+  return false;
 }
 
 function stringValue(value: unknown): string {

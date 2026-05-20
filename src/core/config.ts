@@ -35,7 +35,7 @@ export function defaultConfig(): SkillOpsConfig {
       {
         name: "default",
         description: "Default skill set for local projects.",
-        skills: [],
+        skills: ["*"],
         targets: ["claude", "codex", "cursor"]
       }
     ]

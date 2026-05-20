@@ -1,13 +1,14 @@
 import { auditWorkspace } from "./audit.js";
 import { loadConfig, saveConfig } from "./config.js";
-import { discoverSkills } from "./skills.js";
+import { discoverSharedAssets, discoverSkills } from "./skills.js";
 import type { WorkspaceSnapshot, SkillOpsConfig } from "../shared/types.js";
 
 export async function scanWorkspace(root: string): Promise<WorkspaceSnapshot> {
   const config = await loadConfig(root);
   const skills = await discoverSkills(root, config);
+  const assets = await discoverSharedAssets(root, config);
   const audit = await auditWorkspace(root, skills);
-  return { root, config, skills, audit };
+  return { root, config, skills, assets, audit };
 }
 
 export async function initWorkspace(root: string, config?: Partial<SkillOpsConfig>): Promise<SkillOpsConfig> {
