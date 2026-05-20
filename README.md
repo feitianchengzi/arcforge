@@ -70,9 +70,9 @@ npm run package:config
 
 GitHub Actions also includes a manual `Manual Package` workflow that builds
 artifacts for macOS Intel, macOS Apple Silicon, Windows, and Linux. The workflow
-accepts major and minor version inputs, auto-increments the patch version from
-existing tags, creates a `vX.Y.Z` tag, and publishes the packages to GitHub
-Releases.
+reads the major and minor version from `app.manifest.json`, auto-increments the
+patch version from existing tags, creates a `vX.Y.Z` tag, and publishes the
+packages to GitHub Releases.
 
 CLI after build:
 

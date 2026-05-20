@@ -2,21 +2,12 @@ name: Manual Package
 
 on:
   workflow_dispatch:
-    inputs:
-      major:
-        description: "Major version"
-        required: true
-        default: "0"
-      minor:
-        description: "Minor version"
-        required: true
-        default: "1"
 
 permissions:
   contents: write
 
 concurrency:
-  group: manual-package-${{ github.event.inputs.major }}-${{ github.event.inputs.minor }}
+  group: manual-package
   cancel-in-progress: false
 
 jobs:
@@ -34,26 +25,22 @@ jobs:
       - id: version
         shell: bash
         run: |
-          major="${{ inputs.major }}"
-          minor="${{ inputs.minor }}"
-          if [[ ! "$major" =~ ^[0-9]+$ || ! "$minor" =~ ^[0-9]+$ ]]; then
-            echo "Major and minor versions must be non-negative integers." >&2
+          base_version="$(node -p "const manifest = require('./app.manifest.json'); manifest.version")"
+          if [[ ! "$base_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "app.manifest.json version must be major.minor.patch." >&2
             exit 1
           fi
+          IFS=. read -r major minor _patch <<< "$base_version"
 
           git fetch --tags --force
-          latest_patch="$(
-            git tag -l "v${major}.${minor}.*" |
-            sed -E "s/^v${major}\.${minor}\.([0-9]+)$/\1/" |
-            grep -E '^[0-9]+$' |
-            sort -n |
-            tail -1
-          )"
-          if [[ -z "$latest_patch" ]]; then
-            patch=0
-          else
-            patch=$((latest_patch + 1))
-          fi
+          latest_patch=-1
+          while IFS= read -r tag; do
+            patch_part="${tag#v${major}.${minor}.}"
+            if [[ "$patch_part" =~ ^[0-9]+$ && "$patch_part" -gt "$latest_patch" ]]; then
+              latest_patch="$patch_part"
+            fi
+          done < <(git tag -l "v${major}.${minor}.*")
+          patch=$((latest_patch + 1))
 
           version="${major}.${minor}.${patch}"
           tag="v${version}"

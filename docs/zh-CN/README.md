@@ -70,8 +70,8 @@ npm run package:config
 
 GitHub Actions 中也提供了手动触发的 `Manual Package` workflow，会分别生成
 macOS Intel、macOS Apple Silicon、Windows 和 Linux 构建产物。workflow
-输入主版本号和次版本号后，会根据已有 tag 自动递增补丁版本号，创建 `vX.Y.Z`
-tag，并把安装包发布到 GitHub Releases。
+会从 `app.manifest.json` 读取主版本号和次版本号，根据已有 tag 自动递增补丁
+版本号，创建 `vX.Y.Z` tag，并把安装包发布到 GitHub Releases。
 
 构建后的 CLI：
 
