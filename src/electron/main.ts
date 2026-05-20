@@ -10,7 +10,7 @@ import { scanWorkspace, initWorkspace } from "../core/workspace.js";
 import { saveConfig } from "../core/config.js";
 import { createPublishPlan } from "../core/publish.js";
 import { applyProfile, driftReport } from "../core/profiles.js";
-import type { DriftReport, ShareResult, ShareTargetMode, SkillOpsConfig } from "../shared/types.js";
+import type { DriftReport, EnvironmentStatus, ShareResult, ShareTargetMode, SkillOpsConfig } from "../shared/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const execFileAsync = promisify(execFile);
@@ -57,6 +57,7 @@ ipcMain.handle("workspace:scan", (_event, root: string) => scanWorkspace(root));
 ipcMain.handle("workspace:init", (_event, root: string) => initWorkspace(root));
 ipcMain.handle("workspace:saveConfig", (_event, root: string, config: SkillOpsConfig) => saveWorkspaceConfig(root, config));
 ipcMain.handle("system:defaultTargets", () => defaultTargets());
+ipcMain.handle("system:environment", () => getEnvironmentStatus());
 ipcMain.handle("source:download", (_event, remoteUrl: string) => downloadSource(remoteUrl));
 ipcMain.handle("publish:plan", (_event, root: string, visibility: "private" | "public") => createPublishPlanFromRoot(root, visibility));
 ipcMain.handle("publish:share", (_event, root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string) => shareProject(root, remoteUrl, visibility, message, targetMode, projectName));
@@ -429,6 +430,29 @@ function defaultTargets() {
     { id: "claude", name: "Claude", path: path.join(home, ".claude", "skills") },
     { id: "cursor", name: "Cursor", path: path.join(home, ".cursor", "skills") }
   ];
+}
+
+async function getEnvironmentStatus(): Promise<EnvironmentStatus> {
+  try {
+    const { stdout } = await execFileAsync("git", ["--version"]);
+    return {
+      platform: process.platform,
+      arch: process.arch,
+      git: {
+        available: true,
+        version: stdout.trim()
+      }
+    };
+  } catch (error) {
+    return {
+      platform: process.platform,
+      arch: process.arch,
+      git: {
+        available: false,
+        error: error instanceof Error ? error.message : String(error)
+      }
+    };
+  }
 }
 
 async function downloadSource(remoteUrl: string): Promise<string> {

@@ -51,6 +51,26 @@ npm run build
 npm start
 ```
 
+Package installers:
+
+```bash
+npm run package:mac:x64
+npm run package:mac:arm64
+npm run package:win:x64
+npm run package:linux:x64
+```
+
+Installer metadata is managed in `app.manifest.json`, including `appId`,
+`packageName`, `productName`, `version`, and platform installer targets. The
+packaging config is generated with:
+
+```bash
+npm run package:config
+```
+
+GitHub Actions also includes a manual `Manual Package` workflow that builds
+artifacts for macOS Intel, macOS Apple Silicon, Windows, and Linux.
+
 CLI after build:
 
 ```bash

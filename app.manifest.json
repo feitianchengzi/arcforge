@@ -1,0 +1,25 @@
+{
+  "appId": "com.feitianchengzi.skillops",
+  "packageName": "skillops",
+  "productName": "SkillOps",
+  "executableName": "skillops",
+  "version": "0.1.0",
+  "description": "GitHub-first SkillOps workspace for indie developers and small teams.",
+  "copyright": "Copyright © 2026 SkillOps contributors",
+  "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+  "bundle": {
+    "outputDir": "release",
+    "asar": true
+  },
+  "mac": {
+    "category": "public.app-category.developer-tools",
+    "targets": ["dmg", "zip"]
+  },
+  "windows": {
+    "targets": ["nsis", "zip"]
+  },
+  "linux": {
+    "category": "Development",
+    "targets": ["AppImage", "deb", "tar.gz"]
+  }
+}

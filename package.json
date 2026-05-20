@@ -10,6 +10,12 @@
   "scripts": {
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"tsc -p tsconfig.node.json --watch --preserveWatchOutput\" \"wait-on http://127.0.0.1:5173 dist/electron/main.js && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
     "build": "tsc -p tsconfig.node.json && vite build",
+    "package:config": "node scripts/build-package-config.mjs",
+    "package": "npm run build && npm run package:config && electron-builder --config dist-package/electron-builder.generated.json --publish=never",
+    "package:mac:x64": "npm run build && npm run package:config && electron-builder --config dist-package/electron-builder.generated.json --mac --x64 --publish=never",
+    "package:mac:arm64": "npm run build && npm run package:config && electron-builder --config dist-package/electron-builder.generated.json --mac --arm64 --publish=never",
+    "package:win:x64": "npm run build && npm run package:config && electron-builder --config dist-package/electron-builder.generated.json --win --x64 --publish=never",
+    "package:linux:x64": "npm run build && npm run package:config && electron-builder --config dist-package/electron-builder.generated.json --linux --x64 --publish=never",
     "start": "electron .",
     "cli": "node dist/cli/index.js",
     "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
@@ -32,12 +38,12 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.4.1",
-    "vite": "^6.3.5",
-    "typescript": "^5.8.3",
     "electron": "^35.2.0",
+    "lucide-react": "^0.511.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "lucide-react": "^0.511.0"
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
   },
   "devDependencies": {
     "@types/node": "^22.15.21",
@@ -45,6 +51,7 @@
     "@types/react-dom": "^19.1.5",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
+    "electron-builder": "^25.1.8",
     "wait-on": "^8.0.3"
   }
 }

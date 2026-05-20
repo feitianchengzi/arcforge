@@ -1,6 +1,8 @@
 node_modules/
 dist/
+dist-package/
 dist-ui/
+release/
 .DS_Store
 *.log
 .env

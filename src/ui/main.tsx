@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AlertTriangle, CheckCircle2, Download, ExternalLink, FolderOpen, GitBranch, HardDrive, PackageCheck, Play, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
-import type { ApplyProfileResult, DriftReport, PublishPlan, ShareResult, ShareTargetMode, SkillOpsConfig, SkillOpsProfile, WorkspaceSnapshot } from "../shared/types";
+import type { ApplyProfileResult, DriftReport, EnvironmentStatus, PublishPlan, ShareResult, ShareTargetMode, SkillOpsConfig, SkillOpsProfile, WorkspaceSnapshot } from "../shared/types";
 import { dictionaries, type Dictionary, type Language } from "./i18n";
 import "./styles.css";
 
@@ -13,6 +13,7 @@ declare global {
       initWorkspace: (root: string) => Promise<unknown>;
       saveConfig: (root: string, config: SkillOpsConfig) => Promise<WorkspaceSnapshot>;
       getDefaultTargets: () => Promise<DefaultTarget[]>;
+      getEnvironmentStatus: () => Promise<EnvironmentStatus>;
       downloadSource: (remoteUrl: string) => Promise<string>;
       createPublishPlan: (root: string, visibility: "private" | "public") => Promise<PublishPlan>;
       shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string) => Promise<ShareResult>;
@@ -81,6 +82,7 @@ function App() {
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot | undefined>();
   const [tab, setTab] = useState<Tab>("overview");
   const [status, setStatus] = useState<string>(t.chooseStatus);
+  const [environment, setEnvironment] = useState<EnvironmentStatus | undefined>();
   const [targetDir, setTargetDir] = useState(".skillops/skills");
   const [profile, setProfile] = useState("default");
   const [publishPlan, setPublishPlan] = useState<PublishPlan | undefined>();
@@ -121,6 +123,16 @@ function App() {
       setDefaultTargets(targets);
       setSelectedAgentTarget((current) => current || (targets[0]?.id ?? "codex"));
     }).catch((error) => setStatus(t.errorStatus(errorMessage(error))));
+    void window.skillops.getEnvironmentStatus().then(setEnvironment).catch(() => {
+      setEnvironment({
+        platform: "unknown",
+        arch: "unknown",
+        git: {
+          available: false,
+          error: "Environment check failed."
+        }
+      });
+    });
   }, []);
 
   useEffect(() => {
@@ -559,6 +571,7 @@ function App() {
           <div>
             <h2>{snapshot ? basename(snapshot.root) : activeProject?.name ?? t.addSkillProject}</h2>
             <p>{status}</p>
+            {environment && <EnvironmentNotice t={t} environment={environment} />}
           </div>
           <div className="actions">
             <button onClick={() => scan()} disabled={!root || isPendingProject}><RefreshCw size={16} /> {t.rescan}</button>
@@ -685,6 +698,17 @@ function PendingProject({ t, project }: { t: Dictionary; project: RecentWorkspac
       {project.sourceUrl && <pre>{project.sourceUrl}</pre>}
       {failed && project.error && <pre>{project.error}</pre>}
     </section>
+  );
+}
+
+function EnvironmentNotice({ t, environment }: { t: Dictionary; environment: EnvironmentStatus }) {
+  const gitVersion = environment.git.version ?? "git";
+  const title = environment.git.available ? t.environmentReady(gitVersion) : t.environmentGitMissing;
+  return (
+    <div className={`environment-status ${environment.git.available ? "good" : "warn"}`} title={`${environment.platform} ${environment.arch}`}>
+      {environment.git.available ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+      <span>{title}</span>
+    </div>
   );
 }
 

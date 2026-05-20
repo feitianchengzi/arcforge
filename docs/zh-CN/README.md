@@ -51,6 +51,26 @@ npm run build
 npm start
 ```
 
+打安装包：
+
+```bash
+npm run package:mac:x64
+npm run package:mac:arm64
+npm run package:win:x64
+npm run package:linux:x64
+```
+
+安装包基础信息统一在 `app.manifest.json` 中管理，包括 `appId`、
+`packageName`、`productName`、`version` 和各平台安装包目标。打包配置通过
+以下命令生成：
+
+```bash
+npm run package:config
+```
+
+GitHub Actions 中也提供了手动触发的 `Manual Package` workflow，会分别生成
+macOS Intel、macOS Apple Silicon、Windows 和 Linux 构建产物。
+
 构建后的 CLI：
 
 ```bash

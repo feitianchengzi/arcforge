@@ -104,6 +104,16 @@ export interface WorkspaceSnapshot {
   audit: AuditReport;
 }
 
+export interface EnvironmentStatus {
+  platform: string;
+  arch: string;
+  git: {
+    available: boolean;
+    version?: string;
+    error?: string;
+  };
+}
+
 export interface ApplyProfileResult {
   profile: string;
   targetDir: string;
