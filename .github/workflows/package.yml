@@ -2,10 +2,68 @@ name: Manual Package
 
 on:
   workflow_dispatch:
+    inputs:
+      major:
+        description: "Major version"
+        required: true
+        default: "0"
+      minor:
+        description: "Minor version"
+        required: true
+        default: "1"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: manual-package-${{ github.event.inputs.major }}-${{ github.event.inputs.minor }}
+  cancel-in-progress: false
 
 jobs:
+  version:
+    name: Compute version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: version
+        shell: bash
+        run: |
+          major="${{ inputs.major }}"
+          minor="${{ inputs.minor }}"
+          if [[ ! "$major" =~ ^[0-9]+$ || ! "$minor" =~ ^[0-9]+$ ]]; then
+            echo "Major and minor versions must be non-negative integers." >&2
+            exit 1
+          fi
+
+          git fetch --tags --force
+          latest_patch="$(
+            git tag -l "v${major}.${minor}.*" |
+            sed -E "s/^v${major}\.${minor}\.([0-9]+)$/\1/" |
+            grep -E '^[0-9]+$' |
+            sort -n |
+            tail -1
+          )"
+          if [[ -z "$latest_patch" ]]; then
+            patch=0
+          else
+            patch=$((latest_patch + 1))
+          fi
+
+          version="${major}.${minor}.${patch}"
+          tag="v${version}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "Computed ${tag}"
+
   package:
     name: ${{ matrix.name }}
+    needs: version
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -38,10 +96,40 @@ jobs:
 
       - run: npm ci
 
+      - run: npm run version:set -- ${{ needs.version.outputs.version }}
+
       - run: npm run ${{ matrix.script }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
+          name: ${{ matrix.artifact }}-${{ needs.version.outputs.version }}
           path: release/**
           if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [version, package]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          mapfile -d '' files < <(find release-assets -type f -print0 | sort -z)
+          if [[ "${#files[@]}" -eq 0 ]]; then
+            echo "No release assets found." >&2
+            exit 1
+          fi
+
+          gh release create "$TAG" "${files[@]}" \
+            --target "$GITHUB_SHA" \
+            --title "SkillOps ${VERSION}" \
+            --notes "Manual package build for SkillOps ${VERSION}."

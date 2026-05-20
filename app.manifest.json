@@ -13,14 +13,20 @@
   },
   "mac": {
     "category": "public.app-category.developer-tools",
-    "targets": ["dmg", "zip"]
+    "targets": [
+      "dmg"
+    ]
   },
   "windows": {
-    "targets": ["nsis", "zip"]
+    "targets": [
+      "nsis"
+    ]
   },
   "linux": {
     "category": "Development",
     "maintainer": "SkillOps Maintainers <hi@feitianchengzi.com>",
-    "targets": ["AppImage", "deb", "tar.gz"]
+    "targets": [
+      "AppImage"
+    ]
   }
 }

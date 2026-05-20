@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"tsc -p tsconfig.node.json --watch --preserveWatchOutput\" \"wait-on http://127.0.0.1:5173 dist/electron/main.js && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
     "build": "tsc -p tsconfig.node.json && vite build",
+    "version:set": "node scripts/set-app-version.mjs",
     "package:config": "node scripts/build-package-config.mjs",
     "package": "npm run build && npm run package:config && electron-builder --config dist-package/electron-builder.generated.json --publish=never",
     "package:mac:x64": "npm run build && npm run package:config && electron-builder --config dist-package/electron-builder.generated.json --mac --x64 --publish=never",
@@ -36,22 +37,21 @@
   "engines": {
     "node": ">=20"
   },
-  "dependencies": {
-    "@vitejs/plugin-react": "^4.4.1",
-    "lucide-react": "^0.511.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "typescript": "^5.8.3",
-    "vite": "^6.3.5"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^22.15.21",
     "@types/react": "^19.1.5",
     "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^4.4.1",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
     "electron": "^35.2.0",
     "electron-builder": "^25.1.8",
+    "lucide-react": "^0.511.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
     "wait-on": "^8.0.3"
   }
 }
