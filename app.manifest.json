@@ -20,6 +20,7 @@
   },
   "linux": {
     "category": "Development",
+    "maintainer": "SkillOps Maintainers <hi@feitianchengzi.com>",
     "targets": ["AppImage", "deb", "tar.gz"]
   }
 }

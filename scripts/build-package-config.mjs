@@ -69,6 +69,7 @@ const builderConfig = {
   },
   linux: {
     category: manifest.linux?.category,
+    maintainer: manifest.linux?.maintainer,
     target: manifest.linux?.targets ?? ["AppImage", "deb", "tar.gz"]
   },
   publish: null
