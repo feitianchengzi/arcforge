@@ -78,6 +78,33 @@ async function shareProject(root: string, remoteUrl: string, visibility: "privat
   const selectedSkills = selectProfileSkills(snapshot.skills, profile.skills);
   const messages: string[] = [];
   return withShareLock(target, messages, async () => {
+    const direct = await directShareTarget(root, target, targetMode, projectName || path.basename(root), snapshot.config.sourceDir, messages);
+    if (direct) {
+      const namespace = slug(projectName || path.basename(root));
+      const localConfig = normalizeConfig({
+        ...snapshot.config,
+        teamRepo: remoteUrl.trim(),
+        shareTargetMode: targetMode,
+        shareProjectName: projectName.trim() || undefined
+      });
+      const publishedConfig = namespaceProfiles(normalizeConfig({ ...localConfig, teamRepo: direct.installRef, profiles: [profile] }), namespace);
+
+      await saveConfig(root, localConfig);
+      await syncProjectMetadata(root, publishedConfig, visibility, projectName || path.basename(root));
+      messages.push(`Shared project directly from current checkout at ${direct.targetSubdir || "."}.`);
+
+      await runGit(direct.checkoutRoot, direct.targetSubdir ? ["add", direct.targetSubdir] : ["add", publishedConfig.sourceDir, "skillops.config.json", "README.md"], messages);
+      const status = await runGit(direct.checkoutRoot, ["status", "--porcelain"], messages);
+      const committed = status.trim().length > 0;
+      if (committed) {
+        await runGit(direct.checkoutRoot, ["commit", "-m", message.trim() || "Share SkillOps project"], messages);
+      } else {
+        messages.push("No file changes to commit.");
+      }
+      await pushWithRebaseRetry(direct.checkoutRoot, direct.branch, messages);
+      return { remoteUrl: direct.source.cloneUrl, branch: direct.branch, targetPath: direct.targetSubdir || ".", committed, pushed: true, messages };
+    }
+
     const checkout = await prepareShareCheckout(target, messages);
     const checkoutRoot = checkout.root;
     const branch = checkout.branch;
@@ -90,10 +117,9 @@ async function shareProject(root: string, remoteUrl: string, visibility: "privat
       ...snapshot.config,
       teamRepo: remoteUrl.trim(),
       shareTargetMode: targetMode,
-      shareProjectName: projectName.trim() || undefined,
-      profiles: [profile]
+      shareProjectName: projectName.trim() || undefined
     });
-    const publishedConfig = namespaceProfiles(normalizeConfig({ ...localConfig, teamRepo: installRef }), namespace);
+    const publishedConfig = namespaceProfiles(normalizeConfig({ ...localConfig, teamRepo: installRef, profiles: [profile] }), namespace);
 
     await saveConfig(root, localConfig);
     await syncProjectToShareTarget(root, targetRoot, publishedConfig, selectedSkills, snapshot.assets, visibility, projectName || path.basename(root), namespace);
@@ -197,6 +223,40 @@ async function prepareShareCheckout(target: ParsedRemoteSource, messages: string
   return { root: checkoutRoot, branch, source };
 }
 
+async function directShareTarget(root: string, target: ParsedRemoteSource, targetMode: ShareTargetMode, projectName: string, sourceDir: string, messages: string[]): Promise<{
+  checkoutRoot: string;
+  branch: string;
+  source: ParsedRemoteSource;
+  targetSubdir: string;
+  installRef: string;
+} | undefined> {
+  try {
+    const checkoutRoot = (await runGit(root, ["rev-parse", "--show-toplevel"], messages)).trim();
+    const remoteName = await matchingRemoteName(checkoutRoot, target.cloneUrl, messages);
+    if (!remoteName) return undefined;
+
+    await runGit(checkoutRoot, ["fetch", "--prune", remoteName], messages);
+    const source = await resolveRemoteSourceRef(target, checkoutRoot, messages);
+    const currentBranchName = await currentBranch(checkoutRoot, messages);
+    const branch = source.ref || currentBranchName || await remoteDefaultBranch(checkoutRoot, messages) || "main";
+    if (currentBranchName !== branch) return undefined;
+
+    const targetSubdir = shareTargetSubdir(source.subdir, targetMode, projectName, sourceDir);
+    const expectedRoot = targetSubdir ? path.join(checkoutRoot, targetSubdir) : checkoutRoot;
+    if (path.resolve(root) !== path.resolve(expectedRoot)) return undefined;
+
+    return {
+      checkoutRoot,
+      branch,
+      source,
+      targetSubdir,
+      installRef: remoteProjectRef(source.cloneUrl, branch, targetSubdir)
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 async function remoteDefaultBranch(root: string, messages: string[]): Promise<string | undefined> {
   try {
     const value = (await runGit(root, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"], messages)).trim();
@@ -205,6 +265,18 @@ async function remoteDefaultBranch(root: string, messages: string[]): Promise<st
     const branches = await remoteBranches(root, messages);
     return branches.includes("main") ? "main" : branches.includes("master") ? "master" : branches[0];
   }
+}
+
+async function matchingRemoteName(root: string, targetUrl: string, messages: string[]): Promise<string | undefined> {
+  const targetKey = canonicalRemoteKey(targetUrl);
+  const output = await runGit(root, ["remote", "-v"], messages);
+  for (const line of output.split(/\r?\n/)) {
+    const match = line.trim().match(/^(\S+)\s+(\S+)\s+\((fetch|push)\)$/);
+    if (!match) continue;
+    const [, name, url, kind] = match;
+    if (kind === "fetch" && canonicalRemoteKey(url) === targetKey) return name;
+  }
+  return undefined;
 }
 
 async function remoteBranchExists(root: string, branch: string, messages: string[]): Promise<boolean> {
@@ -306,6 +378,16 @@ async function syncProjectToShareTarget(root: string, targetRoot: string, config
   await writeSharingReadme(targetRoot, config, visibility, sectionName);
 }
 
+async function syncProjectMetadata(targetRoot: string, config: SkillOpsConfig, visibility: "private" | "public", sectionName: string): Promise<void> {
+  const mergedConfig = await mergeSharedConfig(path.join(targetRoot, "skillops.config.json"), config);
+  await fs.writeFile(path.join(targetRoot, "skillops.config.json"), `${JSON.stringify(mergedConfig, null, 2)}\n`, "utf8");
+  const targetReadme = path.join(targetRoot, "README.md");
+  if (!(await pathExists(targetReadme))) {
+    await fs.writeFile(targetReadme, `# ${path.basename(targetRoot)}\n`, "utf8");
+  }
+  await writeSharingReadme(targetRoot, config, visibility, sectionName);
+}
+
 function namespaceProfiles(config: SkillOpsConfig, namespace: string): SkillOpsConfig {
   return {
     ...config,
@@ -320,7 +402,7 @@ async function assertSharedAssetWritable(target: string, namespace: string): Pro
   if (!(await pathExists(target))) return;
   const ownerPath = path.join(target, ".skillops-owner.json");
   if (!(await pathExists(ownerPath))) {
-    throw new Error(`Shared asset already exists without SkillOps ownership metadata: ${target}`);
+    return;
   }
   try {
     const owner = JSON.parse(await fs.readFile(ownerPath, "utf8")) as { namespace?: string };
@@ -692,6 +774,19 @@ function normalizeRemoteUrl(remoteUrl: string): string {
   if (/^[\w.-]+\/[\w.-]+(?:\.git)?$/.test(trimmed)) return appendGit(`https://github.com/${trimmed}`);
   if (/^github\.com\//.test(trimmed)) return appendGit(`https://${trimmed}`);
   throw new Error("Use a GitHub path like owner/repo, github.com/owner/repo, or a full Git URL.");
+}
+
+function canonicalRemoteKey(remoteUrl: string): string {
+  const trimmed = remoteUrl.trim().replace(/\/$/, "").replace(/\.git$/, "");
+  const sshMatch = trimmed.match(/^git@github\.com:([^/]+)\/(.+)$/i);
+  if (sshMatch) return `github.com/${sshMatch[1].toLowerCase()}/${sshMatch[2].toLowerCase()}`;
+  const sshUrlMatch = trimmed.match(/^ssh:\/\/git@github\.com\/([^/]+)\/(.+)$/i);
+  if (sshUrlMatch) return `github.com/${sshUrlMatch[1].toLowerCase()}/${sshUrlMatch[2].toLowerCase()}`;
+  const githubPathMatch = trimmed.match(/^(?:https?:\/\/)?github\.com\/([^/]+)\/([^/]+)(?:\/.*)?$/i);
+  if (githubPathMatch) return `github.com/${githubPathMatch[1].toLowerCase()}/${githubPathMatch[2].toLowerCase()}`;
+  const ownerRepoMatch = trimmed.match(/^([\w.-]+)\/([\w.-]+)$/);
+  if (ownerRepoMatch) return `github.com/${ownerRepoMatch[1].toLowerCase()}/${ownerRepoMatch[2].toLowerCase()}`;
+  return normalizeRemoteUrl(remoteUrl).replace(/\/$/, "").replace(/\.git$/, "").toLowerCase();
 }
 
 function parseRemoteSource(remoteUrl: string): ParsedRemoteSource {
