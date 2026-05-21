@@ -87,6 +87,8 @@ function App() {
   const [profile, setProfile] = useState("default");
   const [publishPlan, setPublishPlan] = useState<PublishPlan | undefined>();
   const [shareResult, setShareResult] = useState<ShareResult | undefined>();
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareProgress, setShareProgress] = useState<string | undefined>();
   const [drift, setDrift] = useState<DriftReport | undefined>();
   const [applyResult, setApplyResult] = useState<ApplyProfileResult | undefined>();
   const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>(loadJson<RecentWorkspace[]>(RECENT_WORKSPACES_KEY, []));
@@ -326,9 +328,13 @@ function App() {
 
   async function shareProject(remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string) {
     if (!root) return;
+    setIsSharing(true);
+    setShareResult(undefined);
+    setShareProgress(t.sharing);
     try {
       if (!window.skillops) {
         setStatus(t.desktopRequired);
+        setShareProgress(t.desktopRequired);
         return;
       }
       if (snapshot) {
@@ -343,10 +349,16 @@ function App() {
       setStatus(t.sharing);
       const result = await window.skillops.shareProject(root, remoteUrl, visibility, message, targetMode, projectName);
       setShareResult(result);
-      setStatus(t.shareComplete(result.branch));
+      const complete = t.shareComplete(result.branch);
+      setShareProgress(complete);
+      setStatus(complete);
       await scan(root);
     } catch (error) {
-      setStatus(t.errorStatus(errorMessage(error)));
+      const message = t.errorStatus(errorMessage(error));
+      setShareProgress(message);
+      setStatus(message);
+    } finally {
+      setIsSharing(false);
     }
   }
 
@@ -645,6 +657,8 @@ function App() {
                 snapshot={snapshot}
                 plan={publishPlan}
                 shareResult={shareResult}
+                isSharing={isSharing}
+                shareProgress={shareProgress}
                 planPublish={planPublish}
                 shareProject={shareProject}
                 saveShareSettings={saveShareSettings}
@@ -1260,6 +1274,8 @@ function Publish(props: {
   snapshot: WorkspaceSnapshot;
   plan?: PublishPlan;
   shareResult?: ShareResult;
+  isSharing: boolean;
+  shareProgress?: string;
   planPublish: (visibility: "private" | "public") => void;
   shareProject: (remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string) => void;
   saveShareSettings: (settings: { remoteUrl?: string; targetMode?: ShareTargetMode | ""; projectName?: string }) => void;
@@ -1326,12 +1342,13 @@ function Publish(props: {
           <button className="primary" onClick={() => {
             if (!targetMode) return;
             props.shareProject(remoteUrl, visibility, message, targetMode, projectName);
-          }} disabled={!remoteUrl.trim() || !targetMode || (targetMode === "namedProject" && !projectName.trim())}>{t.shareNow}</button>
+          }} disabled={props.isSharing || !remoteUrl.trim() || !targetMode || (targetMode === "namedProject" && !projectName.trim())}>{props.isSharing ? t.sharing : t.shareNow}</button>
         </div>
       </section>
       <section className="panel">
         <h3>{t.planOutput}</h3>
-        {!props.plan ? <p className="muted">{t.noPublishPlan}</p> : (
+        {props.shareProgress && <p className="muted">{props.shareProgress}</p>}
+        {!props.plan ? (!props.shareProgress && <p className="muted">{t.noPublishPlan}</p>) : (
           <>
             <h4>{t.desktopUseFlow}</h4>
             <ol>
