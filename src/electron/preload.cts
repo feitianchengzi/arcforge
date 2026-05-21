@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld("skillops", {
   getEnvironmentStatus: () => ipcRenderer.invoke("system:environment"),
   downloadSource: (remoteUrl: string) => ipcRenderer.invoke("source:download", remoteUrl),
   createPublishPlan: (root: string, visibility: "private" | "public") => ipcRenderer.invoke("publish:plan", root, visibility),
-  shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: "direct" | "namedProject", projectName: string) => ipcRenderer.invoke("publish:share", root, remoteUrl, visibility, message, targetMode, projectName),
+  shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: "direct" | "namedProject", projectName: string, profileName: string) => ipcRenderer.invoke("publish:share", root, remoteUrl, visibility, message, targetMode, projectName, profileName),
   applyProfile: (root: string, profile: string, targetDir: string) => ipcRenderer.invoke("profile:apply", root, profile, targetDir),
   driftReport: (root: string, profile: string, targetDir: string) => ipcRenderer.invoke("profile:drift", root, profile, targetDir),
   openDriftDiff: (report: unknown) => ipcRenderer.invoke("profile:openDriftDiff", report)

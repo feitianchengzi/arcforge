@@ -1,6 +1,6 @@
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { ApplyProfileResult, DriftFileDiff, DriftReport, SharedAssetSummary, SkillOpsConfig, SkillSummary } from "../shared/types.js";
 import { copyDirectory, listFiles, pathExists } from "./fs.js";
 
@@ -43,8 +43,23 @@ async function replaceDirectory(source: string, target: string): Promise<void> {
     throw new Error(`Refusing to replace source directory: ${source}`);
   }
 
-  await fs.rm(target, { recursive: true, force: true });
-  await copyDirectory(source, target);
+  const parent = path.dirname(target);
+  const temp = path.join(parent, `.${path.basename(target)}.tmp-${randomUUID()}`);
+  const backup = path.join(parent, `.${path.basename(target)}.backup-${randomUUID()}`);
+  await fs.mkdir(parent, { recursive: true });
+  await fs.rm(temp, { recursive: true, force: true });
+  await copyDirectory(source, temp);
+
+  const hadTarget = await pathExists(target);
+  if (hadTarget) await fs.rename(target, backup);
+  try {
+    await fs.rename(temp, target);
+    if (hadTarget) await fs.rm(backup, { recursive: true, force: true });
+  } catch (error) {
+    await fs.rm(temp, { recursive: true, force: true });
+    if (hadTarget && !(await pathExists(target))) await fs.rename(backup, target);
+    throw error;
+  }
 }
 
 export async function driftReport(

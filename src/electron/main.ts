@@ -60,7 +60,7 @@ ipcMain.handle("system:defaultTargets", () => defaultTargets());
 ipcMain.handle("system:environment", () => getEnvironmentStatus());
 ipcMain.handle("source:download", (_event, remoteUrl: string) => downloadSource(remoteUrl));
 ipcMain.handle("publish:plan", (_event, root: string, visibility: "private" | "public") => createPublishPlanFromRoot(root, visibility));
-ipcMain.handle("publish:share", (_event, root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string) => shareProject(root, remoteUrl, visibility, message, targetMode, projectName));
+ipcMain.handle("publish:share", (_event, root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string) => shareProject(root, remoteUrl, visibility, message, targetMode, projectName, profileName));
 ipcMain.handle("profile:apply", (_event, root: string, profile: string, targetDir: string) => applyProfileFromRoot(root, profile, targetDir));
 ipcMain.handle("profile:drift", (_event, root: string, profile: string, targetDir: string) => driftReportFromRoot(root, profile, targetDir));
 ipcMain.handle("profile:openDriftDiff", (event, report: DriftReport) => openDriftDiffWindow(report, BrowserWindow.fromWebContents(event.sender)));
@@ -70,38 +70,46 @@ async function createPublishPlanFromRoot(root: string, visibility: "private" | "
   return createPublishPlan(root, snapshot.config, snapshot.skills, visibility);
 }
 
-async function shareProject(root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string): Promise<ShareResult> {
+async function shareProject(root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string): Promise<ShareResult> {
   const target = parseRemoteSource(remoteUrl);
   const snapshot = await scanWorkspace(root);
+  const profile = snapshot.config.profiles.find((item) => item.name === profileName) ?? snapshot.config.profiles[0];
+  if (!profile) throw new Error("Profile is required for sharing.");
+  const selectedSkills = selectProfileSkills(snapshot.skills, profile.skills);
   const messages: string[] = [];
-  const checkout = await prepareShareCheckout(target, messages);
-  const checkoutRoot = checkout.root;
-  const branch = checkout.branch;
-  const targetSubdir = shareTargetSubdir(target.subdir, targetMode, projectName || path.basename(root), snapshot.config.sourceDir);
-  const targetRoot = targetSubdir ? path.join(checkoutRoot, targetSubdir) : checkoutRoot;
-  const installRef = remoteProjectRef(target.cloneUrl, branch, targetSubdir);
-  const localConfig = normalizeConfig({
-    ...snapshot.config,
-    teamRepo: remoteUrl.trim(),
-    shareTargetMode: targetMode,
-    shareProjectName: projectName.trim() || undefined
+  return withShareLock(target, messages, async () => {
+    const checkout = await prepareShareCheckout(target, messages);
+    const checkoutRoot = checkout.root;
+    const branch = checkout.branch;
+    const resolvedTarget = checkout.source;
+    const targetSubdir = shareTargetSubdir(resolvedTarget.subdir, targetMode, projectName || path.basename(root), snapshot.config.sourceDir);
+    const targetRoot = targetSubdir ? path.join(checkoutRoot, targetSubdir) : checkoutRoot;
+    const installRef = remoteProjectRef(resolvedTarget.cloneUrl, branch, targetSubdir);
+    const namespace = slug(projectName || path.basename(root));
+    const localConfig = normalizeConfig({
+      ...snapshot.config,
+      teamRepo: remoteUrl.trim(),
+      shareTargetMode: targetMode,
+      shareProjectName: projectName.trim() || undefined,
+      profiles: [profile]
+    });
+    const publishedConfig = namespaceProfiles(normalizeConfig({ ...localConfig, teamRepo: installRef }), namespace);
+
+    await saveConfig(root, localConfig);
+    await syncProjectToShareTarget(root, targetRoot, publishedConfig, selectedSkills, snapshot.assets, visibility, projectName || path.basename(root), namespace);
+    messages.push(`Shared project files to ${targetSubdir || "."}.`);
+
+    await runGit(checkoutRoot, targetSubdir ? ["add", targetSubdir] : ["add", publishedConfig.sourceDir, "skillops.config.json", "README.md"], messages);
+    const status = await runGit(checkoutRoot, ["status", "--porcelain"], messages);
+    const committed = status.trim().length > 0;
+    if (committed) {
+      await runGit(checkoutRoot, ["commit", "-m", message.trim() || "Share SkillOps project"], messages);
+    } else {
+      messages.push("No file changes to commit.");
+    }
+    await pushWithRebaseRetry(checkoutRoot, branch, messages);
+    return { remoteUrl: resolvedTarget.cloneUrl, branch, targetPath: targetSubdir || ".", committed, pushed: true, messages };
   });
-  const publishedConfig = normalizeConfig({ ...localConfig, teamRepo: installRef });
-
-  await saveConfig(root, localConfig);
-  await syncProjectToShareTarget(root, targetRoot, publishedConfig, snapshot.skills, snapshot.assets, visibility);
-  messages.push(`Shared project files to ${targetSubdir || "."}.`);
-
-  await runGit(checkoutRoot, targetSubdir ? ["add", targetSubdir] : ["add", publishedConfig.sourceDir, "skillops.config.json", "README.md"], messages);
-  const status = await runGit(checkoutRoot, ["status", "--porcelain"], messages);
-  const committed = status.trim().length > 0;
-  if (committed) {
-    await runGit(checkoutRoot, ["commit", "-m", message.trim() || "Share SkillOps project"], messages);
-  } else {
-    messages.push("No file changes to commit.");
-  }
-  await runGit(checkoutRoot, ["push", "-u", "origin", branch], messages);
-  return { remoteUrl: target.cloneUrl, branch, targetPath: targetSubdir || ".", committed, pushed: true, messages };
 }
 
 async function applyProfileFromRoot(root: string, profile: string, targetDir: string) {
@@ -151,6 +159,13 @@ function normalizeConfig(config: SkillOpsConfig): SkillOpsConfig {
   };
 }
 
+function selectProfileSkills(skills: SkillSummary[], names: string[]): SkillSummary[] {
+  if (names.includes("*")) return skills;
+  if (names.length === 0) return [];
+  const wanted = new Set(names);
+  return skills.filter((skill) => wanted.has(skill.name));
+}
+
 async function ensureGitRepository(root: string, messages: string[]): Promise<void> {
   try {
     await runGit(root, ["rev-parse", "--is-inside-work-tree"], messages);
@@ -159,7 +174,7 @@ async function ensureGitRepository(root: string, messages: string[]): Promise<vo
   }
 }
 
-async function prepareShareCheckout(target: ParsedRemoteSource, messages: string[]): Promise<{ root: string; branch: string }> {
+async function prepareShareCheckout(target: ParsedRemoteSource, messages: string[]): Promise<{ root: string; branch: string; source: ParsedRemoteSource }> {
   const checkoutsRoot = path.join(app.getPath("userData"), "share-worktrees");
   const checkoutRoot = path.join(checkoutsRoot, `${repoName(target.cloneUrl)}-${crypto.createHash("sha256").update(target.cloneUrl).digest("hex").slice(0, 8)}`);
   await fs.mkdir(checkoutsRoot, { recursive: true });
@@ -170,7 +185,8 @@ async function prepareShareCheckout(target: ParsedRemoteSource, messages: string
     messages.push(`git clone ${target.cloneUrl}`);
   }
 
-  const branch = target.ref || await remoteDefaultBranch(checkoutRoot, messages) || "main";
+  const source = await resolveRemoteSourceRef(target, checkoutRoot, messages);
+  const branch = source.ref || await remoteDefaultBranch(checkoutRoot, messages) || "main";
   if (await remoteBranchExists(checkoutRoot, branch, messages)) {
     await runGit(checkoutRoot, ["checkout", "-B", branch, `origin/${branch}`], messages);
     await runGit(checkoutRoot, ["pull", "--ff-only", "origin", branch], messages);
@@ -178,7 +194,7 @@ async function prepareShareCheckout(target: ParsedRemoteSource, messages: string
     await runGit(checkoutRoot, ["checkout", "-B", branch], messages);
     messages.push(`Remote branch ${branch} does not exist yet; it will be created on push.`);
   }
-  return { root: checkoutRoot, branch };
+  return { root: checkoutRoot, branch, source };
 }
 
 async function remoteDefaultBranch(root: string, messages: string[]): Promise<string | undefined> {
@@ -208,27 +224,115 @@ async function remoteBranches(root: string, messages: string[]): Promise<string[
   }
 }
 
-async function syncProjectToShareTarget(root: string, targetRoot: string, config: SkillOpsConfig, skills: SkillSummary[], assets: SharedAssetSummary[], visibility: "private" | "public"): Promise<void> {
+async function resolveRemoteSourceRef(source: ParsedRemoteSource, checkoutRoot: string, messages: string[]): Promise<ParsedRemoteSource> {
+  if (!source.ref || !source.subdir) return source;
+  const branches = await remoteBranches(checkoutRoot, messages);
+  const pathParts = source.subdir.split("/").filter(Boolean);
+  let bestRef = source.ref;
+  let bestSubdir = source.subdir;
+  for (let index = 0; index < pathParts.length; index += 1) {
+    const candidateRef = [source.ref, ...pathParts.slice(0, index + 1)].join("/");
+    if (branches.includes(candidateRef) && candidateRef.length > bestRef.length) {
+      bestRef = candidateRef;
+      bestSubdir = pathParts.slice(index + 1).join("/");
+    }
+  }
+  if (bestRef !== source.ref) {
+    messages.push(`Resolved GitHub tree ref ${source.ref} to branch ${bestRef}.`);
+  }
+  return { ...source, ref: bestRef, subdir: bestSubdir };
+}
+
+async function withShareLock<T>(target: ParsedRemoteSource, messages: string[], task: () => Promise<T>): Promise<T> {
+  const locksRoot = path.join(app.getPath("userData"), "share-worktrees");
+  const lockPath = path.join(locksRoot, `${repoName(target.cloneUrl)}-${crypto.createHash("sha256").update(`${target.cloneUrl}#${target.ref}`).digest("hex").slice(0, 8)}.lock`);
+  await fs.mkdir(locksRoot, { recursive: true });
+  const startedAt = Date.now();
+  while (true) {
+    try {
+      await fs.mkdir(lockPath);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      if (Date.now() - startedAt > 120_000) {
+        throw new Error("Another share operation is still running for this repository. Try again after it finishes.");
+      }
+      await sleep(500);
+    }
+  }
+  messages.push("Acquired share lock.");
+  try {
+    return await task();
+  } finally {
+    await fs.rm(lockPath, { recursive: true, force: true });
+    messages.push("Released share lock.");
+  }
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function syncProjectToShareTarget(root: string, targetRoot: string, config: SkillOpsConfig, skills: SkillSummary[], assets: SharedAssetSummary[], visibility: "private" | "public", sectionName: string, namespace: string): Promise<void> {
   await fs.mkdir(targetRoot, { recursive: true });
   const sourceRoot = path.resolve(root, config.sourceDir);
   const targetSourceRoot = path.join(targetRoot, config.sourceDir);
   await fs.mkdir(targetSourceRoot, { recursive: true });
-  for (const item of [...skills, ...assets]) {
+  for (const item of skills) {
     const relativePath = path.relative(sourceRoot, item.path);
     if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
       throw new Error(`Refusing to share item outside source directory: ${item.path}`);
     }
     await replaceSharedEntry(item.path, path.join(targetSourceRoot, relativePath), targetSourceRoot);
   }
-  await fs.writeFile(path.join(targetRoot, "skillops.config.json"), `${JSON.stringify(config, null, 2)}\n`, "utf8");
+  for (const asset of assets) {
+    const relativePath = path.relative(sourceRoot, asset.path);
+    if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+      throw new Error(`Refusing to share item outside source directory: ${asset.path}`);
+    }
+    await assertSharedAssetWritable(path.join(targetSourceRoot, relativePath), namespace);
+    await replaceSharedEntry(asset.path, path.join(targetSourceRoot, relativePath), targetSourceRoot);
+    await writeAssetOwner(path.join(targetSourceRoot, relativePath), namespace);
+  }
+  const mergedConfig = await mergeSharedConfig(path.join(targetRoot, "skillops.config.json"), config);
+  await fs.writeFile(path.join(targetRoot, "skillops.config.json"), `${JSON.stringify(mergedConfig, null, 2)}\n`, "utf8");
   const sourceReadme = path.join(root, "README.md");
   const targetReadme = path.join(targetRoot, "README.md");
-  if (await pathExists(sourceReadme)) {
+  if (!(await pathExists(targetReadme)) && await pathExists(sourceReadme)) {
     await fs.copyFile(sourceReadme, targetReadme);
-  } else {
+  } else if (!(await pathExists(targetReadme))) {
     await fs.writeFile(targetReadme, `# ${path.basename(root)}\n`, "utf8");
   }
-  await writeSharingReadme(targetRoot, config, visibility);
+  await writeSharingReadme(targetRoot, config, visibility, sectionName);
+}
+
+function namespaceProfiles(config: SkillOpsConfig, namespace: string): SkillOpsConfig {
+  return {
+    ...config,
+    profiles: config.profiles.map((profile) => ({
+      ...profile,
+      name: profile.name.includes("/") ? profile.name : `${namespace}/${profile.name || "default"}`
+    }))
+  };
+}
+
+async function assertSharedAssetWritable(target: string, namespace: string): Promise<void> {
+  if (!(await pathExists(target))) return;
+  const ownerPath = path.join(target, ".skillops-owner.json");
+  if (!(await pathExists(ownerPath))) {
+    throw new Error(`Shared asset already exists without SkillOps ownership metadata: ${target}`);
+  }
+  try {
+    const owner = JSON.parse(await fs.readFile(ownerPath, "utf8")) as { namespace?: string };
+    if (owner.namespace === namespace) return;
+  } catch {
+    throw new Error(`Shared asset ownership metadata is invalid: ${ownerPath}`);
+  }
+  throw new Error(`Shared asset is owned by another project: ${target}`);
+}
+
+async function writeAssetOwner(target: string, namespace: string): Promise<void> {
+  await fs.writeFile(path.join(target, ".skillops-owner.json"), `${JSON.stringify({ namespace }, null, 2)}\n`, "utf8");
 }
 
 async function replaceSharedEntry(source: string, target: string, targetRoot: string): Promise<void> {
@@ -241,8 +345,44 @@ async function replaceSharedEntry(source: string, target: string, targetRoot: st
     throw new Error(`Refusing to write outside source directory: ${target}`);
   }
 
-  await fs.rm(resolvedTarget, { recursive: true, force: true });
-  await copyDirectory(source, resolvedTarget);
+  await replaceDirectoryAtomic(source, resolvedTarget);
+}
+
+async function replaceDirectoryAtomic(source: string, target: string): Promise<void> {
+  const parent = path.dirname(target);
+  const temp = path.join(parent, `.${path.basename(target)}.tmp-${crypto.randomUUID()}`);
+  const backup = path.join(parent, `.${path.basename(target)}.backup-${crypto.randomUUID()}`);
+  await fs.mkdir(parent, { recursive: true });
+  await fs.rm(temp, { recursive: true, force: true });
+  await copyDirectory(source, temp);
+
+  const hadTarget = await pathExists(target);
+  if (hadTarget) await fs.rename(target, backup);
+  try {
+    await fs.rename(temp, target);
+    if (hadTarget) await fs.rm(backup, { recursive: true, force: true });
+  } catch (error) {
+    await fs.rm(temp, { recursive: true, force: true });
+    if (hadTarget && !(await pathExists(target))) await fs.rename(backup, target);
+    throw error;
+  }
+}
+
+async function mergeSharedConfig(configPath: string, next: SkillOpsConfig): Promise<SkillOpsConfig> {
+  if (!(await pathExists(configPath))) return next;
+  try {
+    const existing = JSON.parse(await fs.readFile(configPath, "utf8")) as SkillOpsConfig;
+    const profiles = new Map<string, SkillOpsConfig["profiles"][number]>();
+    for (const profile of existing.profiles ?? []) profiles.set(profile.name, profile);
+    for (const profile of next.profiles) profiles.set(profile.name, profile);
+    return normalizeConfig({
+      ...existing,
+      ...next,
+      profiles: [...profiles.values()]
+    });
+  } catch {
+    return next;
+  }
 }
 
 async function copyDirectory(source: string, target: string): Promise<void> {
@@ -318,24 +458,39 @@ async function runGit(root: string, args: string[], messages: string[]): Promise
   }
 }
 
-async function writeSharingReadme(root: string, config: SkillOpsConfig, visibility: "private" | "public"): Promise<void> {
+async function pushWithRebaseRetry(root: string, branch: string, messages: string[]): Promise<void> {
+  try {
+    await runGit(root, ["push", "-u", "origin", branch], messages);
+  } catch (error) {
+    messages.push("Push failed; rebasing on the latest remote branch and retrying once.");
+    await runGit(root, ["fetch", "origin", branch], messages);
+    await runGit(root, ["pull", "--rebase", "origin", branch], messages);
+    await runGit(root, ["push", "-u", "origin", branch], messages);
+  }
+}
+
+async function writeSharingReadme(root: string, config: SkillOpsConfig, visibility: "private" | "public", sectionName: string): Promise<void> {
   const readmePath = path.join(root, "README.md");
   const existing = await pathExists(readmePath) ? await fs.readFile(readmePath, "utf8") : `# ${path.basename(root)}\n`;
-  const section = sharingSection(config, visibility);
-  const start = "<!-- skillops:share:start -->";
-  const end = "<!-- skillops:share:end -->";
+  const sectionId = slug(sectionName || path.basename(root));
+  const section = sharingSection(config, visibility, sectionName || path.basename(root), sectionId);
+  const start = `<!-- skillops:share:start:${sectionId} -->`;
+  const end = `<!-- skillops:share:end:${sectionId} -->`;
   const pattern = new RegExp(`${escapeRegExp(start)}[\\s\\S]*?${escapeRegExp(end)}`);
+  const legacyPattern = new RegExp(`${escapeRegExp("<!-- skillops:share:start -->")}[\\s\\S]*?${escapeRegExp("<!-- skillops:share:end -->")}`);
   const next = pattern.test(existing)
     ? existing.replace(pattern, section)
+    : legacyPattern.test(existing)
+      ? existing.replace(legacyPattern, section)
     : `${existing.trimEnd()}\n\n${section}\n`;
   await fs.writeFile(readmePath, next, "utf8");
 }
 
-function sharingSection(config: SkillOpsConfig, visibility: "private" | "public"): string {
+function sharingSection(config: SkillOpsConfig, visibility: "private" | "public", sectionName: string, sectionId: string): string {
   const installRef = config.teamRepo || "github.com/<owner>/<repo>";
   const profiles = config.profiles.map((profile) => `- \`${profile.name || "unnamed"}\`: ${profile.skills.includes("*") ? "all skills" : profile.skills.join(", ") || "no skills selected"}`).join("\n");
-  return `<!-- skillops:share:start -->
-## SkillOps
+  return `<!-- skillops:share:start:${sectionId} -->
+## SkillOps: ${sectionName}
 
 Visibility: \`${visibility}\`
 
@@ -356,7 +511,12 @@ ${profiles || "- No profiles configured."}
 skillshare install ${installRef} --track --all && skillshare sync
 npx skills add ${installRef}
 \`\`\`
-<!-- skillops:share:end -->`;
+<!-- skillops:share:end:${sectionId} -->`;
+}
+
+function slug(value: string): string {
+  const normalized = value.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+  return normalized || "project";
 }
 
 function escapeRegExp(value: string): string {
@@ -499,14 +659,21 @@ async function downloadSource(remoteUrl: string): Promise<string> {
   } else {
     await execFileAsync("git", ["clone", source.cloneUrl, target]);
   }
-  if (source.ref) {
-    await execFileAsync("git", ["-C", target, "checkout", source.ref]);
+  const resolvedSource = await resolveRemoteSourceRef(source, target, []);
+  if (resolvedSource.ref) {
+    await execFileAsync("git", ["-C", target, "checkout", resolvedSource.ref]);
   }
-  const projectRoot = source.subdir ? path.join(target, source.subdir) : target;
+  const projectRoot = await sourceProjectRoot(target, resolvedSource.subdir);
   if (!(await pathExists(projectRoot))) {
-    throw new Error(`Subdirectory not found after clone: ${source.subdir}`);
+    throw new Error(`Subdirectory not found after clone: ${resolvedSource.subdir}`);
   }
   return projectRoot;
+}
+
+async function sourceProjectRoot(checkoutRoot: string, subdir: string): Promise<string> {
+  if (!subdir) return checkoutRoot;
+  const directRoot = path.join(checkoutRoot, subdir);
+  return path.basename(directRoot) === "skills" && await pathExists(directRoot) ? path.dirname(directRoot) : directRoot;
 }
 
 async function pathExists(filePath: string): Promise<boolean> {

@@ -16,7 +16,7 @@ declare global {
       getEnvironmentStatus: () => Promise<EnvironmentStatus>;
       downloadSource: (remoteUrl: string) => Promise<string>;
       createPublishPlan: (root: string, visibility: "private" | "public") => Promise<PublishPlan>;
-      shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string) => Promise<ShareResult>;
+      shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string) => Promise<ShareResult>;
       applyProfile: (root: string, profile: string, targetDir: string) => Promise<ApplyProfileResult>;
       driftReport: (root: string, profile: string, targetDir: string) => Promise<DriftReport>;
       openDriftDiff: (report: DriftReport) => Promise<void>;
@@ -199,7 +199,7 @@ function App() {
         setStatus(t.chooseCanceled);
         return;
       }
-      await openWorkspace(selected);
+      await openWorkspace(normalizeLocalProjectRoot(selected));
       setShowAddProject(false);
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
@@ -326,7 +326,7 @@ function App() {
     }
   }
 
-  async function shareProject(remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string) {
+  async function shareProject(remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string) {
     if (!root) return;
     setIsSharing(true);
     setShareResult(undefined);
@@ -347,7 +347,7 @@ function App() {
         applySnapshot(saved, profile);
       }
       setStatus(t.sharing);
-      const result = await window.skillops.shareProject(root, remoteUrl, visibility, message, targetMode, projectName);
+      const result = await window.skillops.shareProject(root, remoteUrl, visibility, message, targetMode, projectName, profileName);
       setShareResult(result);
       const complete = t.shareComplete(result.branch);
       setShareProgress(complete);
@@ -659,6 +659,10 @@ function App() {
                 shareResult={shareResult}
                 isSharing={isSharing}
                 shareProgress={shareProgress}
+                profile={profile}
+                setProfile={setProjectProfile}
+                profileOptions={profileOptions}
+                selectedSkillsCount={selectedSkillsCount}
                 planPublish={planPublish}
                 shareProject={shareProject}
                 saveShareSettings={saveShareSettings}
@@ -859,6 +863,16 @@ function loadJson<T>(key: string, fallback: T): T {
 
 function basename(filePath: string): string {
   return filePath.split(/[\\/]/).filter(Boolean).pop() ?? filePath;
+}
+
+function dirname(filePath: string): string {
+  const trimmed = filePath.replace(/[\\/]+$/, "");
+  const index = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+  return index > 0 ? trimmed.slice(0, index) : filePath;
+}
+
+function normalizeLocalProjectRoot(filePath: string): string {
+  return basename(filePath) === "skills" ? dirname(filePath) : filePath;
 }
 
 function projectNameFromSource(sourceUrl: string): string {
@@ -1276,8 +1290,12 @@ function Publish(props: {
   shareResult?: ShareResult;
   isSharing: boolean;
   shareProgress?: string;
+  profile: string;
+  setProfile: (value: string) => void;
+  profileOptions: string[];
+  selectedSkillsCount: number;
   planPublish: (visibility: "private" | "public") => void;
-  shareProject: (remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string) => void;
+  shareProject: (remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string) => void;
   saveShareSettings: (settings: { remoteUrl?: string; targetMode?: ShareTargetMode | ""; projectName?: string }) => void;
 }) {
   const { t } = props;
@@ -1316,6 +1334,11 @@ function Publish(props: {
         <p className="muted">{t.publishHelp}</p>
         <label>{t.remoteRepository}</label>
         <input value={remoteUrl} placeholder="owner/repo or github.com/owner/repo/tree/main/path" onChange={(event) => setRemoteUrl(event.target.value)} />
+        <label>{t.profile}</label>
+        <select value={props.profile} onChange={(event) => props.setProfile(event.target.value)}>
+          {props.profileOptions.map((name) => <option key={name}>{name}</option>)}
+        </select>
+        <p className="muted">{t.installPreview(props.selectedSkillsCount, props.profile)}</p>
         <label>{t.shareTargetMode}</label>
         <div className="segmented two">
           <button className={targetMode === "direct" ? "active" : ""} onClick={() => chooseTargetMode("direct")}>{t.shareDirectPath}</button>
@@ -1341,7 +1364,7 @@ function Publish(props: {
           }}>{t.publicRelease}</button>
           <button className="primary" onClick={() => {
             if (!targetMode) return;
-            props.shareProject(remoteUrl, visibility, message, targetMode, projectName);
+            props.shareProject(remoteUrl, visibility, message, targetMode, projectName, props.profile);
           }} disabled={props.isSharing || !remoteUrl.trim() || !targetMode || (targetMode === "namedProject" && !projectName.trim())}>{props.isSharing ? t.sharing : t.shareNow}</button>
         </div>
       </section>
