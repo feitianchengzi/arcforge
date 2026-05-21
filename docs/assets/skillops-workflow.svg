@@ -1,0 +1,45 @@
+<svg width="1200" height="560" viewBox="0 0 1200 560" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SkillOps workflow preview</title>
+  <desc id="desc">A workflow preview showing source skills, audit, profiles, apply targets, drift checks, and publish preparation.</desc>
+  <rect width="1200" height="560" rx="24" fill="#F3F5F8"/>
+  <text x="70" y="74" fill="#1F2937" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="750">Typical SkillOps flow</text>
+  <text x="70" y="104" fill="#667085" font-family="Inter, Arial, sans-serif" font-size="15">Keep GitHub as the source of truth, then prepare skills for agents and registries.</text>
+  <g font-family="Inter, Arial, sans-serif">
+    <rect x="70" y="154" width="180" height="118" rx="12" fill="#FFFFFF" stroke="#D9DEE8"/>
+    <text x="96" y="190" fill="#1F2937" font-size="17" font-weight="700">1. Source</text>
+    <text x="96" y="222" fill="#667085" font-size="13">skills/**/SKILL.md</text>
+    <text x="96" y="246" fill="#667085" font-size="13">Git-reviewed changes</text>
+    <path d="M262 213H324" stroke="#98A2B3" stroke-width="2"/>
+    <path d="M316 205L324 213L316 221" stroke="#98A2B3" stroke-width="2"/>
+    <rect x="338" y="154" width="180" height="118" rx="12" fill="#FFFFFF" stroke="#D9DEE8"/>
+    <text x="364" y="190" fill="#1F2937" font-size="17" font-weight="700">2. Audit</text>
+    <text x="364" y="222" fill="#667085" font-size="13">secrets</text>
+    <text x="364" y="246" fill="#667085" font-size="13">risky instructions</text>
+    <path d="M530 213H592" stroke="#98A2B3" stroke-width="2"/>
+    <path d="M584 205L592 213L584 221" stroke="#98A2B3" stroke-width="2"/>
+    <rect x="606" y="154" width="180" height="118" rx="12" fill="#FFFFFF" stroke="#D9DEE8"/>
+    <text x="632" y="190" fill="#1F2937" font-size="17" font-weight="700">3. Profiles</text>
+    <text x="632" y="222" fill="#667085" font-size="13">frontend</text>
+    <text x="632" y="246" fill="#667085" font-size="13">backend / release</text>
+    <path d="M798 213H860" stroke="#98A2B3" stroke-width="2"/>
+    <path d="M852 205L860 213L852 221" stroke="#98A2B3" stroke-width="2"/>
+    <rect x="874" y="154" width="256" height="118" rx="12" fill="#FFFFFF" stroke="#D9DEE8"/>
+    <text x="900" y="190" fill="#1F2937" font-size="17" font-weight="700">4. Apply</text>
+    <text x="900" y="222" fill="#667085" font-size="13">Codex, Claude Code, Cursor</text>
+    <text x="900" y="246" fill="#667085" font-size="13">or a project-local target</text>
+    <rect x="204" y="342" width="250" height="118" rx="12" fill="#FFFFFF" stroke="#D9DEE8"/>
+    <text x="230" y="378" fill="#1F2937" font-size="17" font-weight="700">5. Drift check</text>
+    <text x="230" y="410" fill="#667085" font-size="13">Compare installed copies</text>
+    <text x="230" y="434" fill="#667085" font-size="13">against the source repo</text>
+    <rect x="746" y="342" width="250" height="118" rx="12" fill="#FFFFFF" stroke="#D9DEE8"/>
+    <text x="772" y="378" fill="#1F2937" font-size="17" font-weight="700">6. Release prep</text>
+    <text x="772" y="410" fill="#667085" font-size="13">GitHub checklist</text>
+    <text x="772" y="434" fill="#667085" font-size="13">ClawHub/OpenClaw readiness</text>
+    <path d="M1002 284V318C1002 331.255 991.255 342 978 342H940" stroke="#98A2B3" stroke-width="2"/>
+    <path d="M948 334L940 342L948 350" stroke="#98A2B3" stroke-width="2"/>
+    <path d="M746 401H470" stroke="#98A2B3" stroke-width="2"/>
+    <path d="M478 393L470 401L478 409" stroke="#98A2B3" stroke-width="2"/>
+    <path d="M329 342V306C329 292.745 318.255 282 305 282H160C146.745 282 136 271.255 136 258V154" stroke="#98A2B3" stroke-width="2" stroke-dasharray="6 6"/>
+    <text x="424" y="505" fill="#667085" font-size="13">SkillOps stays upstream: it governs source skills, then hands off to GitHub, registries, installers, and agent runtimes.</text>
+  </g>
+</svg>

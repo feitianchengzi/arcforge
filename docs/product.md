@@ -4,21 +4,24 @@
 
 SkillOps is a GitHub-first SkillOps workspace for indie developers and small teams.
 
-It helps users turn AI agent skills from personal notes into team-ready assets that are audited, versioned, grouped by project, and publishable from GitHub.
+It helps users turn AI agent skills from personal notes into team-ready assets that are audited, versioned, grouped by project, and prepared for private team sharing or public publishing.
+
+SkillOps is a pre-publish and team-governance layer. It is meant to sit upstream of GitHub releases, ClawHub/OpenClaw, `skillshare`, `npx skills`, and agent-specific runtimes rather than replace them.
 
 ## Target Users
 
 - individual developers who maintain multiple AI coding agents
 - small teams that share private skills without running a registry
-- open-source authors who publish Agent Skills from GitHub
+- open-source authors who prepare Agent Skills before publishing from GitHub or ClawHub
 - teams that need lightweight review and audit before adoption
 
 ## Non-Goals
 
 - hosted marketplace
+- public skill registry
 - full enterprise RBAC
 - cloud sync
-- replacing `skillshare`, `npx skills`, or agent-specific runtimes
+- replacing ClawHub/OpenClaw, `skillshare`, `npx skills`, or agent-specific runtimes
 - generic prompt library management
 
 ## Core Jobs
@@ -40,10 +43,17 @@ It helps users turn AI agent skills from personal notes into team-ready assets t
 
 ## Differentiation
 
-Most existing products focus on discovering, installing, and syncing skills. SkillOps focuses on the lifecycle between creation and adoption:
+Most existing products focus on public discovery, installation, registry hosting, or runtime integration. SkillOps focuses on the private lifecycle before a skill is adopted by a project or published to a public channel:
 
 ```text
 draft -> audit -> profile -> share -> publish -> maintain
 ```
 
 The product is intentionally GitHub-first because small teams already use GitHub for review, releases, issues, and access control.
+
+The closest adjacent systems should be treated as distribution targets or install adapters:
+
+- ClawHub/OpenClaw: public registry and ecosystem distribution.
+- GitHub releases: source-of-truth versioning and team review.
+- `skillshare` and `npx skills`: installation and sync paths.
+- Agent runtimes: execution behavior and local skill loading.
