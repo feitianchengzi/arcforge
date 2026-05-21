@@ -1,0 +1,16 @@
+metadata:
+  project: SkillOps
+  mode: light
+  source: ../_library/design-tokens.yaml
+
+overrides:
+  colors.surface.app: "#F3F5F8"
+  colors.surface.panel: "#FFFFFF"
+  colors.text.primary: "#202124"
+  colors.text.muted: "#667085"
+  colors.border.default: "#E5E7EB"
+  colors.brand.primary: "#1F6FEB"
+
+notes:
+  - 亮色主题是当前主主题，保留深色侧栏作为品牌和导航锚点。
+  - 主题覆盖只改变 token 值，不改变组件密度、圆角和信息层级。

@@ -1,0 +1,223 @@
+metadata:
+  project: SkillOps
+  group: workbench
+  source: ../design-tokens.yaml
+
+components:
+  AppShell:
+    role: 承载桌面工作台的全局框架，形成深色导航和浅色内容区的稳定布局。
+    anatomy:
+      - sidebar
+      - content
+      - topbar
+      - project_summary
+    variants:
+      desktop:
+        sidebar_width: 258
+        content_background: "{colors.surface.app}"
+        sidebar_background: "{colors.surface.sidebar}"
+        outer_radius: "{radius.preview}"
+    token_refs:
+      - colors.surface.app
+      - colors.surface.sidebar
+      - colors.border.chrome
+      - radius.preview
+    accessibility:
+      notes: 侧栏文字使用 inverse 或 sidebar_text，避免低对比灰色承载主要导航。
+
+  SidebarProjectItem:
+    role: 展示 Skill 项目入口和当前项目状态。
+    variants:
+      default:
+        background: "{colors.surface.sidebar_muted}"
+        border: "{colors.border.sidebar}"
+        foreground: "{colors.text.sidebar_text}"
+      active:
+        background: "{colors.surface.sidebar_active}"
+        border: "#3B4656"
+        foreground: "{colors.text.inverse}"
+    sizes:
+      md:
+        height: 46
+        padding: "{spacing.sm} {spacing.md}"
+        radius: "{radius.md}"
+        typography: "{typography.scale.control}"
+    states:
+      - default
+      - hover
+      - active
+      - error
+      - downloading
+
+  Button:
+    role: 承载明确命令，支持主操作、次操作、侧栏操作和图标按钮。
+    variants:
+      primary:
+        background: "{colors.brand.primary}"
+        foreground: "{colors.text.inverse}"
+        border: "{colors.brand.primary}"
+      secondary:
+        background: "{colors.surface.panel}"
+        foreground: "{colors.text.secondary}"
+        border: "{colors.border.strong}"
+      selected:
+        background: "{colors.surface.selected}"
+        foreground: "{colors.brand.primary_hover}"
+        border: "{colors.brand.primary}"
+      sidebar:
+        background: "transparent"
+        foreground: "{colors.text.sidebar_text}"
+        border: "transparent"
+    sizes:
+      sm:
+        height: 34
+        padding: "{spacing.sm}"
+        radius: "{radius.md}"
+        typography: "{typography.scale.control}"
+      md:
+        height: 38
+        padding: "{spacing.sm} {spacing.md}"
+        radius: "{radius.md}"
+        typography: "{typography.scale.control}"
+      lg:
+        height: 44
+        padding: "{spacing.md} {spacing.lg}"
+        radius: "{radius.md}"
+        typography: "{typography.scale.body}"
+    states:
+      - default
+      - hover
+      - active
+      - disabled
+      - focus
+
+  MetricCard:
+    role: 快速显示技能数量、审计分数、严重问题和警告数量。
+    variants:
+      neutral:
+        value_color: "{colors.text.primary}"
+      success:
+        value_color: "{colors.semantic.success}"
+      warning:
+        value_color: "{colors.semantic.warning_metric}"
+      danger:
+        value_color: "{colors.semantic.danger}"
+    size:
+      width: 184
+      height: 118
+      padding: "{spacing.xl}"
+      radius: "{radius.lg}"
+      border: "{colors.border.default}"
+      background: "{colors.surface.panel}"
+    typography:
+      label: "{typography.scale.control}"
+      value: "{typography.scale.metric}"
+    token_refs:
+      - colors.surface.panel
+      - colors.border.default
+      - typography.scale.metric
+      - radius.lg
+
+  Panel:
+    role: 承载下一步行动、风险发现、配置表单和发布输出。
+    variants:
+      default:
+        background: "{colors.surface.panel}"
+        border: "{colors.border.default}"
+        shadow: "{shadow.xs}"
+      subtle:
+        background: "{colors.surface.panel_subtle}"
+        border: "{colors.border.default}"
+        shadow: "{shadow.none}"
+    size:
+      padding: "{spacing.xl}"
+      radius: "{radius.lg}"
+    typography:
+      title: "{typography.scale.section_title}"
+      body: "{typography.scale.body}"
+
+  ActionRow:
+    role: 表达推荐下一步或可执行工作流入口。
+    variants:
+      default:
+        background: "{colors.surface.panel}"
+        foreground: "{colors.text.secondary}"
+        border: "{colors.border.default}"
+      selected:
+        background: "{colors.surface.selected}"
+        foreground: "{colors.brand.primary_hover}"
+        border: "{colors.border.selected}"
+    size:
+      height: 44
+      padding: "{spacing.md} {spacing.xl}"
+      radius: "{radius.md}"
+    states:
+      - default
+      - hover
+      - selected
+      - disabled
+
+  FindingRow:
+    role: 展示审计发现、发布风险和修复提示。
+    variants:
+      info:
+        background: "{colors.surface.panel_subtle}"
+        border: "{colors.border.default}"
+        code_color: "{colors.text.secondary}"
+      warning:
+        background: "{colors.semantic.warning_bg}"
+        border: "{colors.semantic.warning_border}"
+        code_color: "{colors.semantic.warning}"
+      critical:
+        background: "{colors.semantic.danger_bg}"
+        border: "#F2B8B5"
+        code_color: "{colors.semantic.danger}"
+    size:
+      min_height: 58
+      padding: "{spacing.md} {spacing.lg}"
+      radius: "{radius.md}"
+    typography:
+      code: "{typography.scale.control}"
+      message: "{typography.scale.caption}"
+
+  StatusBadge:
+    role: 展示环境、审计、同步和发布状态。
+    variants:
+      neutral:
+        background: "{colors.surface.panel_subtle}"
+        foreground: "{colors.text.secondary}"
+      success:
+        background: "{colors.semantic.success_bg}"
+        foreground: "{colors.semantic.success}"
+      warning:
+        background: "#FFF4D6"
+        foreground: "{colors.semantic.warning}"
+      selected:
+        background: "{colors.surface.selected}"
+        foreground: "{colors.brand.primary_hover}"
+    size:
+      padding: "{spacing.xs} {spacing.md}"
+      radius: "{radius.pill}"
+      typography: "{typography.scale.caption}"
+
+  Input:
+    role: 承载仓库地址、目标目录和配置字段。
+    variants:
+      default:
+        background: "{colors.surface.panel}"
+        foreground: "{colors.text.primary}"
+        border: "{colors.border.strong}"
+      sidebar:
+        background: "{colors.surface.sidebar_muted}"
+        foreground: "{colors.text.sidebar_text}"
+        border: "{colors.border.sidebar}"
+    size:
+      height: 40
+      padding: "{spacing.sm} {spacing.md}"
+      radius: "{radius.md}"
+      typography: "{typography.scale.body}"
+    states:
+      - default
+      - focus
+      - disabled
+      - error

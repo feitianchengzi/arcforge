@@ -1,0 +1,29 @@
+metadata:
+  project: SkillOps
+  source: docs/assets/skillops-overview.svg
+  tokens: ./design-tokens.yaml
+
+catalog:
+  workbench:
+    path: ./components/workbench-components.yaml
+    status: completed
+    description: 桌面工作台核心组件规格，覆盖 app shell、侧栏项目、按钮、指标卡、面板、行动行、发现项、徽标和输入框。
+
+component_groups:
+  workbench:
+    components:
+      - AppShell
+      - SidebarProjectItem
+      - Button
+      - MetricCard
+      - Panel
+      - ActionRow
+      - FindingRow
+      - StatusBadge
+      - Input
+    source_basis: 视觉策略要求界面呈现为低噪声工具工作台，优先支持项目健康、审计、profile、drift 和发布准备流程。
+
+usage_rules:
+  - 组件规格必须引用 design-tokens.yaml 中的 token，不直接创建新的业务色值。
+  - 业务页面结构由 arckit/interaction/ 维护，视觉组件只定义外观、状态、尺寸和视觉角色。
+  - 新增组件优先归入已有组件组；同组超过 15 个组件时再按类别拆分。

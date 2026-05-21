@@ -1,0 +1,21 @@
+metadata:
+  project: SkillOps
+  mode: dark
+  source: ../_library/design-tokens.yaml
+  status: planned
+
+overrides:
+  colors.surface.app: "#0F1218"
+  colors.surface.panel: "#15181F"
+  colors.surface.panel_subtle: "#1D2430"
+  colors.text.primary: "#F8FAFC"
+  colors.text.heading: "#FFFFFF"
+  colors.text.secondary: "#D8DEE9"
+  colors.text.muted: "#A7B0C0"
+  colors.border.default: "#2B313D"
+  colors.border.strong: "#3B4656"
+  colors.brand.primary: "#4D8DFF"
+
+notes:
+  - 深色主题保留同一信息层级和组件性格，仅调整对比与面板色。
+  - 警告、成功、危险色需要在实现前重新校验暗色对比度。

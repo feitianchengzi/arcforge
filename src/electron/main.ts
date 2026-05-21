@@ -28,6 +28,10 @@ async function createWindow(): Promise<void> {
     minWidth: 980,
     minHeight: 640,
     title: "SkillOps",
+    titleBarStyle: "hiddenInset",
+    trafficLightPosition: { x: 24, y: 22 },
+    backgroundColor: "#F3F5F8",
+    roundedCorners: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
