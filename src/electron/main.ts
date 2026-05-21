@@ -77,7 +77,7 @@ async function shareProject(root: string, remoteUrl: string, visibility: "privat
   const checkout = await prepareShareCheckout(target, messages);
   const checkoutRoot = checkout.root;
   const branch = checkout.branch;
-  const targetSubdir = shareTargetSubdir(target.subdir, targetMode, projectName || path.basename(root));
+  const targetSubdir = shareTargetSubdir(target.subdir, targetMode, projectName || path.basename(root), snapshot.config.sourceDir);
   const targetRoot = targetSubdir ? path.join(checkoutRoot, targetSubdir) : checkoutRoot;
   const installRef = remoteProjectRef(target.cloneUrl, branch, targetSubdir);
   const localConfig = normalizeConfig({
@@ -237,12 +237,23 @@ async function copyDirectory(source: string, target: string): Promise<void> {
   }
 }
 
-function shareTargetSubdir(baseSubdir: string, targetMode: ShareTargetMode, projectName: string): string {
+function shareTargetSubdir(baseSubdir: string, targetMode: ShareTargetMode, projectName: string, sourceDir = "skills"): string {
   const base = cleanRelativePath(baseSubdir);
-  if (targetMode === "direct") return base;
+  if (targetMode === "direct") return projectRootSubdir(base, sourceDir);
   const name = cleanRelativePath(projectName);
   if (!name) throw new Error("Project name is required when sharing under a project folder.");
   return [base, name].filter(Boolean).join("/");
+}
+
+function projectRootSubdir(baseSubdir: string, sourceDir: string): string {
+  const sourceParts = cleanRelativePath(sourceDir).split("/").filter(Boolean);
+  const baseParts = cleanRelativePath(baseSubdir).split("/").filter(Boolean);
+  if (sourceParts.length === 0 || baseParts.length < sourceParts.length) return baseSubdir;
+  const tail = baseParts.slice(-sourceParts.length);
+  if (tail.every((part, index) => part === sourceParts[index])) {
+    return baseParts.slice(0, -sourceParts.length).join("/");
+  }
+  return baseSubdir;
 }
 
 function cleanRelativePath(value: string): string {

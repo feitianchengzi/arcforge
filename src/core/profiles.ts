@@ -25,25 +25,26 @@ export async function applyProfile(
   await fs.mkdir(destination, { recursive: true });
   for (const skill of selected) {
     const target = path.join(destination, skill.name);
-    if (await pathExists(target)) {
-      skipped.push(skill.name);
-      continue;
-    }
-    await copyDirectory(skill.path, target);
+    await replaceDirectory(skill.path, target);
     copied.push(skill.name);
   }
 
   for (const asset of assets) {
     const target = path.join(destination, asset.name);
-    if (await pathExists(target)) {
-      skippedAssets.push(asset.name);
-      continue;
-    }
-    await copyDirectory(asset.path, target);
+    await replaceDirectory(asset.path, target);
     copiedAssets.push(asset.name);
   }
 
   return { profile: profileName, targetDir: destination, copied, skipped, copiedAssets, skippedAssets };
+}
+
+async function replaceDirectory(source: string, target: string): Promise<void> {
+  if (path.resolve(source) === path.resolve(target)) {
+    throw new Error(`Refusing to replace source directory: ${source}`);
+  }
+
+  await fs.rm(target, { recursive: true, force: true });
+  await copyDirectory(source, target);
 }
 
 export async function driftReport(

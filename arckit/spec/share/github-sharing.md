@@ -50,6 +50,8 @@ GitHub 共享功能围绕 GitHub-first 工作流生成发布计划，并把 Skil
 
 直接写入模式使用来源地址中解析出的仓库子目录作为 Skill 项目根路径。
 
+当直接写入模式的仓库子目录已经以当前 `sourceDir` 结尾时，系统把该子目录的父目录作为 Skill 项目根路径，避免生成重复的技能来源目录。例如来源地址为 `github.com/owner/repo/tree/main/definition/skills` 且 `sourceDir` 为 `skills` 时，系统写入 `definition/skills`，而不是 `definition/skills/skills`。
+
 按项目名写入模式会把项目名追加到解析出的仓库子目录之后。
 
 项目名为空且选择按项目名写入时，系统返回错误。
@@ -107,4 +109,3 @@ GitHub 共享功能围绕 GitHub-first 工作流生成发布计划，并把 Skil
 用户能够把当前 Skill 项目同步到指定 Git 仓库路径。
 
 共享仓库中的 README 能说明桌面端使用流程、配置组和 CLI 安装命令。
-
