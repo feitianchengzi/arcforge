@@ -10,7 +10,7 @@ import { scanWorkspace, initWorkspace } from "../core/workspace.js";
 import { saveConfig } from "../core/config.js";
 import { createPublishPlan } from "../core/publish.js";
 import { applyProfile, driftReport } from "../core/profiles.js";
-import type { DriftReport, EnvironmentStatus, ShareResult, ShareTargetMode, SkillOpsConfig } from "../shared/types.js";
+import type { DriftReport, EnvironmentStatus, ShareResult, ShareTargetMode, SharedAssetSummary, SkillOpsConfig, SkillSummary } from "../shared/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const execFileAsync = promisify(execFile);
@@ -89,7 +89,7 @@ async function shareProject(root: string, remoteUrl: string, visibility: "privat
   const publishedConfig = normalizeConfig({ ...localConfig, teamRepo: installRef });
 
   await saveConfig(root, localConfig);
-  await syncProjectToShareTarget(root, targetRoot, publishedConfig, visibility);
+  await syncProjectToShareTarget(root, targetRoot, publishedConfig, snapshot.skills, snapshot.assets, visibility);
   messages.push(`Shared project files to ${targetSubdir || "."}.`);
 
   await runGit(checkoutRoot, targetSubdir ? ["add", targetSubdir] : ["add", publishedConfig.sourceDir, "skillops.config.json", "README.md"], messages);
@@ -208,10 +208,18 @@ async function remoteBranches(root: string, messages: string[]): Promise<string[
   }
 }
 
-async function syncProjectToShareTarget(root: string, targetRoot: string, config: SkillOpsConfig, visibility: "private" | "public"): Promise<void> {
+async function syncProjectToShareTarget(root: string, targetRoot: string, config: SkillOpsConfig, skills: SkillSummary[], assets: SharedAssetSummary[], visibility: "private" | "public"): Promise<void> {
   await fs.mkdir(targetRoot, { recursive: true });
-  await fs.rm(path.join(targetRoot, config.sourceDir), { recursive: true, force: true });
-  await copyDirectory(path.join(root, config.sourceDir), path.join(targetRoot, config.sourceDir));
+  const sourceRoot = path.resolve(root, config.sourceDir);
+  const targetSourceRoot = path.join(targetRoot, config.sourceDir);
+  await fs.mkdir(targetSourceRoot, { recursive: true });
+  for (const item of [...skills, ...assets]) {
+    const relativePath = path.relative(sourceRoot, item.path);
+    if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+      throw new Error(`Refusing to share item outside source directory: ${item.path}`);
+    }
+    await replaceSharedEntry(item.path, path.join(targetSourceRoot, relativePath), targetSourceRoot);
+  }
   await fs.writeFile(path.join(targetRoot, "skillops.config.json"), `${JSON.stringify(config, null, 2)}\n`, "utf8");
   const sourceReadme = path.join(root, "README.md");
   const targetReadme = path.join(targetRoot, "README.md");
@@ -221,6 +229,20 @@ async function syncProjectToShareTarget(root: string, targetRoot: string, config
     await fs.writeFile(targetReadme, `# ${path.basename(root)}\n`, "utf8");
   }
   await writeSharingReadme(targetRoot, config, visibility);
+}
+
+async function replaceSharedEntry(source: string, target: string, targetRoot: string): Promise<void> {
+  const resolvedTarget = path.resolve(target);
+  const resolvedTargetRoot = path.resolve(targetRoot);
+  if (path.resolve(source) === resolvedTarget) {
+    throw new Error(`Refusing to replace source directory: ${source}`);
+  }
+  if (resolvedTarget !== resolvedTargetRoot && !resolvedTarget.startsWith(`${resolvedTargetRoot}${path.sep}`)) {
+    throw new Error(`Refusing to write outside source directory: ${target}`);
+  }
+
+  await fs.rm(resolvedTarget, { recursive: true, force: true });
+  await copyDirectory(source, resolvedTarget);
 }
 
 async function copyDirectory(source: string, target: string): Promise<void> {

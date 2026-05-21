@@ -11,7 +11,7 @@
 - profiles-sync/ 配置组同步技术：配置组选取、目录复制、哈希签名和漂移报告。✅
   - solution.md 配置组同步方案：技能选择、替换复制、共享资产同步和 SHA-256 漂移比较。✅ (81行)
 - sharing-ipc/ 共享与 IPC 技术：Electron preload 桥、GitHub 来源解析、共享工作树和 Git 执行。✅
-  - solution.md 共享与 IPC 方案：安全桥接、来源下载、发布计划、共享推送和差异窗口。✅ (119行)
+  - solution.md 共享与 IPC 方案：安全桥接、来源下载、发布计划、共享推送和差异窗口。✅ (123行)
 - cli/ 命令行技术：JSON 输出、命令参数、退出码和 core 模块复用。✅
   - solution.md CLI 方案：init、scan、audit、publish-plan、drift、apply-profile 命令边界。✅ (62行)
 - _shared/models/ 数据模型：跨领域 TypeScript DTO 与持久化配置结构。✅
