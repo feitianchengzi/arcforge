@@ -126,4 +126,4 @@ jobs:
           gh release create "$TAG" "${files[@]}" \
             --target "$GITHUB_SHA" \
             --title "SkillOps ${VERSION}" \
-            --notes "Manual package build for SkillOps ${VERSION}."
+            --generate-notes
