@@ -1,0 +1,70 @@
+metadata:
+  path: tech/_shared/models/SkillOpsConfig.yaml
+  domain: shared
+  entity_name: SkillOpsConfig
+  storage: skillops.config.json
+  owner: core/config
+  version: 1
+  created: 2026-05-21
+  updated: 2026-05-21
+type: object
+required:
+  - version
+  - sourceDir
+  - profiles
+properties:
+  version:
+    type: integer
+    const: 1
+    description: Workspace configuration schema version.
+  sourceDir:
+    type: string
+    minLength: 1
+    default: skills
+    description: Directory under the workspace root that contains skill folders and shared assets.
+  teamRepo:
+    type: string
+    nullable: true
+    description: GitHub or Git source used for team sharing and install references.
+  shareTargetMode:
+    type: string
+    enum:
+      - direct
+      - namedProject
+    nullable: true
+    description: Strategy used when writing the project into a shared repository.
+  shareProjectName:
+    type: string
+    nullable: true
+    description: Project folder name used when shareTargetMode is namedProject.
+  profiles:
+    type: array
+    items:
+      type: object
+      required:
+        - name
+        - skills
+        - targets
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          nullable: true
+        skills:
+          type: array
+          items:
+            type: string
+          description: Skill names or the wildcard value '*'.
+        targets:
+          type: array
+          items:
+            type: string
+          description: Agent target identifiers such as codex, claude, or cursor.
+validation:
+  default_profile:
+    description: Missing config files resolve to one default profile with wildcard skills.
+  normalized_save:
+    description: Saved config trims profile names, descriptions, teamRepo, and shareProjectName.
+

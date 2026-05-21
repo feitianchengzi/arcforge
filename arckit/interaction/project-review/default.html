@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>SkillOps Project Review Wireframe</title>
+  <link rel="stylesheet" href="../wireframe-style.css">
+</head>
+<body>
+  <main class="wireframe-canvas">
+    <section class="device-frame" data-kit="NavigationSplitView">
+      <div class="layout">
+        <aside class="sidebar" data-kit="List(sidebar)">
+          <div class="card">
+            <strong>SkillOps</strong>
+            <div class="muted">Current project fixed while reviewing</div>
+          </div>
+          <div class="list">
+            <div class="list-item"><strong>team-skills</strong><span>active</span></div>
+            <div class="list-item"><strong>example-skills</strong><span>92/100</span></div>
+          </div>
+        </aside>
+
+        <section class="content">
+          <header class="toolbar" data-kit="toolbar">
+            <div>
+              <h1>Project review</h1>
+              <div class="muted">Scan complete. Findings and lists reflect the same snapshot.</div>
+            </div>
+            <div class="actions">
+              <button class="button">Rescan</button>
+              <button class="button">Init config</button>
+            </div>
+          </header>
+
+          <nav class="tabs" data-kit="TabView">
+            <button class="tab active">Overview</button>
+            <button class="tab">Skills</button>
+            <button class="tab">Audit</button>
+          </nav>
+
+          <section class="grid three">
+            <div class="metric">
+              <div class="label">Skills</div>
+              <h2>12</h2>
+            </div>
+            <div class="metric">
+              <div class="label">Shared assets</div>
+              <h2>2</h2>
+            </div>
+            <div class="metric">
+              <div class="label">Audit score</div>
+              <h2>84/100</h2>
+            </div>
+          </section>
+
+          <section class="grid">
+            <section class="panel">
+              <h3>Next steps</h3>
+              <div class="list">
+                <button class="button">Review audit</button>
+                <button class="button">Configure profiles</button>
+                <button class="button">Manage destinations</button>
+                <button class="button">Prepare sharing</button>
+              </div>
+            </section>
+
+            <section class="panel" data-kit="List">
+              <h3>Target history</h3>
+              <div class="list">
+                <div class="list-item">
+                  <div>
+                    <strong>Codex</strong>
+                    <div class="muted">default profile</div>
+                  </div>
+                  <span>last applied</span>
+                </div>
+                <div class="empty-state" data-kit="ContentUnavailableView">
+                  No targets applied yet
+                </div>
+              </div>
+            </section>
+          </section>
+
+          <section class="grid">
+            <section class="panel" data-kit="List">
+              <h3>Skills</h3>
+              <div class="list">
+                <div class="list-item">
+                  <div>
+                    <strong>code-review</strong>
+                    <div class="muted">Review code changes before sharing.</div>
+                  </div>
+                  <span>skills/code-review</span>
+                </div>
+                <div class="list-item">
+                  <div>
+                    <strong>release-writer</strong>
+                    <div class="muted">Prepare release notes from changes.</div>
+                  </div>
+                  <span>skills/release-writer</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel" data-kit="List">
+              <h3>Shared assets</h3>
+              <div class="muted">Folders without SKILL.md sync with every profile.</div>
+              <div class="list">
+                <div class="list-item"><strong>references</strong><span>skills/references</span></div>
+                <div class="empty-state" data-kit="ContentUnavailableView">No shared asset folders</div>
+              </div>
+            </section>
+          </section>
+
+          <section class="panel wide" data-kit="List">
+            <h3>Audit findings</h3>
+            <div class="grid three">
+              <div class="metric"><div class="label">Score</div><h2>84/100</h2></div>
+              <div class="metric"><div class="label">Critical</div><h2>0</h2></div>
+              <div class="metric"><div class="label">Warnings</div><h2>2</h2></div>
+            </div>
+            <div class="list">
+              <div class="finding">
+                <div>
+                  <strong>quality.description_missing</strong>
+                  <div class="muted">SKILL.md frontmatter should include a clear description.</div>
+                  <div class="path-box">skills/example-review/SKILL.md:4</div>
+                </div>
+                <span>warning</span>
+              </div>
+              <div class="empty-state" data-kit="ContentUnavailableView">No findings</div>
+            </div>
+          </section>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
+

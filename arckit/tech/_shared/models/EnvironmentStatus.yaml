@@ -1,0 +1,42 @@
+metadata:
+  path: tech/_shared/models/EnvironmentStatus.yaml
+  domain: sharing-ipc
+  entity_name: EnvironmentStatus
+  storage: in_memory
+  owner: electron/main
+  version: 1
+  created: 2026-05-21
+  updated: 2026-05-21
+type: object
+required:
+  - platform
+  - arch
+  - git
+properties:
+  platform:
+    type: string
+    description: Node.js process platform.
+  arch:
+    type: string
+    description: Node.js process architecture.
+  git:
+    type: object
+    required:
+      - available
+    properties:
+      available:
+        type: boolean
+      version:
+        type: string
+        nullable: true
+        description: stdout from git --version when available.
+      error:
+        type: string
+        nullable: true
+        description: Error message when git execution fails.
+validation:
+  git_available:
+    description: version is present when available is true.
+  git_unavailable:
+    description: error is present when available is false.
+

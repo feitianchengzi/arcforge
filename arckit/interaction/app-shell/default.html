@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>SkillOps App Shell Wireframe</title>
+  <link rel="stylesheet" href="../wireframe-style.css">
+</head>
+<body>
+  <main class="wireframe-canvas">
+    <section class="device-frame" data-kit="NavigationSplitView">
+      <div class="layout">
+        <aside class="sidebar" data-kit="List(sidebar)">
+          <div class="card">
+            <strong>SkillOps</strong>
+            <div class="muted">GitHub-first skill project manager</div>
+          </div>
+
+          <button class="button primary">Add Skill project</button>
+
+          <section class="panel" data-kit="Section">
+            <div class="label">Skill projects</div>
+            <div class="list">
+              <div class="list-item">
+                <div>
+                  <strong>team-skills</strong>
+                  <div class="muted">12 skills / 84/100</div>
+                </div>
+                <span>remove</span>
+              </div>
+              <div class="list-item">
+                <div>
+                  <strong>pending-source</strong>
+                  <div class="muted">Downloading shared source</div>
+                </div>
+                <span>wait</span>
+              </div>
+              <div class="list-item">
+                <div>
+                  <strong>failed-source</strong>
+                  <div class="muted">Download failed</div>
+                </div>
+                <span>error</span>
+              </div>
+            </div>
+          </section>
+
+          <button class="button">Settings</button>
+        </aside>
+
+        <section class="content">
+          <header class="toolbar" data-kit="toolbar">
+            <div>
+              <h1>team-skills</h1>
+              <div class="muted">Found 12 skills. Audit score 84/100.</div>
+              <div class="status-strip">Runtime ready. git version 2.x</div>
+            </div>
+            <div class="actions">
+              <button class="button">Rescan</button>
+              <button class="button">Init config</button>
+            </div>
+          </header>
+
+          <section class="panel">
+            <div class="label">Project path</div>
+            <div class="path-box">/Users/user/team-skills</div>
+          </section>
+
+          <nav class="tabs" data-kit="TabView">
+            <button class="tab active">Overview</button>
+            <button class="tab">Skills</button>
+            <button class="tab">Profiles</button>
+            <button class="tab">Destinations</button>
+            <button class="tab">Share</button>
+            <button class="tab">Audit</button>
+          </nav>
+
+          <section class="grid three">
+            <div class="metric">
+              <div class="label">Skills</div>
+              <h2>12</h2>
+            </div>
+            <div class="metric">
+              <div class="label">Audit score</div>
+              <h2>84/100</h2>
+            </div>
+            <div class="metric">
+              <div class="label">Critical</div>
+              <h2>0</h2>
+            </div>
+          </section>
+
+          <section class="empty-state" data-kit="ContentUnavailableView">
+            <div>
+              <strong>No Skill project selected</strong>
+              <div class="muted">Choose or download a Skill project with a skills directory.</div>
+            </div>
+          </section>
+        </section>
+      </div>
+
+      <section class="modal-layer">
+        <div class="modal" data-kit="Sheet">
+          <div class="nav-row">
+            <div>
+              <strong>Add Skill project</strong>
+              <div class="muted">Open a local project or download a GitHub source.</div>
+            </div>
+            <button class="button">Close</button>
+          </div>
+
+          <div class="grid">
+            <section class="panel">
+              <h3>Local folder</h3>
+              <div class="empty-state">Repository with skills directory</div>
+              <button class="button primary">Open local folder</button>
+            </section>
+
+            <section class="panel">
+              <h3>GitHub source</h3>
+              <div class="field" data-kit="TextField">owner/repo or github.com/owner/repo/tree/main/path</div>
+              <button class="button primary">Download</button>
+            </section>
+          </div>
+
+          <div class="code-box">skills/
+  code-review/
+    SKILL.md
+  release-writer/
+    SKILL.md</div>
+        </div>
+      </section>
+    </section>
+  </main>
+</body>
+</html>
+

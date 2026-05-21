@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>SkillOps Sharing Wireframe</title>
+  <link rel="stylesheet" href="../wireframe-style.css">
+</head>
+<body>
+  <main class="wireframe-canvas">
+    <section class="device-frame" data-kit="NavigationSplitView">
+      <div class="layout">
+        <aside class="sidebar" data-kit="List(sidebar)">
+          <div class="card">
+            <strong>team-skills</strong>
+            <div class="muted">Share uses the active project snapshot.</div>
+          </div>
+          <div class="list">
+            <div class="list-item"><strong>Audit</strong><span>0 critical</span></div>
+            <div class="list-item"><strong>Share</strong><span>active</span></div>
+          </div>
+        </aside>
+
+        <section class="content">
+          <header class="toolbar" data-kit="toolbar">
+            <div>
+              <h1>Share</h1>
+              <div class="muted">Plan first, then write the Skill project to a Git repository.</div>
+            </div>
+            <button class="button">Rescan</button>
+          </header>
+
+          <section class="grid">
+            <section class="panel" data-kit="Form">
+              <h2>Share plan</h2>
+              <div class="form">
+                <div>
+                  <div class="label">Remote repository</div>
+                  <div class="field" data-kit="TextField">github.com/acme/team-skills/tree/main/projects</div>
+                </div>
+                <div>
+                  <div class="label">Target path</div>
+                  <div class="segmented" data-kit="Picker(segmented)">
+                    <button class="chip">Use configured path</button>
+                    <button class="chip active">Folder by project name</button>
+                  </div>
+                  <div class="muted">SkillOps writes this project into a named folder under the repository path.</div>
+                </div>
+                <div>
+                  <div class="label">Project folder name</div>
+                  <div class="field" data-kit="TextField">team-skills</div>
+                </div>
+                <div>
+                  <div class="label">Commit message</div>
+                  <div class="field" data-kit="TextField">Share SkillOps project</div>
+                </div>
+                <div class="actions">
+                  <button class="button">Private team repo</button>
+                  <button class="button">Public release</button>
+                  <button class="button primary">Share now</button>
+                </div>
+                <div class="status-strip">Sharing requires remote repository, target mode, and project name for named folders.</div>
+              </div>
+            </section>
+
+            <section class="panel" data-kit="ScrollView">
+              <h2>Plan output</h2>
+              <div class="empty-state" data-kit="ContentUnavailableView">No publish plan generated.</div>
+              <section class="card">
+                <h3>Desktop use flow</h3>
+                <div class="list">
+                  <div class="list-item">Open SkillOps and add the shared GitHub repository as a Skill project.</div>
+                  <div class="list-item">Review the audit report before installing skills.</div>
+                  <div class="list-item">Choose a profile and apply it to Codex, Claude, Cursor, or a project directory.</div>
+                </div>
+              </section>
+              <section class="card">
+                <h3>Install commands</h3>
+                <div class="code-box">skillshare install github.com/acme/team-skills/tree/main/projects/team-skills --track --all
+npx skills add github.com/acme/team-skills/tree/main/projects/team-skills</div>
+              </section>
+              <section class="card">
+                <h3>Checklist</h3>
+                <div class="list">
+                  <div class="list-item">12 skills discovered</div>
+                  <div class="list-item">Run audit and fix critical findings before sharing</div>
+                  <div class="list-item">Confirm repository permissions and reviewer owner</div>
+                </div>
+              </section>
+            </section>
+          </section>
+
+          <section class="panel wide" data-kit="ScrollView">
+            <h2>Share output</h2>
+            <div class="grid three">
+              <div class="metric"><div class="label">Branch</div><h2>main</h2></div>
+              <div class="metric"><div class="label">Committed</div><h2>yes</h2></div>
+              <div class="metric"><div class="label">Pushed</div><h2>yes</h2></div>
+            </div>
+            <div class="path-box">Target path: projects/team-skills</div>
+            <div class="code-box">git clone github.com/acme/team-skills
+git add projects/team-skills
+git commit -m Share SkillOps project
+git push -u origin main</div>
+          </section>
+        </section>
+      </div>
+
+      <section class="modal-layer">
+        <div class="modal" data-kit="Sheet">
+          <div class="nav-row">
+            <div>
+              <strong>GitHub source</strong>
+              <div class="muted">Download a shared Skill project into the local cache.</div>
+            </div>
+            <button class="button">Close</button>
+          </div>
+          <div class="form">
+            <div class="field" data-kit="TextField">owner/repo or github.com/owner/repo/tree/main/path</div>
+            <button class="button primary">Download</button>
+            <div class="status-strip">Downloading repository and preparing this Skill project.</div>
+            <div class="status-strip">Download failed. Check the repository URL and Git credentials.</div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+</body>
+</html>
+

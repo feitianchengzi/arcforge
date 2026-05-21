@@ -1,0 +1,75 @@
+metadata:
+  path: tech/_shared/models/AuditReport.yaml
+  domain: audit
+  entity_name: AuditReport
+  storage: in_memory
+  owner: core/audit
+  version: 1
+  created: 2026-05-21
+  updated: 2026-05-21
+type: object
+required:
+  - root
+  - generatedAt
+  - skills
+  - findings
+  - score
+properties:
+  root:
+    type: string
+    description: Absolute workspace root path.
+  generatedAt:
+    type: string
+    format: date-time
+  skills:
+    type: array
+    description: Skill summaries included in the audited workspace snapshot.
+    items:
+      type: object
+  findings:
+    type: array
+    items:
+      type: object
+      required:
+        - severity
+        - code
+        - message
+        - file
+      properties:
+        severity:
+          type: string
+          enum:
+            - info
+            - warning
+            - critical
+        code:
+          type: string
+          examples:
+            - secret.openai
+            - risk.auto_commit
+            - quality.frontmatter_missing
+        message:
+          type: string
+        file:
+          type: string
+          description: Workspace-relative file path.
+        line:
+          type: integer
+          minimum: 1
+          nullable: true
+  score:
+    type: integer
+    minimum: 0
+    maximum: 100
+state_machine:
+  scoring:
+    initial: 100
+    penalties:
+      critical: 25
+      warning: 8
+      info: 2
+    floor: 0
+validation:
+  severe_cli_exit:
+    description: CLI audit exits with code 2 when any finding has severity critical.
+

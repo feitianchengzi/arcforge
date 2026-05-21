@@ -1,0 +1,42 @@
+metadata:
+  path: tech/_shared/models/ShareResult.yaml
+  domain: sharing-ipc
+  entity_name: ShareResult
+  storage: in_memory
+  owner: electron/main
+  version: 1
+  created: 2026-05-21
+  updated: 2026-05-21
+type: object
+required:
+  - remoteUrl
+  - branch
+  - committed
+  - pushed
+  - messages
+properties:
+  remoteUrl:
+    type: string
+    description: Clone URL used for the shared repository.
+  branch:
+    type: string
+    description: Branch pushed to origin.
+  targetPath:
+    type: string
+    nullable: true
+    description: Repository-relative project path.
+  committed:
+    type: boolean
+    description: True when git status contained file changes and a commit was created.
+  pushed:
+    type: boolean
+    description: True when git push completes successfully.
+  messages:
+    type: array
+    items:
+      type: string
+    description: Git and sharing operation messages displayed in the desktop UI.
+validation:
+  no_changes:
+    description: committed is false when there are no file changes; pushed remains true after successful push.
+

@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>SkillOps Profiles and Targets Wireframe</title>
+  <link rel="stylesheet" href="../wireframe-style.css">
+</head>
+<body>
+  <main class="wireframe-canvas">
+    <section class="device-frame" data-kit="NavigationSplitView">
+      <div class="layout">
+        <aside class="sidebar" data-kit="List(sidebar)">
+          <div class="card">
+            <strong>team-skills</strong>
+            <div class="muted">Profiles and destinations share the same project context.</div>
+          </div>
+          <div class="list">
+            <div class="list-item"><strong>Overview</strong><span></span></div>
+            <div class="list-item"><strong>Profiles</strong><span>active</span></div>
+            <div class="list-item"><strong>Destinations</strong><span>active</span></div>
+          </div>
+        </aside>
+
+        <section class="content">
+          <header class="toolbar" data-kit="toolbar">
+            <div>
+              <h1>Profiles and destinations</h1>
+              <div class="muted">Draft profile edits stay local until saved. Target actions show the resolved path first.</div>
+            </div>
+            <button class="button">Rescan</button>
+          </header>
+
+          <section class="grid">
+            <section class="panel" data-kit="List(sidebar)">
+              <h2>Manage profiles</h2>
+              <div class="muted">Reusable skill sets for agents, projects, teams, or release workflows.</div>
+              <div class="list">
+                <button class="list-item">
+                  <strong>default</strong>
+                  <span>all skills</span>
+                </button>
+                <button class="list-item">
+                  <strong>frontend</strong>
+                  <span>4 skills</span>
+                </button>
+              </div>
+              <div class="actions">
+                <button class="button">New profile</button>
+                <button class="button">Delete profile</button>
+              </div>
+            </section>
+
+            <section class="panel" data-kit="Form">
+              <h2>default</h2>
+              <div class="form">
+                <div>
+                  <div class="label">Profile name</div>
+                  <div class="field" data-kit="TextField">default</div>
+                </div>
+                <div>
+                  <div class="label">Description</div>
+                  <div class="field" data-kit="TextField">Default skill set for local projects.</div>
+                </div>
+                <div>
+                  <div class="label">Included skills</div>
+                  <div class="list">
+                    <div class="list-item"><span>All skills</span><span>checked</span></div>
+                    <div class="list-item"><span>code-review</span><span>disabled</span></div>
+                    <div class="list-item"><span>release-writer</span><span>disabled</span></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="label">Profile targets</div>
+                  <div class="segmented">
+                    <button class="chip active">codex</button>
+                    <button class="chip active">claude</button>
+                    <button class="chip active">cursor</button>
+                  </div>
+                </div>
+                <div class="actions">
+                  <button class="button">Cancel</button>
+                  <button class="button primary">Save profiles</button>
+                </div>
+              </div>
+            </section>
+          </section>
+
+          <section class="grid">
+            <section class="panel" data-kit="List">
+              <h2>Target history</h2>
+              <div class="list">
+                <div class="list-item">
+                  <div>
+                    <strong>Codex</strong>
+                    <div class="muted">team-skills / default</div>
+                    <div class="path-box">/Users/user/.codex/skills</div>
+                  </div>
+                  <span>Last applied</span>
+                </div>
+                <div class="empty-state" data-kit="ContentUnavailableView">No targets applied yet</div>
+              </div>
+
+              <h2>Drift</h2>
+              <div class="list">
+                <div class="list-item">
+                  <div>
+                    <strong>code-review</strong>
+                    <div class="muted">0 missing / 1 changed / 0 extra</div>
+                  </div>
+                  <span>changed</span>
+                </div>
+                <div class="list-item">
+                  <div>
+                    <strong>shared-assets</strong>
+                    <div class="muted">0 missing / 0 changed / 0 extra</div>
+                  </div>
+                  <span>same</span>
+                </div>
+                <div class="empty-state" data-kit="ContentUnavailableView">Run drift check to compare selected profile with target directory.</div>
+              </div>
+              <button class="button">View full diff</button>
+            </section>
+
+            <section class="panel" data-kit="Form">
+              <h2>Destination</h2>
+              <div class="form">
+                <div>
+                  <div class="label">Source</div>
+                  <div class="path-box">team-skills / /Users/user/team-skills</div>
+                </div>
+                <div>
+                  <div class="label">Profile</div>
+                  <div class="select" data-kit="Picker(menu)">default</div>
+                  <div class="muted">Ready to apply 12 skills from the default profile.</div>
+                </div>
+                <div>
+                  <div class="label">Destination</div>
+                  <div class="segmented" data-kit="Picker(segmented)">
+                    <button class="chip active">Agent targets</button>
+                    <button class="chip">Project target</button>
+                    <button class="chip">Custom target</button>
+                  </div>
+                </div>
+                <div>
+                  <div class="label">Agent targets</div>
+                  <div class="select" data-kit="Picker(menu)">Codex - /Users/user/.codex/skills</div>
+                </div>
+                <div>
+                  <div class="label">Target directory</div>
+                  <div class="path-box">/Users/user/.codex/skills</div>
+                </div>
+                <div class="actions">
+                  <button class="button">Check drift</button>
+                  <button class="button primary">Apply</button>
+                </div>
+                <div class="status-strip">Copied 2 skills and 1 assets. Skipped 10 skills and 1 assets.</div>
+              </div>
+            </section>
+          </section>
+
+          <section class="window wide" data-kit="Window">
+            <div class="window-header">
+              <strong>SkillOps Drift Diff</strong>
+              <button class="button">Close</button>
+            </div>
+            <div class="panel">
+              <div class="status-strip">Profile: default · Target: /Users/user/.codex/skills · Changed 1 · Same 11</div>
+              <div class="table" data-kit="Table">
+                <div class="table-head">
+                  <strong>Status</strong>
+                  <strong>File</strong>
+                  <strong>Source SHA256</strong>
+                  <strong>Target SHA256</strong>
+                </div>
+                <div class="table-row">
+                  <span>changed</span>
+                  <span>SKILL.md</span>
+                  <span>abc123def456</span>
+                  <span>def456abc123</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
+

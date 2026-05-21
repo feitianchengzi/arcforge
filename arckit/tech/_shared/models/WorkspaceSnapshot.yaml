@@ -1,0 +1,69 @@
+metadata:
+  path: tech/_shared/models/WorkspaceSnapshot.yaml
+  domain: shared
+  entity_name: WorkspaceSnapshot
+  storage: in_memory
+  owner: core/workspace
+  version: 1
+  created: 2026-05-21
+  updated: 2026-05-21
+type: object
+required:
+  - root
+  - config
+  - skills
+  - assets
+  - audit
+properties:
+  root:
+    type: string
+    description: Absolute workspace root path.
+  config:
+    $ref: "./SkillOpsConfig.yaml"
+  skills:
+    type: array
+    items:
+      type: object
+      required:
+        - name
+        - description
+        - path
+        - relativePath
+        - targets
+        - hasReferences
+        - hasScripts
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        path:
+          type: string
+        relativePath:
+          type: string
+        targets:
+          type: array
+          items:
+            type: string
+        version:
+          type: string
+          nullable: true
+        hasReferences:
+          type: boolean
+        hasScripts:
+          type: boolean
+  assets:
+    type: array
+    items:
+      type: object
+      required: [name, path, relativePath]
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        relativePath:
+          type: string
+  audit:
+    $ref: "./AuditReport.yaml"
+

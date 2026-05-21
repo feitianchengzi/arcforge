@@ -1,0 +1,34 @@
+metadata:
+  path: tech/_shared/contracts/workspace-scan.yaml
+  domain: workspace
+  owner: electron/main
+  version: 1
+  created: 2026-05-21
+  updated: 2026-05-21
+endpoint:
+  transport: electron-ipc
+  channel: workspace:scan
+  method_name: scanWorkspace
+  summary: Scan a SkillOps workspace.
+  auth_required: false
+request:
+  args:
+    - name: root
+      type: string
+      required: true
+      description: Absolute or resolvable workspace root path.
+responses:
+  success:
+    schema:
+      $ref: "../models/WorkspaceSnapshot.yaml"
+  errors:
+    - code: CONFIG_PARSE_FAILED
+      message: Workspace config JSON cannot be parsed.
+    - code: FILE_READ_FAILED
+      message: Required workspace file cannot be read.
+business_logic:
+  flow:
+    - Load workspace config or default config.
+    - Discover skills and shared assets.
+    - Run audit and return a combined snapshot.
+

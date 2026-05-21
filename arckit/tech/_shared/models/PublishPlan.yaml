@@ -1,0 +1,48 @@
+metadata:
+  path: tech/_shared/models/PublishPlan.yaml
+  domain: sharing-ipc
+  entity_name: PublishPlan
+  storage: in_memory
+  owner: core/publish
+  version: 1
+  created: 2026-05-21
+  updated: 2026-05-21
+type: object
+required:
+  - root
+  - repositoryName
+  - visibility
+  - files
+  - installCommands
+  - checklist
+properties:
+  root:
+    type: string
+  repositoryName:
+    type: string
+    description: Basename of workspace root.
+  visibility:
+    type: string
+    enum:
+      - private
+      - public
+  files:
+    type: array
+    items:
+      type: string
+    description: Workspace-relative files under the configured sourceDir.
+  installCommands:
+    type: array
+    items:
+      type: string
+    description: Commands for skillshare and npx skills installation.
+  checklist:
+    type: array
+    items:
+      type: string
+validation:
+  install_reference:
+    description: Uses config.teamRepo when present, otherwise github.com/<owner>/<repositoryName>.
+  visibility_check:
+    description: Public visibility includes private information removal guidance; private visibility includes permissions guidance.
+

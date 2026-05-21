@@ -1,0 +1,40 @@
+metadata:
+  path: tech/_shared/contracts/profile-drift.yaml
+  domain: profiles-sync
+  owner: electron/main
+  version: 1
+  created: 2026-05-21
+  updated: 2026-05-21
+endpoint:
+  transport: electron-ipc
+  channel: profile:drift
+  method_name: driftReport
+  summary: Compare selected profile skills and shared assets against a target directory.
+  auth_required: false
+request:
+  args:
+    - name: root
+      type: string
+      required: true
+    - name: profile
+      type: string
+      required: true
+    - name: targetDir
+      type: string
+      required: true
+responses:
+  success:
+    schema:
+      $ref: "../models/DriftReport.yaml"
+  errors:
+    - code: PROFILE_NOT_FOUND
+      message: Profile not found.
+    - code: FILE_HASH_FAILED
+      message: A compared file cannot be read for hashing.
+business_logic:
+  flow:
+    - Scan workspace.
+    - Select profile skills and all shared assets.
+    - Build SHA-256 directory signatures.
+    - Return missing, changed, extra, and same statuses.
+

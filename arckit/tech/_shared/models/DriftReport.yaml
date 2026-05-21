@@ -1,0 +1,98 @@
+metadata:
+  path: tech/_shared/models/DriftReport.yaml
+  domain: profiles-sync
+  entity_name: DriftReport
+  storage: in_memory
+  owner: core/profiles
+  version: 1
+  created: 2026-05-21
+  updated: 2026-05-21
+type: object
+required:
+  - profile
+  - targetDir
+  - items
+properties:
+  profile:
+    type: string
+    description: Profile name used for skill selection.
+  targetDir:
+    type: string
+    description: Absolute target directory path.
+  items:
+    type: array
+    items:
+      type: object
+      required:
+        - skill
+        - status
+        - sourcePath
+        - targetPath
+      properties:
+        skill:
+          type: string
+          description: Skill or shared asset name.
+        kind:
+          type: string
+          enum:
+            - skill
+            - asset
+          nullable: true
+        status:
+          type: string
+          enum:
+            - missing
+            - changed
+            - same
+        sourcePath:
+          type: string
+        targetPath:
+          type: string
+        files:
+          type: array
+          items:
+            type: object
+            required:
+              - path
+              - status
+            properties:
+              path:
+                type: string
+                description: POSIX-style relative file path inside compared directory.
+              status:
+                type: string
+                enum:
+                  - missing
+                  - changed
+                  - extra
+              sourceHash:
+                type: string
+                nullable: true
+                description: SHA-256 hash for source file content.
+              targetHash:
+                type: string
+                nullable: true
+                description: SHA-256 hash for target file content.
+        summary:
+          type: object
+          nullable: true
+          required:
+            - missing
+            - changed
+            - extra
+          properties:
+            missing:
+              type: integer
+              minimum: 0
+            changed:
+              type: integer
+              minimum: 0
+            extra:
+              type: integer
+              minimum: 0
+validation:
+  same_status:
+    description: Item status is same only when files is empty.
+  missing_target:
+    description: Missing target directory produces missing file entries for all source files.
+

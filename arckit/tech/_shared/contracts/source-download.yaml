@@ -1,0 +1,39 @@
+metadata:
+  path: tech/_shared/contracts/source-download.yaml
+  domain: sharing-ipc
+  owner: electron/main
+  version: 1
+  created: 2026-05-21
+  updated: 2026-05-21
+endpoint:
+  transport: electron-ipc
+  channel: source:download
+  method_name: downloadSource
+  summary: Clone or update a Git source and return the local Skill project root.
+  auth_required: false
+request:
+  args:
+    - name: remoteUrl
+      type: string
+      required: true
+responses:
+  success:
+    schema:
+      type: string
+      description: Local project root path after clone, pull, checkout, and subdirectory resolution.
+  errors:
+    - code: REMOTE_URL_REQUIRED
+      message: Remote URL is required.
+    - code: REMOTE_URL_INVALID
+      message: Use a GitHub path or full Git URL.
+    - code: GIT_COMMAND_FAILED
+      message: Git clone, pull, or checkout failed.
+    - code: SUBDIRECTORY_NOT_FOUND
+      message: Subdirectory not found after clone.
+business_logic:
+  flow:
+    - Parse remote source.
+    - Clone into app data sources cache or pull existing cache.
+    - Checkout ref when present.
+    - Return requested subdirectory or repository root.
+

@@ -1,0 +1,37 @@
+metadata:
+  path: tech/_shared/contracts/publish-plan.yaml
+  domain: sharing-ipc
+  owner: electron/main
+  version: 1
+  created: 2026-05-21
+  updated: 2026-05-21
+endpoint:
+  transport: electron-ipc
+  channel: publish:plan
+  method_name: createPublishPlan
+  summary: Generate a GitHub-first publish plan without modifying a remote repository.
+  auth_required: false
+request:
+  args:
+    - name: root
+      type: string
+      required: true
+    - name: visibility
+      type: string
+      required: true
+      enum:
+        - private
+        - public
+responses:
+  success:
+    schema:
+      $ref: "../models/PublishPlan.yaml"
+  errors:
+    - code: SOURCE_DIR_READ_FAILED
+      message: Configured sourceDir cannot be listed.
+business_logic:
+  flow:
+    - Scan workspace.
+    - List files under sourceDir.
+    - Build install commands and visibility-specific checklist.
+

@@ -1,0 +1,47 @@
+metadata:
+  path: tech/_shared/models/ApplyProfileResult.yaml
+  domain: profiles-sync
+  entity_name: ApplyProfileResult
+  storage: in_memory
+  owner: core/profiles
+  version: 1
+  created: 2026-05-21
+  updated: 2026-05-21
+type: object
+required:
+  - profile
+  - targetDir
+  - copied
+  - skipped
+properties:
+  profile:
+    type: string
+  targetDir:
+    type: string
+    description: Absolute target directory path.
+  copied:
+    type: array
+    items:
+      type: string
+    description: Skill names copied to the target.
+  skipped:
+    type: array
+    items:
+      type: string
+    description: Skill names skipped because target directories already exist.
+  copiedAssets:
+    type: array
+    nullable: true
+    items:
+      type: string
+    description: Shared asset names copied to the target.
+  skippedAssets:
+    type: array
+    nullable: true
+    items:
+      type: string
+    description: Shared asset names skipped because target directories already exist.
+validation:
+  non_overwrite:
+    description: Existing target directories are skipped and never overwritten by apply-profile.
+

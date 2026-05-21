@@ -1,0 +1,61 @@
+metadata:
+  path: tech/_shared/contracts/publish-share.yaml
+  domain: sharing-ipc
+  owner: electron/main
+  version: 1
+  created: 2026-05-21
+  updated: 2026-05-21
+endpoint:
+  transport: electron-ipc
+  channel: publish:share
+  method_name: shareProject
+  summary: Write the current SkillOps project to a Git repository and push the target branch.
+  auth_required: false
+request:
+  args:
+    - name: root
+      type: string
+      required: true
+    - name: remoteUrl
+      type: string
+      required: true
+    - name: visibility
+      type: string
+      required: true
+      enum:
+        - private
+        - public
+    - name: message
+      type: string
+      required: true
+    - name: targetMode
+      type: string
+      required: true
+      enum:
+        - direct
+        - namedProject
+    - name: projectName
+      type: string
+      required: true
+responses:
+  success:
+    schema:
+      $ref: "../models/ShareResult.yaml"
+  errors:
+    - code: REMOTE_URL_REQUIRED
+      message: Remote URL is required.
+    - code: REMOTE_URL_INVALID
+      message: Remote URL cannot be parsed.
+    - code: PROJECT_NAME_REQUIRED
+      message: Project name is required when sharing under a project folder.
+    - code: GIT_COMMAND_FAILED
+      message: Clone, fetch, checkout, pull, commit, or push failed.
+business_logic:
+  flow:
+    - Parse remote source and target subdirectory.
+    - Scan workspace and save local sharing settings.
+    - Prepare shared checkout under app data.
+    - Copy sourceDir, config, and README into target path.
+    - Commit changes when git status is non-empty.
+    - Push branch to origin.
+

@@ -1,0 +1,26 @@
+metadata:
+  path: tech/_shared/contracts/system-environment.yaml
+  domain: sharing-ipc
+  owner: electron/main
+  version: 1
+  created: 2026-05-21
+  updated: 2026-05-21
+endpoint:
+  transport: electron-ipc
+  channel: system:environment
+  method_name: getEnvironmentStatus
+  summary: Report platform, architecture, and Git availability.
+  auth_required: false
+request:
+  args: []
+responses:
+  success:
+    schema:
+      $ref: "../models/EnvironmentStatus.yaml"
+  errors: []
+business_logic:
+  flow:
+    - Execute git --version.
+    - Return available true with version on success.
+    - Return available false with error on failure.
+
