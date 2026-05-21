@@ -1,190 +1,271 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
-  <title>SkillOps Profiles and Targets Wireframe</title>
-  <link rel="stylesheet" href="../wireframe-style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profiles Targets - 线框图</title>
+    <link rel="stylesheet" href="../wireframe-style.css">
 </head>
 <body>
-  <main class="wireframe-canvas">
-    <section class="device-frame" data-kit="NavigationSplitView">
-      <div class="layout">
-        <aside class="sidebar" data-kit="List(sidebar)">
-          <div class="card">
-            <strong>team-skills</strong>
-            <div class="muted">Profiles and destinations share the same project context.</div>
-          </div>
-          <div class="list">
-            <div class="list-item"><strong>Overview</strong><span></span></div>
-            <div class="list-item"><strong>Profiles</strong><span>active</span></div>
-            <div class="list-item"><strong>Destinations</strong><span>active</span></div>
-          </div>
-        </aside>
-
-        <section class="content">
-          <header class="toolbar" data-kit="toolbar">
-            <div>
-              <h1>Profiles and destinations</h1>
-              <div class="muted">Draft profile edits stay local until saved. Target actions show the resolved path first.</div>
+    <div class="wireframe-container">
+        <header>
+            <h1>Profiles Targets</h1>
+            <div class="meta-info">
+                <div>View: <code>ProfilesTargets</code></div>
+                <div>平台: <strong>macOS</strong></div>
             </div>
-            <button class="button">Rescan</button>
-          </header>
+        </header>
 
-          <section class="grid">
-            <section class="panel" data-kit="List(sidebar)">
-              <h2>Manage profiles</h2>
-              <div class="muted">Reusable skill sets for agents, projects, teams, or release workflows.</div>
-              <div class="list">
-                <button class="list-item">
-                  <strong>default</strong>
-                  <span>all skills</span>
-                </button>
-                <button class="list-item">
-                  <strong>frontend</strong>
-                  <span>4 skills</span>
-                </button>
-              </div>
-              <div class="actions">
-                <button class="button">New profile</button>
-                <button class="button">Delete profile</button>
-              </div>
-            </section>
-
-            <section class="panel" data-kit="Form">
-              <h2>default</h2>
-              <div class="form">
-                <div>
-                  <div class="label">Profile name</div>
-                  <div class="field" data-kit="TextField">default</div>
+        <details open>
+            <summary>加载中：保存配置、应用或检查漂移</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>用户保存配置组、应用配置组或执行漂移检查。
                 </div>
-                <div>
-                  <div class="label">Description</div>
-                  <div class="field" data-kit="TextField">Default skill set for local projects.</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="NavigationSplitView">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">↻</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-button">Apply</div>
+                        </div>
+                        <div class="split-h">
+                            <div class="sidebar" data-kit="List(sidebar)">
+                                <div class="sidebar-section">Profiles</div>
+                                <div class="list-item"><div class="list-item-title">default</div><span class="badge active">saving</span></div>
+                                <div class="list-item"><div class="list-item-title">frontend</div><span class="badge">4 skills</span></div>
+                            </div>
+                            <div class="split-divider-h"></div>
+                            <div class="panel" data-kit="Form">
+                                <div class="panel-header">Destination</div>
+                                <div class="content-area">
+                                    <div class="placeholder-box">
+                                        <div class="spinner"></div>
+                                        <p>Applying selected profile and checking target drift.</p>
+                                    </div>
+                                    <div class="group-box">
+                                        <div class="group-box-title">Resolved target directory</div>
+                                        <div class="placeholder-box">/Users/user/.codex/skills</div>
+                                    </div>
+                                    <div class="progress-bar"><div class="progress-fill"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                  <div class="label">Included skills</div>
-                  <div class="list">
-                    <div class="list-item"><span>All skills</span><span>checked</span></div>
-                    <div class="list-item"><span>code-review</span><span>disabled</span></div>
-                    <div class="list-item"><span>release-writer</span><span>disabled</span></div>
-                  </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>Profile sidebar</li>
+                        <li>Form loading placeholder</li>
+                        <li>resolved target path box</li>
+                    </ul>
                 </div>
-                <div>
-                  <div class="label">Profile targets</div>
-                  <div class="segmented">
-                    <button class="chip active">codex</button>
-                    <button class="chip active">claude</button>
-                    <button class="chip active">cursor</button>
-                  </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>保存中</code> → 保留草稿字段，完成后刷新快照。</div>
+                    <div class="interaction-item"><code>应用中</code> → 保留目标路径，完成后展示复制和跳过结果。</div>
                 </div>
-                <div class="actions">
-                  <button class="button">Cancel</button>
-                  <button class="button primary">Save profiles</button>
-                </div>
-              </div>
-            </section>
-          </section>
-
-          <section class="grid">
-            <section class="panel" data-kit="List">
-              <h2>Target history</h2>
-              <div class="list">
-                <div class="list-item">
-                  <div>
-                    <strong>Codex</strong>
-                    <div class="muted">team-skills / default</div>
-                    <div class="path-box">/Users/user/.codex/skills</div>
-                  </div>
-                  <span>Last applied</span>
-                </div>
-                <div class="empty-state" data-kit="ContentUnavailableView">No targets applied yet</div>
-              </div>
-
-              <h2>Drift</h2>
-              <div class="list">
-                <div class="list-item">
-                  <div>
-                    <strong>code-review</strong>
-                    <div class="muted">0 missing / 1 changed / 0 extra</div>
-                  </div>
-                  <span>changed</span>
-                </div>
-                <div class="list-item">
-                  <div>
-                    <strong>shared-assets</strong>
-                    <div class="muted">0 missing / 0 changed / 0 extra</div>
-                  </div>
-                  <span>same</span>
-                </div>
-                <div class="empty-state" data-kit="ContentUnavailableView">Run drift check to compare selected profile with target directory.</div>
-              </div>
-              <button class="button">View full diff</button>
-            </section>
-
-            <section class="panel" data-kit="Form">
-              <h2>Destination</h2>
-              <div class="form">
-                <div>
-                  <div class="label">Source</div>
-                  <div class="path-box">team-skills / /Users/user/team-skills</div>
-                </div>
-                <div>
-                  <div class="label">Profile</div>
-                  <div class="select" data-kit="Picker(menu)">default</div>
-                  <div class="muted">Ready to apply 12 skills from the default profile.</div>
-                </div>
-                <div>
-                  <div class="label">Destination</div>
-                  <div class="segmented" data-kit="Picker(segmented)">
-                    <button class="chip active">Agent targets</button>
-                    <button class="chip">Project target</button>
-                    <button class="chip">Custom target</button>
-                  </div>
-                </div>
-                <div>
-                  <div class="label">Agent targets</div>
-                  <div class="select" data-kit="Picker(menu)">Codex - /Users/user/.codex/skills</div>
-                </div>
-                <div>
-                  <div class="label">Target directory</div>
-                  <div class="path-box">/Users/user/.codex/skills</div>
-                </div>
-                <div class="actions">
-                  <button class="button">Check drift</button>
-                  <button class="button primary">Apply</button>
-                </div>
-                <div class="status-strip">Copied 2 skills and 1 assets. Skipped 10 skills and 1 assets.</div>
-              </div>
-            </section>
-          </section>
-
-          <section class="window wide" data-kit="Window">
-            <div class="window-header">
-              <strong>SkillOps Drift Diff</strong>
-              <button class="button">Close</button>
             </div>
-            <div class="panel">
-              <div class="status-strip">Profile: default · Target: /Users/user/.codex/skills · Changed 1 · Same 11</div>
-              <div class="table" data-kit="Table">
-                <div class="table-head">
-                  <strong>Status</strong>
-                  <strong>File</strong>
-                  <strong>Source SHA256</strong>
-                  <strong>Target SHA256</strong>
+        </details>
+
+        <details>
+            <summary>成功：配置组编辑和目标应用可用</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>当前项目已扫描，配置组、技能列表和默认目标可用。
                 </div>
-                <div class="table-row">
-                  <span>changed</span>
-                  <span>SKILL.md</span>
-                  <span>abc123def456</span>
-                  <span>def456abc123</span>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="NavigationSplitView">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">＋</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-group">
+                                <div class="toolbar-button">Save</div>
+                                <div class="toolbar-button">Drift</div>
+                                <div class="toolbar-button">Apply</div>
+                            </div>
+                        </div>
+                        <div class="split-h">
+                            <div class="sidebar" data-kit="List(sidebar)">
+                                <div class="sidebar-section">Profiles</div>
+                                <div class="list-item"><div class="list-item-title">default</div><span class="badge active">all</span></div>
+                                <div class="list-item"><div class="list-item-title">frontend</div><span class="badge">4</span></div>
+                                <div class="list-item"><div class="list-item-title">release</div><span class="badge">2</span></div>
+                                <div class="button">New profile</div>
+                                <div class="button">Delete profile</div>
+                            </div>
+                            <div class="split-divider-h"></div>
+                            <div class="split-v">
+                                <div class="panel" data-kit="Form">
+                                    <div class="panel-header">Profile draft</div>
+                                    <div class="content-area">
+                                        <div class="input-field">Profile name: default</div>
+                                        <div class="input-field">Description: Default skill set</div>
+                                        <div class="toggle-row"><span>All skills</span><span class="badge active">on</span></div>
+                                        <div class="group-box">
+                                            <div class="group-box-title">Profile targets</div>
+                                            <span class="badge active">codex</span>
+                                            <span class="badge active">claude</span>
+                                            <span class="badge active">cursor</span>
+                                        </div>
+                                        <div class="button primary">Save profiles</div>
+                                    </div>
+                                </div>
+                                <div class="split-divider-v"></div>
+                                <div class="panel" data-kit="Form">
+                                    <div class="panel-header">Destination and drift</div>
+                                    <div class="content-area">
+                                        <div class="group-box">
+                                            <div class="group-box-title">Source</div>
+                                            <div class="placeholder-box">team-skills / default / 12 skills</div>
+                                        </div>
+                                        <div class="picker" data-kit="Picker(segmented)">
+                                            <span>Agent targets</span><span>Project target</span><span>Custom target</span>
+                                        </div>
+                                        <div class="picker" data-kit="Picker(menu)">Codex - /Users/user/.codex/skills</div>
+                                        <div class="placeholder-box">Target: /Users/user/.codex/skills</div>
+                                        <div class="button">Check drift</div>
+                                        <div class="button primary">Apply</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-              </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>Form for profile draft</li>
+                        <li>Picker(segmented) for destination type</li>
+                        <li>target path preview and action buttons</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>All skills</code> → 单项技能选择禁用。</div>
+                    <div class="interaction-item"><code>Apply</code> → 非覆盖复制，随后自动刷新漂移报告。</div>
+                </div>
             </div>
-          </section>
-        </section>
-      </div>
-    </section>
-  </main>
+        </details>
+
+        <details>
+            <summary>空状态：无目标历史或尚未检查漂移</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>用户尚未应用配置组，或尚未对当前目标执行漂移检查。
+                </div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="NavigationSplitView">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">＋</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-button">Check drift</div>
+                        </div>
+                        <div class="split-h">
+                            <div class="sidebar" data-kit="List(sidebar)">
+                                <div class="sidebar-section">Targets</div>
+                                <div class="empty-state" data-kit="ContentUnavailableView">
+                                    <div class="icon-placeholder large">0</div>
+                                    <p>No targets applied yet.</p>
+                                </div>
+                            </div>
+                            <div class="split-divider-h"></div>
+                            <div class="panel" data-kit="DetailView">
+                                <div class="panel-header">Drift</div>
+                                <div class="content-area">
+                                    <div class="empty-state" data-kit="ContentUnavailableView">
+                                        <div class="icon-placeholder large">D</div>
+                                        <p>Run drift check to compare selected profile with target directory.</p>
+                                    </div>
+                                    <div class="group-box">
+                                        <div class="group-box-title">Target directory</div>
+                                        <div class="placeholder-box">/Users/user/.codex/skills</div>
+                                        <div class="button primary">Check drift</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>ContentUnavailableView for target history</li>
+                        <li>ContentUnavailableView for drift</li>
+                        <li>target path preview</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>Check drift</code> → 生成 DriftReport 并替换空状态。</div>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>错误与差异：配置失败、目标失败或存在漂移</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>配置保存失败、目标写入失败、哈希读取失败或漂移报告存在差异。
+                </div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="NavigationSplitView">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">↻</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-button">View diff</div>
+                        </div>
+                        <div class="split-h">
+                            <div class="sidebar" data-kit="List(sidebar)">
+                                <div class="sidebar-section">Drift items</div>
+                                <div class="list-item"><div class="list-item-title">code-review</div><span class="badge">changed</span></div>
+                                <div class="list-item"><div class="list-item-title">shared-assets</div><span class="badge active">same</span></div>
+                            </div>
+                            <div class="split-divider-h"></div>
+                            <div class="panel" data-kit="DetailView">
+                                <div class="panel-header">Drift result</div>
+                                <div class="content-area">
+                                    <div class="list-item">
+                                        <div class="list-item-text">
+                                            <div class="list-item-title">code-review</div>
+                                            <div class="list-item-subtitle">0 missing / 1 changed / 0 extra</div>
+                                        </div>
+                                        <span class="badge">changed</span>
+                                    </div>
+                                    <div class="modal-overlay" data-kit="Sheet">
+                                        <div class="modal-content" data-label="Drift Diff Window">
+                                            <div class="card-title">SkillOps Drift Diff</div>
+                                            <div class="list-item"><span>Status</span><span>File</span><span>Hashes</span></div>
+                                            <div class="list-item"><span>changed</span><span>SKILL.md</span><span>abc / def</span></div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-overlay" data-kit="Alert">
+                                        <div class="modal-content" data-label="Apply Error">
+                                            <div class="card-title">Target write failed</div>
+                                            <p>Keep profile and target path for retry.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>drift item list</li>
+                        <li>Sheet for file-level diff</li>
+                        <li>Alert for recoverable failure</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>View diff</code> → 打开只读文件级差异窗口。</div>
+                    <div class="interaction-item"><code>Retry apply</code> → 使用保留的目标路径再次执行。</div>
+                </div>
+            </div>
+        </details>
+    </div>
 </body>
 </html>
-

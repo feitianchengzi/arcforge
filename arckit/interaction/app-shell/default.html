@@ -1,136 +1,303 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
-  <title>SkillOps App Shell Wireframe</title>
-  <link rel="stylesheet" href="../wireframe-style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Shell - 线框图</title>
+    <link rel="stylesheet" href="../wireframe-style.css">
 </head>
 <body>
-  <main class="wireframe-canvas">
-    <section class="device-frame" data-kit="NavigationSplitView">
-      <div class="layout">
-        <aside class="sidebar" data-kit="List(sidebar)">
-          <div class="card">
-            <strong>SkillOps</strong>
-            <div class="muted">GitHub-first skill project manager</div>
-          </div>
+    <div class="wireframe-container">
+        <header>
+            <h1>App Shell</h1>
+            <div class="meta-info">
+                <div>View: <code>AppShell</code></div>
+                <div>平台: <strong>macOS</strong></div>
+            </div>
+        </header>
 
-          <button class="button primary">Add Skill project</button>
-
-          <section class="panel" data-kit="Section">
-            <div class="label">Skill projects</div>
-            <div class="list">
-              <div class="list-item">
-                <div>
-                  <strong>team-skills</strong>
-                  <div class="muted">12 skills / 84/100</div>
+        <details open>
+            <summary>加载中：打开项目并扫描工作区</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>用户点击最近项目、下载项目完成或点击 Rescan。
                 </div>
-                <span>remove</span>
-              </div>
-              <div class="list-item">
-                <div>
-                  <strong>pending-source</strong>
-                  <div class="muted">Downloading shared source</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="NavigationSplitView">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">↻</div>
+                            <div class="toolbar-button">＋</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-group">
+                                <div class="toolbar-button">Scan</div>
+                                <div class="toolbar-button">Init</div>
+                            </div>
+                        </div>
+                        <div class="split-h">
+                            <div class="sidebar" data-kit="List(sidebar)">
+                                <div class="sidebar-section">Skill projects</div>
+                                <div class="list-item">
+                                    <div class="icon-placeholder">P</div>
+                                    <div class="list-item-text">
+                                        <div class="list-item-title">team-skills</div>
+                                        <div class="list-item-subtitle">Scanning workspace</div>
+                                    </div>
+                                    <span class="badge active">active</span>
+                                </div>
+                                <div class="list-item">
+                                    <div class="icon-placeholder">D</div>
+                                    <div class="list-item-text">
+                                        <div class="list-item-title">pending-source</div>
+                                        <div class="list-item-subtitle">Downloading source</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="split-divider-h"></div>
+                            <div class="panel" data-kit="DetailView">
+                                <div class="panel-header">team-skills</div>
+                                <div class="content-area">
+                                    <div class="placeholder-box">
+                                        <div class="spinner"></div>
+                                        <p>Scanning workspace and running audit.</p>
+                                    </div>
+                                    <div class="progress-bar"><div class="progress-fill"></div></div>
+                                    <div class="card">
+                                        <div class="card-title">Runtime</div>
+                                        <div class="list-item-subtitle">Checking Git availability.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <span>wait</span>
-              </div>
-              <div class="list-item">
-                <div>
-                  <strong>failed-source</strong>
-                  <div class="muted">Download failed</div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>NavigationSplitView / List(sidebar) / DetailView</li>
+                        <li>toolbar / ProgressView / project status row</li>
+                        <li>runtime status card</li>
+                    </ul>
                 </div>
-                <span>error</span>
-              </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>Rescan</code> → 当前项目保持选中，主区域显示扫描进度。</div>
+                    <div class="interaction-item"><code>点击下载中项目</code> → 展示下载中状态，不触发扫描。</div>
+                </div>
             </div>
-          </section>
+        </details>
 
-          <button class="button">Settings</button>
-        </aside>
-
-        <section class="content">
-          <header class="toolbar" data-kit="toolbar">
-            <div>
-              <h1>team-skills</h1>
-              <div class="muted">Found 12 skills. Audit score 84/100.</div>
-              <div class="status-strip">Runtime ready. git version 2.x</div>
+        <details>
+            <summary>成功：项目快照可用</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>扫描完成并返回 WorkspaceSnapshot。
+                </div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="NavigationSplitView">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">＋</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-group">
+                                <div class="toolbar-button">Rescan</div>
+                                <div class="toolbar-button">Init</div>
+                            </div>
+                        </div>
+                        <div class="split-h">
+                            <div class="sidebar" data-kit="List(sidebar)">
+                                <div class="sidebar-section">Skill projects</div>
+                                <div class="list-item">
+                                    <div class="icon-placeholder">SO</div>
+                                    <div class="list-item-text">
+                                        <div class="list-item-title">team-skills</div>
+                                        <div class="list-item-subtitle">12 skills / 84/100</div>
+                                    </div>
+                                    <span class="badge active">open</span>
+                                </div>
+                                <div class="list-item">
+                                    <div class="icon-placeholder">EX</div>
+                                    <div class="list-item-text">
+                                        <div class="list-item-title">example-skills</div>
+                                        <div class="list-item-subtitle">3 skills / 100/100</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="split-divider-h"></div>
+                            <div class="split-v">
+                                <div class="panel" data-kit="DetailView">
+                                    <div class="panel-header">Found 12 skills. Audit score 84/100.</div>
+                                    <div class="content-area">
+                                        <div class="group-box">
+                                            <div class="group-box-title">Project path</div>
+                                            <div class="placeholder-box">/Users/user/team-skills</div>
+                                        </div>
+                                        <div class="tab-bar" data-kit="TabView">
+                                            <div class="tab-item active">Overview</div>
+                                            <div class="tab-item">Skills</div>
+                                            <div class="tab-item">Profiles</div>
+                                            <div class="tab-item">Destinations</div>
+                                            <div class="tab-item">Share</div>
+                                            <div class="tab-item">Audit</div>
+                                        </div>
+                                        <div class="card-grid">
+                                            <div class="card"><div class="card-title">Skills</div><p>12</p></div>
+                                            <div class="card"><div class="card-title">Audit score</div><p>84/100</p></div>
+                                            <div class="card"><div class="card-title">Critical</div><p>0</p></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="split-divider-v"></div>
+                                <div class="panel" data-kit="InspectorView">
+                                    <div class="panel-header">Environment</div>
+                                    <div class="content-area">
+                                        <span class="badge active">git available</span>
+                                        <span class="badge">macOS arm64</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>sidebar project list</li>
+                        <li>toolbar status and project tabs</li>
+                        <li>metric cards and environment inspector</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>点击页签</code> → 保持当前项目，切换任务内容。</div>
+                    <div class="interaction-item"><code>点击 Init</code> → 写入默认配置后重新扫描。</div>
+                </div>
             </div>
-            <div class="actions">
-              <button class="button">Rescan</button>
-              <button class="button">Init config</button>
+        </details>
+
+        <details>
+            <summary>空状态：未选择项目</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>没有当前项目或用户移除当前项目。
+                </div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="NavigationSplitView">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">＋</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-button">Settings</div>
+                        </div>
+                        <div class="split-h">
+                            <div class="sidebar" data-kit="List(sidebar)">
+                                <div class="sidebar-section">Skill projects</div>
+                                <div class="empty-state" data-kit="ContentUnavailableView">
+                                    <div class="icon-placeholder large">0</div>
+                                    <p>No Skill projects yet.</p>
+                                </div>
+                            </div>
+                            <div class="split-divider-h"></div>
+                            <div class="panel" data-kit="DetailView">
+                                <div class="panel-header">Add a Skill project</div>
+                                <div class="content-area">
+                                    <div class="empty-state" data-kit="ContentUnavailableView">
+                                        <div class="icon-placeholder large">＋</div>
+                                        <p>Choose or download a Skill project with a skills directory.</p>
+                                    </div>
+                                    <div class="modal-overlay" data-kit="Sheet">
+                                        <div class="modal-content" data-label="Add Project Sheet">
+                                            <div class="card-title">Add Skill project</div>
+                                            <div class="card-grid">
+                                                <div class="card">
+                                                    <div class="card-title">Local folder</div>
+                                                    <div class="button primary">Open local folder</div>
+                                                </div>
+                                                <div class="card">
+                                                    <div class="card-title">GitHub source</div>
+                                                    <div class="input-field">owner/repo or GitHub tree URL</div>
+                                                    <div class="button primary">Download</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>ContentUnavailableView</li>
+                        <li>Sheet with local and GitHub choices</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>Open local folder</code> → 打开目录选择器。</div>
+                    <div class="interaction-item"><code>Download</code> → 创建下载中项目记录。</div>
+                </div>
             </div>
-          </header>
+        </details>
 
-          <section class="panel">
-            <div class="label">Project path</div>
-            <div class="path-box">/Users/user/team-skills</div>
-          </section>
-
-          <nav class="tabs" data-kit="TabView">
-            <button class="tab active">Overview</button>
-            <button class="tab">Skills</button>
-            <button class="tab">Profiles</button>
-            <button class="tab">Destinations</button>
-            <button class="tab">Share</button>
-            <button class="tab">Audit</button>
-          </nav>
-
-          <section class="grid three">
-            <div class="metric">
-              <div class="label">Skills</div>
-              <h2>12</h2>
+        <details>
+            <summary>错误：下载、扫描或 Git 环境失败</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>来源下载失败、扫描失败或 Git 不可用。
+                </div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="NavigationSplitView">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">＋</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-button">Retry</div>
+                        </div>
+                        <div class="split-h">
+                            <div class="sidebar" data-kit="List(sidebar)">
+                                <div class="sidebar-section">Skill projects</div>
+                                <div class="list-item">
+                                    <div class="icon-placeholder">!</div>
+                                    <div class="list-item-text">
+                                        <div class="list-item-title">failed-source</div>
+                                        <div class="list-item-subtitle">Download failed</div>
+                                    </div>
+                                    <span class="badge">error</span>
+                                </div>
+                            </div>
+                            <div class="split-divider-h"></div>
+                            <div class="panel" data-kit="DetailView">
+                                <div class="panel-header">Error</div>
+                                <div class="content-area">
+                                    <div class="empty-state" data-kit="ContentUnavailableView">
+                                        <div class="icon-placeholder large">!</div>
+                                        <p>Download failed. Check the repository URL and Git credentials.</p>
+                                    </div>
+                                    <div class="modal-overlay" data-kit="Alert">
+                                        <div class="modal-content" data-label="Git Alert">
+                                            <div class="card-title">Git is not available</div>
+                                            <p>Downloading and sharing GitHub projects will not work until Git is available.</p>
+                                            <div class="button">Close</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>failed project row</li>
+                        <li>ContentUnavailableView with retry context</li>
+                        <li>Alert for Git environment</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>Retry</code> → 使用保留的项目路径或来源重新执行。</div>
+                    <div class="interaction-item"><code>Remove failed project</code> → 清理失败记录并返回空状态。</div>
+                </div>
             </div>
-            <div class="metric">
-              <div class="label">Audit score</div>
-              <h2>84/100</h2>
-            </div>
-            <div class="metric">
-              <div class="label">Critical</div>
-              <h2>0</h2>
-            </div>
-          </section>
-
-          <section class="empty-state" data-kit="ContentUnavailableView">
-            <div>
-              <strong>No Skill project selected</strong>
-              <div class="muted">Choose or download a Skill project with a skills directory.</div>
-            </div>
-          </section>
-        </section>
-      </div>
-
-      <section class="modal-layer">
-        <div class="modal" data-kit="Sheet">
-          <div class="nav-row">
-            <div>
-              <strong>Add Skill project</strong>
-              <div class="muted">Open a local project or download a GitHub source.</div>
-            </div>
-            <button class="button">Close</button>
-          </div>
-
-          <div class="grid">
-            <section class="panel">
-              <h3>Local folder</h3>
-              <div class="empty-state">Repository with skills directory</div>
-              <button class="button primary">Open local folder</button>
-            </section>
-
-            <section class="panel">
-              <h3>GitHub source</h3>
-              <div class="field" data-kit="TextField">owner/repo or github.com/owner/repo/tree/main/path</div>
-              <button class="button primary">Download</button>
-            </section>
-          </div>
-
-          <div class="code-box">skills/
-  code-review/
-    SKILL.md
-  release-writer/
-    SKILL.md</div>
-        </div>
-      </section>
-    </section>
-  </main>
+        </details>
+    </div>
 </body>
 </html>
-

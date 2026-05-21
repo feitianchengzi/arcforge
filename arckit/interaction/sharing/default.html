@@ -1,129 +1,262 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
-  <title>SkillOps Sharing Wireframe</title>
-  <link rel="stylesheet" href="../wireframe-style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sharing - 线框图</title>
+    <link rel="stylesheet" href="../wireframe-style.css">
 </head>
 <body>
-  <main class="wireframe-canvas">
-    <section class="device-frame" data-kit="NavigationSplitView">
-      <div class="layout">
-        <aside class="sidebar" data-kit="List(sidebar)">
-          <div class="card">
-            <strong>team-skills</strong>
-            <div class="muted">Share uses the active project snapshot.</div>
-          </div>
-          <div class="list">
-            <div class="list-item"><strong>Audit</strong><span>0 critical</span></div>
-            <div class="list-item"><strong>Share</strong><span>active</span></div>
-          </div>
-        </aside>
-
-        <section class="content">
-          <header class="toolbar" data-kit="toolbar">
-            <div>
-              <h1>Share</h1>
-              <div class="muted">Plan first, then write the Skill project to a Git repository.</div>
+    <div class="wireframe-container">
+        <header>
+            <h1>Sharing</h1>
+            <div class="meta-info">
+                <div>View: <code>Sharing</code></div>
+                <div>平台: <strong>macOS</strong></div>
             </div>
-            <button class="button">Rescan</button>
-          </header>
+        </header>
 
-          <section class="grid">
-            <section class="panel" data-kit="Form">
-              <h2>Share plan</h2>
-              <div class="form">
-                <div>
-                  <div class="label">Remote repository</div>
-                  <div class="field" data-kit="TextField">github.com/acme/team-skills/tree/main/projects</div>
+        <details open>
+            <summary>加载中：生成计划或执行共享</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>用户点击 Private team repo、Public release 或 Share now。
                 </div>
-                <div>
-                  <div class="label">Target path</div>
-                  <div class="segmented" data-kit="Picker(segmented)">
-                    <button class="chip">Use configured path</button>
-                    <button class="chip active">Folder by project name</button>
-                  </div>
-                  <div class="muted">SkillOps writes this project into a named folder under the repository path.</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="NavigationSplitView">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">↻</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-button">Share</div>
+                        </div>
+                        <div class="split-h">
+                            <div class="sidebar" data-kit="List(sidebar)">
+                                <div class="sidebar-section">Share steps</div>
+                                <div class="list-item"><div class="list-item-title">Remote</div><span class="badge active">ready</span></div>
+                                <div class="list-item"><div class="list-item-title">Plan</div><span class="badge">loading</span></div>
+                                <div class="list-item"><div class="list-item-title">Push</div><span class="badge">pending</span></div>
+                            </div>
+                            <div class="split-divider-h"></div>
+                            <div class="panel" data-kit="Form">
+                                <div class="panel-header">Share plan</div>
+                                <div class="content-area">
+                                    <div class="placeholder-box">
+                                        <div class="spinner"></div>
+                                        <p>Preparing publish plan or sharing project files.</p>
+                                    </div>
+                                    <div class="group-box">
+                                        <div class="group-box-title">Remote repository</div>
+                                        <div class="placeholder-box">github.com/acme/team-skills/tree/main/projects</div>
+                                    </div>
+                                    <div class="progress-bar"><div class="progress-fill"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                  <div class="label">Project folder name</div>
-                  <div class="field" data-kit="TextField">team-skills</div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>Share step list</li>
+                        <li>Form loading placeholder</li>
+                        <li>remote repository preview</li>
+                    </ul>
                 </div>
-                <div>
-                  <div class="label">Commit message</div>
-                  <div class="field" data-kit="TextField">Share SkillOps project</div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>生成计划中</code> → 保留表单，计划区域显示加载。</div>
+                    <div class="interaction-item"><code>共享执行中</code> → 保留计划和输入，输出区域显示处理中。</div>
                 </div>
-                <div class="actions">
-                  <button class="button">Private team repo</button>
-                  <button class="button">Public release</button>
-                  <button class="button primary">Share now</button>
-                </div>
-                <div class="status-strip">Sharing requires remote repository, target mode, and project name for named folders.</div>
-              </div>
-            </section>
-
-            <section class="panel" data-kit="ScrollView">
-              <h2>Plan output</h2>
-              <div class="empty-state" data-kit="ContentUnavailableView">No publish plan generated.</div>
-              <section class="card">
-                <h3>Desktop use flow</h3>
-                <div class="list">
-                  <div class="list-item">Open SkillOps and add the shared GitHub repository as a Skill project.</div>
-                  <div class="list-item">Review the audit report before installing skills.</div>
-                  <div class="list-item">Choose a profile and apply it to Codex, Claude, Cursor, or a project directory.</div>
-                </div>
-              </section>
-              <section class="card">
-                <h3>Install commands</h3>
-                <div class="code-box">skillshare install github.com/acme/team-skills/tree/main/projects/team-skills --track --all
-npx skills add github.com/acme/team-skills/tree/main/projects/team-skills</div>
-              </section>
-              <section class="card">
-                <h3>Checklist</h3>
-                <div class="list">
-                  <div class="list-item">12 skills discovered</div>
-                  <div class="list-item">Run audit and fix critical findings before sharing</div>
-                  <div class="list-item">Confirm repository permissions and reviewer owner</div>
-                </div>
-              </section>
-            </section>
-          </section>
-
-          <section class="panel wide" data-kit="ScrollView">
-            <h2>Share output</h2>
-            <div class="grid three">
-              <div class="metric"><div class="label">Branch</div><h2>main</h2></div>
-              <div class="metric"><div class="label">Committed</div><h2>yes</h2></div>
-              <div class="metric"><div class="label">Pushed</div><h2>yes</h2></div>
             </div>
-            <div class="path-box">Target path: projects/team-skills</div>
-            <div class="code-box">git clone github.com/acme/team-skills
-git add projects/team-skills
-git commit -m Share SkillOps project
-git push -u origin main</div>
-          </section>
-        </section>
-      </div>
+        </details>
 
-      <section class="modal-layer">
-        <div class="modal" data-kit="Sheet">
-          <div class="nav-row">
-            <div>
-              <strong>GitHub source</strong>
-              <div class="muted">Download a shared Skill project into the local cache.</div>
+        <details>
+            <summary>成功：发布计划和共享输出可用</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>发布计划生成成功，或共享执行完成并返回 ShareResult。
+                </div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="NavigationSplitView">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">↻</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-group">
+                                <div class="toolbar-button">Private</div>
+                                <div class="toolbar-button">Public</div>
+                                <div class="toolbar-button">Share</div>
+                            </div>
+                        </div>
+                        <div class="split-h">
+                            <div class="sidebar" data-kit="List(sidebar)">
+                                <div class="sidebar-section">Share</div>
+                                <div class="list-item"><div class="list-item-title">Remote</div><span class="badge active">set</span></div>
+                                <div class="list-item"><div class="list-item-title">Plan</div><span class="badge active">ready</span></div>
+                                <div class="list-item"><div class="list-item-title">Push</div><span class="badge active">done</span></div>
+                            </div>
+                            <div class="split-divider-h"></div>
+                            <div class="split-v">
+                                <div class="panel" data-kit="Form">
+                                    <div class="panel-header">Share form</div>
+                                    <div class="content-area">
+                                        <div class="input-field">github.com/acme/team-skills/tree/main/projects</div>
+                                        <div class="picker" data-kit="Picker(segmented)">
+                                            <span>Use configured path</span><span>Folder by project name</span>
+                                        </div>
+                                        <div class="input-field">Project folder name: team-skills</div>
+                                        <div class="input-field">Commit message: Share SkillOps project</div>
+                                        <div class="button">Private team repo</div>
+                                        <div class="button">Public release</div>
+                                        <div class="button primary">Share now</div>
+                                    </div>
+                                </div>
+                                <div class="split-divider-v"></div>
+                                <div class="panel" data-kit="ScrollView">
+                                    <div class="panel-header">Plan and result</div>
+                                    <div class="content-area">
+                                        <div class="group-box">
+                                            <div class="group-box-title">Install commands</div>
+                                            <div class="placeholder-box">skillshare install github.com/acme/team-skills/tree/main/projects/team-skills</div>
+                                            <div class="placeholder-box">npx skills add github.com/acme/team-skills/tree/main/projects/team-skills</div>
+                                        </div>
+                                        <div class="group-box">
+                                            <div class="group-box-title">Share output</div>
+                                            <span class="badge active">branch main</span>
+                                            <span class="badge active">committed</span>
+                                            <span class="badge active">pushed</span>
+                                            <div class="placeholder-box">Target path: projects/team-skills</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>Form with remote, target mode, project name, commit message</li>
+                        <li>ScrollView with install commands and checklist</li>
+                        <li>Share output badges and target path</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>Private/Public</code> → 生成对应可见性的发布计划。</div>
+                    <div class="interaction-item"><code>Share now</code> → 执行 Git 写入、提交和推送。</div>
+                </div>
             </div>
-            <button class="button">Close</button>
-          </div>
-          <div class="form">
-            <div class="field" data-kit="TextField">owner/repo or github.com/owner/repo/tree/main/path</div>
-            <button class="button primary">Download</button>
-            <div class="status-strip">Downloading repository and preparing this Skill project.</div>
-            <div class="status-strip">Download failed. Check the repository URL and Git credentials.</div>
-          </div>
-        </div>
-      </section>
-    </section>
-  </main>
+        </details>
+
+        <details>
+            <summary>空状态：尚未生成发布计划</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>用户刚进入共享页、切换项目或重新扫描后计划被清空。
+                </div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="NavigationSplitView">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">＋</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-button">Plan</div>
+                        </div>
+                        <div class="split-h">
+                            <div class="sidebar" data-kit="List(sidebar)">
+                                <div class="sidebar-section">Share</div>
+                                <div class="list-item"><div class="list-item-title">Plan</div><span class="badge">empty</span></div>
+                            </div>
+                            <div class="split-divider-h"></div>
+                            <div class="panel" data-kit="DetailView">
+                                <div class="panel-header">No publish plan</div>
+                                <div class="content-area">
+                                    <div class="empty-state" data-kit="ContentUnavailableView">
+                                        <div class="icon-placeholder large">P</div>
+                                        <p>No publish plan generated.</p>
+                                    </div>
+                                    <div class="group-box">
+                                        <div class="group-box-title">Required before sharing</div>
+                                        <div class="input-field">Remote repository</div>
+                                        <div class="picker" data-kit="Picker(segmented)">Target path mode</div>
+                                        <div class="button">Private team repo</div>
+                                        <div class="button">Public release</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>ContentUnavailableView for plan output</li>
+                        <li>Required field group</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>生成计划</code> → 用当前快照生成安装命令和检查项。</div>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>错误：地址、项目名、下载或 Git 失败</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>远端地址为空或无效、命名项目模式缺少项目名、下载失败、Git 命令失败。
+                </div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="NavigationSplitView">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">↻</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-button">Retry</div>
+                        </div>
+                        <div class="split-h">
+                            <div class="sidebar" data-kit="List(sidebar)">
+                                <div class="sidebar-section">Share errors</div>
+                                <div class="list-item"><div class="list-item-title">Remote URL</div><span class="badge">invalid</span></div>
+                                <div class="list-item"><div class="list-item-title">Git push</div><span class="badge">failed</span></div>
+                            </div>
+                            <div class="split-divider-h"></div>
+                            <div class="panel" data-kit="DetailView">
+                                <div class="panel-header">Recover sharing</div>
+                                <div class="content-area">
+                                    <div class="modal-overlay" data-kit="Alert">
+                                        <div class="modal-content" data-label="Share Error">
+                                            <div class="card-title">Git command failed</div>
+                                            <p>Remote, target mode, project name, and commit message remain in the form.</p>
+                                        </div>
+                                    </div>
+                                    <div class="modal-overlay" data-kit="Sheet">
+                                        <div class="modal-content" data-label="GitHub Source">
+                                            <div class="card-title">Download shared source</div>
+                                            <div class="input-field">owner/repo or GitHub tree URL</div>
+                                            <div class="button primary">Download</div>
+                                            <div class="placeholder-box">Download failed. Check repository URL and Git credentials.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>Alert for share failure</li>
+                        <li>Sheet for source download failure</li>
+                        <li>retained form context</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>Retry</code> → 使用保留输入再次生成计划或共享。</div>
+                    <div class="interaction-item"><code>Download</code> → 重新下载修正后的来源地址。</div>
+                </div>
+            </div>
+        </details>
+    </div>
 </body>
 </html>
-
