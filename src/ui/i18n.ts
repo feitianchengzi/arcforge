@@ -125,7 +125,6 @@ export interface Dictionary {
   noShareTargets: string;
   remoteRepository: string;
   shareTargetMode: string;
-  shareTargetModeEmpty: string;
   shareDirectPath: string;
   shareDirectPathHelp: string;
   shareNamedProject: string;
@@ -263,7 +262,6 @@ export const dictionaries: Record<Language, Dictionary> = {
     noShareTargets: "No saved share targets.",
     remoteRepository: "Remote repository",
     shareTargetMode: "Target path",
-    shareTargetModeEmpty: "Choose how this Skill project should be written into the repository.",
     shareDirectPath: "Use configured path",
     shareDirectPathHelp: "The repository path you entered is the Skill project root.",
     shareNamedProject: "Folder by project name",
@@ -399,7 +397,6 @@ export const dictionaries: Record<Language, Dictionary> = {
     noShareTargets: "暂无已保存的共享目标。",
     remoteRepository: "远端仓库",
     shareTargetMode: "目标路径",
-    shareTargetModeEmpty: "请选择当前 Skill 项目写入仓库的方式。",
     shareDirectPath: "直接使用配置路径",
     shareDirectPathHelp: "你填写的仓库路径会被当成 Skill 项目根目录。",
     shareNamedProject: "按项目名称建目录",

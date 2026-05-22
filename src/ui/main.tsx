@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AlertTriangle, CheckCircle2, Download, ExternalLink, FolderOpen, GitBranch, HardDrive, PackageCheck, Pencil, Play, Plus, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
-import type { ApplyProfileResult, ApplyTargetGroup, CliInstallStatus, DriftReport, EnvironmentStatus, PublishPlan, ShareResult, ShareTargetGroup, ShareTargetMode, SkillOpsConfig, SkillOpsProfile, WorkspaceSnapshot } from "../shared/types";
+import type { ApplyProfileResult, ApplyTargetGroup, CliInstallStatus, DriftReport, EnvironmentStatus, ShareResult, ShareTargetGroup, ShareTargetMode, SkillOpsConfig, SkillOpsProfile, WorkspaceSnapshot } from "../shared/types";
 import { dictionaries, type Dictionary, type Language } from "./i18n";
 import "./styles.css";
 
@@ -16,7 +16,6 @@ declare global {
       getEnvironmentStatus: () => Promise<EnvironmentStatus>;
       installCli: () => Promise<CliInstallStatus>;
       downloadSource: (remoteUrl: string) => Promise<string>;
-      createPublishPlan: (root: string, visibility: "private" | "public") => Promise<PublishPlan>;
       shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string) => Promise<ShareResult>;
       applyProfile: (root: string, profile: string, targetDir: string) => Promise<ApplyProfileResult>;
       driftReport: (root: string, profile: string, targetDir: string) => Promise<DriftReport>;
@@ -175,11 +174,15 @@ function App() {
 
   function setProjectApplyTargetGroupId(next: string) {
     setApplyTargetGroupId(next);
+    setDriftReports([]);
+    setApplyResults([]);
     if (root) rememberProjectState(root, { applyTargetGroupId: next });
   }
 
   function setProjectShareTargetGroupId(next: string) {
     setShareTargetGroupId(next);
+    setShareResult(undefined);
+    setShareProgress(undefined);
     if (root) rememberProjectState(root, { shareTargetGroupId: next });
   }
 
