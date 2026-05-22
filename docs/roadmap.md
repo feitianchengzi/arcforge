@@ -1,58 +1,85 @@
 # Roadmap
 
+SkillOps is developed as a demand-driven project. The `0.x` line should stay small and only cover the work needed to make the current local-first workflow dependable. Larger workflows move forward when there is enough real usage, stars, issues, or PRs to justify the maintenance cost.
+
+There are no fixed dates. Stars, concrete issues, and useful PRs are the main signals for what should be built next.
+
 ## Direction
 
-SkillOps should stay small and focused: local-first governance for private/team skills, plus release preparation for GitHub and public registries such as ClawHub/OpenClaw.
+SkillOps should remain a pre-publish and team-governance layer for AI agent skills:
 
-Do not build a hosted marketplace, public registry, public search, ratings, comments, paid distribution, or a full agent runtime. Those are distribution and execution layers. SkillOps owns the work before that point: audit, profiles, drift, release prep, and lightweight automation.
+```text
+write skill -> audit -> profile -> apply -> drift check -> release prep
+```
 
-## 0.1 MVP
+It should stay local-first and GitHub-first. Git remains the source of truth for review, history, releases, and team sharing.
 
-- desktop workspace scan
-- audit report
-- profile apply and drift report
-- publish plan
-- JSON CLI
-- open-source project documentation
+SkillOps should not become a hosted marketplace, public registry, public search engine, ratings system, paid distribution platform, or agent runtime. Registries and installers already own discovery, distribution, and runtime loading. SkillOps owns the work before that point.
 
-## 0.2 Usability
+## 0.x - Essential Local Workflow
 
-- edit `skillops.config.json` from the UI
-- create new skill from templates
-- diff changed skills before apply
-- detect installed tools and their skill directories
-- import existing local agent skills
-- label profiles as private, team, or publish-ready
+Goal: make the current product useful without expanding scope.
 
-## 0.3 GitHub Workflow
+- keep workspace scan reliable for the documented `skills/` project shape
+- keep audit output understandable enough for pre-share review
+- keep profile apply and drift report usable for local agent folders
+- keep publish plan useful as a GitHub/ClawHub release checklist
+- keep JSON CLI stable enough for lightweight CI checks
+- improve README, examples, screenshots, and troubleshooting as users hit rough edges
+- fix bugs and polish existing flows before adding new surfaces
 
-- GitHub repo connect flow
-- generate pull requests for team skill updates
-- release/tag helper
-- public/private publish mode
-- README and install badge generator
-- ClawHub/OpenClaw publish-readiness checklist and dry-run command hints
+Possible `0.x` additions, only if needed:
 
-## 0.4 Audit
+- safer config editing in the UI
+- clearer first-run and empty-state guidance
+- better error messages for invalid config, missing skills, failed Git commands, and target write failures
+- minimal import flow for existing local skills
+- small audit rule refinements based on real false positives or misses
 
-- configurable audit rules
-- allowlist and suppressions
-- CI annotations
-- public publish redaction checks
-- registry-readiness checks for metadata, license, README, examples, and internal references
-- score trend by release
+## 1.x - Stable Personal And Small-Team Use
 
-## 0.5 Team
+Goal: make SkillOps stable enough that a developer or small team can rely on it without expecting breaking config changes.
 
-- profile ownership metadata
-- version drift dashboard
-- onboarding bundle generation
-- GitHub-backed team metadata, without requiring a hosted SkillOps service
+- define a compatibility promise for `skillops.config.json`
+- stabilize the core CLI commands and JSON output shape
+- support a cleaner profile editing workflow
+- provide better before-apply diffs and rollback guidance
+- improve private GitHub sharing and release preparation
+- document recommended GitHub review workflows for team skill repositories
+- provide clearer integration guidance for `skillshare`, `npx skills`, ClawHub/OpenClaw, and agent-native skill folders
+- keep all workflows usable without a hosted SkillOps service
 
-## Open Questions
+## 2.x - Demand-Driven Expansion
 
-- Which sync targets should be owned directly, and which should be delegated to `skillshare`, `npx skills`, or agent-native installers?
-- How much GitHub automation should be built in before requiring auth?
-- Should project profiles map to agent targets, project directories, or both?
-- What should the config compatibility promise be before `1.0`?
-- Should ClawHub/OpenClaw support stay as checklist-only, or should SkillOps provide a first-class publish-prep command?
+Goal: expand only if there is enough demand from real users.
+
+Candidate areas:
+
+- richer GitHub automation, such as PR creation, release/tag helpers, and generated README/install sections
+- configurable audit rules, suppressions, and CI annotations
+- profile ownership, review status, and lightweight team metadata backed by GitHub
+- stronger drift dashboards across multiple local targets
+- publish-readiness helpers for public registries while keeping registry logic out of core SkillOps
+- adapter-style integration with installers instead of replacing them
+
+These should remain optional layers. They should not turn SkillOps into a marketplace, registry, or runtime.
+
+## Not Planned Unless Strong Demand Appears
+
+- hosted accounts or cloud sync
+- public skill browsing or search
+- ratings, comments, public marketplace features, or paid distribution
+- full enterprise RBAC
+- generic prompt library management
+- agent runtime execution or activation logic
+
+## Feedback Signals
+
+The project will prioritize work based on:
+
+- stars, as the simplest signal that this problem matters to more than one person
+- issues that describe a concrete skill management workflow
+- PRs that improve the local-first, GitHub-first workflow without broadening scope
+- examples of teams managing skills in Git and hitting gaps in the current tool
+
+If those signals stay small, SkillOps should stay small too.
