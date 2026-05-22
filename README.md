@@ -6,7 +6,7 @@ Local-first, GitHub-first governance for AI agent skills.
 
 SkillOps helps individuals and small teams turn `SKILL.md` files into reviewed, grouped, shareable assets before they are installed into agents or published to GitHub/ClawHub.
 
-![SkillOps overview](docs/assets/skillops-overview.svg)
+![SkillOps governance concept](docs/assets/skillops-overview.svg)
 
 ## Why This Exists
 
@@ -49,56 +49,19 @@ For detailed product-by-product comparisons, see [docs/comparison.md](docs/compa
 
 ## When To Use It
 
-Use SkillOps when:
+Use SkillOps when you need a local governance step before skills are copied into agents or prepared for release.
 
-- you keep skills in Git and want reviewable changes
-- a team needs one approved skill set per project
-- you use multiple agents such as Codex, Claude Code, Cursor, or OpenClaw
-- you want to publish skills without leaking internal paths, tokens, or process notes
-- you need CLI output for CI checks before sharing a skill repository
+| Scenario | Use SkillOps for | Main path |
+|---|---|---|
+| Private team skill repo | keep skill changes reviewed in Git without running a registry | scan, audit, profiles, GitHub share |
+| Per-project agent setup | install only the approved skills a project should use | profiles, apply-profile, drift |
+| Pre-publication review | catch secrets, risky instructions, weak metadata, and internal references | audit, publish-plan |
+| Multi-agent drift control | compare installed copies with the source repository | drift, apply-profile |
+| CI guardrail | produce JSON checks before sharing or publishing | CLI commands |
 
-Do not use SkillOps if you only need to browse public skills or install one-off skills into one agent.
+Do not use SkillOps if you only need to browse public skills or install a one-off skill into one agent.
 
 ## How To Use
-
-```bash
-npm install
-npm run dev
-```
-
-Build and run the packaged app locally:
-
-```bash
-npm run build
-npm start
-```
-
-Use the CLI after build:
-
-```bash
-npm run build
-node dist/cli/index.js scan --root .
-node dist/cli/index.js audit --root .
-node dist/cli/index.js drift --root . --profile default --target .skillops/skills
-node dist/cli/index.js publish-plan --root . --visibility public
-node dist/cli/index.js share --root . --repo github.com/acme/team-skills --profile frontend --message "Share frontend skills"
-node dist/cli/index.js share --root . --repo github.com/acme/team-skills --skills code-review,release-writer
-node dist/cli/index.js doctor
-```
-
-Install the CLI from the latest GitHub release:
-
-```bash
-curl -fsSL https://github.com/<owner>/skillops/releases/latest/download/install.sh | sh
-```
-
-On Windows PowerShell:
-
-```powershell
-irm https://github.com/<owner>/skillops/releases/latest/download/install.ps1 | iex
-```
-
-Desktop release builds include the same CLI engine. After the desktop app starts, it installs a user-level `skillops` shim and the environment banner reports whether the shim is on PATH. Use **Repair CLI** in the desktop banner when the shim directory needs to be added to your shell profile.
 
 Expected workspace shape:
 
@@ -131,17 +94,65 @@ Minimal config:
 }
 ```
 
-## Typical Scenarios
+### Desktop App
 
-![SkillOps workflow](docs/assets/skillops-workflow.svg)
+Usage video: [SkillOps desktop demo](docs/assets/skillops-desktop-demo.mp4)
 
-| Scenario | Why SkillOps helps | Main commands/features |
-|---|---|---|
-| Private team skill repo | keep skills reviewed in Git without running a registry | scan, audit, profiles, GitHub share |
-| Per-project agent setup | install only the skills a project should use | profiles, apply-profile, target history |
-| Pre-publication review | catch secrets, risky instructions, weak metadata, and internal references | audit, public publish plan, release checklist |
-| Multi-agent drift control | compare installed copies with source skills | drift report, apply-profile |
-| CI guardrail | fail or warn before unreviewed skills are merged | JSON CLI output |
+Install from a release by downloading the latest macOS `.dmg`, Windows `.exe`, or Linux `.AppImage` from GitHub Releases.
+
+Run from source for development:
+
+```bash
+npm install
+npm run dev
+```
+
+Build a local desktop package:
+
+```bash
+npm run package
+```
+
+Use the desktop app to open a local skill workspace, scan and audit `SKILL.md` files, group approved skills into profiles, apply a profile to an agent or project target, and prepare GitHub-first sharing or release checklists.
+
+Desktop release builds include the same CLI engine. After the app starts, it installs a user-level `skillops` shim and the environment banner reports whether the shim is on PATH. Use **Repair CLI** when the shim directory needs to be added to your shell profile.
+
+### CLI
+
+Usage video: [SkillOps CLI demo](docs/assets/skillops-cli-demo.mp4)
+
+Install the CLI from the latest GitHub release:
+
+```bash
+curl -fsSL https://github.com/<owner>/skillops/releases/latest/download/install.sh | sh
+```
+
+On Windows PowerShell:
+
+```powershell
+irm https://github.com/<owner>/skillops/releases/latest/download/install.ps1 | iex
+```
+
+Build and run the CLI locally:
+
+```bash
+npm install
+npm run build:cli
+node dist/cli/index.js help
+```
+
+Common commands:
+
+```bash
+skillops init --root .
+skillops scan --root .
+skillops audit --root .
+skillops apply-profile --root . --profile default --target ~/.codex/skills
+skillops drift --root . --profile default --target ~/.codex/skills
+skillops publish-plan --root . --visibility public
+skillops share --root . --repo github.com/acme/team-skills --profile frontend --message "Share frontend skills"
+skillops doctor
+```
 
 ## Project Status
 

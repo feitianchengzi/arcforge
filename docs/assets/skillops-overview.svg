@@ -1,58 +1,61 @@
-<svg width="1200" height="760" viewBox="0 0 1200 760" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">SkillOps overview screen preview</title>
-  <desc id="desc">A desktop app preview showing project health, audit score, skill count, findings, and next actions.</desc>
-  <rect width="1200" height="760" rx="24" fill="#F3F5F8"/>
-  <rect x="40" y="40" width="1120" height="680" rx="18" fill="#FFFFFF" stroke="#D9DEE8"/>
-  <rect x="40" y="40" width="258" height="680" rx="18" fill="#15181F"/>
-  <rect x="70" y="74" width="42" height="42" rx="8" fill="#7DD3FC"/>
-  <text x="126" y="91" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700">SkillOps</text>
-  <text x="126" y="111" fill="#A7B0C0" font-family="Inter, Arial, sans-serif" font-size="12">GitHub-first skill manager</text>
-  <rect x="70" y="150" width="198" height="46" rx="8" fill="#242B36"/>
-  <text x="90" y="178" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="14">team-skills</text>
-  <rect x="70" y="208" width="198" height="46" rx="8" fill="#0F1218" stroke="#2B313D"/>
-  <text x="90" y="236" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="14">frontend-kit</text>
-  <rect x="70" y="276" width="198" height="40" rx="8" fill="#0F1218" stroke="#2B313D"/>
-  <text x="92" y="301" fill="#D8DEE9" font-family="Inter, Arial, sans-serif" font-size="13">Open local folder</text>
-  <rect x="70" y="326" width="198" height="40" rx="8" fill="#1F6FEB"/>
-  <text x="104" y="351" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">Add Skill project</text>
-  <text x="338" y="88" fill="#1F2937" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="750">Project health</text>
-  <text x="338" y="116" fill="#667085" font-family="Inter, Arial, sans-serif" font-size="14">/Users/acme/team-skills</text>
-  <rect x="930" y="74" width="96" height="38" rx="8" fill="#FFFFFF" stroke="#D0D5DD"/>
-  <text x="956" y="98" fill="#344054" font-family="Inter, Arial, sans-serif" font-size="13">Rescan</text>
-  <rect x="1038" y="74" width="84" height="38" rx="8" fill="#1F6FEB"/>
-  <text x="1064" y="98" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">Audit</text>
-  <rect x="338" y="150" width="184" height="118" rx="10" fill="#FFFFFF" stroke="#E5E7EB"/>
-  <text x="362" y="183" fill="#667085" font-family="Inter, Arial, sans-serif" font-size="13">Skills</text>
-  <text x="362" y="232" fill="#202124" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="750">12</text>
-  <rect x="542" y="150" width="184" height="118" rx="10" fill="#FFFFFF" stroke="#E5E7EB"/>
-  <text x="566" y="183" fill="#667085" font-family="Inter, Arial, sans-serif" font-size="13">Audit score</text>
-  <text x="566" y="232" fill="#11845B" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="750">92</text>
-  <rect x="746" y="150" width="184" height="118" rx="10" fill="#FFFFFF" stroke="#E5E7EB"/>
-  <text x="770" y="183" fill="#667085" font-family="Inter, Arial, sans-serif" font-size="13">Critical</text>
-  <text x="770" y="232" fill="#C0392B" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="750">0</text>
-  <rect x="950" y="150" width="172" height="118" rx="10" fill="#FFFFFF" stroke="#E5E7EB"/>
-  <text x="974" y="183" fill="#667085" font-family="Inter, Arial, sans-serif" font-size="13">Warnings</text>
-  <text x="974" y="232" fill="#B7791F" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="750">3</text>
-  <rect x="338" y="300" width="374" height="324" rx="10" fill="#FFFFFF" stroke="#E5E7EB"/>
-  <text x="362" y="336" fill="#1F2937" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700">Next steps</text>
-  <rect x="362" y="366" width="326" height="44" rx="8" fill="#E8F1FF" stroke="#B8D2FF"/>
-  <text x="386" y="393" fill="#174EA6" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="650">Review audit findings</text>
-  <rect x="362" y="424" width="326" height="44" rx="8" fill="#FFFFFF" stroke="#E5E7EB"/>
-  <text x="386" y="451" fill="#344054" font-family="Inter, Arial, sans-serif" font-size="14">Configure profiles</text>
-  <rect x="362" y="482" width="326" height="44" rx="8" fill="#FFFFFF" stroke="#E5E7EB"/>
-  <text x="386" y="509" fill="#344054" font-family="Inter, Arial, sans-serif" font-size="14">Apply to Codex / Claude / Cursor</text>
-  <rect x="362" y="540" width="326" height="44" rx="8" fill="#FFFFFF" stroke="#E5E7EB"/>
-  <text x="386" y="567" fill="#344054" font-family="Inter, Arial, sans-serif" font-size="14">Prepare GitHub / ClawHub release</text>
-  <rect x="742" y="300" width="380" height="324" rx="10" fill="#FFFFFF" stroke="#E5E7EB"/>
-  <text x="766" y="336" fill="#1F2937" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700">Findings</text>
-  <rect x="766" y="366" width="332" height="58" rx="8" fill="#FFFAF0" stroke="#F8D98C"/>
-  <text x="786" y="390" fill="#9A6700" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">risk.env_access</text>
-  <text x="786" y="410" fill="#667085" font-family="Inter, Arial, sans-serif" font-size="12">Narrow instruction before publishing.</text>
-  <rect x="766" y="440" width="332" height="58" rx="8" fill="#FFFAF0" stroke="#F8D98C"/>
-  <text x="786" y="464" fill="#9A6700" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">quality.description_short</text>
-  <text x="786" y="484" fill="#667085" font-family="Inter, Arial, sans-serif" font-size="12">Trigger description is too thin.</text>
-  <rect x="766" y="514" width="332" height="58" rx="8" fill="#F8FAFC" stroke="#E5E7EB"/>
-  <text x="786" y="538" fill="#344054" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">publish.ready</text>
-  <text x="786" y="558" fill="#667085" font-family="Inter, Arial, sans-serif" font-size="12">Generate release checklist and install commands.</text>
-  <text x="338" y="672" fill="#667085" font-family="Inter, Arial, sans-serif" font-size="13">Local scan, audit, profiles, drift checks, and publish preparation from one Git workspace.</text>
+<svg width="1200" height="680" viewBox="0 0 1200 680" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">SkillOps governance concept</title>
+  <desc id="desc">A conceptual map showing SkillOps as a local governance layer between local skill sources, audit and profile decisions, local agent targets, and GitHub release preparation.</desc>
+  <rect width="1200" height="680" rx="28" fill="#F6F8FB"/>
+  <rect x="58" y="54" width="1084" height="572" rx="22" fill="#FFFFFF" stroke="#D9DEE8"/>
+
+  <text x="96" y="116" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="760">SkillOps concept map</text>
+  <text x="96" y="150" fill="#5B6575" font-family="Inter, Arial, sans-serif" font-size="17">Local-first governance before skills reach agents, releases, or registries.</text>
+
+  <g font-family="Inter, Arial, sans-serif">
+    <rect x="92" y="228" width="214" height="146" rx="14" fill="#EEF6FF" stroke="#B8D7FF"/>
+    <text x="122" y="274" fill="#174EA6" font-size="18" font-weight="700">Local Skill Source</text>
+    <text x="122" y="306" fill="#44546A" font-size="14">skills/**/SKILL.md</text>
+    <text x="122" y="330" fill="#44546A" font-size="14">references/</text>
+    <text x="122" y="354" fill="#44546A" font-size="14">shared assets</text>
+
+    <rect x="362" y="206" width="252" height="190" rx="18" fill="#111827"/>
+    <text x="402" y="258" fill="#FFFFFF" font-size="24" font-weight="760">SkillOps</text>
+    <text x="402" y="294" fill="#B8C2D0" font-size="15">scan, audit, profile</text>
+    <text x="402" y="322" fill="#B8C2D0" font-size="15">apply, drift check</text>
+    <text x="402" y="350" fill="#B8C2D0" font-size="15">publish readiness</text>
+
+    <rect x="670" y="146" width="198" height="118" rx="14" fill="#F8FAFC" stroke="#D9DEE8"/>
+    <text x="700" y="190" fill="#1F2937" font-size="17" font-weight="700">Audit gate</text>
+    <text x="700" y="224" fill="#667085" font-size="14">secrets, risky rules</text>
+
+    <rect x="910" y="146" width="198" height="118" rx="14" fill="#F8FAFC" stroke="#D9DEE8"/>
+    <text x="940" y="190" fill="#1F2937" font-size="17" font-weight="700">Profiles</text>
+    <text x="940" y="224" fill="#667085" font-size="14">project/team sets</text>
+
+    <rect x="670" y="340" width="198" height="118" rx="14" fill="#F8FAFC" stroke="#D9DEE8"/>
+    <text x="700" y="384" fill="#1F2937" font-size="17" font-weight="700">Agent targets</text>
+    <text x="700" y="418" fill="#667085" font-size="14">Codex, Claude, Cursor</text>
+
+    <rect x="910" y="340" width="198" height="118" rx="14" fill="#F8FAFC" stroke="#D9DEE8"/>
+    <text x="940" y="384" fill="#1F2937" font-size="17" font-weight="700">GitHub release</text>
+    <text x="940" y="418" fill="#667085" font-size="14">review checklist</text>
+
+    <path d="M306 301H346" stroke="#98A2B3" stroke-width="2.5"/>
+    <path d="M338 292L346 301L338 310" stroke="#98A2B3" stroke-width="2.5"/>
+    <path d="M614 272C640 246 642 206 670 206" stroke="#98A2B3" stroke-width="2.5"/>
+    <path d="M662 198L670 206L660 214" stroke="#98A2B3" stroke-width="2.5"/>
+    <path d="M868 205H900" stroke="#98A2B3" stroke-width="2.5"/>
+    <path d="M892 197L900 205L892 213" stroke="#98A2B3" stroke-width="2.5"/>
+    <path d="M614 330C640 358 642 399 670 399" stroke="#98A2B3" stroke-width="2.5"/>
+    <path d="M660 391L670 399L660 407" stroke="#98A2B3" stroke-width="2.5"/>
+    <path d="M868 399H900" stroke="#98A2B3" stroke-width="2.5"/>
+    <path d="M892 391L900 399L892 407" stroke="#98A2B3" stroke-width="2.5"/>
+
+    <path d="M769 458V500C769 515 757 527 742 527H224C209 527 197 515 197 500V376" stroke="#98A2B3" stroke-width="2" stroke-dasharray="7 8"/>
+    <path d="M189 386L197 376L205 386" stroke="#98A2B3" stroke-width="2"/>
+    <text x="344" y="552" fill="#667085" font-size="14">Drift reports close the loop between installed copies and the maintained local source.</text>
+
+    <rect x="96" y="582" width="306" height="2" rx="1" fill="#2563EB"/>
+    <rect x="414" y="582" width="272" height="2" rx="1" fill="#10B981"/>
+    <rect x="698" y="582" width="404" height="2" rx="1" fill="#F59E0B"/>
+    <text x="96" y="612" fill="#44546A" font-size="13">Local filesystem is the working source</text>
+    <text x="414" y="612" fill="#44546A" font-size="13">Governance decisions</text>
+    <text x="698" y="612" fill="#44546A" font-size="13">GitHub remains review and release source of truth</text>
+  </g>
 </svg>
