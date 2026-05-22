@@ -195,6 +195,14 @@ button.active {
 .environment-status.good { background: var(--success-bg); color: var(--success); }
 .environment-status.warn { background: #fff4d6; color: var(--warning); }
 .environment-status span { overflow-wrap: anywhere; }
+.environment-status .inline-link {
+  min-height: 24px;
+  padding: 2px 8px;
+  border-color: currentColor;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+}
 
 .project-header { display: grid; gap: var(--space-lg); margin-bottom: var(--space-xl); }
 .project-summary {

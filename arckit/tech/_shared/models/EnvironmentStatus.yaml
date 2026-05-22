@@ -6,7 +6,7 @@ metadata:
   owner: electron/main
   version: 1
   created: 2026-05-21
-  updated: 2026-05-21
+  updated: 2026-05-22
 type: object
 required:
   - platform
@@ -34,9 +34,72 @@ properties:
         type: string
         nullable: true
         description: Error message when git execution fails.
+  cli:
+    type: object
+    nullable: true
+    required:
+      - available
+      - shimExists
+      - shimDirInPath
+    properties:
+      available:
+        type: boolean
+      executablePath:
+        type: string
+        nullable: true
+        description: Desktop executable path used by the CLI shim.
+      shimPath:
+        type: string
+        nullable: true
+        description: Expected user-level skillops shim path.
+      shimDir:
+        type: string
+        nullable: true
+        description: Directory that contains the shim.
+      shimExists:
+        type: boolean
+      shimDirInPath:
+        type: boolean
+      shellProfilePath:
+        type: string
+        nullable: true
+        description: Shell profile updated by Repair CLI when PATH needs a persistent entry.
+      shellProfileUpdated:
+        type: boolean
+        nullable: true
+        description: True when Repair CLI wrote a persistent shell profile entry.
+      message:
+        type: string
+        nullable: true
+        description: Human-readable CLI availability or repair hint.
+  tools:
+    type: object
+    nullable: true
+    properties:
+      skillshare:
+        $ref: "#/definitions/ToolStatus"
+      npx:
+        $ref: "#/definitions/ToolStatus"
+      clawhub:
+        $ref: "#/definitions/ToolStatus"
+definitions:
+  ToolStatus:
+    type: object
+    required:
+      - available
+    properties:
+      available:
+        type: boolean
+      version:
+        type: string
+        nullable: true
+      error:
+        type: string
+        nullable: true
 validation:
   git_available:
     description: version is present when available is true.
   git_unavailable:
     description: error is present when available is false.
-
+  cli_available:
+    description: cli.available is true only when the shim exists and the shim directory is on PATH.

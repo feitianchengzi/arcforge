@@ -27,6 +27,9 @@ export interface Dictionary {
   desktopRequired: string;
   environmentReady: (version: string) => string;
   environmentGitMissing: string;
+  cliReady: string;
+  cliNeedsRepair: string;
+  repairCli: string;
   scanning: string;
   errorStatus: (message: string) => string;
   foundStatus: (skills: number, score: number) => string;
@@ -154,6 +157,9 @@ export const dictionaries: Record<Language, Dictionary> = {
     desktopRequired: "Project actions require the Electron desktop window. Please use the SkillOps app window, not the browser tab.",
     environmentReady: (version: string) => `Runtime ready. ${version}`,
     environmentGitMissing: "Git is not available. Downloading and sharing GitHub projects will not work until Git is installed and available on PATH.",
+    cliReady: "CLI ready.",
+    cliNeedsRepair: "CLI needs repair.",
+    repairCli: "Repair CLI",
     scanning: "Scanning workspace...",
     errorStatus: (message: string) => `Error: ${message}`,
     foundStatus: (skills: number, score: number) => `Found ${skills} skills. Audit score ${score}/100.`,
@@ -284,6 +290,9 @@ export const dictionaries: Record<Language, Dictionary> = {
     desktopRequired: "项目操作需要在 Electron 桌面窗口中使用，请不要在浏览器标签页中操作。",
     environmentReady: (version: string) => `运行环境可用。${version}`,
     environmentGitMissing: "未检测到 Git。安装 Git 并确保它在 PATH 中可用之前，GitHub 项目的下载和共享功能无法正常工作。",
+    cliReady: "CLI 可用。",
+    cliNeedsRepair: "CLI 需要修复。",
+    repairCli: "修复 CLI",
     scanning: "正在扫描工作区...",
     errorStatus: (message: string) => `错误：${message}`,
     foundStatus: (skills: number, score: number) => `发现 ${skills} 个技能，审计评分 ${score}/100。`,

@@ -81,7 +81,12 @@ node dist/cli/index.js scan --root .
 node dist/cli/index.js audit --root .
 node dist/cli/index.js drift --root . --profile default --target .skillops/skills
 node dist/cli/index.js publish-plan --root . --visibility public
+node dist/cli/index.js share --root . --repo github.com/acme/team-skills --profile frontend --message "Share frontend skills"
+node dist/cli/index.js share --root . --repo github.com/acme/team-skills --skills code-review,release-writer
+node dist/cli/index.js doctor
 ```
+
+桌面端 release 包内置同一套 CLI 引擎。桌面应用启动后会安装用户级 `skillops` shim，环境提示会显示 shim 是否已经在 PATH 中可用。当 shim 目录需要写入 shell profile 时，可以在桌面端环境提示中使用 **修复 CLI**。
 
 推荐工作区结构：
 
@@ -120,7 +125,7 @@ my-skills/
 
 | 场景 | 为什么需要 SkillOps | 主要能力 |
 |---|---|---|
-| 团队私有 skill 仓库 | 不搭 registry，也能让 skill 变更经过 Git review | scan、audit、profiles、GitHub share plan |
+| 团队私有 skill 仓库 | 不搭 registry，也能让 skill 变更经过 Git review | scan、audit、profiles、GitHub share |
 | 按项目配置 agent | 每个项目只安装它应该使用的 skills | profiles、apply-profile、target history |
 | 公开发布前检查 | 检查 secrets、风险指令、薄弱 metadata 和内部引用 | audit、public publish plan、release checklist |
 | 多 agent 漂移控制 | 比较已安装副本和源仓库是否一致 | drift report、apply-profile |

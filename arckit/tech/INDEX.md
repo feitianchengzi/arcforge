@@ -10,10 +10,10 @@
   - solution.md 规则审计方案：密钥规则、危险指令、结构校验、发现定位和扣分规则。✅ (80行)
 - profiles-sync/ 配置组同步技术：配置组选取、目录复制、哈希签名和漂移报告。✅
   - solution.md 配置组同步方案：技能选择、替换复制、共享资产同步和 SHA-256 漂移比较。✅ (85行)
-- sharing-ipc/ 共享与 IPC 技术：Electron preload 桥、GitHub 来源解析、共享工作树和 Git 执行。✅
-  - solution.md 共享与 IPC 方案：安全桥接、来源下载、发布计划、共享推送和差异窗口。✅ (135行)
-- cli/ 命令行技术：JSON 输出、命令参数、退出码和 core 模块复用。✅
-  - solution.md CLI 方案：init、scan、audit、publish-plan、drift、apply-profile 命令边界。✅ (62行)
+- sharing-ipc/ 共享与 IPC 技术：Electron preload 桥、应用数据目录注入、共享工作树和 Git 执行。✅
+  - solution.md 共享与 IPC 方案：安全桥接、来源下载、发布计划、共享推送、CLI 修复和差异窗口。✅ (143行)
+- cli/ 命令行技术：JSON 输出、命令参数、退出码、share/doctor 命令和桌面 --cli 模式。✅
+  - solution.md CLI 方案：init、scan、audit、publish-plan、drift、apply-profile、share、doctor 命令边界。✅ (87行)
 - _shared/models/ 数据模型：跨领域 TypeScript DTO 与持久化配置结构。✅
   - SkillOpsConfig.yaml 工作区配置模型：来源目录、团队仓库、共享模式和配置组列表。✅ (70行)
   - WorkspaceSnapshot.yaml 工作区快照模型：配置、技能、共享资产和审计报告聚合。✅ (69行)
@@ -21,7 +21,7 @@
   - DriftReport.yaml 漂移报告模型：技能/资产状态、文件级差异和差异汇总。✅ (98行)
   - PublishPlan.yaml 发布计划模型：文件清单、安装命令、可见性和检查项。✅ (48行)
   - ShareResult.yaml 共享结果模型：远端地址、分支、目标路径、提交推送状态和消息。✅ (42行)
-  - EnvironmentStatus.yaml 环境状态模型：平台、架构和 Git 可用性。✅ (42行)
+  - EnvironmentStatus.yaml 环境状态模型：平台、架构、Git、CLI shim 和第三方工具可用性。✅ (105行)
   - ApplyProfileResult.yaml 应用结果模型：复制和跳过的技能与共享资产。✅ (46行)
 - _shared/contracts/ IPC 契约：渲染层通过 preload 调用主进程和 core 能力。✅
   - workspace-scan.yaml 工作区扫描契约：输入根目录，输出工作区快照。✅ (34行)

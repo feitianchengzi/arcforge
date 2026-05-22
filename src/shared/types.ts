@@ -112,6 +112,30 @@ export interface EnvironmentStatus {
     version?: string;
     error?: string;
   };
+  cli?: CliInstallStatus;
+  tools?: {
+    skillshare: ToolStatus;
+    npx: ToolStatus;
+    clawhub: ToolStatus;
+  };
+}
+
+export interface CliInstallStatus {
+  available: boolean;
+  executablePath?: string;
+  shimPath?: string;
+  shimDir?: string;
+  shimExists: boolean;
+  shimDirInPath: boolean;
+  shellProfilePath?: string;
+  shellProfileUpdated?: boolean;
+  message?: string;
+}
+
+export interface ToolStatus {
+  available: boolean;
+  version?: string;
+  error?: string;
 }
 
 export interface ApplyProfileResult {

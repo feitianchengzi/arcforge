@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AlertTriangle, CheckCircle2, Download, ExternalLink, FolderOpen, GitBranch, HardDrive, PackageCheck, Play, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
-import type { ApplyProfileResult, DriftReport, EnvironmentStatus, PublishPlan, ShareResult, ShareTargetMode, SkillOpsConfig, SkillOpsProfile, WorkspaceSnapshot } from "../shared/types";
+import type { ApplyProfileResult, CliInstallStatus, DriftReport, EnvironmentStatus, PublishPlan, ShareResult, ShareTargetMode, SkillOpsConfig, SkillOpsProfile, WorkspaceSnapshot } from "../shared/types";
 import { dictionaries, type Dictionary, type Language } from "./i18n";
 import "./styles.css";
 
@@ -14,6 +14,7 @@ declare global {
       saveConfig: (root: string, config: SkillOpsConfig) => Promise<WorkspaceSnapshot>;
       getDefaultTargets: () => Promise<DefaultTarget[]>;
       getEnvironmentStatus: () => Promise<EnvironmentStatus>;
+      installCli: () => Promise<CliInstallStatus>;
       downloadSource: (remoteUrl: string) => Promise<string>;
       createPublishPlan: (root: string, visibility: "private" | "public") => Promise<PublishPlan>;
       shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string) => Promise<ShareResult>;
@@ -125,16 +126,7 @@ function App() {
       setDefaultTargets(targets);
       setSelectedAgentTarget((current) => current || (targets[0]?.id ?? "codex"));
     }).catch((error) => setStatus(t.errorStatus(errorMessage(error))));
-    void window.skillops.getEnvironmentStatus().then(setEnvironment).catch(() => {
-      setEnvironment({
-        platform: "unknown",
-        arch: "unknown",
-        git: {
-          available: false,
-          error: "Environment check failed."
-        }
-      });
-    });
+    void refreshEnvironment();
   }, []);
 
   useEffect(() => {
@@ -147,6 +139,33 @@ function App() {
     setLanguageState(next);
     window.localStorage.setItem("skillops.language", next);
     if (!snapshot) setStatus(dictionaries[next].chooseStatus);
+  }
+
+  async function refreshEnvironment() {
+    if (!window.skillops) return;
+    try {
+      setEnvironment(await window.skillops.getEnvironmentStatus());
+    } catch {
+      setEnvironment({
+        platform: "unknown",
+        arch: "unknown",
+        git: {
+          available: false,
+          error: "Environment check failed."
+        }
+      });
+    }
+  }
+
+  async function repairCliInstall() {
+    if (!window.skillops) return;
+    try {
+      const cli = await window.skillops.installCli();
+      const next = await window.skillops.getEnvironmentStatus();
+      setEnvironment({ ...next, cli });
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    }
   }
 
   function rememberProjectState(projectRoot: string, patch: ProjectUiState) {
@@ -583,7 +602,7 @@ function App() {
           <div>
             <h2>{snapshot ? basename(snapshot.root) : activeProject?.name ?? t.addSkillProject}</h2>
             <p>{status}</p>
-            {environment && <EnvironmentNotice t={t} environment={environment} />}
+            {environment && <EnvironmentNotice t={t} environment={environment} onInstallCli={repairCliInstall} />}
           </div>
           <div className="actions">
             <button onClick={() => scan()} disabled={!root || isPendingProject}><RefreshCw size={16} /> {t.rescan}</button>
@@ -719,13 +738,17 @@ function PendingProject({ t, project }: { t: Dictionary; project: RecentWorkspac
   );
 }
 
-function EnvironmentNotice({ t, environment }: { t: Dictionary; environment: EnvironmentStatus }) {
+function EnvironmentNotice({ t, environment, onInstallCli }: { t: Dictionary; environment: EnvironmentStatus; onInstallCli: () => void }) {
   const gitVersion = environment.git.version ?? "git";
+  const cli = environment.cli;
   const title = environment.git.available ? t.environmentReady(gitVersion) : t.environmentGitMissing;
+  const cliReady = cli?.available ?? false;
+  const cliTitle = cliReady ? t.cliReady : t.cliNeedsRepair;
   return (
-    <div className={`environment-status ${environment.git.available ? "good" : "warn"}`} title={`${environment.platform} ${environment.arch}`}>
-      {environment.git.available ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
-      <span>{title}</span>
+    <div className={`environment-status ${environment.git.available && cliReady ? "good" : "warn"}`} title={`${environment.platform} ${environment.arch}${cli?.message ? ` · ${cli.message}` : ""}`}>
+      {environment.git.available && cliReady ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+      <span>{title} {cli ? cliTitle : ""}</span>
+      {cli && !cliReady && <button className="inline-link" onClick={onInstallCli}>{t.repairCli}</button>}
     </div>
   );
 }

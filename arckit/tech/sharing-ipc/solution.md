@@ -4,13 +4,15 @@
 
 共享与 IPC 方案覆盖 Electron 安全桥接、系统环境检测、GitHub 来源下载、发布计划生成、共享执行和漂移差异窗口。
 
-渲染层只通过 preload 暴露的方法调用主进程。主进程负责文件系统、Git、目录选择器和窗口创建。
+渲染层只通过 preload 暴露的方法调用主进程。主进程负责目录选择器、窗口创建、应用数据目录注入和 IPC 参数映射。工作区扫描、配置组应用、来源下载和共享推送由 core 与命令编排层完成。
 
 ## IPC 边界
 
 preload 暴露 `window.skillops` 对象。该对象包含选择工作区、扫描工作区、初始化配置、保存配置、查询默认目标、查询环境、下载来源、生成发布计划、共享项目、应用配置组、漂移检查和打开差异窗口等方法。
 
 主进程通过 `ipcMain.handle` 注册对应 channel。每个 handler 返回 Promise 结果或抛出错误。
+
+IPC handler 不保留与 CLI 不一致的业务分支。需要访问桌面应用数据目录的共享能力通过参数传入 cache root，再调用命令编排层或 core 模块。
 
 渲染层不访问 Node.js API。BrowserWindow 启用上下文隔离并关闭 Node 集成。
 
@@ -26,11 +28,15 @@ Cursor 目标路径为用户主目录下 `.cursor/skills`。
 
 ## 环境检测
 
-环境检测执行 `git --version`。
+环境检测执行 `git --version`，并检测 `skillops` CLI shim、`skillshare`、`npx` 和 `clawhub` 的可用性。
 
 Git 可用时，结果包含平台、架构、Git 可用状态和 Git 版本。
 
 Git 不可用时，结果包含平台、架构、Git 不可用状态和错误信息。
+
+CLI shim 检测结果包含 shim 路径、shim 目录、shim 是否存在、shim 目录是否在 `PATH` 中和可读提示。
+
+桌面端提供 CLI 修复 IPC。修复操作写入或覆盖用户级 shim，并在完成后由渲染层重新请求环境检测。
 
 模型为 `EnvironmentStatus`。
 
@@ -72,9 +78,11 @@ GitHub tree/blob URL 解析为克隆地址、引用和子目录。
 
 共享执行先解析远端来源，再扫描当前工作区，并根据用户选择的配置组选出本次共享的技能。
 
+桌面端共享执行通过命令编排层调用 core 共享模块。CLI 的 `share` 命令和桌面端共享按钮使用相同的参数结构、配置合并规则、Git 执行规则和 `ShareResult`。
+
 如果当前工作区本身位于同一个 Git 仓库、同一个分支和同一个项目路径，系统直接在当前工作区所属 Git checkout 中执行共享提交和推送。系统会扫描当前 checkout 的所有 Git remote，并把 GitHub SSH、HTTPS 和简写地址归一比较。
 
-如果当前工作区不是同一个共享目标，系统在应用数据目录下的 `share-worktrees` 准备共享仓库工作树。工作树目录由仓库名和仓库地址摘要组成。
+如果当前工作区不是同一个共享目标，系统在缓存根目录下的 `share-worktrees` 准备共享仓库工作树。桌面端缓存根目录为应用数据目录，CLI 缓存根目录为用户主目录下 `.skillops/cache` 或命令传入的 `--cache-dir`。工作树目录由仓库名和仓库地址摘要组成。
 
 工作树不存在时，系统克隆远端仓库。工作树存在时，系统拉取远端引用信息。
 

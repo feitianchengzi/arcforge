@@ -21,3 +21,19 @@ test("installer metadata is managed from the app manifest", () => {
   assert.equal(appManifest.productName, "SkillOps");
   assert.match(appManifest.appId, /^com\./);
 });
+
+test("cli-first share command is exposed to desktop and terminal entrypoints", async () => {
+  const commands = await readFile(new URL("../src/commands/index.ts", import.meta.url), "utf8");
+  const cli = await readFile(new URL("../src/cli/index.ts", import.meta.url), "utf8");
+  const electronMain = await readFile(new URL("../src/electron/main.ts", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../src/electron/preload.cts", import.meta.url), "utf8");
+
+  assert.match(commands, /skillops share --repo/);
+  assert.match(commands, /command === "share"/);
+  assert.match(commands, /command === "doctor"/);
+  assert.match(cli, /runSkillOpsCommand/);
+  assert.match(electronMain, /"--cli"/);
+  assert.match(electronMain, /installCliShim/);
+  assert.match(electronMain, /system:installCli/);
+  assert.match(preload, /installCli/);
+});

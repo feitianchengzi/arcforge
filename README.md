@@ -81,7 +81,12 @@ node dist/cli/index.js scan --root .
 node dist/cli/index.js audit --root .
 node dist/cli/index.js drift --root . --profile default --target .skillops/skills
 node dist/cli/index.js publish-plan --root . --visibility public
+node dist/cli/index.js share --root . --repo github.com/acme/team-skills --profile frontend --message "Share frontend skills"
+node dist/cli/index.js share --root . --repo github.com/acme/team-skills --skills code-review,release-writer
+node dist/cli/index.js doctor
 ```
+
+Desktop release builds include the same CLI engine. After the desktop app starts, it installs a user-level `skillops` shim and the environment banner reports whether the shim is on PATH. Use **Repair CLI** in the desktop banner when the shim directory needs to be added to your shell profile.
 
 Expected workspace shape:
 
@@ -120,7 +125,7 @@ Minimal config:
 
 | Scenario | Why SkillOps helps | Main commands/features |
 |---|---|---|
-| Private team skill repo | keep skills reviewed in Git without running a registry | scan, audit, profiles, GitHub share plan |
+| Private team skill repo | keep skills reviewed in Git without running a registry | scan, audit, profiles, GitHub share |
 | Per-project agent setup | install only the skills a project should use | profiles, apply-profile, target history |
 | Pre-publication review | catch secrets, risky instructions, weak metadata, and internal references | audit, public publish plan, release checklist |
 | Multi-agent drift control | compare installed copies with source skills | drift report, apply-profile |

@@ -6,6 +6,5 @@
 | workspace/solution.md | ✅ 已采用 | 配置加载、技能发现、共享资产发现、快照生成 | SkillOpsConfig、WorkspaceSnapshot | workspace-scan、workspace-init |
 | audit/solution.md | ✅ 已采用 | 密钥检查、危险指令检查、结构质量检查、审计评分 | AuditReport、WorkspaceSnapshot | workspace-scan |
 | profiles-sync/solution.md | ✅ 已采用 | 配置组应用、共享资产复制、漂移检查、差异汇总 | ApplyProfileResult、DriftReport | profile-apply、profile-drift |
-| sharing-ipc/solution.md | ✅ 已采用 | preload 桥接、来源下载、发布计划、共享推送、环境检测 | PublishPlan、ShareResult、EnvironmentStatus | source-download、publish-plan、publish-share、system-environment |
-| cli/solution.md | ✅ 已采用 | init、scan、audit、publish-plan、drift、apply-profile JSON 命令 | SkillOpsConfig、WorkspaceSnapshot、AuditReport、PublishPlan、DriftReport、ApplyProfileResult | 与 IPC 同构但不经 Electron |
-
+| sharing-ipc/solution.md | ✅ 已采用 | preload 桥接、应用数据目录注入、来源下载、发布计划、共享推送、环境检测、CLI 修复 | PublishPlan、ShareResult、EnvironmentStatus | source-download、publish-plan、publish-share、system-environment |
+| cli/solution.md | ✅ 已采用 | init、scan、audit、publish-plan、drift、apply-profile、share、doctor JSON 命令和桌面 --cli 模式 | SkillOpsConfig、WorkspaceSnapshot、AuditReport、PublishPlan、DriftReport、ApplyProfileResult、ShareResult、EnvironmentStatus | 与 IPC 同构但不经 Electron |
