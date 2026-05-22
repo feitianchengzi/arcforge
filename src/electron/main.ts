@@ -1,5 +1,6 @@
 import path from "node:path";
 import os from "node:os";
+import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { runSkillOpsCommand, createPublishPlanCommand, applyProfileCommand, driftReportCommand, downloadSourceCommand, shareProjectCommand } from "../commands/index.js";
@@ -7,10 +8,13 @@ import { scanWorkspace, initWorkspace } from "../core/workspace.js";
 import { saveConfig } from "../core/config.js";
 import { getEnvironmentStatus } from "../core/environment.js";
 import { installCliShim } from "../core/cli-install.js";
-import type { DriftReport, ShareTargetMode, SkillOpsConfig } from "../shared/types.js";
+import type { AppState, DriftReport, ProjectUiState, RecentWorkspace, ShareTargetMode, SkillOpsConfig, TargetRecord } from "../shared/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cliMarkerIndex = process.argv.indexOf("--cli");
+let appStateWriteQueue: Promise<unknown> = Promise.resolve();
+
+app.setName("SkillOps");
 
 if (cliMarkerIndex !== -1) {
   app.whenReady()
@@ -95,6 +99,9 @@ ipcMain.handle("workspace:saveConfig", (_event, root: string, config: SkillOpsCo
 ipcMain.handle("system:defaultTargets", () => defaultTargets());
 ipcMain.handle("system:environment", () => getElectronEnvironmentStatus());
 ipcMain.handle("system:installCli", () => installCliShim({ ...cliShimOptions(), updateShellProfile: true }));
+ipcMain.handle("appState:load", () => loadAppState());
+ipcMain.handle("appState:save", (_event, patch: Partial<AppState>) => saveAppStatePatch(patch));
+ipcMain.handle("appState:migrate", (_event, legacyState: Partial<AppState>, origin: string) => migrateAppState(legacyState, origin));
 ipcMain.handle("source:download", (_event, remoteUrl: string) => downloadSourceCommand(remoteUrl, cacheRoot()));
 ipcMain.handle("publish:plan", (_event, root: string, visibility: "private" | "public") => createPublishPlanCommand(root, visibility));
 ipcMain.handle("publish:share", (_event, root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string) => shareProjectCommand({
@@ -114,6 +121,164 @@ ipcMain.handle("profile:openDriftDiff", (event, report: DriftReport) => openDrif
 async function saveWorkspaceConfig(root: string, config: SkillOpsConfig) {
   await saveConfig(root, normalizeConfig(config));
   return scanWorkspace(root);
+}
+
+async function loadAppState(): Promise<AppState> {
+  try {
+    const raw = await fs.readFile(appStatePath(), "utf8");
+    return normalizeAppState(JSON.parse(raw) as Partial<AppState>);
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return defaultAppState();
+    throw error;
+  }
+}
+
+async function saveAppStatePatch(patch: Partial<AppState>): Promise<AppState> {
+  return withAppStateWrite(async () => {
+    const current = await loadAppState();
+    const next = normalizeAppState({
+      ...current,
+      ...patch,
+      projectState: patch.projectState ?? current.projectState,
+      migratedLocalStorageOrigins: patch.migratedLocalStorageOrigins ?? current.migratedLocalStorageOrigins
+    });
+    await writeAppState(next);
+    return next;
+  });
+}
+
+async function migrateAppState(legacyState: Partial<AppState>, origin: string): Promise<AppState> {
+  return withAppStateWrite(async () => {
+    const current = await loadAppState();
+    const migrationOrigin = origin || "unknown";
+    if (current.migratedLocalStorageOrigins?.includes(migrationOrigin)) return current;
+    const next = normalizeAppState({
+      ...current,
+      language: current.language ?? legacyState.language,
+      activeWorkspace: current.activeWorkspace ?? legacyState.activeWorkspace,
+      recentWorkspaces: mergeRecentWorkspaces(legacyState.recentWorkspaces, current.recentWorkspaces),
+      targetHistory: mergeTargetHistory(legacyState.targetHistory, current.targetHistory),
+      projectState: {
+        ...(legacyState.projectState ?? {}),
+        ...current.projectState
+      },
+      migratedLocalStorageOrigins: [...(current.migratedLocalStorageOrigins ?? []), migrationOrigin]
+    });
+    await writeAppState(next);
+    return next;
+  });
+}
+
+function withAppStateWrite<T>(operation: () => Promise<T>): Promise<T> {
+  const next = appStateWriteQueue.then(operation, operation);
+  appStateWriteQueue = next.catch(() => undefined);
+  return next;
+}
+
+async function writeAppState(state: AppState): Promise<void> {
+  await fs.mkdir(path.dirname(appStatePath()), { recursive: true });
+  await fs.writeFile(appStatePath(), `${JSON.stringify(state, null, 2)}\n`, "utf8");
+}
+
+function appStatePath(): string {
+  return path.join(app.getPath("userData"), "state.json");
+}
+
+function defaultAppState(): AppState {
+  return {
+    version: 1,
+    recentWorkspaces: [],
+    targetHistory: [],
+    projectState: {},
+    migratedLocalStorageOrigins: []
+  };
+}
+
+function normalizeAppState(state: Partial<AppState>): AppState {
+  return {
+    version: 1,
+    language: state.language === "en" || state.language === "zh-CN" ? state.language : undefined,
+    activeWorkspace: cleanString(state.activeWorkspace),
+    recentWorkspaces: normalizeRecentWorkspaces(state.recentWorkspaces),
+    targetHistory: normalizeTargetHistory(state.targetHistory),
+    projectState: normalizeProjectState(state.projectState),
+    migratedLocalStorageOrigins: Array.from(new Set((state.migratedLocalStorageOrigins ?? []).map(cleanString).filter(Boolean) as string[]))
+  };
+}
+
+function normalizeRecentWorkspaces(items?: RecentWorkspace[]): RecentWorkspace[] {
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter((item): item is RecentWorkspace => Boolean(item) && typeof item === "object")
+    .map((item) => ({
+      path: cleanString(item.path) ?? "",
+      name: cleanString(item.name) ?? cleanString(item.path)?.split(/[\\/]/).filter(Boolean).pop() ?? "Skill project",
+      lastOpenedAt: cleanString(item.lastOpenedAt) ?? new Date().toISOString(),
+      skillCount: Number.isFinite(item.skillCount) ? item.skillCount : 0,
+      auditScore: Number.isFinite(item.auditScore) ? item.auditScore : 0,
+      status: item.status === "downloading" || item.status === "error" || item.status === "ready" ? item.status : undefined,
+      sourceUrl: cleanString(item.sourceUrl),
+      error: cleanString(item.error)
+    }))
+    .filter((item) => item.path)
+    .slice(0, 20);
+}
+
+function normalizeTargetHistory(items?: TargetRecord[]): TargetRecord[] {
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter((item): item is TargetRecord => Boolean(item) && typeof item === "object")
+    .map((item) => ({
+      id: cleanString(item.id) ?? "",
+      sourcePath: cleanString(item.sourcePath) ?? "",
+      sourceName: cleanString(item.sourceName) ?? "",
+      profile: cleanString(item.profile) ?? "default",
+      destinationName: cleanString(item.destinationName) ?? "",
+      destinationPath: cleanString(item.destinationPath) ?? "",
+      lastAppliedAt: cleanString(item.lastAppliedAt) ?? new Date().toISOString()
+    }))
+    .filter((item) => item.id && item.sourcePath && item.destinationPath)
+    .slice(0, 100);
+}
+
+function normalizeProjectState(value?: Record<string, ProjectUiState>): Record<string, ProjectUiState> {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(Object.entries(value)
+    .filter((entry): entry is [string, ProjectUiState] => typeof entry[0] === "string" && Boolean(entry[1]) && typeof entry[1] === "object")
+    .map(([projectRoot, state]) => [projectRoot, {
+      tab: isProjectTab(state.tab) ? state.tab : undefined,
+      profile: cleanString(state.profile),
+      applyTargetGroupId: cleanString(state.applyTargetGroupId),
+      shareTargetGroupId: cleanString(state.shareTargetGroupId)
+    }]));
+}
+
+function mergeRecentWorkspaces(primary?: RecentWorkspace[], secondary?: RecentWorkspace[]): RecentWorkspace[] {
+  const merged = new Map<string, RecentWorkspace>();
+  for (const item of normalizeRecentWorkspaces([...(primary ?? []), ...(secondary ?? [])])) {
+    if (!merged.has(item.path)) merged.set(item.path, item);
+  }
+  return Array.from(merged.values()).slice(0, 20);
+}
+
+function mergeTargetHistory(primary?: TargetRecord[], secondary?: TargetRecord[]): TargetRecord[] {
+  const merged = new Map<string, TargetRecord>();
+  for (const item of normalizeTargetHistory([...(primary ?? []), ...(secondary ?? [])])) {
+    if (!merged.has(item.id)) merged.set(item.id, item);
+  }
+  return Array.from(merged.values()).slice(0, 100);
+}
+
+function cleanString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function isProjectTab(value: unknown): value is ProjectUiState["tab"] {
+  return value === "overview" || value === "skills" || value === "profiles" || value === "destinations" || value === "share" || value === "audit";
+}
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error;
 }
 
 function normalizeConfig(config: SkillOpsConfig): SkillOpsConfig {

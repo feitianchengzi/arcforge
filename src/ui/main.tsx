@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AlertTriangle, CheckCircle2, Download, ExternalLink, FolderOpen, GitBranch, HardDrive, PackageCheck, Pencil, Play, Plus, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
-import type { ApplyProfileResult, ApplyTargetGroup, CliInstallStatus, DriftReport, EnvironmentStatus, ShareResult, ShareTargetGroup, ShareTargetMode, SkillOpsConfig, SkillOpsProfile, WorkspaceSnapshot } from "../shared/types";
+import type { AppState, ApplyProfileResult, ApplyTargetGroup, CliInstallStatus, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, ShareResult, ShareTargetGroup, ShareTargetMode, SkillOpsConfig, SkillOpsProfile, TargetRecord, WorkspaceSnapshot } from "../shared/types";
 import { dictionaries, type Dictionary, type Language } from "./i18n";
 import "./styles.css";
 
@@ -15,6 +15,9 @@ declare global {
       getDefaultTargets: () => Promise<DefaultTarget[]>;
       getEnvironmentStatus: () => Promise<EnvironmentStatus>;
       installCli: () => Promise<CliInstallStatus>;
+      loadAppState: () => Promise<AppState>;
+      saveAppState: (patch: Partial<AppState>) => Promise<AppState>;
+      migrateAppState: (legacyState: Partial<AppState>, origin: string) => Promise<AppState>;
       downloadSource: (remoteUrl: string) => Promise<string>;
       shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string) => Promise<ShareResult>;
       applyProfile: (root: string, profile: string, targetDir: string) => Promise<ApplyProfileResult>;
@@ -32,34 +35,6 @@ interface DefaultTarget {
   path: string;
 }
 
-interface RecentWorkspace {
-  path: string;
-  name: string;
-  lastOpenedAt: string;
-  skillCount: number;
-  auditScore: number;
-  status?: "ready" | "downloading" | "error";
-  sourceUrl?: string;
-  error?: string;
-}
-
-interface TargetRecord {
-  id: string;
-  sourcePath: string;
-  sourceName: string;
-  profile: string;
-  destinationName: string;
-  destinationPath: string;
-  lastAppliedAt: string;
-}
-
-interface ProjectUiState {
-  tab?: Tab;
-  profile?: string;
-  applyTargetGroupId?: string;
-  shareTargetGroupId?: string;
-}
-
 const RECENT_WORKSPACES_KEY = "skillops.recentWorkspaces";
 const ACTIVE_WORKSPACE_KEY = "skillops.activeWorkspace";
 const TARGET_HISTORY_KEY = "skillops.targetHistory";
@@ -67,8 +42,6 @@ const PROJECT_STATE_KEY = "skillops.projectState";
 const MAX_RECENT_WORKSPACES = 8;
 
 function initialLanguage(): Language {
-  const stored = window.localStorage.getItem("skillops.language");
-  if (stored === "en" || stored === "zh-CN") return stored;
   return navigator.language.toLowerCase().startsWith("zh") ? "zh-CN" : "en";
 }
 
@@ -86,9 +59,9 @@ function App() {
   const [shareProgress, setShareProgress] = useState<string | undefined>();
   const [driftReports, setDriftReports] = useState<DriftReport[]>([]);
   const [applyResults, setApplyResults] = useState<ApplyProfileResult[]>([]);
-  const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>(loadJson<RecentWorkspace[]>(RECENT_WORKSPACES_KEY, []));
-  const [targetHistory, setTargetHistory] = useState<TargetRecord[]>(loadJson<TargetRecord[]>(TARGET_HISTORY_KEY, []));
-  const [projectStates, setProjectStates] = useState<Record<string, ProjectUiState>>(loadJson<Record<string, ProjectUiState>>(PROJECT_STATE_KEY, {}));
+  const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>([]);
+  const [targetHistory, setTargetHistory] = useState<TargetRecord[]>([]);
+  const [projectStates, setProjectStates] = useState<Record<string, ProjectUiState>>({});
   const [defaultTargets, setDefaultTargets] = useState<DefaultTarget[]>([]);
   const [applyTargetGroupId, setApplyTargetGroupId] = useState("");
   const [shareTargetGroupId, setShareTargetGroupId] = useState("");
@@ -109,22 +82,49 @@ function App() {
 
   useEffect(() => {
     if (!window.skillops) return;
+    void hydrateAppState();
     void window.skillops.getDefaultTargets().then((targets) => {
       setDefaultTargets(targets);
     }).catch((error) => setStatus(t.errorStatus(errorMessage(error))));
     void refreshEnvironment();
   }, []);
 
-  useEffect(() => {
-    const active = window.localStorage.getItem(ACTIVE_WORKSPACE_KEY);
-    if (!active || !window.skillops) return;
-    void openWorkspace(active, { restore: true, moveToTop: false });
-  }, []);
-
   function setLanguage(next: Language) {
     setLanguageState(next);
-    window.localStorage.setItem("skillops.language", next);
+    void saveAppState({ language: next });
     if (!snapshot) setStatus(dictionaries[next].chooseStatus);
+  }
+
+  async function hydrateAppState() {
+    if (!window.skillops) return;
+    try {
+      const state = await window.skillops.migrateAppState(readLegacyAppState(), window.location.origin || "file://");
+      applyAppState(state);
+      if (state.activeWorkspace) {
+        await openWorkspace(state.activeWorkspace, { restore: true, moveToTop: false, projectStates: state.projectState });
+      }
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    }
+  }
+
+  function applyAppState(state: AppState) {
+    if (state.language === "en" || state.language === "zh-CN") {
+      setLanguageState(state.language);
+      if (!snapshot) setStatus(dictionaries[state.language].chooseStatus);
+    }
+    setRecentWorkspaces(state.recentWorkspaces.slice(0, MAX_RECENT_WORKSPACES));
+    setTargetHistory(state.targetHistory);
+    setProjectStates(state.projectState);
+  }
+
+  async function saveAppState(patch: Partial<AppState>) {
+    if (!window.skillops) return;
+    try {
+      await window.skillops.saveAppState(patch);
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    }
   }
 
   async function refreshEnvironment() {
@@ -157,7 +157,7 @@ function App() {
   function rememberProjectState(projectRoot: string, patch: ProjectUiState) {
     setProjectStates((current) => {
       const next = { ...current, [projectRoot]: { ...current[projectRoot], ...patch } };
-      window.localStorage.setItem(PROJECT_STATE_KEY, JSON.stringify(next));
+      void saveAppState({ projectState: next });
       return next;
     });
   }
@@ -220,11 +220,11 @@ function App() {
     };
     const nextRecent = [pendingRecord, ...recentWorkspaces.filter((item) => item.path !== pendingId)].slice(0, MAX_RECENT_WORKSPACES);
     setRecentWorkspaces(nextRecent);
-    window.localStorage.setItem(RECENT_WORKSPACES_KEY, JSON.stringify(nextRecent));
+    void saveAppState({ recentWorkspaces: nextRecent });
     setRoot(pendingId);
     setSnapshot(undefined);
     setShowAddProject(false);
-    window.localStorage.setItem(ACTIVE_WORKSPACE_KEY, pendingId);
+    void saveAppState({ activeWorkspace: pendingId });
     try {
       if (!window.skillops) {
         setStatus(t.desktopRequired);
@@ -235,7 +235,7 @@ function App() {
       setSharedSourceUrl("");
       setRecentWorkspaces((current) => {
         const next = current.filter((item) => item.path !== pendingId);
-        window.localStorage.setItem(RECENT_WORKSPACES_KEY, JSON.stringify(next));
+        void saveAppState({ recentWorkspaces: next });
         return next;
       });
       await openWorkspace(sourcePath);
@@ -243,7 +243,7 @@ function App() {
       const message = errorMessage(error);
       setRecentWorkspaces((current) => {
         const next = current.map((item) => item.path === pendingId ? { ...item, status: "error" as const, error: message } : item);
-        window.localStorage.setItem(RECENT_WORKSPACES_KEY, JSON.stringify(next));
+        void saveAppState({ recentWorkspaces: next });
         return next;
       });
       setStatus(t.errorStatus(message));
@@ -344,7 +344,7 @@ function App() {
     }
   }
 
-  async function openWorkspace(nextRoot: string, options: { restore?: boolean; moveToTop?: boolean } = {}) {
+  async function openWorkspace(nextRoot: string, options: { restore?: boolean; moveToTop?: boolean; projectStates?: Record<string, ProjectUiState> } = {}) {
     if (!window.skillops) {
       setStatus(t.desktopRequired);
       return;
@@ -353,9 +353,9 @@ function App() {
     setStatus(t.scanning);
     try {
       const result = await window.skillops.scanWorkspace(nextRoot);
-      applySnapshot(result);
+      applySnapshot(result, undefined, options.projectStates);
       rememberWorkspace(result, { moveToTop: options.moveToTop ?? true });
-      window.localStorage.setItem(ACTIVE_WORKSPACE_KEY, nextRoot);
+      void saveAppState({ activeWorkspace: nextRoot });
       setStatus(t.foundStatus(result.skills.length, result.audit.score));
     } catch (error) {
       if (!options.restore) setStatus(t.errorStatus(errorMessage(error)));
@@ -432,9 +432,9 @@ function App() {
     }
   }
 
-  function applySnapshot(result: WorkspaceSnapshot, preferredProfile?: string) {
+  function applySnapshot(result: WorkspaceSnapshot, preferredProfile?: string, stateOverride = projectStates) {
     setSnapshot(result);
-    const savedState = projectStates[result.root];
+    const savedState = stateOverride[result.root];
     const nextProfile = preferredProfile !== undefined && result.config.profiles.some((item) => item.name === preferredProfile)
       ? preferredProfile
       : savedState?.profile !== undefined && result.config.profiles.some((item) => item.name === savedState.profile)
@@ -458,22 +458,24 @@ function App() {
       skillCount: result.skills.length,
       auditScore: result.audit.score
     };
-    const exists = recentWorkspaces.some((item) => item.path === result.root);
-    const next = options.moveToTop || !exists
-      ? [record, ...recentWorkspaces.filter((item) => item.path !== result.root)].slice(0, MAX_RECENT_WORKSPACES)
-      : recentWorkspaces.map((item) => item.path === result.root ? record : item);
-    setRecentWorkspaces(next);
-    window.localStorage.setItem(RECENT_WORKSPACES_KEY, JSON.stringify(next));
+    setRecentWorkspaces((current) => {
+      const exists = current.some((item) => item.path === result.root);
+      const next = options.moveToTop || !exists
+        ? [record, ...current.filter((item) => item.path !== result.root)].slice(0, MAX_RECENT_WORKSPACES)
+        : current.map((item) => item.path === result.root ? record : item);
+      void saveAppState({ recentWorkspaces: next });
+      return next;
+    });
   }
 
   function removeRecentWorkspace(path: string) {
     const next = recentWorkspaces.filter((item) => item.path !== path);
     setRecentWorkspaces(next);
-    window.localStorage.setItem(RECENT_WORKSPACES_KEY, JSON.stringify(next));
+    void saveAppState({ recentWorkspaces: next });
     if (root === path) {
       setRoot("");
       setSnapshot(undefined);
-      window.localStorage.removeItem(ACTIVE_WORKSPACE_KEY);
+      void saveAppState({ activeWorkspace: undefined });
       setStatus(t.chooseStatus);
     }
   }
@@ -493,7 +495,7 @@ function App() {
       const otherProjects = current.filter((item) => item.sourcePath !== root);
       const currentProject = [record, ...current.filter((item) => item.sourcePath === root && item.id !== record.id)].slice(0, 10);
       const next = [...currentProject, ...otherProjects];
-      window.localStorage.setItem(TARGET_HISTORY_KEY, JSON.stringify(next));
+      void saveAppState({ targetHistory: next });
       return next;
     });
   }
@@ -817,7 +819,23 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function loadJson<T>(key: string, fallback: T): T {
+function readLegacyAppState(): Partial<AppState> {
+  return {
+    version: 1,
+    language: readLegacyLanguage(),
+    activeWorkspace: window.localStorage.getItem(ACTIVE_WORKSPACE_KEY) ?? undefined,
+    recentWorkspaces: loadLegacyJson<RecentWorkspace[]>(RECENT_WORKSPACES_KEY, []),
+    targetHistory: loadLegacyJson<TargetRecord[]>(TARGET_HISTORY_KEY, []),
+    projectState: loadLegacyJson<Record<string, ProjectUiState>>(PROJECT_STATE_KEY, {})
+  };
+}
+
+function readLegacyLanguage(): Language | undefined {
+  const stored = window.localStorage.getItem("skillops.language");
+  return stored === "en" || stored === "zh-CN" ? stored : undefined;
+}
+
+function loadLegacyJson<T>(key: string, fallback: T): T {
   try {
     const raw = window.localStorage.getItem(key);
     return raw ? JSON.parse(raw) as T : fallback;

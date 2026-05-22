@@ -123,6 +123,44 @@ export interface WorkspaceSnapshot {
   audit: AuditReport;
 }
 
+export interface RecentWorkspace {
+  path: string;
+  name: string;
+  lastOpenedAt: string;
+  skillCount: number;
+  auditScore: number;
+  status?: "ready" | "downloading" | "error";
+  sourceUrl?: string;
+  error?: string;
+}
+
+export interface TargetRecord {
+  id: string;
+  sourcePath: string;
+  sourceName: string;
+  profile: string;
+  destinationName: string;
+  destinationPath: string;
+  lastAppliedAt: string;
+}
+
+export interface ProjectUiState {
+  tab?: "overview" | "skills" | "profiles" | "destinations" | "share" | "audit";
+  profile?: string;
+  applyTargetGroupId?: string;
+  shareTargetGroupId?: string;
+}
+
+export interface AppState {
+  version: 1;
+  language?: "en" | "zh-CN";
+  activeWorkspace?: string;
+  recentWorkspaces: RecentWorkspace[];
+  targetHistory: TargetRecord[];
+  projectState: Record<string, ProjectUiState>;
+  migratedLocalStorageOrigins?: string[];
+}
+
 export interface EnvironmentStatus {
   platform: string;
   arch: string;
