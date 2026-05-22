@@ -12,6 +12,7 @@ const pkg = JSON.parse(await readFile(packagePath, "utf8"));
 const options = parseArgs(process.argv.slice(2));
 const repo = options.repo ?? "owner/skillops";
 const version = options.version ?? pkg.version;
+const requiredNodeMajor = Number(pkg.engines?.node?.match(/\d+/)?.[0] ?? 20);
 
 await assertBuilt();
 await rm(cliWorkDir, { recursive: true, force: true });
@@ -39,7 +40,16 @@ await writeFile(path.join(cliRoot, "package.json"), `${JSON.stringify({
 
 await writeFile(path.join(cliRoot, "bin", "skillops"), `#!/bin/sh
 set -e
-DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+PRG="$0"
+while [ -h "$PRG" ]; do
+  DIR="$(CDPATH= cd -P -- "$(dirname -- "$PRG")" && pwd)"
+  LINK="$(readlink "$PRG")"
+  case "$LINK" in
+    /*) PRG="$LINK" ;;
+    *) PRG="$DIR/$LINK" ;;
+  esac
+done
+DIR="$(CDPATH= cd -P -- "$(dirname -- "$PRG")" && pwd)"
 exec node "$DIR/../dist/cli/index.js" "$@"
 `);
 await chmod(path.join(cliRoot, "bin", "skillops"), 0o755);
@@ -48,8 +58,8 @@ await writeFile(path.join(cliRoot, "bin", "skillops.cmd"), `@echo off\r
 node "%~dp0\\..\\dist\\cli\\index.js" %*\r
 `);
 
-await writeFile(path.join(assetsDir, "install.sh"), installSh(repo));
-await writeFile(path.join(assetsDir, "install.ps1"), installPs1(repo));
+await writeFile(path.join(assetsDir, "install.sh"), installSh(repo, requiredNodeMajor));
+await writeFile(path.join(assetsDir, "install.ps1"), installPs1(repo, requiredNodeMajor));
 await chmod(path.join(assetsDir, "install.sh"), 0o755);
 
 console.log(`Prepared CLI package staging for ${pkg.name} ${version}`);
@@ -75,11 +85,12 @@ function parseArgs(args) {
   return result;
 }
 
-function installSh(defaultRepo) {
+function installSh(defaultRepo, requiredNodeMajor) {
   return `#!/bin/sh
 set -eu
 
 repo="\${SKILLOPS_REPO:-${defaultRepo}}"
+required_node_major="${requiredNodeMajor}"
 install_root="\${SKILLOPS_HOME:-$HOME/.skillops}"
 cli_dir="$install_root/cli/latest"
 bin_dir="\${SKILLOPS_BIN_DIR:-$HOME/.local/bin}"
@@ -89,6 +100,23 @@ cleanup() {
   rm -rf "$tmp_dir"
 }
 trap cleanup EXIT
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "Node.js $required_node_major or newer is required to run SkillOps CLI. Install Node.js, then rerun this installer." >&2
+  exit 1
+fi
+node_version="$(node -p 'process.versions.node' 2>/dev/null || true)"
+node_major="\${node_version%%.*}"
+case "$node_major" in
+  ''|*[!0-9]*)
+    echo "Unable to determine Node.js version. Install Node.js $required_node_major or newer, then rerun this installer." >&2
+    exit 1
+    ;;
+esac
+if [ "$node_major" -lt "$required_node_major" ]; then
+  echo "Node.js $required_node_major or newer is required to run SkillOps CLI. Found $node_version." >&2
+  exit 1
+fi
 
 os="$(uname -s | tr '[:upper:]' '[:lower:]')"
 arch="$(uname -m)"
@@ -115,7 +143,13 @@ mkdir -p "$cli_dir"
 tar -xzf "$archive" -C "$tmp_dir"
 cp -R "$tmp_dir/skillops-cli/." "$cli_dir/"
 chmod +x "$cli_dir/bin/skillops"
-ln -sf "$cli_dir/bin/skillops" "$bin_dir/skillops"
+shim="$bin_dir/skillops"
+rm -f "$shim"
+cat > "$shim" <<EOF
+#!/bin/sh
+exec node "$cli_dir/dist/cli/index.js" "\\$@"
+EOF
+chmod +x "$shim"
 
 case ":$PATH:" in
   *":$bin_dir:"*) ;;
@@ -130,14 +164,15 @@ case ":$PATH:" in
     ;;
 esac
 
-"$bin_dir/skillops" doctor
+"$shim" doctor
 `;
 }
 
-function installPs1(defaultRepo) {
+function installPs1(defaultRepo, requiredNodeMajor) {
   return `$ErrorActionPreference = "Stop"
 
 $Repo = if ($env:SKILLOPS_REPO) { $env:SKILLOPS_REPO } else { "${defaultRepo}" }
+$RequiredNodeMajor = ${requiredNodeMajor}
 $InstallRoot = if ($env:SKILLOPS_HOME) { $env:SKILLOPS_HOME } else { Join-Path $HOME ".skillops" }
 $CliDir = Join-Path $InstallRoot "cli\\latest"
 $BinDir = if ($env:SKILLOPS_BIN_DIR) { $env:SKILLOPS_BIN_DIR } else { Join-Path $InstallRoot "bin" }
@@ -145,6 +180,20 @@ $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) ("skillops-" + [System.Gu
 $Asset = "skillops-cli-win-x64.zip"
 $Url = "https://github.com/$Repo/releases/latest/download/$Asset"
 $Archive = Join-Path $TempDir $Asset
+
+$NodeCommand = Get-Command node -ErrorAction SilentlyContinue
+if (-not $NodeCommand) {
+  throw "Node.js $RequiredNodeMajor or newer is required to run SkillOps CLI. Install Node.js, then rerun this installer."
+}
+$NodeVersionText = (& node -p "process.versions.node").Trim()
+try {
+  $NodeVersion = [version]$NodeVersionText
+} catch {
+  throw "Unable to determine Node.js version. Install Node.js $RequiredNodeMajor or newer, then rerun this installer."
+}
+if ($NodeVersion.Major -lt $RequiredNodeMajor) {
+  throw "Node.js $RequiredNodeMajor or newer is required to run SkillOps CLI. Found $NodeVersionText."
+}
 
 New-Item -ItemType Directory -Force -Path $TempDir, $CliDir, $BinDir | Out-Null
 Write-Host "Downloading $Url"
@@ -155,7 +204,10 @@ Expand-Archive -Path $Archive -DestinationPath $TempDir -Force
 Copy-Item -Recurse -Force (Join-Path $TempDir "skillops-cli\\*") $CliDir
 
 $Shim = Join-Path $BinDir "skillops.cmd"
-Set-Content -Path $Shim -Value "@echo off\`r\`nnode \`"%~dp0\\..\\cli\\latest\\dist\\cli\\index.js\`" %*\`r\`n"
+$CliEntry = Join-Path $CliDir "dist\\cli\\index.js"
+$ExistingShim = Get-Item -LiteralPath $Shim -Force -ErrorAction SilentlyContinue
+if ($ExistingShim) { Remove-Item -LiteralPath $Shim -Force }
+Set-Content -LiteralPath $Shim -Value "@echo off\`r\`nnode \`"$CliEntry\`" %*\`r\`n"
 
 $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
 $PathParts = @($UserPath -split ";" | Where-Object { $_ })

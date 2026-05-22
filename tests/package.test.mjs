@@ -55,4 +55,13 @@ test("release workflow publishes cli-only install assets", async () => {
   assert.match(workflow, /checksums\.txt/);
   assert.match(buildScript, /install\.sh/);
   assert.match(buildScript, /install\.ps1/);
+  assert.match(buildScript, /while \[ -h "\$PRG" \]/);
+  assert.match(buildScript, /command -v node/);
+  assert.match(buildScript, /\[ "\$node_major" -lt "\$required_node_major" \]/);
+  assert.match(buildScript, /rm -f "\$shim"/);
+  assert.match(buildScript, /cat > "\$shim"/);
+  assert.doesNotMatch(buildScript, /ln -sf "\$cli_dir\/bin\/skillops" "\$bin_dir\/skillops"/);
+  assert.match(buildScript, /Get-Command node/);
+  assert.match(buildScript, /\$CliEntry = Join-Path \$CliDir "dist\\\\cli\\\\index\.js"/);
+  assert.match(buildScript, /Remove-Item -LiteralPath \$Shim -Force/);
 });

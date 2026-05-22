@@ -54,7 +54,8 @@ Help:
   skillops <command> --help
 
 Install:
-  curl -fsSL https://github.com/<owner>/skillops/releases/latest/download/install.sh | sh
+  Requires Node.js 20 or newer on PATH.
+  curl -fsSL https://github.com/feitianchengzi/skillops/releases/latest/download/install.sh | sh
 `;
 
 const commandHelpText: Record<string, string> = {

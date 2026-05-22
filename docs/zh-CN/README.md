@@ -123,14 +123,16 @@ npm run package
 
 从最新 GitHub Release 安装 CLI：
 
+需要 PATH 中已有 Node.js 20 或更高版本。
+
 ```bash
-curl -fsSL https://github.com/<owner>/skillops/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/feitianchengzi/skillops/releases/latest/download/install.sh | sh
 ```
 
 Windows PowerShell：
 
 ```powershell
-irm https://github.com/<owner>/skillops/releases/latest/download/install.ps1 | iex
+irm https://github.com/feitianchengzi/skillops/releases/latest/download/install.ps1 | iex
 ```
 
 本地构建并运行 CLI：

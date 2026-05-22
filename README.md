@@ -123,14 +123,16 @@ Usage video: [SkillOps CLI demo](docs/assets/skillops-cli-demo.mp4)
 
 Install the CLI from the latest GitHub release:
 
+Requires Node.js 20 or newer on PATH.
+
 ```bash
-curl -fsSL https://github.com/<owner>/skillops/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/feitianchengzi/skillops/releases/latest/download/install.sh | sh
 ```
 
 On Windows PowerShell:
 
 ```powershell
-irm https://github.com/<owner>/skillops/releases/latest/download/install.ps1 | iex
+irm https://github.com/feitianchengzi/skillops/releases/latest/download/install.ps1 | iex
 ```
 
 Build and run the CLI locally:
