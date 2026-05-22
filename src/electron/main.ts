@@ -123,6 +123,21 @@ function normalizeConfig(config: SkillOpsConfig): SkillOpsConfig {
     teamRepo: config.teamRepo?.trim() || undefined,
     shareTargetMode: config.shareTargetMode,
     shareProjectName: config.shareProjectName?.trim() || undefined,
+    applyTargets: config.applyTargets?.map((group) => ({
+      id: group.id,
+      name: group.name.trim(),
+      profile: group.profile,
+      agentTargetIds: group.agentTargetIds,
+      projectTargetDirs: group.projectTargetDirs.map((item) => item.trim()).filter(Boolean)
+    })),
+    shareTargets: config.shareTargets?.map((group) => ({
+      id: group.id,
+      name: group.name.trim(),
+      profile: group.profile,
+      remoteUrl: group.remoteUrl.trim(),
+      targetMode: group.targetMode,
+      projectName: group.projectName?.trim() || undefined
+    })),
     profiles: config.profiles.map((profile) => ({
       name: profile.name.trim(),
       description: profile.description?.trim() || undefined,

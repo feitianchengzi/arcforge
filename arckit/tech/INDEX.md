@@ -13,7 +13,7 @@
 - sharing-ipc/ 共享与 IPC 技术：Electron preload 桥、应用数据目录注入、共享工作树和 Git 执行。✅
   - solution.md 共享与 IPC 方案：安全桥接、来源下载、发布计划、共享推送、CLI 修复和差异窗口。✅ (143行)
 - cli/ 命令行技术：JSON 输出、命令参数、退出码、share/doctor 命令和桌面 --cli 模式。✅
-  - solution.md CLI 方案：init、scan、audit、publish-plan、drift、apply-profile、share、doctor 命令边界。✅ (87行)
+  - solution.md CLI 方案：init、scan、audit、publish-plan、drift、apply-profile、share、doctor 命令和 GitHub Release 安装边界。✅ (95行)
 - _shared/models/ 数据模型：跨领域 TypeScript DTO 与持久化配置结构。✅
   - SkillOpsConfig.yaml 工作区配置模型：来源目录、团队仓库、共享模式和配置组列表。✅ (70行)
   - WorkspaceSnapshot.yaml 工作区快照模型：配置、技能、共享资产和审计报告聚合。✅ (69行)

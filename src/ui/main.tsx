@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { AlertTriangle, CheckCircle2, Download, ExternalLink, FolderOpen, GitBranch, HardDrive, PackageCheck, Play, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
-import type { ApplyProfileResult, CliInstallStatus, DriftReport, EnvironmentStatus, PublishPlan, ShareResult, ShareTargetMode, SkillOpsConfig, SkillOpsProfile, WorkspaceSnapshot } from "../shared/types";
+import { AlertTriangle, CheckCircle2, Download, ExternalLink, FolderOpen, GitBranch, HardDrive, PackageCheck, Pencil, Play, Plus, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
+import type { ApplyProfileResult, ApplyTargetGroup, CliInstallStatus, DriftReport, EnvironmentStatus, PublishPlan, ShareResult, ShareTargetGroup, ShareTargetMode, SkillOpsConfig, SkillOpsProfile, WorkspaceSnapshot } from "../shared/types";
 import { dictionaries, type Dictionary, type Language } from "./i18n";
 import "./styles.css";
 
@@ -26,7 +26,6 @@ declare global {
 }
 
 type Tab = "overview" | "skills" | "profiles" | "destinations" | "share" | "audit";
-type DestinationMode = "agent" | "project" | "custom";
 
 interface DefaultTarget {
   id: string;
@@ -58,10 +57,8 @@ interface TargetRecord {
 interface ProjectUiState {
   tab?: Tab;
   profile?: string;
-  destinationMode?: DestinationMode;
-  selectedAgentTarget?: string;
-  targetDir?: string;
-  customTargetDir?: string;
+  applyTargetGroupId?: string;
+  shareTargetGroupId?: string;
 }
 
 const RECENT_WORKSPACES_KEY = "skillops.recentWorkspaces";
@@ -84,21 +81,18 @@ function App() {
   const [tab, setTab] = useState<Tab>("overview");
   const [status, setStatus] = useState<string>(t.chooseStatus);
   const [environment, setEnvironment] = useState<EnvironmentStatus | undefined>();
-  const [targetDir, setTargetDir] = useState(".skillops/skills");
   const [profile, setProfile] = useState("default");
-  const [publishPlan, setPublishPlan] = useState<PublishPlan | undefined>();
   const [shareResult, setShareResult] = useState<ShareResult | undefined>();
   const [isSharing, setIsSharing] = useState(false);
   const [shareProgress, setShareProgress] = useState<string | undefined>();
-  const [drift, setDrift] = useState<DriftReport | undefined>();
-  const [applyResult, setApplyResult] = useState<ApplyProfileResult | undefined>();
+  const [driftReports, setDriftReports] = useState<DriftReport[]>([]);
+  const [applyResults, setApplyResults] = useState<ApplyProfileResult[]>([]);
   const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>(loadJson<RecentWorkspace[]>(RECENT_WORKSPACES_KEY, []));
   const [targetHistory, setTargetHistory] = useState<TargetRecord[]>(loadJson<TargetRecord[]>(TARGET_HISTORY_KEY, []));
   const [projectStates, setProjectStates] = useState<Record<string, ProjectUiState>>(loadJson<Record<string, ProjectUiState>>(PROJECT_STATE_KEY, {}));
   const [defaultTargets, setDefaultTargets] = useState<DefaultTarget[]>([]);
-  const [destinationMode, setDestinationMode] = useState<DestinationMode>("agent");
-  const [selectedAgentTarget, setSelectedAgentTarget] = useState("codex");
-  const [customTargetDir, setCustomTargetDir] = useState("");
+  const [applyTargetGroupId, setApplyTargetGroupId] = useState("");
+  const [shareTargetGroupId, setShareTargetGroupId] = useState("");
   const [sharedSourceUrl, setSharedSourceUrl] = useState("");
   const [showAddProject, setShowAddProject] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -108,23 +102,16 @@ function App() {
   const criticalCount = snapshot?.audit.findings.filter((item) => item.severity === "critical").length ?? 0;
   const warningCount = snapshot?.audit.findings.filter((item) => item.severity === "warning").length ?? 0;
   const profileOptions = snapshot?.config.profiles.map((item) => item.name) ?? ["default"];
-  const selectedSkillsCount = useMemo(() => {
-    if (!snapshot) return 0;
-    const activeProfile = snapshot.config.profiles.find((item) => item.name === profile);
-    if (!activeProfile) return 0;
-    if (activeProfile.skills.includes("*")) return snapshot.skills.length;
-    return snapshot.skills.filter((skill) => activeProfile.skills.includes(skill.name)).length;
-  }, [profile, snapshot]);
-  const activeAgentTarget = defaultTargets.find((item) => item.id === selectedAgentTarget) ?? defaultTargets[0];
-  const resolvedTargetDir = destinationMode === "agent" ? activeAgentTarget?.path ?? "" : destinationMode === "project" ? targetDir : customTargetDir;
-  const resolvedTargetName = destinationMode === "agent" ? activeAgentTarget?.name ?? "Agent" : destinationMode === "project" ? t.projectTarget : t.customTarget;
+  const applyTargetGroups = snapshot?.config.applyTargets ?? [];
+  const shareTargetGroups = snapshot?.config.shareTargets ?? [];
+  const activeApplyTargetGroup = applyTargetGroups.find((item) => item.id === applyTargetGroupId) ?? applyTargetGroups[0];
+  const activeShareTargetGroup = shareTargetGroups.find((item) => item.id === shareTargetGroupId) ?? shareTargetGroups[0];
   const projectTargetHistory = useMemo(() => targetHistory.filter((item) => item.sourcePath === root), [root, targetHistory]);
 
   useEffect(() => {
     if (!window.skillops) return;
     void window.skillops.getDefaultTargets().then((targets) => {
       setDefaultTargets(targets);
-      setSelectedAgentTarget((current) => current || (targets[0]?.id ?? "codex"));
     }).catch((error) => setStatus(t.errorStatus(errorMessage(error))));
     void refreshEnvironment();
   }, []);
@@ -186,24 +173,14 @@ function App() {
     if (root) rememberProjectState(root, { profile: next });
   }
 
-  function setProjectDestinationMode(next: DestinationMode) {
-    setDestinationMode(next);
-    if (root) rememberProjectState(root, { destinationMode: next });
+  function setProjectApplyTargetGroupId(next: string) {
+    setApplyTargetGroupId(next);
+    if (root) rememberProjectState(root, { applyTargetGroupId: next });
   }
 
-  function setProjectSelectedAgentTarget(next: string) {
-    setSelectedAgentTarget(next);
-    if (root) rememberProjectState(root, { selectedAgentTarget: next });
-  }
-
-  function setProjectTargetDir(next: string) {
-    setTargetDir(next);
-    if (root) rememberProjectState(root, { targetDir: next });
-  }
-
-  function setProjectCustomTargetDir(next: string) {
-    setCustomTargetDir(next);
-    if (root) rememberProjectState(root, { customTargetDir: next });
+  function setProjectShareTargetGroupId(next: string) {
+    setShareTargetGroupId(next);
+    if (root) rememberProjectState(root, { shareTargetGroupId: next });
   }
 
   async function chooseWorkspace() {
@@ -316,36 +293,19 @@ function App() {
     }
   }
 
-  const saveShareSettings = useCallback(async (settings: { remoteUrl?: string; targetMode?: ShareTargetMode | ""; projectName?: string }) => {
-    if (!root || !snapshot || !window.skillops) return;
-    try {
-      const result = await window.skillops.saveConfig(root, {
-        ...snapshot.config,
-        teamRepo: settings.remoteUrl !== undefined ? settings.remoteUrl.trim() || undefined : snapshot.config.teamRepo,
-        shareTargetMode: settings.targetMode !== undefined ? settings.targetMode || undefined : snapshot.config.shareTargetMode,
-        shareProjectName: settings.projectName !== undefined ? settings.projectName.trim() || undefined : snapshot.config.shareProjectName
-      });
-      setSnapshot(result);
-      rememberWorkspace(result, { moveToTop: false });
-    } catch (error) {
-      setStatus(t.errorStatus(errorMessage(error)));
-    }
-  }, [root, snapshot, t]);
-
-  async function planPublish(visibility: "private" | "public") {
-    if (!root) return;
-    try {
-      if (!window.skillops) {
-        setStatus(t.desktopRequired);
-        return;
-      }
-      setPublishPlan(await window.skillops.createPublishPlan(root, visibility));
-    } catch (error) {
-      setStatus(t.errorStatus(errorMessage(error)));
-    }
+  async function saveApplyTargetGroups(groups: ApplyTargetGroup[], selectedId: string) {
+    if (!snapshot) return;
+    await saveProfiles({ ...snapshot.config, applyTargets: groups }, snapshot.config.profiles.some((item) => item.name === profile) ? profile : groups[0]?.profile ?? "default");
+    setProjectApplyTargetGroupId(selectedId);
   }
 
-  async function shareProject(remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string) {
+  async function saveShareTargetGroups(groups: ShareTargetGroup[], selectedId: string) {
+    if (!snapshot) return;
+    await saveProfiles({ ...snapshot.config, shareTargets: groups }, snapshot.config.profiles.some((item) => item.name === profile) ? profile : groups[0]?.profile ?? "default");
+    setProjectShareTargetGroupId(selectedId);
+  }
+
+  async function shareProject(group: ShareTargetGroup, message: string) {
     if (!root) return;
     setIsSharing(true);
     setShareResult(undefined);
@@ -359,14 +319,14 @@ function App() {
       if (snapshot) {
         const saved = await window.skillops.saveConfig(root, {
           ...snapshot.config,
-          teamRepo: remoteUrl.trim() || undefined,
-          shareTargetMode: targetMode,
-          shareProjectName: projectName.trim() || undefined
+          teamRepo: group.remoteUrl.trim() || undefined,
+          shareTargetMode: group.targetMode,
+          shareProjectName: group.projectName?.trim() || undefined
         });
-        applySnapshot(saved, profile);
+        applySnapshot(saved, group.profile);
       }
       setStatus(t.sharing);
-      const result = await window.skillops.shareProject(root, remoteUrl, visibility, message, targetMode, projectName, profileName);
+      const result = await window.skillops.shareProject(root, group.remoteUrl, "private", message, group.targetMode, group.projectName ?? "", group.profile);
       setShareResult(result);
       const complete = t.shareComplete(result.branch);
       setShareProgress(complete);
@@ -378,33 +338,6 @@ function App() {
       setStatus(message);
     } finally {
       setIsSharing(false);
-    }
-  }
-
-  async function runDrift() {
-    if (!root) return;
-    try {
-      if (!window.skillops) {
-        setStatus(t.desktopRequired);
-        return;
-      }
-      setDrift(await window.skillops.driftReport(root, profile, targetDir));
-    } catch (error) {
-      setStatus(t.errorStatus(errorMessage(error)));
-    }
-  }
-
-  async function applySelectedProfile() {
-    if (!root) return;
-    try {
-      if (!window.skillops) {
-        setStatus(t.desktopRequired);
-        return;
-      }
-      setApplyResult(await window.skillops.applyProfile(root, profile, targetDir));
-      await runDrift();
-    } catch (error) {
-      setStatus(t.errorStatus(errorMessage(error)));
     }
   }
 
@@ -427,44 +360,58 @@ function App() {
     }
   }
 
-  async function chooseProjectTarget() {
+  async function chooseProjectTarget(): Promise<string | undefined> {
     if (!window.skillops) {
       setStatus(t.desktopRequired);
-      return;
+      return undefined;
     }
     const selected = await window.skillops.chooseWorkspace();
-    if (selected) {
-      setProjectDestinationMode("project");
-      setProjectTargetDir(selected);
-    }
+    return selected;
   }
 
-  async function applyToResolvedTarget() {
-    if (!root || !resolvedTargetDir) return;
+  async function applyTargetGroup(group: ApplyTargetGroup) {
+    if (!root) return;
+    const targets = resolveApplyTargetEntries(group, defaultTargets);
+    if (targets.length === 0) return;
     try {
       if (!window.skillops) {
         setStatus(t.desktopRequired);
         return;
       }
-      const result = await window.skillops.applyProfile(root, profile, resolvedTargetDir);
-      setApplyResult(result);
-      const report = await window.skillops.driftReport(root, profile, resolvedTargetDir);
-      setDrift(report);
-      rememberTarget(resolvedTargetDir, resolvedTargetName);
-      setStatus(t.copiedSkipped(result.copied.length, result.skipped.length, result.copiedAssets?.length, result.skippedAssets?.length));
+      const results: ApplyProfileResult[] = [];
+      const reports: DriftReport[] = [];
+      for (const target of targets) {
+        const result = await window.skillops.applyProfile(root, group.profile, target.path);
+        results.push(result);
+        reports.push(await window.skillops.driftReport(root, group.profile, target.path));
+        rememberTarget(target.path, `${group.name} / ${target.name}`, group.profile);
+      }
+      setApplyResults(results);
+      setDriftReports(reports);
+      const copied = results.reduce((sum, item) => sum + item.copied.length, 0);
+      const skipped = results.reduce((sum, item) => sum + item.skipped.length, 0);
+      const copiedAssets = results.reduce((sum, item) => sum + (item.copiedAssets?.length ?? 0), 0);
+      const skippedAssets = results.reduce((sum, item) => sum + (item.skippedAssets?.length ?? 0), 0);
+      setStatus(t.copiedSkipped(copied, skipped, copiedAssets, skippedAssets));
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     }
   }
 
-  async function checkResolvedDrift() {
-    if (!root || !resolvedTargetDir) return;
+  async function checkTargetGroupDrift(group: ApplyTargetGroup) {
+    if (!root) return;
+    const targets = resolveApplyTargetEntries(group, defaultTargets);
+    if (targets.length === 0) return;
     try {
       if (!window.skillops) {
         setStatus(t.desktopRequired);
         return;
       }
-      setDrift(await window.skillops.driftReport(root, profile, resolvedTargetDir));
+      const reports: DriftReport[] = [];
+      for (const target of targets) {
+        reports.push(await window.skillops.driftReport(root, group.profile, target.path));
+      }
+      setDriftReports(reports);
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     }
@@ -492,13 +439,12 @@ function App() {
       : result.config.profiles[0]?.name ?? "default";
     setProfile(nextProfile);
     setTab(savedState?.tab ?? "overview");
-    setDestinationMode(savedState?.destinationMode ?? "agent");
-    setSelectedAgentTarget(savedState?.selectedAgentTarget ?? defaultTargets[0]?.id ?? "codex");
-    setTargetDir(savedState?.targetDir ?? ".skillops/skills");
-    setCustomTargetDir(savedState?.customTargetDir ?? "");
-    setPublishPlan(undefined);
-    setDrift(undefined);
-    setApplyResult(undefined);
+    const applyGroups = result.config.applyTargets ?? [];
+    const shareGroups = result.config.shareTargets ?? [];
+    setApplyTargetGroupId(applyGroups.some((item) => item.id === savedState?.applyTargetGroupId) ? savedState!.applyTargetGroupId! : applyGroups[0]?.id ?? "");
+    setShareTargetGroupId(shareGroups.some((item) => item.id === savedState?.shareTargetGroupId) ? savedState!.shareTargetGroupId! : shareGroups[0]?.id ?? "");
+    setDriftReports([]);
+    setApplyResults([]);
   }
 
   function rememberWorkspace(result: WorkspaceSnapshot, options: { moveToTop?: boolean } = { moveToTop: true }) {
@@ -529,22 +475,24 @@ function App() {
     }
   }
 
-  function rememberTarget(destinationPath: string, destinationName: string) {
+  function rememberTarget(destinationPath: string, destinationName: string, profileName = profile) {
     const sourceName = basename(root);
     const record: TargetRecord = {
-      id: `${root}::${profile}::${destinationPath}`,
+      id: `${root}::${profileName}::${destinationPath}`,
       sourcePath: root,
       sourceName,
-      profile,
+      profile: profileName,
       destinationName,
       destinationPath,
       lastAppliedAt: new Date().toISOString()
     };
-    const otherProjects = targetHistory.filter((item) => item.sourcePath !== root);
-    const currentProject = [record, ...targetHistory.filter((item) => item.sourcePath === root && item.id !== record.id)].slice(0, 10);
-    const next = [...currentProject, ...otherProjects];
-    setTargetHistory(next);
-    window.localStorage.setItem(TARGET_HISTORY_KEY, JSON.stringify(next));
+    setTargetHistory((current) => {
+      const otherProjects = current.filter((item) => item.sourcePath !== root);
+      const currentProject = [record, ...current.filter((item) => item.sourcePath === root && item.id !== record.id)].slice(0, 10);
+      const next = [...currentProject, ...otherProjects];
+      window.localStorage.setItem(TARGET_HISTORY_KEY, JSON.stringify(next));
+      return next;
+    });
   }
 
   const tabs = useMemo(() => [
@@ -648,25 +596,18 @@ function App() {
                 t={t}
                 snapshot={snapshot}
                 profile={profile}
-                setProfile={setProjectProfile}
                 profileOptions={profileOptions}
-                selectedSkillsCount={selectedSkillsCount}
                 defaultTargets={defaultTargets}
-                selectedAgentTarget={selectedAgentTarget}
-                setSelectedAgentTarget={setProjectSelectedAgentTarget}
-                destinationMode={destinationMode}
-                setDestinationMode={setProjectDestinationMode}
-                targetDir={targetDir}
-                setTargetDir={setProjectTargetDir}
-                customTargetDir={customTargetDir}
-                setCustomTargetDir={setProjectCustomTargetDir}
+                targetGroups={applyTargetGroups}
+                activeTargetGroup={activeApplyTargetGroup}
+                setActiveTargetGroupId={setProjectApplyTargetGroupId}
+                saveTargetGroups={saveApplyTargetGroups}
                 chooseProjectTarget={chooseProjectTarget}
-                resolvedTargetDir={resolvedTargetDir}
-                drift={drift}
-                applyResult={applyResult}
+                driftReports={driftReports}
+                applyResults={applyResults}
                 targetHistory={projectTargetHistory}
-                checkResolvedDrift={checkResolvedDrift}
-                applyToResolvedTarget={applyToResolvedTarget}
+                checkTargetGroupDrift={checkTargetGroupDrift}
+                applyTargetGroup={applyTargetGroup}
                 openDriftDiff={openDriftDiff}
               />
             )}
@@ -674,17 +615,15 @@ function App() {
               <Publish
                 t={t}
                 snapshot={snapshot}
-                plan={publishPlan}
                 shareResult={shareResult}
                 isSharing={isSharing}
                 shareProgress={shareProgress}
-                profile={profile}
-                setProfile={setProjectProfile}
                 profileOptions={profileOptions}
-                selectedSkillsCount={selectedSkillsCount}
-                planPublish={planPublish}
+                targetGroups={shareTargetGroups}
+                activeTargetGroup={activeShareTargetGroup}
+                setActiveTargetGroupId={setProjectShareTargetGroupId}
+                saveTargetGroups={saveShareTargetGroups}
                 shareProject={shareProject}
-                saveShareSettings={saveShareSettings}
               />
             )}
             {tab === "audit" && <Audit t={t} snapshot={snapshot} criticalCount={criticalCount} warningCount={warningCount} />}
@@ -1172,32 +1111,61 @@ function ApplySkills(props: {
   t: Dictionary;
   snapshot: WorkspaceSnapshot;
   profile: string;
-  setProfile: (value: string) => void;
   profileOptions: string[];
-  selectedSkillsCount: number;
   defaultTargets: DefaultTarget[];
-  selectedAgentTarget: string;
-  setSelectedAgentTarget: (value: string) => void;
-  destinationMode: DestinationMode;
-  setDestinationMode: (value: DestinationMode) => void;
-  targetDir: string;
-  setTargetDir: (value: string) => void;
-  customTargetDir: string;
-  setCustomTargetDir: (value: string) => void;
-  chooseProjectTarget: () => void;
-  resolvedTargetDir: string;
-  drift?: DriftReport;
-  applyResult?: ApplyProfileResult;
+  targetGroups: ApplyTargetGroup[];
+  activeTargetGroup?: ApplyTargetGroup;
+  setActiveTargetGroupId: (value: string) => void;
+  saveTargetGroups: (groups: ApplyTargetGroup[], selectedId: string) => void;
+  chooseProjectTarget: () => Promise<string | undefined>;
+  driftReports: DriftReport[];
+  applyResults: ApplyProfileResult[];
   targetHistory: TargetRecord[];
-  checkResolvedDrift: () => void;
-  applyToResolvedTarget: () => void;
+  checkTargetGroupDrift: (group: ApplyTargetGroup) => void;
+  applyTargetGroup: (group: ApplyTargetGroup) => void;
   openDriftDiff: (report: DriftReport) => void;
 }) {
   const { t } = props;
+  const [editingGroup, setEditingGroup] = useState<ApplyTargetGroup | undefined>();
+  const activeGroup = props.activeTargetGroup;
+  const selectedTargets = activeGroup ? resolveApplyTargetEntries(activeGroup, props.defaultTargets) : [];
+  const selectedSkills = activeGroup ? selectedSkillCount(props.snapshot, activeGroup.profile) : 0;
+  const latestApplySummary = summarizeApplyResults(props.applyResults);
+
+  function upsertGroup(group: ApplyTargetGroup) {
+    const existing = props.targetGroups.some((item) => item.id === group.id);
+    const next = existing ? props.targetGroups.map((item) => item.id === group.id ? group : item) : [...props.targetGroups, group];
+    props.saveTargetGroups(next, group.id);
+    setEditingGroup(undefined);
+  }
+
+  function deleteGroup(groupId: string) {
+    const next = props.targetGroups.filter((item) => item.id !== groupId);
+    props.saveTargetGroups(next, next[0]?.id ?? "");
+  }
+
   return (
     <div className="grid two">
       <section className="panel">
         <h3>{t.applySkills}</h3>
+        <p className="muted">{t.applyHelp}</p>
+        <div className="actions">
+          <button className="primary" onClick={() => setEditingGroup(createApplyTargetGroup(props.profile, props.defaultTargets[0]?.id))}><Plus size={16} /> {t.newTargetGroup}</button>
+        </div>
+        {props.targetGroups.length === 0 ? <p className="muted">{t.noTargetGroups}</p> : (
+          <div className="profile-list">
+            {props.targetGroups.map((group) => {
+              const targets = resolveApplyTargetEntries(group, props.defaultTargets);
+              return (
+                <button key={group.id} className={activeGroup?.id === group.id ? "active" : ""} onClick={() => props.setActiveTargetGroupId(group.id)}>
+                  <strong>{group.name}</strong>
+                  <span>{group.profile} / {targets.length} targets</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <h4>{t.targetHistory}</h4>
         {props.targetHistory.length === 0 ? <p className="muted">{t.noTargetHistory}</p> : (
           <div className="list">
@@ -1213,31 +1181,10 @@ function ApplySkills(props: {
             ))}
           </div>
         )}
-
-        <h4>{t.drift}</h4>
-        {!props.drift ? <p className="muted">{t.driftEmpty}</p> : (
-          <>
-            <div className="drift-toolbar">
-              <button onClick={() => props.openDriftDiff(props.drift!)}><ExternalLink size={16} /> {t.viewDiff}</button>
-            </div>
-            <div className="list">
-              {props.drift.items.map((item) => (
-                <article key={`${item.kind ?? "skill"}:${item.skill}`} className="row">
-                  <div>
-                    <strong>{item.skill}</strong>
-                    <p>{item.kind ?? "skill"} · {item.summary ? `${item.summary.missing} missing / ${item.summary.changed} changed / ${item.summary.extra} extra` : item.sourcePath}</p>
-                  </div>
-                  <span className={item.status === "same" ? "badge good" : "badge warn"}>{item.status}</span>
-                </article>
-              ))}
-            </div>
-          </>
-        )}
       </section>
 
       <section className="panel">
         <h3>{t.destination}</h3>
-        <p className="muted">{t.applyHelp}</p>
         <label>{t.source}</label>
         <div className="source-summary">
           <HardDrive size={16} />
@@ -1246,175 +1193,365 @@ function ApplySkills(props: {
             <span>{props.snapshot.root}</span>
           </div>
         </div>
+        {!activeGroup ? (
+          <p className="muted">{t.noTargetGroups}</p>
+        ) : (
+          <>
+            <div className="target-group-header">
+              <div>
+                <strong>{activeGroup.name}</strong>
+                <p className="muted">{t.installPreview(selectedSkills, activeGroup.profile)}</p>
+              </div>
+              <div className="actions">
+                <button onClick={() => setEditingGroup(activeGroup)}><Pencil size={16} /> {t.edit}</button>
+                <button onClick={() => deleteGroup(activeGroup.id)}><Trash2 size={16} /> {t.deleteTargetGroup}</button>
+              </div>
+            </div>
+            <label>{t.selectedTargets}</label>
+            {selectedTargets.length === 0 ? <p className="muted">{t.noSelectedTargets}</p> : (
+              <div className="list compact">
+                {selectedTargets.map((target) => (
+                  <article key={`${target.kind}:${target.id}`} className="row stacked">
+                    <div>
+                      <strong>{target.name}</strong>
+                      <span>{target.path}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+            <div className="actions">
+              <button onClick={() => props.checkTargetGroupDrift(activeGroup)} disabled={selectedTargets.length === 0}>{t.checkDrift}</button>
+              <button className="primary" onClick={() => props.applyTargetGroup(activeGroup)} disabled={selectedTargets.length === 0}>{t.apply}</button>
+            </div>
+            {latestApplySummary && <p className="muted">{t.copiedSkipped(latestApplySummary.copied, latestApplySummary.skipped, latestApplySummary.copiedAssets, latestApplySummary.skippedAssets)}</p>}
+          </>
+        )}
+
+        <h4>{t.drift}</h4>
+        {props.driftReports.length === 0 ? <p className="muted">{t.driftEmpty}</p> : (
+          <div className="list">
+            {props.driftReports.map((report) => (
+              <article key={report.targetDir} className="row stacked">
+                <div>
+                  <strong>{report.targetDir}</strong>
+                  <p>{report.items.filter((item) => item.status !== "same").length} changed / {report.items.length} checked</p>
+                </div>
+                <button onClick={() => props.openDriftDiff(report)}><ExternalLink size={16} /> {t.viewDiff}</button>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+      {editingGroup && (
+        <ApplyTargetDialog
+          t={t}
+          group={editingGroup}
+          profileOptions={props.profileOptions}
+          defaultTargets={props.defaultTargets}
+          chooseProjectTarget={props.chooseProjectTarget}
+          onSave={upsertGroup}
+          onClose={() => setEditingGroup(undefined)}
+        />
+      )}
+    </div>
+  );
+}
+
+interface ResolvedApplyTarget {
+  kind: "agent" | "project";
+  id: string;
+  name: string;
+  path: string;
+}
+
+function ApplyTargetDialog(props: {
+  t: Dictionary;
+  group: ApplyTargetGroup;
+  profileOptions: string[];
+  defaultTargets: DefaultTarget[];
+  chooseProjectTarget: () => Promise<string | undefined>;
+  onSave: (group: ApplyTargetGroup) => void;
+  onClose: () => void;
+}) {
+  const { t } = props;
+  const [draft, setDraft] = useState(props.group);
+
+  useEffect(() => setDraft(props.group), [props.group]);
+
+  function toggleAgent(targetId: string) {
+    const agentTargetIds = draft.agentTargetIds.includes(targetId)
+      ? draft.agentTargetIds.filter((item) => item !== targetId)
+      : [...draft.agentTargetIds, targetId];
+    setDraft({ ...draft, agentTargetIds });
+  }
+
+  async function addProjectTarget() {
+    const selected = await props.chooseProjectTarget();
+    if (!selected || draft.projectTargetDirs.includes(selected)) return;
+    setDraft({ ...draft, projectTargetDirs: [...draft.projectTargetDirs, selected] });
+  }
+
+  function removeProjectTarget(targetDir: string) {
+    setDraft({ ...draft, projectTargetDirs: draft.projectTargetDirs.filter((item) => item !== targetDir) });
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={props.onClose}>
+      <section className="modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <h3>{t.editTargetGroup}</h3>
+            <p>{t.applyHelp}</p>
+          </div>
+          <button className="icon-button light" onClick={props.onClose}>x</button>
+        </div>
+        <label>{t.groupName}</label>
+        <input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
         <label>{t.profile}</label>
-        <select value={props.profile} onChange={(event) => props.setProfile(event.target.value)}>
+        <select value={draft.profile} onChange={(event) => setDraft({ ...draft, profile: event.target.value })}>
           {props.profileOptions.map((name) => <option key={name}>{name}</option>)}
         </select>
-        <p className="muted">{t.installPreview(props.selectedSkillsCount, props.profile)}</p>
-
-        <label>{t.destination}</label>
-        <div className="segmented">
-          <button className={props.destinationMode === "agent" ? "active" : ""} onClick={() => props.setDestinationMode("agent")}>{t.agentTargets}</button>
-          <button className={props.destinationMode === "project" ? "active" : ""} onClick={() => props.setDestinationMode("project")}>{t.projectTarget}</button>
-          <button className={props.destinationMode === "custom" ? "active" : ""} onClick={() => props.setDestinationMode("custom")}>{t.customTarget}</button>
+        <label>{t.agentTargets}</label>
+        <div className="check-list">
+          {props.defaultTargets.map((target) => (
+            <label key={target.id} className="check-row">
+              <input type="checkbox" checked={draft.agentTargetIds.includes(target.id)} onChange={() => toggleAgent(target.id)} />
+              <span>{target.name}</span>
+            </label>
+          ))}
         </div>
-
-        {props.destinationMode === "agent" && (
-          <>
-            <label>{t.agentTargets}</label>
-            <select value={props.selectedAgentTarget} onChange={(event) => props.setSelectedAgentTarget(event.target.value)}>
-              {props.defaultTargets.map((target) => <option key={target.id} value={target.id}>{target.name} - {target.path}</option>)}
-            </select>
-          </>
-        )}
-
-        {props.destinationMode === "project" && (
-          <>
-            <label>{t.projectTarget}</label>
-            <div className="inline-field">
-              <input value={props.targetDir} onChange={(event) => props.setTargetDir(event.target.value)} />
-              <button onClick={props.chooseProjectTarget}><FolderOpen size={16} /> {t.selectProject}</button>
-            </div>
-          </>
-        )}
-
-        {props.destinationMode === "custom" && (
-          <>
-            <label>{t.customTarget}</label>
-            <input value={props.customTargetDir} onChange={(event) => props.setCustomTargetDir(event.target.value)} />
-          </>
-        )}
-
-        <label>{t.targetDirectory}</label>
-        <div className="pathbox light">{props.resolvedTargetDir || t.noWorkspace}</div>
+        <label>{t.projectTargets}</label>
         <div className="actions">
-          <button onClick={props.checkResolvedDrift} disabled={!props.resolvedTargetDir}>{t.checkDrift}</button>
-          <button className="primary" onClick={props.applyToResolvedTarget} disabled={!props.resolvedTargetDir}>{t.apply}</button>
+          <button onClick={addProjectTarget}><FolderOpen size={16} /> {t.addProjectTarget}</button>
         </div>
-        {props.applyResult && (
-          <p className="muted">
-            {t.copiedSkipped(
-              props.applyResult.copied.length,
-              props.applyResult.skipped.length,
-              props.applyResult.copiedAssets?.length,
-              props.applyResult.skippedAssets?.length
-            )}
-          </p>
+        {draft.projectTargetDirs.length === 0 ? <p className="muted">{t.noSelectedTargets}</p> : (
+          <div className="list compact">
+            {draft.projectTargetDirs.map((targetDir) => (
+              <article key={targetDir} className="row">
+                <span>{targetDir}</span>
+                <button onClick={() => removeProjectTarget(targetDir)}><Trash2 size={16} /> {t.remove}</button>
+              </article>
+            ))}
+          </div>
         )}
+        <div className="actions modal-actions">
+          <button onClick={props.onClose}>{t.cancel}</button>
+          <button className="primary" onClick={() => props.onSave({ ...draft, name: draft.name.trim() || t.unnamedProfile })}>{t.saveTargetGroup}</button>
+        </div>
       </section>
     </div>
   );
 }
 
+function ShareTargetDialog(props: {
+  t: Dictionary;
+  group: ShareTargetGroup;
+  profileOptions: string[];
+  onSave: (group: ShareTargetGroup) => void;
+  onClose: () => void;
+}) {
+  const { t } = props;
+  const [draft, setDraft] = useState(props.group);
+
+  useEffect(() => setDraft(props.group), [props.group]);
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={props.onClose}>
+      <section className="modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <h3>{t.editShareTarget}</h3>
+            <p>{t.publishHelp}</p>
+          </div>
+          <button className="icon-button light" onClick={props.onClose}>x</button>
+        </div>
+        <label>{t.groupName}</label>
+        <input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
+        <label>{t.profile}</label>
+        <select value={draft.profile} onChange={(event) => setDraft({ ...draft, profile: event.target.value })}>
+          {props.profileOptions.map((name) => <option key={name}>{name}</option>)}
+        </select>
+        <label>{t.remoteRepository}</label>
+        <input value={draft.remoteUrl} placeholder="owner/repo or github.com/owner/repo/tree/main/path" onChange={(event) => setDraft({ ...draft, remoteUrl: event.target.value })} />
+        <label>{t.shareTargetMode}</label>
+        <div className="segmented two">
+          <button className={draft.targetMode === "direct" ? "active" : ""} onClick={() => setDraft({ ...draft, targetMode: "direct" })}>{t.shareDirectPath}</button>
+          <button className={draft.targetMode === "namedProject" ? "active" : ""} onClick={() => setDraft({ ...draft, targetMode: "namedProject" })}>{t.shareNamedProject}</button>
+        </div>
+        {draft.targetMode === "namedProject" && (
+          <>
+            <label>{t.shareProjectName}</label>
+            <input value={draft.projectName ?? ""} onChange={(event) => setDraft({ ...draft, projectName: event.target.value })} />
+          </>
+        )}
+        <p className="muted">{draft.targetMode === "namedProject" ? t.shareNamedProjectHelp : t.shareDirectPathHelp}</p>
+        <div className="actions modal-actions">
+          <button onClick={props.onClose}>{t.cancel}</button>
+          <button className="primary" onClick={() => props.onSave({
+            ...draft,
+            name: draft.name.trim() || t.unnamedProfile,
+            remoteUrl: draft.remoteUrl.trim(),
+            projectName: draft.projectName?.trim() || undefined
+          })}>{t.saveShareTarget}</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function createApplyTargetGroup(profile: string, agentTargetId?: string): ApplyTargetGroup {
+  return {
+    id: createId("apply"),
+    name: "Target group",
+    profile,
+    agentTargetIds: agentTargetId ? [agentTargetId] : [],
+    projectTargetDirs: []
+  };
+}
+
+function createShareTargetGroup(snapshot: WorkspaceSnapshot, profile: string): ShareTargetGroup {
+  return {
+    id: createId("share"),
+    name: basename(snapshot.root),
+    profile,
+    remoteUrl: snapshot.config.teamRepo ?? "",
+    targetMode: snapshot.config.shareTargetMode ?? "direct",
+    projectName: snapshot.config.shareProjectName ?? basename(snapshot.root)
+  };
+}
+
+function resolveApplyTargetEntries(group: ApplyTargetGroup, defaultTargets: DefaultTarget[]): ResolvedApplyTarget[] {
+  const agentTargets = group.agentTargetIds
+    .map((id) => defaultTargets.find((target) => target.id === id))
+    .filter((target): target is DefaultTarget => Boolean(target))
+    .map((target) => ({ kind: "agent" as const, id: target.id, name: target.name, path: target.path }));
+  const projectTargets = group.projectTargetDirs
+    .filter(Boolean)
+    .map((targetDir) => ({ kind: "project" as const, id: targetDir, name: basename(targetDir), path: targetDir }));
+  const seen = new Set<string>();
+  return [...agentTargets, ...projectTargets].filter((target) => {
+    const key = target.path;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function selectedSkillCount(snapshot: WorkspaceSnapshot, profileName: string): number {
+  const activeProfile = snapshot.config.profiles.find((item) => item.name === profileName);
+  if (!activeProfile) return 0;
+  if (activeProfile.skills.includes("*")) return snapshot.skills.length;
+  return snapshot.skills.filter((skill) => activeProfile.skills.includes(skill.name)).length;
+}
+
+function summarizeApplyResults(results: ApplyProfileResult[]) {
+  if (results.length === 0) return undefined;
+  return {
+    copied: results.reduce((sum, item) => sum + item.copied.length, 0),
+    skipped: results.reduce((sum, item) => sum + item.skipped.length, 0),
+    copiedAssets: results.reduce((sum, item) => sum + (item.copiedAssets?.length ?? 0), 0),
+    skippedAssets: results.reduce((sum, item) => sum + (item.skippedAssets?.length ?? 0), 0)
+  };
+}
+
+function createId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function Publish(props: {
   t: Dictionary;
   snapshot: WorkspaceSnapshot;
-  plan?: PublishPlan;
   shareResult?: ShareResult;
   isSharing: boolean;
   shareProgress?: string;
-  profile: string;
-  setProfile: (value: string) => void;
   profileOptions: string[];
-  selectedSkillsCount: number;
-  planPublish: (visibility: "private" | "public") => void;
-  shareProject: (remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string) => void;
-  saveShareSettings: (settings: { remoteUrl?: string; targetMode?: ShareTargetMode | ""; projectName?: string }) => void;
+  targetGroups: ShareTargetGroup[];
+  activeTargetGroup?: ShareTargetGroup;
+  setActiveTargetGroupId: (value: string) => void;
+  saveTargetGroups: (groups: ShareTargetGroup[], selectedId: string) => void;
+  shareProject: (group: ShareTargetGroup, message: string) => void;
 }) {
   const { t } = props;
-  const [remoteUrl, setRemoteUrl] = useState(props.snapshot.config.teamRepo ?? "");
-  const [visibility, setVisibility] = useState<"private" | "public">("private");
   const [message, setMessage] = useState("Share SkillOps project");
-  const [targetMode, setTargetMode] = useState<ShareTargetMode | "">(props.snapshot.config.shareTargetMode ?? "");
-  const [projectName, setProjectName] = useState(props.snapshot.config.shareProjectName ?? basename(props.snapshot.root));
+  const [editingGroup, setEditingGroup] = useState<ShareTargetGroup | undefined>();
+  const activeGroup = props.activeTargetGroup;
+  const selectedSkills = activeGroup ? selectedSkillCount(props.snapshot, activeGroup.profile) : 0;
 
-  useEffect(() => {
-    setRemoteUrl(props.snapshot.config.teamRepo ?? "");
-    setTargetMode(props.snapshot.config.shareTargetMode ?? "");
-    setProjectName(props.snapshot.config.shareProjectName ?? basename(props.snapshot.root));
-  }, [props.snapshot.root, props.snapshot.config.teamRepo, props.snapshot.config.shareTargetMode, props.snapshot.config.shareProjectName]);
+  function upsertGroup(group: ShareTargetGroup) {
+    const existing = props.targetGroups.some((item) => item.id === group.id);
+    const next = existing ? props.targetGroups.map((item) => item.id === group.id ? group : item) : [...props.targetGroups, group];
+    props.saveTargetGroups(next, group.id);
+    setEditingGroup(undefined);
+  }
 
-  useEffect(() => {
-    const trimmed = remoteUrl.trim();
-    const trimmedProjectName = projectName.trim();
-    if (
-      trimmed === (props.snapshot.config.teamRepo ?? "") &&
-      trimmedProjectName === (props.snapshot.config.shareProjectName ?? "")
-    ) return;
-    const timer = window.setTimeout(() => props.saveShareSettings({ remoteUrl: trimmed, projectName: trimmedProjectName }), 600);
-    return () => window.clearTimeout(timer);
-  }, [remoteUrl, projectName, props.snapshot.config.teamRepo, props.snapshot.config.shareProjectName, props.saveShareSettings]);
-
-  function chooseTargetMode(next: ShareTargetMode) {
-    setTargetMode(next);
-    props.saveShareSettings({ remoteUrl: remoteUrl.trim(), targetMode: next, projectName: projectName.trim() });
+  function deleteGroup(groupId: string) {
+    const next = props.targetGroups.filter((item) => item.id !== groupId);
+    props.saveTargetGroups(next, next[0]?.id ?? "");
   }
 
   return (
     <div className="grid two">
       <section className="panel">
-        <h3>{t.publishPlan}</h3>
+        <h3>{t.shareTargets}</h3>
         <p className="muted">{t.publishHelp}</p>
-        <label>{t.remoteRepository}</label>
-        <input value={remoteUrl} placeholder="owner/repo or github.com/owner/repo/tree/main/path" onChange={(event) => setRemoteUrl(event.target.value)} />
-        <label>{t.profile}</label>
-        <select value={props.profile} onChange={(event) => props.setProfile(event.target.value)}>
-          {props.profileOptions.map((name) => <option key={name}>{name}</option>)}
-        </select>
-        <p className="muted">{t.installPreview(props.selectedSkillsCount, props.profile)}</p>
-        <label>{t.shareTargetMode}</label>
-        <div className="segmented two">
-          <button className={targetMode === "direct" ? "active" : ""} onClick={() => chooseTargetMode("direct")}>{t.shareDirectPath}</button>
-          <button className={targetMode === "namedProject" ? "active" : ""} onClick={() => chooseTargetMode("namedProject")}>{t.shareNamedProject}</button>
+        <div className="actions">
+          <button className="primary" onClick={() => setEditingGroup(createShareTargetGroup(props.snapshot, props.profileOptions[0] ?? "default"))}><Plus size={16} /> {t.newShareTarget}</button>
         </div>
-        {targetMode === "namedProject" && (
+        {props.targetGroups.length === 0 ? <p className="muted">{t.noShareTargets}</p> : (
+          <div className="profile-list">
+            {props.targetGroups.map((group) => (
+              <button key={group.id} className={activeGroup?.id === group.id ? "active" : ""} onClick={() => props.setActiveTargetGroupId(group.id)}>
+                <strong>{group.name}</strong>
+                <span>{group.profile} / {group.remoteUrl}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+      <section className="panel">
+        <h3>{t.shareOutput}</h3>
+        {!activeGroup ? (
+          <p className="muted">{t.noShareTargets}</p>
+        ) : (
           <>
-            <label>{t.shareProjectName}</label>
-            <input value={projectName} onChange={(event) => setProjectName(event.target.value)} />
+            <div className="target-group-header">
+              <div>
+                <strong>{activeGroup.name}</strong>
+                <p className="muted">{t.installPreview(selectedSkills, activeGroup.profile)}</p>
+              </div>
+              <div className="actions">
+                <button onClick={() => setEditingGroup(activeGroup)}><Pencil size={16} /> {t.edit}</button>
+                <button onClick={() => deleteGroup(activeGroup.id)}><Trash2 size={16} /> {t.deleteShareTarget}</button>
+              </div>
+            </div>
+            <label>{t.remoteRepository}</label>
+            <div className="pathbox light">{activeGroup.remoteUrl}</div>
+            <label>{t.shareTargetMode}</label>
+            <div className="pathbox light">{activeGroup.targetMode === "namedProject" ? `${t.shareNamedProject}: ${activeGroup.projectName ?? ""}` : t.shareDirectPath}</div>
           </>
         )}
-        <p className="muted">{targetMode === "namedProject" ? t.shareNamedProjectHelp : targetMode === "direct" ? t.shareDirectPathHelp : t.shareTargetModeEmpty}</p>
         <label>{t.commitMessage}</label>
         <input value={message} onChange={(event) => setMessage(event.target.value)} />
         <div className="actions">
-          <button className={visibility === "private" ? "active" : ""} onClick={() => {
-            setVisibility("private");
-            props.planPublish("private");
-          }}>{t.privateTeamRepo}</button>
-          <button className={visibility === "public" ? "active" : ""} onClick={() => {
-            setVisibility("public");
-            props.planPublish("public");
-          }}>{t.publicRelease}</button>
-          <button className="primary" onClick={() => {
-            if (!targetMode) return;
-            props.shareProject(remoteUrl, visibility, message, targetMode, projectName, props.profile);
-          }} disabled={props.isSharing || !remoteUrl.trim() || !targetMode || (targetMode === "namedProject" && !projectName.trim())}>{props.isSharing ? t.sharing : t.shareNow}</button>
+          <button className="primary" onClick={() => activeGroup && props.shareProject(activeGroup, message)} disabled={props.isSharing || !activeGroup || !activeGroup.remoteUrl.trim() || (activeGroup.targetMode === "namedProject" && !activeGroup.projectName?.trim())}>{props.isSharing ? t.sharing : t.shareNow}</button>
         </div>
-      </section>
-      <section className="panel">
-        <h3>{t.planOutput}</h3>
         {props.shareProgress && <p className="muted">{props.shareProgress}</p>}
-        {!props.plan ? (!props.shareProgress && <p className="muted">{t.noPublishPlan}</p>) : (
-          <>
-            <h4>{t.desktopUseFlow}</h4>
-            <ol>
-              {t.useFlowSteps.map((item) => <li key={item}>{item}</li>)}
-            </ol>
-            <h4>{t.installCommands}</h4>
-            {props.plan.installCommands.map((command) => <pre key={command}>{command}</pre>)}
-            <h4>{t.checklist}</h4>
-            <ul>
-              {props.plan.checklist.map((item) => <li key={item}>{item}</li>)}
-            </ul>
-          </>
-        )}
         {props.shareResult && (
           <>
-            <h4>{t.shareOutput}</h4>
             <pre>{props.shareResult.messages.join("\n\n")}</pre>
           </>
         )}
       </section>
+      {editingGroup && (
+        <ShareTargetDialog
+          t={t}
+          group={editingGroup}
+          profileOptions={props.profileOptions}
+          onSave={upsertGroup}
+          onClose={() => setEditingGroup(undefined)}
+        />
+      )}
     </div>
   );
 }

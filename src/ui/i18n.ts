@@ -77,6 +77,7 @@ export interface Dictionary {
   deleteProfile: string;
   saveProfiles: string;
   cancel: string;
+  edit: string;
   profileName: string;
   unnamedProfile: string;
   profileDescription: string;
@@ -85,15 +86,25 @@ export interface Dictionary {
   profileTargets: string;
   configSaved: string;
   profile: string;
-  targetDirectory: string;
   applySkills: string;
   applyHelp: string;
   source: string;
   destination: string;
   agentTargets: string;
   projectTarget: string;
-  customTarget: string;
   selectProject: string;
+  targetGroups: string;
+  newTargetGroup: string;
+  editTargetGroup: string;
+  deleteTargetGroup: string;
+  saveTargetGroup: string;
+  groupName: string;
+  selectedTargets: string;
+  noSelectedTargets: string;
+  noTargetGroups: string;
+  projectTargets: string;
+  addProjectTarget: string;
+  remove: string;
   installPreview: (skills: number, profile: string) => string;
   targetHistory: string;
   noTargetHistory: string;
@@ -104,9 +115,14 @@ export interface Dictionary {
   copiedSkipped: (copied: number, skipped: number, copiedAssets?: number, skippedAssets?: number) => string;
   drift: string;
   driftEmpty: string;
-  publishPlan: string;
   publishHelp: string;
   shareNow: string;
+  shareTargets: string;
+  newShareTarget: string;
+  editShareTarget: string;
+  deleteShareTarget: string;
+  saveShareTarget: string;
+  noShareTargets: string;
   remoteRepository: string;
   shareTargetMode: string;
   shareTargetModeEmpty: string;
@@ -119,14 +135,6 @@ export interface Dictionary {
   sharing: string;
   shareComplete: (branch: string) => string;
   shareOutput: string;
-  desktopUseFlow: string;
-  useFlowSteps: string[];
-  privateTeamRepo: string;
-  publicRelease: string;
-  planOutput: string;
-  noPublishPlan: string;
-  installCommands: string;
-  checklist: string;
 }
 
 export const dictionaries: Record<Language, Dictionary> = {
@@ -207,6 +215,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     deleteProfile: "Delete profile",
     saveProfiles: "Save profiles",
     cancel: "Cancel",
+    edit: "Edit",
     profileName: "Profile name",
     unnamedProfile: "Unnamed profile",
     profileDescription: "Description",
@@ -215,15 +224,25 @@ export const dictionaries: Record<Language, Dictionary> = {
     profileTargets: "Profile targets",
     configSaved: "Profiles saved.",
     profile: "Profile",
-    targetDirectory: "Target directory",
     applySkills: "Application targets",
     applyHelp: "Install the selected profile from this Skill project into an agent or project target.",
     source: "Source",
     destination: "Destination",
     agentTargets: "Agent targets",
     projectTarget: "Project target",
-    customTarget: "Custom target",
     selectProject: "Select project",
+    targetGroups: "Target groups",
+    newTargetGroup: "New target group",
+    editTargetGroup: "Edit target group",
+    deleteTargetGroup: "Delete target group",
+    saveTargetGroup: "Save target group",
+    groupName: "Group name",
+    selectedTargets: "Selected targets",
+    noSelectedTargets: "No targets selected.",
+    noTargetGroups: "No saved target groups.",
+    projectTargets: "Project targets",
+    addProjectTarget: "Add project target",
+    remove: "Remove",
     installPreview: (skills: number, profile: string) => `Ready to apply ${skills} skills from the ${profile} profile.`,
     targetHistory: "Target history",
     noTargetHistory: "No targets applied yet.",
@@ -234,9 +253,14 @@ export const dictionaries: Record<Language, Dictionary> = {
     copiedSkipped: (copied: number, skipped: number, copiedAssets = 0, skippedAssets = 0) => `Copied ${copied} skills and ${copiedAssets} assets. Skipped ${skipped} skills and ${skippedAssets} assets.`,
     drift: "Drift",
     driftEmpty: "Run drift check to compare selected profile with target directory.",
-    publishPlan: "Share plan",
-    publishHelp: "Generate a GitHub-first release checklist and install commands.",
+    publishHelp: "Save reusable profile, repository, and target path combinations for GitHub-first sharing.",
     shareNow: "Share now",
+    shareTargets: "Share targets",
+    newShareTarget: "New share target",
+    editShareTarget: "Edit share target",
+    deleteShareTarget: "Delete share target",
+    saveShareTarget: "Save share target",
+    noShareTargets: "No saved share targets.",
     remoteRepository: "Remote repository",
     shareTargetMode: "Target path",
     shareTargetModeEmpty: "Choose how this Skill project should be written into the repository.",
@@ -248,20 +272,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     commitMessage: "Commit message",
     sharing: "Sharing project...",
     shareComplete: (branch: string) => `Shared to ${branch}.`,
-    shareOutput: "Share output",
-    desktopUseFlow: "Desktop use flow",
-    useFlowSteps: [
-      "Open SkillOps and add the shared GitHub repository as a Skill project.",
-      "Review the audit report before installing skills.",
-      "Choose a profile and apply it to Codex, Claude, Cursor, or a project directory.",
-      "Use drift checks later to sync updates from the source."
-    ],
-    privateTeamRepo: "Private team repo",
-    publicRelease: "Public release",
-    planOutput: "Plan output",
-    noPublishPlan: "No publish plan generated.",
-    installCommands: "Install commands",
-    checklist: "Checklist"
+    shareOutput: "Share output"
   },
   "zh-CN": {
     appSubtitle: "GitHub 优先的 Skill 项目管理器",
@@ -340,6 +351,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     deleteProfile: "删除配置组",
     saveProfiles: "保存配置组",
     cancel: "取消",
+    edit: "编辑",
     profileName: "配置组名称",
     unnamedProfile: "未命名配置组",
     profileDescription: "描述",
@@ -348,15 +360,25 @@ export const dictionaries: Record<Language, Dictionary> = {
     profileTargets: "适用目标",
     configSaved: "配置组已保存。",
     profile: "配置组",
-    targetDirectory: "目标目录",
     applySkills: "应用目标",
     applyHelp: "把当前 Skill 项目的配置组安装到某个 Agent 或项目目标中。",
     source: "来源",
     destination: "应用目标",
     agentTargets: "Agent 目标",
     projectTarget: "项目目标",
-    customTarget: "自定义目标",
     selectProject: "选择项目",
+    targetGroups: "目标组合",
+    newTargetGroup: "新建目标组合",
+    editTargetGroup: "编辑目标组合",
+    deleteTargetGroup: "删除目标组合",
+    saveTargetGroup: "保存目标组合",
+    groupName: "组合名称",
+    selectedTargets: "已选目标",
+    noSelectedTargets: "尚未选择目标。",
+    noTargetGroups: "暂无已保存的目标组合。",
+    projectTargets: "项目目标",
+    addProjectTarget: "添加项目目标",
+    remove: "移除",
     installPreview: (skills: number, profile: string) => `准备应用 ${profile} 配置组中的 ${skills} 个技能。`,
     targetHistory: "目标历史",
     noTargetHistory: "尚未应用到任何目标。",
@@ -367,9 +389,14 @@ export const dictionaries: Record<Language, Dictionary> = {
     copiedSkipped: (copied: number, skipped: number, copiedAssets = 0, skippedAssets = 0) => `已复制 ${copied} 个技能和 ${copiedAssets} 个资产，跳过 ${skipped} 个技能和 ${skippedAssets} 个资产。`,
     drift: "漂移",
     driftEmpty: "运行漂移检查，将当前配置组与目标目录进行比较。",
-    publishPlan: "共享计划",
-    publishHelp: "生成 GitHub 优先的发布清单和安装命令。",
+    publishHelp: "保存配置组、远端仓库和目标路径组合，用于 GitHub 优先的共享执行。",
     shareNow: "立即共享",
+    shareTargets: "共享目标",
+    newShareTarget: "新建共享目标",
+    editShareTarget: "编辑共享目标",
+    deleteShareTarget: "删除共享目标",
+    saveShareTarget: "保存共享目标",
+    noShareTargets: "暂无已保存的共享目标。",
     remoteRepository: "远端仓库",
     shareTargetMode: "目标路径",
     shareTargetModeEmpty: "请选择当前 Skill 项目写入仓库的方式。",
@@ -381,19 +408,6 @@ export const dictionaries: Record<Language, Dictionary> = {
     commitMessage: "提交说明",
     sharing: "正在共享项目...",
     shareComplete: (branch: string) => `已共享到 ${branch}。`,
-    shareOutput: "共享输出",
-    desktopUseFlow: "桌面端使用流程",
-    useFlowSteps: [
-      "打开 SkillOps，将共享的 GitHub 仓库添加为 Skill 项目。",
-      "安装前先查看审计报告。",
-      "选择配置组，并应用到 Codex、Claude、Cursor 或项目目录。",
-      "后续通过漂移检查同步来源更新。"
-    ],
-    privateTeamRepo: "团队私有仓库",
-    publicRelease: "公开发布",
-    planOutput: "计划输出",
-    noPublishPlan: "尚未生成发布计划。",
-    installCommands: "安装命令",
-    checklist: "检查清单"
+    shareOutput: "共享输出"
   }
 };

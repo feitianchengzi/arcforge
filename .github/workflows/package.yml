@@ -96,9 +96,47 @@ jobs:
             release/*.exe
           if-no-files-found: error
 
+  cli:
+    name: CLI package
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run version:set -- ${{ needs.version.outputs.version }}
+
+      - run: npm run build:cli
+
+      - run: node scripts/build-cli-package.mjs --version ${{ needs.version.outputs.version }} --repo ${{ github.repository }}
+
+      - name: Archive CLI assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release/cli-release
+          for target in darwin-x64 darwin-arm64 linux-x64; do
+            tar -C release/cli-work -czf "release/cli-release/skillops-cli-${target}.tar.gz" skillops-cli
+          done
+          (cd release/cli-work && zip -qr ../cli-release/skillops-cli-win-x64.zip skillops-cli)
+          cp release/cli-assets/install.sh release/cli-assets/install.ps1 release/cli-release/
+          (cd release/cli-release && shasum -a 256 * > checksums.txt)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: skillops-cli-${{ needs.version.outputs.version }}
+          path: release/cli-release/*
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
-    needs: [version, package]
+    needs: [version, package, cli]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

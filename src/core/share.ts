@@ -544,6 +544,8 @@ function normalizeConfig(config: SkillOpsConfig): SkillOpsConfig {
     teamRepo: config.teamRepo?.trim() || undefined,
     shareTargetMode: config.shareTargetMode,
     shareProjectName: config.shareProjectName?.trim() || undefined,
+    applyTargets: config.applyTargets,
+    shareTargets: config.shareTargets,
     profiles: config.profiles.map((profile) => ({
       name: profile.name.trim(),
       description: profile.description?.trim() || undefined,

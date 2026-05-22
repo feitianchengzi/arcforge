@@ -86,6 +86,18 @@ node dist/cli/index.js share --root . --repo github.com/acme/team-skills --skill
 node dist/cli/index.js doctor
 ```
 
+Install the CLI from the latest GitHub release:
+
+```bash
+curl -fsSL https://github.com/<owner>/skillops/releases/latest/download/install.sh | sh
+```
+
+On Windows PowerShell:
+
+```powershell
+irm https://github.com/<owner>/skillops/releases/latest/download/install.ps1 | iex
+```
+
 Desktop release builds include the same CLI engine. After the desktop app starts, it installs a user-level `skillops` shim and the environment banner reports whether the shim is on PATH. Use **Repair CLI** in the desktop banner when the shim directory needs to be added to your shell profile.
 
 Expected workspace shape:

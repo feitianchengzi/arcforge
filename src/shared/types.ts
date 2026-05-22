@@ -46,7 +46,26 @@ export interface SkillOpsConfig {
   teamRepo?: string;
   shareTargetMode?: ShareTargetMode;
   shareProjectName?: string;
+  applyTargets?: ApplyTargetGroup[];
+  shareTargets?: ShareTargetGroup[];
   profiles: SkillOpsProfile[];
+}
+
+export interface ApplyTargetGroup {
+  id: string;
+  name: string;
+  profile: string;
+  agentTargetIds: string[];
+  projectTargetDirs: string[];
+}
+
+export interface ShareTargetGroup {
+  id: string;
+  name: string;
+  profile: string;
+  remoteUrl: string;
+  targetMode: ShareTargetMode;
+  projectName?: string;
 }
 
 export interface DriftItem {

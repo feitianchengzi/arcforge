@@ -86,6 +86,18 @@ node dist/cli/index.js share --root . --repo github.com/acme/team-skills --skill
 node dist/cli/index.js doctor
 ```
 
+从最新 GitHub Release 安装 CLI：
+
+```bash
+curl -fsSL https://github.com/<owner>/skillops/releases/latest/download/install.sh | sh
+```
+
+Windows PowerShell：
+
+```powershell
+irm https://github.com/<owner>/skillops/releases/latest/download/install.ps1 | iex
+```
+
 桌面端 release 包内置同一套 CLI 引擎。桌面应用启动后会安装用户级 `skillops` shim，环境提示会显示 shim 是否已经在 PATH 中可用。当 shim 目录需要写入 shell profile 时，可以在桌面端环境提示中使用 **修复 CLI**。
 
 推荐工作区结构：

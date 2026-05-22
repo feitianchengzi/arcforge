@@ -22,21 +22,154 @@ export interface CommandExecution {
 
 export const helpText = `SkillOps CLI
 
+Local-first, GitHub-first governance for AI agent skills.
+
+Usage:
+  skillops <command> [options]
+
+Commands:
+  init             Create skillops.config.json in a workspace
+  scan             Scan skills, shared assets, and audit status
+  audit            Print audit report; exits 2 on critical findings
+  publish-plan     Generate a GitHub-first release checklist
+  drift            Compare a profile against an installed target
+  apply-profile    Copy a profile into an agent or project target
+  share            Commit and push selected skills to a Git repository
+  doctor           Check Git, CLI install, and optional tools
+
+Common options:
+  --root <dir>      SkillOps workspace root. Defaults to current directory.
+  --profile <name>  Profile name. Defaults to default where supported.
+
+Examples:
+  skillops scan --root .
+  skillops audit --root .
+  skillops apply-profile --root . --profile default --target ~/.codex/skills
+  skillops share --root . --repo github.com/acme/team-skills --profile frontend
+  skillops share --root . --repo github.com/acme/team-skills --skills code-review,release-writer
+  skillops doctor
+
+Help:
+  skillops help <command>
+  skillops <command> --help
+
+Install:
+  curl -fsSL https://github.com/<owner>/skillops/releases/latest/download/install.sh | sh
+`;
+
+const commandHelpText: Record<string, string> = {
+  init: `SkillOps CLI - init
+
+Create skillops.config.json in a workspace.
+
 Usage:
   skillops init [--root <dir>]
+
+Options:
+  --root <dir>  Workspace root. Defaults to current directory.
+`,
+  scan: `SkillOps CLI - scan
+
+Scan skills, shared assets, and audit status. Outputs JSON.
+
+Usage:
   skillops scan [--root <dir>]
+
+Options:
+  --root <dir>  Workspace root. Defaults to current directory.
+`,
+  audit: `SkillOps CLI - audit
+
+Print the audit report as JSON. Exits 2 when critical findings exist.
+
+Usage:
   skillops audit [--root <dir>]
+
+Options:
+  --root <dir>  Workspace root. Defaults to current directory.
+`,
+  "publish-plan": `SkillOps CLI - publish-plan
+
+Generate a GitHub-first release checklist and install command hints. This command does not push to a remote repository.
+
+Usage:
   skillops publish-plan [--root <dir>] [--visibility private|public]
-  skillops drift [--root <dir>] [--profile default] [--target .skillops/skills]
-  skillops apply-profile [--root <dir>] [--profile default] [--target .skillops/skills]
-  skillops share --repo <owner/repo|git-url> [--root <dir>] [--profile default] [--skills a,b] [--visibility private|public] [--message <text>] [--target-mode direct|namedProject] [--project-name <name>] [--cache-dir <dir>]
+
+Options:
+  --root <dir>                  Workspace root. Defaults to current directory.
+  --visibility private|public   Release visibility. Defaults to private.
+`,
+  drift: `SkillOps CLI - drift
+
+Compare a profile from the source workspace against an installed target directory. Outputs JSON.
+
+Usage:
+  skillops drift [--root <dir>] [--profile <name>] [--target <dir>]
+
+Options:
+  --root <dir>      Workspace root. Defaults to current directory.
+  --profile <name>  Profile to compare. Defaults to default.
+  --target <dir>    Installed target directory. Defaults to .skillops/skills.
+`,
+  "apply-profile": `SkillOps CLI - apply-profile
+
+Copy a profile from the source workspace into an agent or project target directory. Outputs JSON.
+
+Usage:
+  skillops apply-profile [--root <dir>] [--profile <name>] [--target <dir>]
+
+Options:
+  --root <dir>      Workspace root. Defaults to current directory.
+  --profile <name>  Profile to copy. Defaults to default.
+  --target <dir>    Destination directory. Defaults to .skillops/skills.
+`,
+  share: `SkillOps CLI - share
+
+Commit and push selected skills from a local workspace to a Git repository. Outputs JSON.
+
+Usage:
+  skillops share --repo <repo> [options]
+
+Required:
+  --repo <repo>                 GitHub owner/repo, GitHub URL, tree URL, or full Git URL.
+
+Options:
+  --root <dir>                  Workspace root. Defaults to current directory.
+  --profile <name>              Profile to share. Defaults to default.
+  --skills <a,b>                One-time skill selection. Overrides profile skills for this share.
+  --visibility private|public   Share visibility metadata. Defaults to private.
+  --target-mode direct          Use the repository path as the Skill project root.
+  --target-mode namedProject    Write under a project folder.
+  --project-name <name>         Project folder name. Required with namedProject.
+  --message <text>              Commit message. Defaults to "Share SkillOps project".
+  --cache-dir <dir>             Git worktree cache. Defaults to ~/.skillops/cache.
+
+Examples:
+  skillops share --root . --repo github.com/acme/team-skills --profile frontend
+  skillops share --root . --repo github.com/acme/team-skills --skills code-review,release-writer
+  skillops share --root . --repo github.com/acme/team-skills/tree/main/projects --target-mode namedProject --project-name web
+`,
+  doctor: `SkillOps CLI - doctor
+
+Check local runtime dependencies and optional integrations. Outputs JSON.
+
+Checks:
+  Git availability
+  Desktop CLI shim status when launched from the packaged desktop app
+  Optional tools: skillshare, npx, clawhub
+
+Usage:
   skillops doctor
-`;
+`
+};
 
 export async function runSkillOpsCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
   const command = args[0] ?? "help";
-  if (command === "help" || command === "--help" || command === "-h") {
-    return { exitCode: 0, text: helpText };
+  if (command === "help") {
+    return { exitCode: 0, text: helpFor(args[1]) };
+  }
+  if (command === "--help" || command === "-h" || args.includes("--help") || args.includes("-h")) {
+    return { exitCode: 0, text: helpFor(command === "--help" || command === "-h" ? undefined : command) };
   }
 
   if (command === "init") {
@@ -108,6 +241,13 @@ export async function runSkillOpsCommand(args: string[], runtime: CommandRuntime
   }
 
   throw new Error(`Unknown command: ${command}`);
+}
+
+function helpFor(command?: string): string {
+  if (!command) return helpText;
+  const text = commandHelpText[command];
+  if (!text) throw new Error(`Unknown help topic: ${command}`);
+  return text;
 }
 
 export async function createPublishPlanCommand(root: string, visibility: "private" | "public") {

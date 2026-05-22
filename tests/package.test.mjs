@@ -29,6 +29,10 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
   const preload = await readFile(new URL("../src/electron/preload.cts", import.meta.url), "utf8");
 
   assert.match(commands, /skillops share --repo/);
+  assert.match(commands, /Local-first, GitHub-first governance/);
+  assert.match(commands, /skillops <command> --help/);
+  assert.match(commands, /SkillOps CLI - share/);
+  assert.match(commands, /One-time skill selection/);
   assert.match(commands, /command === "share"/);
   assert.match(commands, /command === "doctor"/);
   assert.match(cli, /runSkillOpsCommand/);
@@ -36,4 +40,19 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
   assert.match(electronMain, /installCliShim/);
   assert.match(electronMain, /system:installCli/);
   assert.match(preload, /installCli/);
+});
+
+test("release workflow publishes cli-only install assets", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/package.yml", import.meta.url), "utf8");
+  const buildScript = await readFile(new URL("../scripts/build-cli-package.mjs", import.meta.url), "utf8");
+  const pkgText = await readFile(new URL("../package.json", import.meta.url), "utf8");
+
+  assert.match(pkgText, /"build:cli"/);
+  assert.match(workflow, /CLI package/);
+  assert.match(workflow, /darwin-x64 darwin-arm64 linux-x64/);
+  assert.match(workflow, /skillops-cli-\$\{target\}\.tar\.gz/);
+  assert.match(workflow, /skillops-cli-win-x64\.zip/);
+  assert.match(workflow, /checksums\.txt/);
+  assert.match(buildScript, /install\.sh/);
+  assert.match(buildScript, /install\.ps1/);
 });
