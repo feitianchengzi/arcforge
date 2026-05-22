@@ -2,19 +2,19 @@
 
 [简体中文](docs/zh-CN/README.md)
 
-## Why This Exists
-
-SkillOps started as a personal itch: I want a small, local-first way to manage AI agent skills before they are copied into agents or shared with other people. I am not sure yet whether this direction is broadly useful, and I do not want to overbuild it before there is a clear signal.
-
-If you also have skill management needs and cannot find a tool that fits how you work, please star this project, open an issue, or send a PR. That tells me I am not the only one running into this problem.
-
-Stars are the strongest signal for how much energy I should keep putting into SkillOps. The more real interest there is, the more I can justify turning this from a personal workflow tool into something maintained more seriously.
-
 Local-first, GitHub-first governance for AI agent skills.
 
 SkillOps helps individuals and small teams turn `SKILL.md` files into reviewed, grouped, shareable assets before they are installed into agents or published to GitHub/ClawHub.
 
 ![SkillOps overview](docs/assets/skillops-overview.svg)
+
+## Why This Exists
+
+SkillOps started as a personal itch: I want a small, local-first way to manage AI agent skills before they are copied into agents or shared with other people. **I am not sure yet whether this direction is broadly useful**, and I do not want to overbuild it before there is a clear signal.
+
+If **you also have skill management needs** and cannot find a tool that fits how you work, please star this project, open an issue, or send a PR. That tells me **I am not the only one running into this problem**.
+
+**Stars are the strongest signal** for how much energy I should keep putting into SkillOps. The more real interest there is, the more I can justify turning this from a personal workflow tool into something maintained more seriously.
 
 ## Positioning
 
