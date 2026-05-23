@@ -10,12 +10,12 @@
   - solution.md 规则审计方案：密钥规则、危险指令、结构校验、发现定位和扣分规则。✅ (80行)
 - profiles-sync/ 配置组同步技术：配置组选取、目录复制、哈希签名和漂移报告。✅
   - solution.md 配置组同步方案：技能选择、替换复制、共享资产同步和 SHA-256 漂移比较。✅ (85行)
-- sharing-ipc/ 共享与 IPC 技术：Electron preload 桥、应用数据目录注入、共享工作树和 Git 执行。✅
-  - solution.md 共享与 IPC 方案：安全桥接、来源下载、发布计划、共享推送、CLI 修复和差异窗口。✅ (143行)
+- sharing-ipc/ 共享与 IPC 技术：Electron preload 桥、应用数据目录注入、技能文件编辑、共享工作树和 Git 执行。✅
+  - solution.md 共享与 IPC 方案：安全桥接、来源下载、发布计划、共享推送、CLI 修复、技能文件编辑和差异窗口。✅ (157行)
 - cli/ 命令行技术：JSON 输出、命令参数、退出码、share/doctor 命令和桌面 --cli 模式。✅
   - solution.md CLI 方案：init、scan、audit、publish-plan、drift、apply-profile、share、doctor 命令和 GitHub Release 安装边界。✅ (95行)
 - _shared/models/ 数据模型：跨领域 TypeScript DTO 与持久化配置结构。✅
-  - SkillOpsConfig.yaml 工作区配置模型：来源目录、团队仓库、共享模式和配置组列表。✅ (70行)
+  - SkillOpsConfig.yaml 工作区配置模型：来源目录、团队仓库、共享模式、配置组和目标组合列表。✅ (135行)
   - WorkspaceSnapshot.yaml 工作区快照模型：配置、技能、共享资产和审计报告聚合。✅ (69行)
   - AuditReport.yaml 审计报告模型：发现列表、严重级别、规则代码和评分。✅ (75行)
   - DriftReport.yaml 漂移报告模型：技能/资产状态、文件级差异和差异汇总。✅ (98行)
@@ -32,3 +32,4 @@
   - publish-share.yaml 共享执行契约：输入远端、可见性、提交信息和目标模式，输出共享结果。✅ (61行)
   - source-download.yaml 来源下载契约：输入 GitHub/Git 来源，输出本地项目根路径。✅ (39行)
   - system-environment.yaml 环境检测契约：无业务输入，输出平台与 Git 状态。✅ (26行)
+  - skill-file.yaml 技能文件契约：列出、读取、写入工作区文件并打开独立编辑窗口。✅ (84行)

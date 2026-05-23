@@ -29,6 +29,7 @@ SkillOps 不是 skill marketplace、公开 registry、包管理器，也不是 a
 SkillOps 主要回答这些运营问题：
 
 - 哪些 skills 是这个项目或团队批准使用的？
+- 能否在应用前直接查看和修复源 skill？
 - 这个 skill 是否适合共享或公开发布？
 - 已安装副本是否偏离了源仓库？
 - 应该给用户什么安装命令和发布 checklist？
@@ -38,7 +39,7 @@ SkillOps 主要回答这些运营问题：
 | 产品类型 | 代表产品 | 它们主要解决 | SkillOps 解决 |
 |---|---|---|---|
 | 公开 skill registry | [ClawHub/OpenClaw](https://github.com/openclaw/clawhub)、skills.sh | 发现、公开发布、搜索、marketplace 体验 | 发布前准备；继续让 GitHub 做 source of truth |
-| 跨 agent 安装工具 | [skillshare](https://github.com/runkids/skillshare)、[npx skills](https://github.com/vercel-labs/skills) | 把 skills 安装和同步到多个 agent | 围绕这些工具生成 profiles、审计门禁、drift report 和发布计划 |
+| 跨 agent 安装工具 | [skillshare](https://github.com/runkids/skillshare)、[npx skills](https://github.com/vercel-labs/skills) | 把 skills 安装和同步到多个 agent | 先审阅和编辑源 skills，再围绕这些工具生成 profiles、审计门禁、drift report 和发布计划 |
 | Agent 原生系统 | [Claude Code plugins](https://code.claude.com/docs/en/plugins)、[Claude skills](https://code.claude.com/docs/en/skills)、Cursor rules | runtime 加载、激活、agent 专属行为 | 在复制到 runtime 目录前管理源 skills |
 | 项目指令文件 | `AGENTS.md`、`CLAUDE.md`、`.cursor/rules` | 告诉某个项目或 agent 如何工作 | 跨项目、跨 agent 管理可复用的 `SKILL.md` 资产 |
 | MCP registry | [Smithery](https://smithery.ai/) 等 MCP 目录 | 发现和安装 MCP servers | 专注 skill 治理，不做 tool-server 分发 |
@@ -57,6 +58,7 @@ SkillOps 主要回答这些运营问题：
 | 按项目配置 agent | 每个项目只安装它应该使用的已批准 skills | profiles、apply-profile、drift |
 | 公开发布前检查 | 检查 secrets、风险指令、薄弱 metadata 和内部引用 | audit、publish-plan |
 | 多 agent 漂移控制 | 比较已安装副本和源仓库是否一致 | drift、apply-profile |
+| 本地编辑 skill | 不离开工作台即可查看和编辑 `SKILL.md`、references 与 scripts | 桌面端技能文件编辑器 |
 | CI 守门 | 在共享或发布前输出 JSON 检查结果 | CLI commands |
 
 如果你只是想浏览公开 skills，或一次性给某个 agent 安装一个 skill，SkillOps 不是最短路径。
@@ -113,7 +115,15 @@ npm run dev
 npm run package
 ```
 
-桌面端用于打开本地 skill 工作区，扫描和审计 `SKILL.md`，把批准过的 skills 组成 profiles，应用到 agent 或项目目标目录，并准备 GitHub 优先的共享或发布 checklist。
+桌面端是 skills 被复制到 agent 或准备 GitHub 优先共享之前的本地治理工作台。
+
+| 桌面端亮点 | 为什么重要 |
+|---|---|
+| 内置 skill 文档编辑器 | 让审计发现的问题可以直接回到本地 `SKILL.md`、references 和 scripts 修复，形成治理闭环。 |
+| 配置组感知的工作区视图 | 让项目、团队、发布用的 skill 集合成为实际操作上下文，而不只是配置字段。 |
+| 多应用目标组合 | 把批准过的 profile 一次性、可控地应用到 agent、项目和自定义本地目录。 |
+| 多共享目标组合 | 将同一套治理后的 skill 集合准备到不同 GitHub 共享或发布路径。 |
+| Drift 与 CLI 修复反馈 | 让已安装副本和本地 CLI 环境都有明确状态，不靠用户猜测哪里变化或失败。 |
 
 桌面端 release 包内置同一套 CLI 引擎。应用启动后会安装用户级 `skillops` shim，环境提示会显示 shim 是否已经在 PATH 中可用。当 shim 目录需要写入 shell profile 时，可以在桌面端环境提示中使用 **修复 CLI**。
 

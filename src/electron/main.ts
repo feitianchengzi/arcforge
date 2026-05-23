@@ -8,7 +8,8 @@ import { scanWorkspace, initWorkspace } from "../core/workspace.js";
 import { saveConfig } from "../core/config.js";
 import { getEnvironmentStatus } from "../core/environment.js";
 import { installCliShim } from "../core/cli-install.js";
-import type { AppState, DriftReport, ProjectUiState, RecentWorkspace, ShareTargetMode, SkillOpsConfig, TargetRecord } from "../shared/types.js";
+import { defaultSkillFile, listSkillFiles, listWorkspaceFiles, readSkillFile, writeSkillFile } from "../core/skill-files.js";
+import type { AppState, DriftReport, ProjectUiState, RecentWorkspace, ShareTargetMode, SkillEditorWindowContext, SkillOpsConfig, TargetRecord } from "../shared/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cliMarkerIndex = process.argv.indexOf("--cli");
@@ -88,8 +89,8 @@ ipcMain.handle("workspace:choose", async (event) => {
   win?.show();
   win?.focus();
   const result = win
-    ? await dialog.showOpenDialog(win, { properties: ["openDirectory", "createDirectory"] })
-    : await dialog.showOpenDialog({ properties: ["openDirectory", "createDirectory"] });
+    ? await dialog.showOpenDialog(win, { properties: ["openDirectory", "createDirectory", "showHiddenFiles"] })
+    : await dialog.showOpenDialog({ properties: ["openDirectory", "createDirectory", "showHiddenFiles"] });
   return result.canceled ? undefined : result.filePaths[0];
 });
 
@@ -117,6 +118,12 @@ ipcMain.handle("publish:share", (_event, root: string, remoteUrl: string, visibi
 ipcMain.handle("profile:apply", (_event, root: string, profile: string, targetDir: string) => applyProfileCommand(root, profile, targetDir));
 ipcMain.handle("profile:drift", (_event, root: string, profile: string, targetDir: string) => driftReportCommand(root, profile, targetDir));
 ipcMain.handle("profile:openDriftDiff", (event, report: DriftReport) => openDriftDiffWindow(report, BrowserWindow.fromWebContents(event.sender)));
+ipcMain.handle("skillFile:list", (_event, root: string, skillPath: string) => listSkillFiles(root, skillPath));
+ipcMain.handle("skillFile:listWorkspace", (_event, root: string, directoryPath: string) => listWorkspaceFiles(root, directoryPath));
+ipcMain.handle("skillFile:read", (_event, root: string, filePath: string) => readSkillFile(root, filePath));
+ipcMain.handle("skillFile:write", (_event, root: string, filePath: string, content: string) => writeSkillFile(root, filePath, content));
+ipcMain.handle("skillFile:openWindow", (event, root: string, skillPath: string, filePath?: string, context?: SkillEditorWindowContext) => openSkillFileWindow(root, skillPath, filePath, context, BrowserWindow.fromWebContents(event.sender)));
+ipcMain.handle("skillFile:openWorkspaceWindow", (event, root: string, directoryPath: string, filePath?: string, context?: SkillEditorWindowContext) => openWorkspaceFileWindow(root, directoryPath, filePath, context, BrowserWindow.fromWebContents(event.sender)));
 
 async function saveWorkspaceConfig(root: string, config: SkillOpsConfig) {
   await saveConfig(root, normalizeConfig(config));
@@ -292,8 +299,9 @@ function normalizeConfig(config: SkillOpsConfig): SkillOpsConfig {
       id: group.id,
       name: group.name.trim(),
       profile: group.profile,
-      agentTargetIds: group.agentTargetIds,
-      projectTargetDirs: group.projectTargetDirs.map((item) => item.trim()).filter(Boolean)
+      agentTargetIds: normalizeStringList(group.agentTargetIds),
+      projectTargetDirs: normalizeStringList(group.projectTargetDirs),
+      customTargetDirs: normalizeStringList(group.customTargetDirs)
     })),
     shareTargets: config.shareTargets?.map((group) => ({
       id: group.id,
@@ -312,6 +320,10 @@ function normalizeConfig(config: SkillOpsConfig): SkillOpsConfig {
   };
 }
 
+function normalizeStringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => cleanString(item)).filter((item): item is string => Boolean(item)) : [];
+}
+
 function cacheRoot(): string {
   return path.join(app.getPath("userData"), "cache");
 }
@@ -326,6 +338,357 @@ function cliShimOptions() {
 
 async function getElectronEnvironmentStatus() {
   return getEnvironmentStatus(cliShimOptions());
+}
+
+async function openSkillFileWindow(root: string, skillPath: string, filePath?: string, context?: SkillEditorWindowContext, parent?: BrowserWindow | null): Promise<void> {
+  const initialFilePath = filePath || await defaultSkillFile(skillPath);
+  await listSkillFiles(root, skillPath);
+  if (initialFilePath) await readSkillFile(root, initialFilePath);
+  await openWorkspaceFileWindow(root, skillPath, initialFilePath, context, parent);
+}
+
+async function openWorkspaceFileWindow(root: string, directoryPath: string, filePath?: string, context?: SkillEditorWindowContext, parent?: BrowserWindow | null): Promise<void> {
+  const initialFilePath = filePath;
+  await listWorkspaceFiles(root, directoryPath);
+  if (initialFilePath) await readSkillFile(root, initialFilePath);
+  const editorContext = normalizeSkillEditorWindowContext(context, directoryPath);
+  const win = new BrowserWindow({
+    width: 1120,
+    height: 760,
+    minWidth: 860,
+    minHeight: 560,
+    title: `SkillOps - ${path.basename(directoryPath)}`,
+    parent: parent ?? undefined,
+    backgroundColor: "#F3F5F8",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.cjs"),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+  await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(renderSkillEditorHtml(root, directoryPath, initialFilePath, editorContext))}`);
+}
+
+function normalizeSkillEditorWindowContext(context: SkillEditorWindowContext | undefined, directoryPath: string): SkillEditorWindowContext {
+  const labels = {
+    files: cleanString(context?.labels?.files) ?? "Files",
+    profile: cleanString(context?.labels?.profile) ?? "Profile",
+    reload: cleanString(context?.labels?.reload) ?? "Reload",
+    save: cleanString(context?.labels?.save) ?? "Save",
+    noFileSelected: cleanString(context?.labels?.noFileSelected) ?? "No file selected",
+    selectFile: cleanString(context?.labels?.selectFile) ?? "Choose a file to view or edit.",
+    loading: cleanString(context?.labels?.loading) ?? "Loading file...",
+    loaded: cleanString(context?.labels?.loaded) ?? "File loaded.",
+    saving: cleanString(context?.labels?.saving) ?? "Saving file...",
+    saved: cleanString(context?.labels?.saved) ?? "File saved.",
+    cannotOpenFile: cleanString(context?.labels?.cannotOpenFile) ?? "Cannot open file"
+  };
+  return {
+    sourceDir: cleanString(context?.sourceDir) ?? path.basename(directoryPath),
+    profileName: cleanString(context?.profileName),
+    profiles: Array.isArray(context?.profiles) ? context.profiles : [],
+    skills: Array.isArray(context?.skills) ? context.skills : [],
+    assets: Array.isArray(context?.assets) ? context.assets : [],
+    collapsedFolders: normalizeStringList(context?.collapsedFolders),
+    treeScrollTop: Number.isFinite(context?.treeScrollTop) ? context?.treeScrollTop : 0,
+    editorScrollTop: Number.isFinite(context?.editorScrollTop) ? context?.editorScrollTop : 0,
+    labels
+  };
+}
+
+function renderSkillEditorHtml(root: string, directoryPath: string, filePath: string | undefined, context: SkillEditorWindowContext): string {
+  const labels = context.labels;
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>SkillOps - ${escapeHtml(path.basename(directoryPath))}</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #202124; background: #f3f5f8; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; overflow: hidden; }
+    button { min-height: 34px; border: 1px solid #d0d5dd; border-radius: 8px; background: #fff; color: #344054; padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
+    button:hover:not(:disabled) { background: #f8fafc; border-color: #b8c1cf; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+    .primary:hover:not(:disabled) { background: #174ea6; border-color: #174ea6; }
+    .app { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+    header { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 18px 22px; border-bottom: 1px solid #e5e7eb; background: #fff; }
+    header > div:first-child { min-width: 0; flex: 1 1 auto; }
+    h1, p { margin: 0; }
+    h1 { font-size: 18px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    p, .muted { color: #667085; font-size: 12px; line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .actions { flex: 0 0 auto; display: flex; gap: 8px; flex-wrap: nowrap; justify-content: flex-end; }
+    .actions button { white-space: nowrap; }
+    .workspace { min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; padding: 14px; }
+    .tree, .editor { min-height: 0; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; overflow: hidden; }
+    .tree { display: flex; flex-direction: column; }
+    .tree-title { display: grid; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #eef0f3; }
+    .tree-title h2 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; line-height: 1.25; }
+    .tree-controls { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; color: #667085; font-size: 12px; }
+    .tree-controls select { min-width: 0; width: 100%; min-height: 32px; border: 1px solid #d0d5dd; border-radius: 8px; padding: 6px 10px; background: #fff; color: #344054; font: inherit; font-size: 12px; }
+    .tree-body { min-height: 0; overflow: auto; padding: 8px; }
+    .tree-button { width: 100%; min-height: 30px; justify-content: flex-start; border-color: transparent; background: transparent; padding: 6px 8px; text-align: left; font-weight: 600; }
+    .tree-button.active { background: #e8f1ff; border-color: #b8d2ff; color: #174ea6; }
+    .tree-row { margin-top: 2px; }
+    .tree-label { display: flex; gap: 7px; align-items: center; min-width: 0; }
+    .tree-caret, .tree-icon { width: 14px; height: 14px; flex: 0 0 14px; color: #667085; }
+    .tree-caret svg, .tree-icon svg { display: block; width: 14px; height: 14px; stroke: currentColor; }
+    .tree-label span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .editor { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+    .editor-bar { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 14px; border-bottom: 1px solid #eef0f3; }
+    .editor-bar > div:first-child { min-width: 0; flex: 1 1 auto; }
+    .editor-bar strong { display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    textarea { width: 100%; height: 100%; resize: none; border: 0; outline: 0; padding: 16px; font: 13px/1.55 SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; color: #202124; background: #fff; tab-size: 2; }
+    .empty { display: grid; place-items: center; color: #667085; }
+    @media (max-width: 880px) {
+      .workspace { grid-template-columns: 1fr; grid-template-rows: 240px minmax(0, 1fr); }
+      header { flex-direction: column; align-items: stretch; }
+      .actions { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>${escapeHtml(path.basename(directoryPath))}</h1>
+        <p>${escapeHtml(directoryPath)}</p>
+      </div>
+      <div class="actions">
+        <button id="reload">${escapeHtml(labels?.reload ?? "Reload")}</button>
+        <button id="save" class="primary" disabled>${escapeHtml(labels?.save ?? "Save")}</button>
+      </div>
+    </header>
+    <div class="workspace">
+      <aside class="tree">
+        <div class="tree-title">
+          <h2>${escapeHtml(context.sourceDir)}${escapeHtml(labels?.files ?? "Files")}</h2>
+          <label class="tree-controls"><span>${escapeHtml(labels?.profile ?? "Profile")}</span><select id="profile"></select></label>
+        </div>
+        <div id="tree" class="tree-body"></div>
+      </aside>
+      <section class="editor">
+        <div class="editor-bar">
+          <div>
+            <strong id="file-title">${escapeHtml(labels?.noFileSelected ?? "No file selected")}</strong>
+            <p id="status">${escapeHtml(labels?.selectFile ?? "Choose a file to view or edit.")}</p>
+          </div>
+        </div>
+        <textarea id="editor" spellcheck="false" disabled></textarea>
+      </section>
+    </div>
+  </div>
+  <script>
+    const rootPath = ${JSON.stringify(root)};
+    const directoryPath = ${JSON.stringify(directoryPath)};
+    const editorContext = ${JSON.stringify(context)};
+    const labels = editorContext.labels || {};
+    let currentFilePath = ${JSON.stringify(filePath)};
+    let lastSavedContent = "";
+    let files = [];
+    let filteredFiles = [];
+    let activeProfileName = editorContext.profileName || (editorContext.profiles[0] && editorContext.profiles[0].name) || "";
+    const collapsedFolders = new Set(editorContext.collapsedFolders || []);
+    let restoreTreeScroll = Number(editorContext.treeScrollTop) || 0;
+    let restoreEditorScroll = Number(editorContext.editorScrollTop) || 0;
+    const tree = document.getElementById("tree");
+    const profileSelect = document.getElementById("profile");
+    const editor = document.getElementById("editor");
+    const saveButton = document.getElementById("save");
+    const reloadButton = document.getElementById("reload");
+    const status = document.getElementById("status");
+    const fileTitle = document.getElementById("file-title");
+
+    function setStatus(message) {
+      status.textContent = message;
+    }
+
+    function flatten(entries) {
+      return entries.flatMap((entry) => entry.type === "directory" ? flatten(entry.children || []) : [entry]);
+    }
+
+    function filterFilesByProfile(entries) {
+      const profile = (editorContext.profiles || []).find((item) => item.name === activeProfileName) || (editorContext.profiles || [])[0];
+      if (!profile || (profile.skills || []).includes("*")) return entries;
+      const selectedNames = new Set(profile.skills || []);
+      const roots = [
+        ...(editorContext.skills || []).filter((skill) => selectedNames.has(skill.name)).map((skill) => skill.path),
+        ...(editorContext.assets || []).map((asset) => asset.path)
+      ];
+      if (roots.length === 0) return [];
+      return filterEntriesByRoots(entries, roots);
+    }
+
+    function filterEntriesByRoots(entries, roots) {
+      return entries.flatMap((entry) => {
+        if (roots.some((root) => samePath(entry.path, root) || isDescendantPath(entry.path, root))) return [entry];
+        if (entry.type !== "directory") return [];
+        const children = filterEntriesByRoots(entry.children || [], roots);
+        return children.length > 0 ? [{ ...entry, children }] : [];
+      });
+    }
+
+    function renderTree(entries, depth = 0) {
+      return entries.map((entry) => {
+        if (entry.type === "directory") {
+          const collapsed = collapsedFolders.has(entry.path);
+          const children = collapsed ? "" : renderTree(entry.children || [], depth + 1);
+          return '<div class="tree-row" style="padding-left:' + (depth * 12) + 'px"><button class="tree-button tree-label" data-folder="' + escapeAttribute(entry.path) + '"><span class="tree-caret">' + caretIcon(collapsed) + '</span><span class="tree-icon">' + folderIcon() + '</span><span>' + escapeHtml(entry.name) + '</span></button>' + children + '</div>';
+        }
+        const active = entry.path === currentFilePath ? " active" : "";
+        return '<div class="tree-row" style="padding-left:' + (depth * 12) + 'px"><button class="tree-button tree-label' + active + '" data-path="' + escapeAttribute(entry.path) + '"><span class="tree-caret"></span><span class="tree-icon">' + fileIcon() + '</span><span>' + escapeHtml(entry.name) + '</span></button></div>';
+      }).join("");
+    }
+
+    function bindTreeEvents() {
+      for (const button of tree.querySelectorAll("button[data-folder]")) {
+        button.addEventListener("click", () => {
+          const folderPath = button.getAttribute("data-folder");
+          if (!folderPath) return;
+          if (collapsedFolders.has(folderPath)) {
+            collapsedFolders.delete(folderPath);
+          } else {
+            collapsedFolders.add(folderPath);
+          }
+          tree.innerHTML = renderTree(filteredFiles);
+          bindTreeEvents();
+        });
+      }
+      for (const button of tree.querySelectorAll("button[data-path]")) {
+        button.addEventListener("click", () => void openFile(button.getAttribute("data-path")));
+      }
+    }
+
+    function renderProfileSelect() {
+      const profiles = editorContext.profiles || [];
+      profileSelect.innerHTML = profiles.map((profile) => '<option value="' + escapeAttribute(profile.name) + '">' + escapeHtml(profile.name) + '</option>').join("");
+      profileSelect.value = activeProfileName;
+      profileSelect.disabled = profiles.length === 0;
+    }
+
+    function renderFilteredTree() {
+      filteredFiles = filterFilesByProfile(files);
+      const flat = flatten(filteredFiles);
+      if (!flat.some((item) => item.path === currentFilePath)) {
+        const preferred = flat.find((item) => item.name === "SKILL.md") || flat[0];
+        currentFilePath = preferred ? preferred.path : undefined;
+      }
+      tree.innerHTML = renderTree(filteredFiles);
+      bindTreeEvents();
+      if (restoreTreeScroll) {
+        tree.scrollTop = restoreTreeScroll;
+        restoreTreeScroll = 0;
+      } else {
+        tree.querySelector("button.active")?.scrollIntoView({ block: "nearest" });
+      }
+    }
+
+    async function loadTree() {
+      files = await window.skillops.listWorkspaceFiles(rootPath, directoryPath);
+      filteredFiles = filterFilesByProfile(files);
+      if (!currentFilePath) {
+        const first = flatten(filteredFiles)[0];
+        currentFilePath = first ? first.path : undefined;
+      }
+      renderProfileSelect();
+      renderFilteredTree();
+    }
+
+    async function openFile(filePath) {
+      if (!filePath) return;
+      currentFilePath = filePath;
+      saveButton.disabled = true;
+      editor.disabled = true;
+      setStatus(labels.loading || "Loading file...");
+      try {
+        const document = await window.skillops.readSkillFile(rootPath, filePath);
+        lastSavedContent = document.content;
+        editor.value = document.content;
+        editor.disabled = false;
+        fileTitle.textContent = document.relativePath;
+        setStatus(labels.loaded || "File loaded.");
+        renderFilteredTree();
+        if (restoreEditorScroll) {
+          editor.scrollTop = restoreEditorScroll;
+          restoreEditorScroll = 0;
+        }
+      } catch (error) {
+        editor.value = "";
+        fileTitle.textContent = labels.cannotOpenFile || "Cannot open file";
+        setStatus(error instanceof Error ? error.message : String(error));
+      }
+    }
+
+    async function saveFile() {
+      if (!currentFilePath || editor.value === lastSavedContent) return;
+      saveButton.disabled = true;
+      setStatus(labels.saving || "Saving file...");
+      try {
+        const document = await window.skillops.writeSkillFile(rootPath, currentFilePath, editor.value);
+        lastSavedContent = document.content;
+        setStatus(labels.saved || "File saved.");
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : String(error));
+      } finally {
+        saveButton.disabled = editor.value === lastSavedContent;
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+    }
+
+    function escapeAttribute(value) {
+      return escapeHtml(value).replace(/\\n/g, " ");
+    }
+
+    function caretIcon(collapsed) {
+      return collapsed
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+    }
+
+    function folderIcon() {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>';
+    }
+
+    function fileIcon() {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>';
+    }
+
+    editor.addEventListener("input", () => {
+      saveButton.disabled = editor.value === lastSavedContent || !currentFilePath;
+    });
+    profileSelect.addEventListener("change", () => {
+      activeProfileName = profileSelect.value;
+      renderFilteredTree();
+      void openFile(currentFilePath);
+    });
+    saveButton.addEventListener("click", () => void saveFile());
+    reloadButton.addEventListener("click", async () => {
+      await loadTree();
+      await openFile(currentFilePath);
+    });
+    void loadTree().then(() => openFile(currentFilePath)).catch((error) => setStatus(error instanceof Error ? error.message : String(error)));
+
+    function normalizePath(filePath) {
+      return String(filePath || "").replace(/\\\\/g, "/").replace(/\\/+$/, "");
+    }
+
+    function samePath(a, b) {
+      return normalizePath(a) === normalizePath(b);
+    }
+
+    function isDescendantPath(candidate, parent) {
+      const normalizedCandidate = normalizePath(candidate);
+      const normalizedParent = normalizePath(parent);
+      return normalizedCandidate.startsWith(normalizedParent + "/");
+    }
+  </script>
+</body>
+</html>`;
 }
 
 async function openDriftDiffWindow(report: DriftReport, parent?: BrowserWindow | null): Promise<void> {

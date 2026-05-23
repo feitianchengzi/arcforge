@@ -30,6 +30,13 @@ export interface Dictionary {
   cliReady: string;
   cliNeedsRepair: string;
   repairCli: string;
+  cliRepairing: string;
+  cliRepairAvailable: string;
+  cliRepairNeedsTerminal: string;
+  cliRepairManualTitle: string;
+  cliRepairManualBody: string;
+  cliRepairCopy: string;
+  cliRepairCopied: string;
   scanning: string;
   errorStatus: (message: string) => string;
   foundStatus: (skills: number, score: number) => string;
@@ -64,6 +71,19 @@ export interface Dictionary {
     criticalFindings: string;
   };
   skillsTitle: string;
+  skillFilesTitle: string;
+  openSkillWindow: string;
+  openFileWindow: string;
+  saveFile: string;
+  reloadFile: string;
+  noSkillFiles: string;
+  selectSkillFile: string;
+  loadingFile: string;
+  savingFile: string;
+  cannotOpenFile: string;
+  unsavedChanges: string;
+  fileSaved: string;
+  fileLoaded: string;
   sharedAssetsTitle: string;
   sharedAssetsHelp: string;
   noSharedAssets: string;
@@ -91,8 +111,6 @@ export interface Dictionary {
   source: string;
   destination: string;
   agentTargets: string;
-  projectTarget: string;
-  selectProject: string;
   targetGroups: string;
   newTargetGroup: string;
   editTargetGroup: string;
@@ -102,8 +120,15 @@ export interface Dictionary {
   selectedTargets: string;
   noSelectedTargets: string;
   noTargetGroups: string;
-  projectTargets: string;
-  addProjectTarget: string;
+  targetGroupSummary: (agents: number, targets: number) => string;
+  agentProjectFolders: string;
+  addAgentProjectFolder: string;
+  agentProjectFolderHelp: string;
+  customTargets: string;
+  addCustomTarget: string;
+  targetRoutingHelp: string;
+  agentRequired: string;
+  targetRequired: string;
   remove: string;
   installPreview: (skills: number, profile: string) => string;
   targetHistory: string;
@@ -167,6 +192,13 @@ export const dictionaries: Record<Language, Dictionary> = {
     cliReady: "CLI ready.",
     cliNeedsRepair: "CLI needs repair.",
     repairCli: "Repair CLI",
+    cliRepairing: "Repairing CLI...",
+    cliRepairAvailable: "CLI repaired. Open a new terminal if an old terminal still cannot find skillops.",
+    cliRepairNeedsTerminal: "CLI shim was repaired. Open a new terminal, or copy the details below to apply the PATH change manually.",
+    cliRepairManualTitle: "CLI repair details",
+    cliRepairManualBody: "SkillOps could not fully verify the CLI in the current environment. Copy these details to a terminal or another repair tool.",
+    cliRepairCopy: "Copy details",
+    cliRepairCopied: "Copied",
     scanning: "Scanning workspace...",
     errorStatus: (message: string) => `Error: ${message}`,
     foundStatus: (skills: number, score: number) => `Found ${skills} skills. Audit score ${score}/100.`,
@@ -201,6 +233,19 @@ export const dictionaries: Record<Language, Dictionary> = {
       criticalFindings: "Critical findings"
     },
     skillsTitle: "Skills",
+    skillFilesTitle: "Files",
+    openSkillWindow: "Open skill window",
+    openFileWindow: "Open file window",
+    saveFile: "Save",
+    reloadFile: "Reload",
+    noSkillFiles: "No files found in this skill.",
+    selectSkillFile: "Select a file to view or edit.",
+    loadingFile: "Loading file...",
+    savingFile: "Saving file...",
+    cannotOpenFile: "Cannot open file",
+    unsavedChanges: "Unsaved changes",
+    fileSaved: "File saved.",
+    fileLoaded: "File loaded.",
     sharedAssetsTitle: "Shared assets",
     sharedAssetsHelp: "Folders under skills/ without a SKILL.md are treated as shared assets and are synced with every profile.",
     noSharedAssets: "No shared asset folders.",
@@ -228,8 +273,6 @@ export const dictionaries: Record<Language, Dictionary> = {
     source: "Source",
     destination: "Destination",
     agentTargets: "Agent targets",
-    projectTarget: "Project target",
-    selectProject: "Select project",
     targetGroups: "Target groups",
     newTargetGroup: "New target group",
     editTargetGroup: "Edit target group",
@@ -239,8 +282,15 @@ export const dictionaries: Record<Language, Dictionary> = {
     selectedTargets: "Selected targets",
     noSelectedTargets: "No targets selected.",
     noTargetGroups: "No saved target groups.",
-    projectTargets: "Project targets",
-    addProjectTarget: "Add project target",
+    targetGroupSummary: (agents: number, targets: number) => `${agents} agents / ${targets} targets`,
+    agentProjectFolders: "Project folders for selected agents",
+    addAgentProjectFolder: "Add project folder",
+    agentProjectFolderHelp: "When project folders are selected, each checked agent is installed under that project, such as .codex/skills. Without project folders, checked agents use their user-level folders.",
+    customTargets: "Custom targets",
+    addCustomTarget: "Add custom target",
+    targetRoutingHelp: "Choose agents first, then optionally add project folders for those agents. Custom targets are used exactly as selected.",
+    agentRequired: "Project folders require at least one agent target.",
+    targetRequired: "Select at least one agent target or add a custom target.",
     remove: "Remove",
     installPreview: (skills: number, profile: string) => `Ready to apply ${skills} skills from the ${profile} profile.`,
     targetHistory: "Target history",
@@ -302,6 +352,13 @@ export const dictionaries: Record<Language, Dictionary> = {
     cliReady: "CLI 可用。",
     cliNeedsRepair: "CLI 需要修复。",
     repairCli: "修复 CLI",
+    cliRepairing: "正在修复 CLI...",
+    cliRepairAvailable: "CLI 已修复。如果旧终端仍找不到 skillops，请打开一个新终端。",
+    cliRepairNeedsTerminal: "CLI shim 已修复。请打开一个新终端，或复制下面的信息手动应用 PATH 变更。",
+    cliRepairManualTitle: "CLI 修复信息",
+    cliRepairManualBody: "当前环境中无法完整验证 CLI。你可以复制这些信息到终端或其他修复工具中继续尝试。",
+    cliRepairCopy: "复制信息",
+    cliRepairCopied: "已复制",
     scanning: "正在扫描工作区...",
     errorStatus: (message: string) => `错误：${message}`,
     foundStatus: (skills: number, score: number) => `发现 ${skills} 个技能，审计评分 ${score}/100。`,
@@ -336,6 +393,19 @@ export const dictionaries: Record<Language, Dictionary> = {
       criticalFindings: "严重发现"
     },
     skillsTitle: "技能",
+    skillFilesTitle: "文件",
+    openSkillWindow: "独立打开技能",
+    openFileWindow: "独立打开文件",
+    saveFile: "保存",
+    reloadFile: "重载",
+    noSkillFiles: "这个技能下没有可查看的文件。",
+    selectSkillFile: "选择一个文件进行查看或编辑。",
+    loadingFile: "正在加载文件...",
+    savingFile: "正在保存文件...",
+    cannotOpenFile: "无法打开文件",
+    unsavedChanges: "有未保存修改",
+    fileSaved: "文件已保存。",
+    fileLoaded: "文件已加载。",
     sharedAssetsTitle: "共享资产",
     sharedAssetsHelp: "skills/ 下没有 SKILL.md 的文件夹会被视为共享资产，并随每个配置组一起同步。",
     noSharedAssets: "暂无共享资产文件夹。",
@@ -363,8 +433,6 @@ export const dictionaries: Record<Language, Dictionary> = {
     source: "来源",
     destination: "应用目标",
     agentTargets: "Agent 目标",
-    projectTarget: "项目目标",
-    selectProject: "选择项目",
     targetGroups: "目标组合",
     newTargetGroup: "新建目标组合",
     editTargetGroup: "编辑目标组合",
@@ -374,8 +442,15 @@ export const dictionaries: Record<Language, Dictionary> = {
     selectedTargets: "已选目标",
     noSelectedTargets: "尚未选择目标。",
     noTargetGroups: "暂无已保存的目标组合。",
-    projectTargets: "项目目标",
-    addProjectTarget: "添加项目目标",
+    targetGroupSummary: (agents: number, targets: number) => `${agents} 个 Agent / ${targets} 个目标`,
+    agentProjectFolders: "所选 Agent 的项目目录",
+    addAgentProjectFolder: "添加项目目录",
+    agentProjectFolderHelp: "选择项目目录后，每个勾选的 Agent 会安装到该项目下的对应目录，例如 .codex/skills。未选择项目目录时，勾选的 Agent 使用用户级目录。",
+    customTargets: "自定义目标",
+    addCustomTarget: "添加自定义目标",
+    targetRoutingHelp: "先选择 Agent，再按需为这些 Agent 添加项目目录。自定义目标会按所选目录原样应用。",
+    agentRequired: "项目目录需要先选择至少一个 Agent 目标。",
+    targetRequired: "请选择至少一个 Agent 目标，或添加一个自定义目标。",
     remove: "移除",
     installPreview: (skills: number, profile: string) => `准备应用 ${profile} 配置组中的 ${skills} 个技能。`,
     targetHistory: "目标历史",

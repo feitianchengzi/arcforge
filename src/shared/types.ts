@@ -17,6 +17,46 @@ export interface SharedAssetSummary {
   relativePath: string;
 }
 
+export interface SkillFileEntry {
+  name: string;
+  path: string;
+  relativePath: string;
+  type: "file" | "directory";
+  size?: number;
+  children?: SkillFileEntry[];
+}
+
+export interface SkillFileDocument {
+  path: string;
+  relativePath: string;
+  content: string;
+  modifiedAt: string;
+}
+
+export interface SkillEditorWindowContext {
+  sourceDir: string;
+  profileName?: string;
+  profiles: SkillOpsProfile[];
+  skills: SkillSummary[];
+  assets: SharedAssetSummary[];
+  collapsedFolders?: string[];
+  treeScrollTop?: number;
+  editorScrollTop?: number;
+  labels?: {
+    files: string;
+    profile: string;
+    reload: string;
+    save: string;
+    noFileSelected: string;
+    selectFile: string;
+    loading: string;
+    loaded: string;
+    saving: string;
+    saved: string;
+    cannotOpenFile: string;
+  };
+}
+
 export interface AuditFinding {
   severity: Severity;
   code: string;
@@ -57,6 +97,7 @@ export interface ApplyTargetGroup {
   profile: string;
   agentTargetIds: string[];
   projectTargetDirs: string[];
+  customTargetDirs?: string[];
 }
 
 export interface ShareTargetGroup {

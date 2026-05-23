@@ -29,6 +29,7 @@ write skill -> audit -> profile -> apply -> drift check -> release prep
 Use SkillOps to answer operational questions that registries and installers usually do not own:
 
 - Which skills are approved for this project or team?
+- Can we inspect and fix the source skill before applying it?
 - Is this skill safe enough to share or publish?
 - Did an installed copy drift from the source repository?
 - Which install commands and release checklist should we give users?
@@ -38,7 +39,7 @@ Use SkillOps to answer operational questions that registries and installers usua
 | Product type | Representative products | They optimize for | SkillOps does instead |
 |---|---|---|---|
 | Public skill registries | [ClawHub/OpenClaw](https://github.com/openclaw/clawhub), skills.sh | discovery, public publishing, search, marketplace UX | prepare skills before publishing; keep GitHub as source of truth |
-| Cross-agent installers | [skillshare](https://github.com/runkids/skillshare), [npx skills](https://github.com/vercel-labs/skills) | install and sync skills into many agents | generate profile sets, audit gates, drift reports, and release plans around those tools |
+| Cross-agent installers | [skillshare](https://github.com/runkids/skillshare), [npx skills](https://github.com/vercel-labs/skills) | install and sync skills into many agents | review and edit source skills, then generate profile sets, audit gates, drift reports, and release plans around those tools |
 | Agent-native systems | [Claude Code plugins](https://code.claude.com/docs/en/plugins), [Claude skills](https://code.claude.com/docs/en/skills), Cursor rules | runtime loading, activation, agent-specific behavior | manage source skills before they are copied into runtime-specific locations |
 | Project instruction files | `AGENTS.md`, `CLAUDE.md`, `.cursor/rules` | tell one project or agent how to behave | manage reusable `SKILL.md` assets across projects and agents |
 | MCP registries | [Smithery](https://smithery.ai/), MCP catalogs | discover and install MCP servers | stay focused on skill governance, not tool-server distribution |
@@ -57,6 +58,7 @@ Use SkillOps when you need a local governance step before skills are copied into
 | Per-project agent setup | install only the approved skills a project should use | profiles, apply-profile, drift |
 | Pre-publication review | catch secrets, risky instructions, weak metadata, and internal references | audit, publish-plan |
 | Multi-agent drift control | compare installed copies with the source repository | drift, apply-profile |
+| Local skill editing | inspect and edit `SKILL.md`, references, and scripts without leaving the workspace | desktop skill file editor |
 | CI guardrail | produce JSON checks before sharing or publishing | CLI commands |
 
 Do not use SkillOps if you only need to browse public skills or install a one-off skill into one agent.
@@ -113,7 +115,15 @@ Build a local desktop package:
 npm run package
 ```
 
-Use the desktop app to open a local skill workspace, scan and audit `SKILL.md` files, group approved skills into profiles, apply a profile to an agent or project target, and prepare GitHub-first sharing or release checklists.
+Use the desktop app as the local governance workspace for skills before they are copied into agents or prepared for GitHub-first sharing.
+
+| Desktop capability | Why it matters |
+|---|---|
+| Built-in skill editor | Turns audit findings into local fixes for `SKILL.md`, references, and scripts without leaving the governed workspace. |
+| Profile-aware workspace views | Keeps project, team, or release skill sets visible as first-class working contexts instead of making profiles only a config field. |
+| Multi-target apply groups | Applies an approved profile to agent, project, and custom local targets in one controlled workflow. |
+| Multi-target sharing groups | Prepares the same governed skill set for different GitHub sharing or release paths. |
+| Drift and CLI repair feedback | Keeps installed copies and the local CLI setup accountable instead of leaving users to guess what changed or failed. |
 
 Desktop release builds include the same CLI engine. After the app starts, it installs a user-level `skillops` shim and the environment banner reports whether the shim is on PATH. Use **Repair CLI** when the shim directory needs to be added to your shell profile.
 

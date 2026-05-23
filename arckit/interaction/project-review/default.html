@@ -113,9 +113,31 @@
                                     </div>
                                 </div>
                                 <div class="split-divider-v"></div>
-                                <div class="panel" data-kit="List">
-                                    <div class="panel-header">Audit findings</div>
+                                <div class="panel" data-kit="Tree + TextEditor">
+                                    <div class="panel-header">Skills file editor</div>
                                     <div class="content-area">
+                                        <div class="group-box">
+                                            <div class="group-box-title">skills 文件</div>
+                                            <div class="picker" data-kit="Picker(menu)">Profile: frontend</div>
+                                        </div>
+                                        <div class="split-h">
+                                            <div class="panel" data-kit="OutlineGroup">
+                                                <div class="list-item"><div class="list-item-title">▾ code-review</div></div>
+                                                <div class="list-item"><div class="list-item-title">  SKILL.md</div><span class="badge active">open</span></div>
+                                                <div class="list-item"><div class="list-item-title">  references/</div></div>
+                                                <div class="list-item"><div class="list-item-title">▸ release-writer</div></div>
+                                            </div>
+                                            <div class="split-divider-h"></div>
+                                            <div class="panel" data-kit="TextEditor">
+                                                <div class="panel-header">skills/code-review/SKILL.md</div>
+                                                <div class="placeholder-box">Editable skill markdown content</div>
+                                                <div class="toolbar-group">
+                                                    <div class="toolbar-button">Reload</div>
+                                                    <div class="toolbar-button">Open window</div>
+                                                    <div class="toolbar-button">Save</div>
+                                                </div>
+                                            </div>
+                                        </div>
                                         <div class="list-item">
                                             <div class="icon-placeholder">!</div>
                                             <div class="list-item-text">
@@ -123,14 +145,6 @@
                                                 <div class="list-item-subtitle">skills/example-review/SKILL.md:4</div>
                                             </div>
                                             <span class="badge">warning</span>
-                                        </div>
-                                        <div class="list-item">
-                                            <div class="icon-placeholder">S</div>
-                                            <div class="list-item-text">
-                                                <div class="list-item-title">code-review</div>
-                                                <div class="list-item-subtitle">skills/code-review</div>
-                                            </div>
-                                            <span class="badge">skill</span>
                                         </div>
                                     </div>
                                 </div>
@@ -142,14 +156,16 @@
                     <h3>组件清单</h3>
                     <ul>
                         <li>metric cards and next-step action group</li>
-                        <li>List for audit findings and skill rows</li>
-                        <li>file path and line number disclosure</li>
+                        <li>Tree for skills source directory and profile filter</li>
+                        <li>TextEditor for selected skill file</li>
+                        <li>file path, save/reload, detached window, and audit finding disclosure</li>
                     </ul>
                 </div>
                 <div class="interactions">
                     <h3>交互行为</h3>
                     <div class="interaction-item"><code>Review audit</code> → 切换到 Audit 页签。</div>
-                    <div class="interaction-item"><code>点击发现项</code> → 保留文件路径和行号供用户定位。</div>
+                    <div class="interaction-item"><code>选择文件</code> → 右侧编辑器加载当前文件。</div>
+                    <div class="interaction-item"><code>Open window</code> → 独立窗口继承配置组、选中文件、折叠状态和滚动位置。</div>
                 </div>
             </div>
         </details>
@@ -158,7 +174,7 @@
             <summary>空状态：列表或结果为空</summary>
             <div class="state-content">
                 <div class="state-description">
-                    <strong>触发条件：</strong>技能列表、共享资产、目标历史或审计发现为空。
+                    <strong>触发条件：</strong>技能文件树、共享资产、目标历史或审计发现为空。
                 </div>
                 <div class="wireframe-canvas">
                     <div class="device-frame desktop" data-kit="NavigationSplitView">

@@ -31,11 +31,13 @@ SkillOps is a pre-publish and team-governance layer. It is meant to sit upstream
 3. I want teammates to use the same approved version.
 4. I want a clean public release plan without leaking internal context.
 5. I want a CLI for CI checks.
+6. I want to inspect and edit skills in place before applying or sharing them.
 
 ## MVP Features
 
 - scan a Git workspace for `SKILL.md` skills
 - audit skill quality and security risks
+- browse and edit the workspace `skills/` tree with profile-based filtering
 - apply named profiles to target folders
 - report drift between profile source and target folder
 - generate private/public publish plans

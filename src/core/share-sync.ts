@@ -1,0 +1,231 @@
+import path from "node:path";
+import crypto from "node:crypto";
+import { promises as fs } from "node:fs";
+import type { SharedAssetSummary, SkillOpsConfig, SkillSummary } from "../shared/types.js";
+import { copyDirectory, pathExists } from "./fs.js";
+
+export function resolveShareProfile(config: SkillOpsConfig, profileName?: string, skillNames?: string[]): SkillOpsConfig["profiles"][number] {
+  const selectedProfile = profileName
+    ? config.profiles.find((item) => item.name === profileName)
+    : config.profiles[0];
+  if (!selectedProfile) throw new Error(profileName ? `Profile not found: ${profileName}` : "Profile is required for sharing.");
+  if (!skillNames || skillNames.length === 0) return selectedProfile;
+  return {
+    ...selectedProfile,
+    skills: skillNames
+  };
+}
+
+export function selectProfileSkills(skills: SkillSummary[], names: string[], strict = false): SkillSummary[] {
+  if (names.includes("*")) return skills;
+  if (names.length === 0) return [];
+  const wanted = new Set(names);
+  const selected = skills.filter((skill) => wanted.has(skill.name));
+  if (strict) {
+    const found = new Set(selected.map((skill) => skill.name));
+    const missing = names.filter((name) => !found.has(name));
+    if (missing.length > 0) throw new Error(`Skill not found: ${missing.join(", ")}`);
+  }
+  return selected;
+}
+
+export async function syncProjectToShareTarget(root: string, targetRoot: string, config: SkillOpsConfig, skills: SkillSummary[], assets: SharedAssetSummary[], visibility: "private" | "public", sectionName: string, namespace: string): Promise<void> {
+  await fs.mkdir(targetRoot, { recursive: true });
+  const sourceRoot = path.resolve(root, config.sourceDir);
+  const targetSourceRoot = path.join(targetRoot, config.sourceDir);
+  await fs.mkdir(targetSourceRoot, { recursive: true });
+  for (const item of skills) {
+    const relativePath = path.relative(sourceRoot, item.path);
+    if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+      throw new Error(`Refusing to share item outside source directory: ${item.path}`);
+    }
+    await replaceSharedEntry(item.path, path.join(targetSourceRoot, relativePath), targetSourceRoot);
+  }
+  for (const asset of assets) {
+    const relativePath = path.relative(sourceRoot, asset.path);
+    if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+      throw new Error(`Refusing to share item outside source directory: ${asset.path}`);
+    }
+    await assertSharedAssetWritable(path.join(targetSourceRoot, relativePath), namespace);
+    await replaceSharedEntry(asset.path, path.join(targetSourceRoot, relativePath), targetSourceRoot);
+    await writeAssetOwner(path.join(targetSourceRoot, relativePath), namespace);
+  }
+  const mergedConfig = await mergeSharedConfig(path.join(targetRoot, "skillops.config.json"), config);
+  await fs.writeFile(path.join(targetRoot, "skillops.config.json"), `${JSON.stringify(mergedConfig, null, 2)}\n`, "utf8");
+  const sourceReadme = path.join(root, "README.md");
+  const targetReadme = path.join(targetRoot, "README.md");
+  if (!(await pathExists(targetReadme)) && await pathExists(sourceReadme)) {
+    await fs.copyFile(sourceReadme, targetReadme);
+  } else if (!(await pathExists(targetReadme))) {
+    await fs.writeFile(targetReadme, `# ${path.basename(root)}\n`, "utf8");
+  }
+  await writeSharingReadme(targetRoot, config, visibility, sectionName);
+}
+
+export async function syncProjectMetadata(targetRoot: string, config: SkillOpsConfig, visibility: "private" | "public", sectionName: string): Promise<void> {
+  const mergedConfig = await mergeSharedConfig(path.join(targetRoot, "skillops.config.json"), config);
+  await fs.writeFile(path.join(targetRoot, "skillops.config.json"), `${JSON.stringify(mergedConfig, null, 2)}\n`, "utf8");
+  const targetReadme = path.join(targetRoot, "README.md");
+  if (!(await pathExists(targetReadme))) {
+    await fs.writeFile(targetReadme, `# ${path.basename(targetRoot)}\n`, "utf8");
+  }
+  await writeSharingReadme(targetRoot, config, visibility, sectionName);
+}
+
+export function namespaceProfiles(config: SkillOpsConfig, namespace: string): SkillOpsConfig {
+  return {
+    ...config,
+    profiles: config.profiles.map((profile) => ({
+      ...profile,
+      name: profile.name.includes("/") ? profile.name : `${namespace}/${profile.name || "default"}`
+    }))
+  };
+}
+
+export function normalizeConfig(config: SkillOpsConfig): SkillOpsConfig {
+  return {
+    version: 1,
+    sourceDir: config.sourceDir || "skills",
+    teamRepo: config.teamRepo?.trim() || undefined,
+    shareTargetMode: config.shareTargetMode,
+    shareProjectName: config.shareProjectName?.trim() || undefined,
+    applyTargets: config.applyTargets?.map((group) => ({
+      ...group,
+      agentTargetIds: normalizeStringList(group.agentTargetIds),
+      projectTargetDirs: normalizeStringList(group.projectTargetDirs),
+      customTargetDirs: normalizeStringList(group.customTargetDirs)
+    })),
+    shareTargets: config.shareTargets,
+    profiles: config.profiles.map((profile) => ({
+      name: profile.name.trim(),
+      description: profile.description?.trim() || undefined,
+      skills: profile.skills,
+      targets: profile.targets
+    }))
+  };
+}
+
+function normalizeStringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => typeof item === "string" ? item.trim() : "").filter(Boolean) : [];
+}
+
+async function assertSharedAssetWritable(target: string, namespace: string): Promise<void> {
+  if (!(await pathExists(target))) return;
+  const ownerPath = path.join(target, ".skillops-owner.json");
+  if (!(await pathExists(ownerPath))) return;
+  try {
+    const owner = JSON.parse(await fs.readFile(ownerPath, "utf8")) as { namespace?: string };
+    if (owner.namespace === namespace) return;
+  } catch {
+    throw new Error(`Shared asset ownership metadata is invalid: ${ownerPath}`);
+  }
+  throw new Error(`Shared asset is owned by another project: ${target}`);
+}
+
+async function writeAssetOwner(target: string, namespace: string): Promise<void> {
+  await fs.writeFile(path.join(target, ".skillops-owner.json"), `${JSON.stringify({ namespace }, null, 2)}\n`, "utf8");
+}
+
+async function replaceSharedEntry(source: string, target: string, targetRoot: string): Promise<void> {
+  const resolvedTarget = path.resolve(target);
+  const resolvedTargetRoot = path.resolve(targetRoot);
+  if (path.resolve(source) === resolvedTarget) {
+    throw new Error(`Refusing to replace source directory: ${source}`);
+  }
+  if (resolvedTarget !== resolvedTargetRoot && !resolvedTarget.startsWith(`${resolvedTargetRoot}${path.sep}`)) {
+    throw new Error(`Refusing to write outside source directory: ${target}`);
+  }
+
+  await replaceDirectoryAtomic(source, resolvedTarget);
+}
+
+async function replaceDirectoryAtomic(source: string, target: string): Promise<void> {
+  const parent = path.dirname(target);
+  const temp = path.join(parent, `.${path.basename(target)}.tmp-${crypto.randomUUID()}`);
+  const backup = path.join(parent, `.${path.basename(target)}.backup-${crypto.randomUUID()}`);
+  await fs.mkdir(parent, { recursive: true });
+  await fs.rm(temp, { recursive: true, force: true });
+  await copyDirectory(source, temp);
+
+  const hadTarget = await pathExists(target);
+  if (hadTarget) await fs.rename(target, backup);
+  try {
+    await fs.rename(temp, target);
+    if (hadTarget) await fs.rm(backup, { recursive: true, force: true });
+  } catch (error) {
+    await fs.rm(temp, { recursive: true, force: true });
+    if (hadTarget && !(await pathExists(target))) await fs.rename(backup, target);
+    throw error;
+  }
+}
+
+async function mergeSharedConfig(configPath: string, next: SkillOpsConfig): Promise<SkillOpsConfig> {
+  if (!(await pathExists(configPath))) return next;
+  try {
+    const existing = JSON.parse(await fs.readFile(configPath, "utf8")) as SkillOpsConfig;
+    const profiles = new Map<string, SkillOpsConfig["profiles"][number]>();
+    for (const profile of existing.profiles ?? []) profiles.set(profile.name, profile);
+    for (const profile of next.profiles) profiles.set(profile.name, profile);
+    return normalizeConfig({
+      ...existing,
+      ...next,
+      profiles: [...profiles.values()]
+    });
+  } catch {
+    return next;
+  }
+}
+
+async function writeSharingReadme(root: string, config: SkillOpsConfig, visibility: "private" | "public", sectionName: string): Promise<void> {
+  const readmePath = path.join(root, "README.md");
+  const existing = await pathExists(readmePath) ? await fs.readFile(readmePath, "utf8") : `# ${path.basename(root)}\n`;
+  const sectionId = slug(sectionName || path.basename(root));
+  const section = sharingSection(config, visibility, sectionName || path.basename(root), sectionId);
+  const start = `<!-- skillops:share:start:${sectionId} -->`;
+  const end = `<!-- skillops:share:end:${sectionId} -->`;
+  const pattern = new RegExp(`${escapeRegExp(start)}[\\s\\S]*?${escapeRegExp(end)}`);
+  const legacyPattern = new RegExp(`${escapeRegExp("<!-- skillops:share:start -->")}[\\s\\S]*?${escapeRegExp("<!-- skillops:share:end -->")}`);
+  const next = pattern.test(existing)
+    ? existing.replace(pattern, section)
+    : legacyPattern.test(existing)
+      ? existing.replace(legacyPattern, section)
+      : `${existing.trimEnd()}\n\n${section}\n`;
+  await fs.writeFile(readmePath, next, "utf8");
+}
+
+function sharingSection(config: SkillOpsConfig, visibility: "private" | "public", sectionName: string, sectionId: string): string {
+  const installRef = config.teamRepo || "github.com/<owner>/<repo>";
+  const profiles = config.profiles.map((profile) => `- \`${profile.name || "unnamed"}\`: ${profile.skills.includes("*") ? "all skills" : profile.skills.join(", ") || "no skills selected"}`).join("\n");
+  return `<!-- skillops:share:start:${sectionId} -->
+## SkillOps: ${sectionName}
+
+Visibility: \`${visibility}\`
+
+### Use in SkillOps Desktop
+
+1. Open SkillOps.
+2. Click **Add Skill project**.
+3. Enter \`${installRef}\` as the GitHub source.
+4. Choose a profile and add an application target.
+
+### Profiles
+
+${profiles || "- No profiles configured."}
+
+### CLI
+
+\`\`\`bash
+skillshare install ${installRef} --track --all && skillshare sync
+npx skills add ${installRef}
+\`\`\`
+<!-- skillops:share:end:${sectionId} -->`;
+}
+
+function slug(value: string): string {
+  const normalized = value.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+  return normalized || "project";
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

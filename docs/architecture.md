@@ -49,10 +49,14 @@ The renderer has no direct Node.js access. It talks to the main process through 
 - share project to a Git repository
 - apply profile
 - drift report
+- skill file list/read/write
+- detached skill file editor window
 
 The packaged Electron executable also supports `--cli`. In that mode it does not create a window and instead executes the same command runner used by the terminal entrypoint.
 
 On desktop startup, the main process installs or repairs a user-level `skillops` shim that points back to the packaged executable with `--cli`. The environment check reports shim path, PATH visibility, Git availability, and optional integration tools.
+
+Skill file editing is still local-first and main-process mediated. The renderer requests a workspace-scoped directory tree and individual text files through IPC. The main process rejects paths outside the current workspace, large files, and binary files. Detached editor windows receive the same file context, profile filter, collapsed folder state, language labels, and scroll positions as the embedded editor.
 
 The MVP audit engine is local and rule-based. It detects:
 

@@ -16,5 +16,11 @@ contextBridge.exposeInMainWorld("skillops", {
   shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: "direct" | "namedProject", projectName: string, profileName: string) => ipcRenderer.invoke("publish:share", root, remoteUrl, visibility, message, targetMode, projectName, profileName),
   applyProfile: (root: string, profile: string, targetDir: string) => ipcRenderer.invoke("profile:apply", root, profile, targetDir),
   driftReport: (root: string, profile: string, targetDir: string) => ipcRenderer.invoke("profile:drift", root, profile, targetDir),
-  openDriftDiff: (report: unknown) => ipcRenderer.invoke("profile:openDriftDiff", report)
+  openDriftDiff: (report: unknown) => ipcRenderer.invoke("profile:openDriftDiff", report),
+  listSkillFiles: (root: string, skillPath: string) => ipcRenderer.invoke("skillFile:list", root, skillPath),
+  listWorkspaceFiles: (root: string, directoryPath: string) => ipcRenderer.invoke("skillFile:listWorkspace", root, directoryPath),
+  readSkillFile: (root: string, filePath: string) => ipcRenderer.invoke("skillFile:read", root, filePath),
+  writeSkillFile: (root: string, filePath: string, content: string) => ipcRenderer.invoke("skillFile:write", root, filePath, content),
+  openSkillFileWindow: (root: string, skillPath: string, filePath?: string, context?: unknown) => ipcRenderer.invoke("skillFile:openWindow", root, skillPath, filePath, context),
+  openWorkspaceFileWindow: (root: string, directoryPath: string, filePath?: string, context?: unknown) => ipcRenderer.invoke("skillFile:openWorkspaceWindow", root, directoryPath, filePath, context)
 });

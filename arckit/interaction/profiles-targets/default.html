@@ -120,11 +120,23 @@
                                             <div class="group-box-title">Source</div>
                                             <div class="placeholder-box">team-skills / default / 12 skills</div>
                                         </div>
-                                        <div class="picker" data-kit="Picker(segmented)">
-                                            <span>Agent targets</span><span>Project target</span><span>Custom target</span>
+                                        <div class="group-box">
+                                            <div class="group-box-title">Agent targets</div>
+                                            <span class="badge active">Codex required</span>
+                                            <span class="badge active">Claude</span>
+                                            <div class="placeholder-box">No project folders: deploy to user-level agent skills directories.</div>
                                         </div>
-                                        <div class="picker" data-kit="Picker(menu)">Codex - /Users/user/.codex/skills</div>
-                                        <div class="placeholder-box">Target: /Users/user/.codex/skills</div>
+                                        <div class="group-box">
+                                            <div class="group-box-title">Project folders for selected agents</div>
+                                            <div class="button">Add project folder</div>
+                                            <div class="placeholder-box">/Users/user/work/project-a → .codex/skills, .claude/skills</div>
+                                        </div>
+                                        <div class="group-box">
+                                            <div class="group-box-title">Custom targets</div>
+                                            <div class="button">Add custom target</div>
+                                            <div class="placeholder-box">/Users/user/.hidden/custom-skills</div>
+                                        </div>
+                                        <div class="placeholder-box">Resolved targets: 3</div>
                                         <div class="button">Check drift</div>
                                         <div class="button primary">Apply</div>
                                     </div>
@@ -137,14 +149,16 @@
                     <h3>组件清单</h3>
                     <ul>
                         <li>Form for profile draft</li>
-                        <li>Picker(segmented) for destination type</li>
-                        <li>target path preview and action buttons</li>
+                        <li>Agent target checklist with project-folder routing help</li>
+                        <li>project folder and custom target directory pickers</li>
+                        <li>resolved target preview and action buttons</li>
                     </ul>
                 </div>
                 <div class="interactions">
                     <h3>交互行为</h3>
                     <div class="interaction-item"><code>All skills</code> → 单项技能选择禁用。</div>
-                    <div class="interaction-item"><code>Apply</code> → 非覆盖复制，随后自动刷新漂移报告。</div>
+                    <div class="interaction-item"><code>Add project folder</code> → 打开支持隐藏文件夹的目录选择器。</div>
+                    <div class="interaction-item"><code>Apply</code> → 解析 Agent、项目目录和自定义目录后逐目标应用，并刷新漂移报告。</div>
                 </div>
             </div>
         </details>

@@ -37,6 +37,70 @@ properties:
     type: string
     nullable: true
     description: Project folder name used when shareTargetMode is namedProject.
+  applyTargets:
+    type: array
+    nullable: true
+    description: Saved desktop target groups for applying or checking drift across agent, project, and custom directories.
+    items:
+      type: object
+      required:
+        - id
+        - name
+        - profile
+        - agentTargetIds
+        - projectTargetDirs
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        profile:
+          type: string
+        agentTargetIds:
+          type: array
+          items:
+            type: string
+          description: Selected agent identifiers. Combined with projectTargetDirs when project folders are present.
+        projectTargetDirs:
+          type: array
+          items:
+            type: string
+          description: Project folders used to route selected agents into project-level skill directories.
+        customTargetDirs:
+          type: array
+          nullable: true
+          items:
+            type: string
+          description: User-selected directories used exactly as apply or drift targets.
+  shareTargets:
+    type: array
+    nullable: true
+    description: Saved desktop target groups for sharing the project to Git repositories.
+    items:
+      type: object
+      required:
+        - id
+        - name
+        - profile
+        - remoteUrl
+        - targetMode
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        profile:
+          type: string
+        remoteUrl:
+          type: string
+        targetMode:
+          type: string
+          enum:
+            - direct
+            - namedProject
+        projectName:
+          type: string
+          nullable: true
   profiles:
     type: array
     items:
@@ -66,5 +130,6 @@ validation:
   default_profile:
     description: Missing config files resolve to one default profile with wildcard skills.
   normalized_save:
-    description: Saved config trims profile names, descriptions, teamRepo, and shareProjectName.
-
+    description: Saved config trims profile names, descriptions, teamRepo, shareProjectName, target group names, remote URLs, project names, and target directory lists.
+  apply_target_group:
+    description: A desktop apply target group is valid when it has at least one agent target or one custom target. Project target directories require at least one agent target.

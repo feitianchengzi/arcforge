@@ -1,0 +1,84 @@
+metadata:
+  path: tech/_shared/contracts/skill-file.yaml
+  domain: sharing-ipc
+  owner: electron/main
+  version: 1
+  created: 2026-05-23
+  updated: 2026-05-23
+endpoint:
+  transport: electron-ipc
+  channels:
+    - skillFile:list
+    - skillFile:listWorkspace
+    - skillFile:read
+    - skillFile:write
+    - skillFile:openWindow
+    - skillFile:openWorkspaceWindow
+  summary: List workspace skill files, read and write text files, and open detached editor windows.
+  auth_required: false
+request:
+  args:
+    - name: root
+      type: string
+      required: true
+    - name: skillPath
+      type: string
+      required: false
+      applies_to:
+        - skillFile:list
+        - skillFile:openWindow
+    - name: directoryPath
+      type: string
+      required: false
+      applies_to:
+        - skillFile:listWorkspace
+        - skillFile:openWorkspaceWindow
+    - name: filePath
+      type: string
+      required: false
+      applies_to:
+        - skillFile:read
+        - skillFile:write
+        - skillFile:openWindow
+        - skillFile:openWorkspaceWindow
+    - name: content
+      type: string
+      required: false
+      applies_to:
+        - skillFile:write
+    - name: context
+      type: object
+      required: false
+      applies_to:
+        - skillFile:openWindow
+        - skillFile:openWorkspaceWindow
+responses:
+  success:
+    variants:
+      list:
+        schema: SkillFileEntry[]
+      read:
+        schema: SkillFileDocument
+      write:
+        schema: SkillFileDocument
+      open_window:
+        schema: void
+  errors:
+    - code: PATH_OUTSIDE_WORKSPACE
+      message: Path is outside the current workspace.
+    - code: NOT_A_FILE
+      message: Selected path is not a file.
+    - code: NOT_A_DIRECTORY
+      message: Selected path is not a directory.
+    - code: FILE_TOO_LARGE
+      message: File is too large to edit in SkillOps.
+    - code: BINARY_FILE
+      message: Binary files cannot be edited in SkillOps.
+business_logic:
+  flow:
+    - Resolve all requested paths against the current workspace root.
+    - Reject paths outside the workspace.
+    - List directories recursively while skipping .git and node_modules.
+    - Read and write UTF-8 text files only.
+    - Open detached editor windows with context isolation and no Node integration.
+    - Preserve editor context from the embedded skills page when a detached window is opened.
