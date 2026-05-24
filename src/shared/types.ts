@@ -150,6 +150,11 @@ export interface DriftReport {
   profile: string;
   targetDir: string;
   items: DriftItem[];
+  remoteUrl?: string;
+  targetPath?: string;
+  commitHash?: string;
+  sameRepository?: boolean;
+  messages?: string[];
 }
 
 export interface PublishPlan {

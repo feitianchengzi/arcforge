@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { GitBranch, GitPullRequest, Pencil, Plus, Terminal, Trash2 } from "lucide-react";
-import type { LocalGitRemote, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetGroup, WorkspaceSnapshot } from "../../shared/types";
+import { ExternalLink, GitBranch, GitPullRequest, Pencil, Plus, Terminal, Trash2 } from "lucide-react";
+import type { DriftReport, LocalGitRemote, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetGroup, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import { createShareTargetGroup, selectedSkillCount } from "../utils";
 
@@ -9,15 +9,19 @@ export function Publish(props: {
   snapshot: WorkspaceSnapshot;
   shareResult?: ShareResult;
   sharePlan?: SharePlanResult;
+  shareDriftReport?: DriftReport;
   isSharing: boolean;
+  isCheckingShareDrift: boolean;
   shareProgress?: string;
   profileOptions: string[];
   targetGroups: ShareTargetGroup[];
   activeTargetGroup?: ShareTargetGroup;
   setActiveTargetGroupId: (value: string) => void;
   saveTargetGroups: (groups: ShareTargetGroup[], selectedId: string) => void;
+  checkShareTargetDrift: (group: ShareTargetGroup) => void;
   shareProject: (group: ShareTargetGroup, message: string) => void;
   confirmShareProject: (group: ShareTargetGroup, message: string, plan: SharePlanResult) => void;
+  openDriftDiff: (report: DriftReport) => void;
   cancelSharePlan: () => void;
 }) {
   const { t } = props;
@@ -83,9 +87,23 @@ export function Publish(props: {
         <label>{t.commitMessage}</label>
         <input value={message} onChange={(event) => setMessage(event.target.value)} />
         <div className="actions">
+          <button onClick={() => activeGroup && props.checkShareTargetDrift(activeGroup)} disabled={props.isCheckingShareDrift || !activeGroup || !activeReady}>{props.isCheckingShareDrift ? t.checkingDrift : t.checkDrift}</button>
           <button className="primary" onClick={() => activeGroup && props.shareProject(activeGroup, message)} disabled={props.isSharing || !activeGroup || !activeReady}>{props.isSharing ? t.sharing : t.shareNow}</button>
         </div>
         {props.shareProgress && <p className="muted">{props.shareProgress}</p>}
+        <h4>{t.drift}</h4>
+        {!props.shareDriftReport ? <p className="muted">{t.driftEmpty}</p> : (
+          <div className="list">
+            <article className="row stacked">
+              <div>
+                <strong>{props.shareDriftReport.sameRepository ? t.sameRepository : props.shareDriftReport.targetDir}</strong>
+                <p>{props.shareDriftReport.items.filter((item) => item.status !== "same").length} changed / {props.shareDriftReport.items.length} checked</p>
+                {props.shareDriftReport.targetPath && <span>{props.shareDriftReport.targetPath}</span>}
+              </div>
+              <button onClick={() => props.shareDriftReport && props.openDriftDiff(props.shareDriftReport)}><ExternalLink size={16} /> {t.viewDiff}</button>
+            </article>
+          </div>
+        )}
         {props.sharePlan && (
           <div className="target-subsection">
             <div className="section-header">

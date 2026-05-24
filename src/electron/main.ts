@@ -3,7 +3,7 @@ import os from "node:os";
 import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
-import { runSkillOpsCommand, createPublishPlanCommand, applyProfileCommand, driftReportCommand, downloadSourceCommand, shareProjectCommand, createSharePlanCommand } from "../commands/index.js";
+import { runSkillOpsCommand, createPublishPlanCommand, applyProfileCommand, driftReportCommand, downloadSourceCommand, shareProjectCommand, createSharePlanCommand, shareDriftReportCommand } from "../commands/index.js";
 import { scanWorkspace, initWorkspace } from "../core/workspace.js";
 import { saveConfig } from "../core/config.js";
 import { getEnvironmentStatus } from "../core/environment.js";
@@ -135,6 +135,16 @@ ipcMain.handle("publish:share", (_event, root: string, remoteUrl: string, visibi
 }));
 ipcMain.handle("profile:apply", (_event, root: string, profile: string, targetDir: string) => applyProfileCommand(root, profile, targetDir));
 ipcMain.handle("profile:drift", (_event, root: string, profile: string, targetDir: string) => driftReportCommand(root, profile, targetDir));
+ipcMain.handle("share:drift", (_event, root: string, remoteUrl: string, targetMode: ShareTargetMode, projectName: string, profileName: string, sameRepository?: boolean, sameRepositoryRemote?: string) => shareDriftReportCommand({
+  root,
+  remoteUrl,
+  targetMode,
+  projectName,
+  profileName,
+  sameRepository,
+  sameRepositoryRemote,
+  cacheDir: cacheRoot()
+}));
 ipcMain.handle("profile:openDriftDiff", (event, report: DriftReport) => openDriftDiffWindow(report, BrowserWindow.fromWebContents(event.sender)));
 ipcMain.handle("skillFile:list", (_event, root: string, skillPath: string) => listSkillFiles(root, skillPath));
 ipcMain.handle("skillFile:listWorkspace", (_event, root: string, directoryPath: string) => listWorkspaceFiles(root, directoryPath));

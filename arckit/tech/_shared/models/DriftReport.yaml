@@ -6,7 +6,7 @@ metadata:
   owner: core/profiles
   version: 1
   created: 2026-05-21
-  updated: 2026-05-21
+  updated: 2026-05-25
 type: object
 required:
   - profile
@@ -19,6 +19,28 @@ properties:
   targetDir:
     type: string
     description: Absolute target directory path.
+  remoteUrl:
+    type: string
+    nullable: true
+    description: Remote URL used when the report describes a sharing target.
+  targetPath:
+    type: string
+    nullable: true
+    description: Repository-relative sharing target path when applicable.
+  commitHash:
+    type: string
+    nullable: true
+    description: Commit hash of the target checkout when applicable.
+  sameRepository:
+    type: boolean
+    nullable: true
+    description: True when the report describes local Git status for same-repository sharing.
+  messages:
+    type: array
+    nullable: true
+    items:
+      type: string
+    description: Optional Git or comparison messages for sharing drift.
   items:
     type: array
     items:
@@ -95,4 +117,3 @@ validation:
     description: Item status is same only when files is empty.
   missing_target:
     description: Missing target directory produces missing file entries for all source files.
-

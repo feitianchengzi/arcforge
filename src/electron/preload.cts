@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("skillops", {
   shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: "direct" | "namedProject", projectName: string, profileName: string, delivery?: string, branch?: string, confirm?: boolean, sameRepository?: boolean, sameRepositoryRemote?: string) => ipcRenderer.invoke("publish:share", root, remoteUrl, visibility, message, targetMode, projectName, profileName, delivery, branch, confirm, sameRepository, sameRepositoryRemote),
   applyProfile: (root: string, profile: string, targetDir: string) => ipcRenderer.invoke("profile:apply", root, profile, targetDir),
   driftReport: (root: string, profile: string, targetDir: string) => ipcRenderer.invoke("profile:drift", root, profile, targetDir),
+  shareDriftReport: (root: string, remoteUrl: string, targetMode: "direct" | "namedProject", projectName: string, profileName: string, sameRepository?: boolean, sameRepositoryRemote?: string) => ipcRenderer.invoke("share:drift", root, remoteUrl, targetMode, projectName, profileName, sameRepository, sameRepositoryRemote),
   openDriftDiff: (report: unknown) => ipcRenderer.invoke("profile:openDriftDiff", report),
   listSkillFiles: (root: string, skillPath: string) => ipcRenderer.invoke("skillFile:list", root, skillPath),
   listWorkspaceFiles: (root: string, directoryPath: string) => ipcRenderer.invoke("skillFile:listWorkspace", root, directoryPath),

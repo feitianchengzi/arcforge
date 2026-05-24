@@ -1,0 +1,63 @@
+metadata:
+  path: tech/_shared/contracts/share-drift.yaml
+  domain: sharing-ipc
+  owner: electron/main
+  version: 1
+  created: 2026-05-25
+  updated: 2026-05-25
+endpoint:
+  transport: electron-ipc
+  channel: share:drift
+  method_name: shareDriftReport
+  summary: Compare the current Skill project with its configured sharing target without writing to a remote repository.
+  auth_required: false
+request:
+  args:
+    - name: root
+      type: string
+      required: true
+    - name: remoteUrl
+      type: string
+      required: false
+      description: Remote Git URL for ordinary sharing targets; not required when sameRepository is true.
+    - name: targetMode
+      type: string
+      required: true
+      enum:
+        - direct
+        - namedProject
+    - name: projectName
+      type: string
+      required: false
+    - name: profileName
+      type: string
+      required: true
+    - name: sameRepository
+      type: boolean
+      required: false
+    - name: sameRepositoryRemote
+      type: string
+      required: false
+responses:
+  success:
+    schema:
+      $ref: "../models/DriftReport.yaml"
+  errors:
+    - code: REMOTE_URL_REQUIRED
+      message: Remote URL is required unless sameRepository is true.
+    - code: LOCAL_GIT_REMOTE_REQUIRED
+      message: Same-repository drift requires the workspace to be inside a Git repository with at least one remote.
+    - code: GIT_COMMAND_FAILED
+      message: Clone, fetch, checkout, pull, or status failed.
+business_logic:
+  flow:
+    - Scan the current workspace and resolve the selected sharing profile.
+    - For ordinary sharing targets, prepare or update the isolated share checkout under the app data cache.
+    - Resolve the target path using the remote source, target mode, project name, and sourceDir.
+    - Compare selected skills and shared assets against the target source directory with file hashes.
+    - For sameRepository, run local Git status for the workspace relative path.
+    - Return a DriftReport for desktop summary and diff-window rendering.
+  invariants:
+    - The operation never commits, pushes, or creates Pull Requests.
+    - Ordinary sharing drift may update the local cache checkout but does not write to the remote repository.
+    - Same-repository drift reads only the current local Git status for the Skill project path.

@@ -139,6 +139,7 @@ export interface Dictionary {
   noTargetHistory: string;
   lastApplied: string;
   checkDrift: string;
+  checkingDrift: string;
   viewDiff: string;
   apply: string;
   copiedSkipped: (copied: number, skipped: number, copiedAssets?: number, skippedAssets?: number) => string;
@@ -324,6 +325,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     noTargetHistory: "No targets applied yet.",
     lastApplied: "Last applied",
     checkDrift: "Check drift",
+    checkingDrift: "Checking drift...",
     viewDiff: "View full diff",
     apply: "Apply",
     copiedSkipped: (copied: number, skipped: number, copiedAssets = 0, skippedAssets = 0) => `Copied ${copied} skills and ${copiedAssets} assets. Skipped ${skipped} skills and ${skippedAssets} assets.`,
@@ -507,6 +509,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     noTargetHistory: "尚未应用到任何目标。",
     lastApplied: "上次应用",
     checkDrift: "检查漂移",
+    checkingDrift: "正在检查漂移...",
     viewDiff: "查看完整 diff",
     apply: "应用",
     copiedSkipped: (copied: number, skipped: number, copiedAssets = 0, skippedAssets = 0) => `已复制 ${copied} 个技能和 ${copiedAssets} 个资产，跳过 ${skipped} 个技能和 ${skippedAssets} 个资产。`,

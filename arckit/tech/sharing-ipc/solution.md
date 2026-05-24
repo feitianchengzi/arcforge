@@ -2,13 +2,13 @@
 
 ## 方案概述
 
-共享与 IPC 方案覆盖 Electron 安全桥接、系统环境检测、GitHub 来源下载、发布计划生成、GitHub 权限预检、共享执行、技能文件编辑窗口和漂移差异窗口。
+共享与 IPC 方案覆盖 Electron 安全桥接、系统环境检测、GitHub 来源下载、发布计划生成、GitHub 权限预检、共享目标漂移检查、共享执行、技能文件编辑窗口和漂移差异窗口。
 
 渲染层只通过 preload 暴露的方法调用主进程。主进程负责目录选择器、窗口创建、应用数据目录注入和 IPC 参数映射。工作区扫描、配置组应用、来源下载和共享推送由 core 与命令编排层完成。
 
 ## IPC 边界
 
-preload 暴露 `window.skillops` 对象。该对象包含选择工作区、扫描工作区、初始化配置、保存配置、查询默认目标、查询环境、下载来源、生成发布计划、生成共享计划、共享项目、应用配置组、漂移检查、技能文件读写、打开技能文件编辑窗口和打开差异窗口等方法。
+preload 暴露 `window.skillops` 对象。该对象包含选择工作区、扫描工作区、初始化配置、保存配置、查询默认目标、查询环境、下载来源、生成发布计划、生成共享计划、共享项目、共享目标漂移检查、应用配置组、漂移检查、技能文件读写、打开技能文件编辑窗口和打开差异窗口等方法。
 
 主进程通过 `ipcMain.handle` 注册对应 channel。每个 handler 返回 Promise 结果或抛出错误。
 
@@ -130,6 +130,16 @@ GitHub tree/blob URL 解析为克隆地址、引用和子目录。
 
 系统在 README 中插入或替换当前项目专属的 SkillOps 共享区块。该区块包含可见性、桌面端使用流程、配置组和 CLI 安装命令。
 
+## 共享目标漂移
+
+共享目标漂移检查不执行远端写入。普通共享目标会准备或更新隔离共享 checkout，然后根据远端来源、目标模式、项目名和 `sourceDir` 定位共享目标路径。
+
+系统按当前共享配置组选出技能，并把这些技能和当前工作区共享资产与目标路径中的来源目录逐项比较。比较结果复用 `DriftReport`，用于共享页摘要和差异窗口。
+
+同仓库共享目标不做目录对比，而是对当前 Skill 项目在本地 Git 仓库中的相对路径执行 `git status --porcelain`，把待提交变更转换为共享漂移报告。
+
+共享目标漂移可以更新本地缓存 checkout，但不会提交、推送或创建 Pull Request。
+
 ## Git 执行
 
 系统对目标路径执行 `git add`。
@@ -154,4 +164,4 @@ Git 状态没有变更时，系统不推送远端，也不创建 Pull Request。
 
 ## 关联契约
 
-该方案由 `source-download`、`system-environment`、`publish-plan`、`publish-share`、`profile-apply`、`profile-drift`、`skill-file` 和差异窗口调用共同支撑。
+该方案由 `source-download`、`system-environment`、`publish-plan`、`publish-share`、`share-drift`、`profile-apply`、`profile-drift`、`skill-file` 和差异窗口调用共同支撑。

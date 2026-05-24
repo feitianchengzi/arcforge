@@ -41,7 +41,9 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
   assert.match(electronMain, /"--cli"/);
   assert.match(electronMain, /installCliShim/);
   assert.match(electronMain, /system:installCli/);
+  assert.match(electronMain, /share:drift/);
   assert.match(preload, /installCli/);
+  assert.match(preload, /shareDriftReport/);
 });
 
 test("share delivery failures keep manual recovery guidance", async () => {
@@ -53,6 +55,16 @@ test("share delivery failures keep manual recovery guidance", async () => {
   assert.match(shareCore, /manualCommands/);
   assert.match(shareCore, /shareSameRepositoryProject/);
   assert.match(shareCore, /commitPathIfChanged/);
+});
+
+test("share drift compares targets without remote writes", async () => {
+  const shareDrift = await readFile(new URL("../src/core/share-drift.ts", import.meta.url), "utf8");
+
+  assert.match(shareDrift, /shareDriftReport/);
+  assert.match(shareDrift, /compareDirectory/);
+  assert.match(shareDrift, /status", "--porcelain"/);
+  assert.doesNotMatch(shareDrift, /pushBranch/);
+  assert.doesNotMatch(shareDrift, /createPullRequest/);
 });
 
 test("release workflow publishes cli-only install assets", async () => {

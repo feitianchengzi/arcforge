@@ -108,7 +108,7 @@ export async function driftReport(
   return { profile: profileName, targetDir: destination, items };
 }
 
-async function compareDirectory(source: string, target: string): Promise<{
+export async function compareDirectory(source: string, target: string): Promise<{
   status: "missing" | "changed" | "same";
   files: DriftFileDiff[];
   summary: { missing: number; changed: number; extra: number };

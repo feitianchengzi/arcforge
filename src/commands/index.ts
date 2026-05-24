@@ -4,6 +4,7 @@ import { scanWorkspace, initWorkspace } from "../core/workspace.js";
 import { createPublishPlan } from "../core/publish.js";
 import { applyProfile, driftReport } from "../core/profiles.js";
 import { createSharePlan, downloadSource, shareProject, type ShareProjectOptions } from "../core/share.js";
+import { shareDriftReport, type ShareDriftOptions } from "../core/share-drift.js";
 import { getEnvironmentStatus } from "../core/environment.js";
 import type { CliShimOptions } from "../core/cli-install.js";
 import type { ShareDeliveryMethod, ShareTargetMode } from "../shared/types.js";
@@ -310,6 +311,13 @@ export async function shareProjectCommand(options: ShareProjectOptions) {
 
 export async function createSharePlanCommand(options: ShareProjectOptions) {
   return createSharePlan({
+    ...options,
+    cacheDir: options.cacheDir || defaultCacheDir()
+  });
+}
+
+export async function shareDriftReportCommand(options: ShareDriftOptions) {
+  return shareDriftReport({
     ...options,
     cacheDir: options.cacheDir || defaultCacheDir()
   });

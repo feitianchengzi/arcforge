@@ -40,6 +40,7 @@ declare global {
       shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, confirm?: boolean, sameRepository?: boolean, sameRepositoryRemote?: string) => Promise<ShareResult>;
       applyProfile: (root: string, profile: string, targetDir: string) => Promise<ApplyProfileResult>;
       driftReport: (root: string, profile: string, targetDir: string) => Promise<DriftReport>;
+      shareDriftReport: (root: string, remoteUrl: string, targetMode: ShareTargetMode, projectName: string, profileName: string, sameRepository?: boolean, sameRepositoryRemote?: string) => Promise<DriftReport>;
       openDriftDiff: (report: DriftReport) => Promise<void>;
       listSkillFiles: (root: string, skillPath: string) => Promise<SkillFileEntry[]>;
       listWorkspaceFiles: (root: string, directoryPath: string) => Promise<SkillFileEntry[]>;

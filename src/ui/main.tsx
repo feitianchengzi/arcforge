@@ -49,7 +49,9 @@ function App() {
   const [profile, setProfile] = useState("default");
   const [shareResult, setShareResult] = useState<ShareResult | undefined>();
   const [sharePlan, setSharePlan] = useState<SharePlanResult | undefined>();
+  const [shareDriftReport, setShareDriftReport] = useState<DriftReport | undefined>();
   const [isSharing, setIsSharing] = useState(false);
+  const [isCheckingShareDrift, setIsCheckingShareDrift] = useState(false);
   const [shareProgress, setShareProgress] = useState<string | undefined>();
   const [driftReports, setDriftReports] = useState<DriftReport[]>([]);
   const [applyResults, setApplyResults] = useState<ApplyProfileResult[]>([]);
@@ -216,6 +218,7 @@ function App() {
     setShareTargetGroupId(next);
     setShareResult(undefined);
     setSharePlan(undefined);
+    setShareDriftReport(undefined);
     setShareProgress(undefined);
     if (root) rememberProjectState(root, { shareTargetGroupId: next });
   }
@@ -396,6 +399,26 @@ function App() {
     }
   }
 
+  async function checkShareTargetDrift(group: ShareTargetGroup) {
+    if (!root) return;
+    setIsCheckingShareDrift(true);
+    setShareDriftReport(undefined);
+    try {
+      if (!window.skillops) {
+        setStatus(t.desktopRequired);
+        return;
+      }
+      const report = await window.skillops.shareDriftReport(root, shareRemoteUrlForGroup(snapshot, group), group.targetMode, group.projectName ?? "", group.profile, group.sameRepository, group.sameRepositoryRemote);
+      setShareDriftReport(report);
+      const changed = report.items.filter((item) => item.status !== "same").length;
+      setStatus(`${changed} changed / ${report.items.length} checked`);
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    } finally {
+      setIsCheckingShareDrift(false);
+    }
+  }
+
   async function confirmShareProject(group: ShareTargetGroup, message: string, plan: SharePlanResult) {
     if (!root) return;
     setIsSharing(true);
@@ -541,6 +564,7 @@ function App() {
     setApplyTargetGroupId(applyGroups.some((item) => item.id === savedState?.applyTargetGroupId) ? savedState!.applyTargetGroupId! : applyGroups[0]?.id ?? "");
     setShareTargetGroupId(shareGroups.some((item) => item.id === savedState?.shareTargetGroupId) ? savedState!.shareTargetGroupId! : shareGroups[0]?.id ?? "");
     setDriftReports([]);
+    setShareDriftReport(undefined);
     setApplyResults([]);
   }
 
@@ -735,15 +759,19 @@ function App() {
                 snapshot={snapshot}
                 shareResult={shareResult}
                 sharePlan={sharePlan}
+                shareDriftReport={shareDriftReport}
                 isSharing={isSharing}
+                isCheckingShareDrift={isCheckingShareDrift}
                 shareProgress={shareProgress}
                 profileOptions={profileOptions}
                 targetGroups={shareTargetGroups}
                 activeTargetGroup={activeShareTargetGroup}
                 setActiveTargetGroupId={setProjectShareTargetGroupId}
                 saveTargetGroups={saveShareTargetGroups}
+                checkShareTargetDrift={checkShareTargetDrift}
                 shareProject={shareProject}
                 confirmShareProject={confirmShareProject}
+                openDriftDiff={openDriftDiff}
                 cancelSharePlan={() => setSharePlan(undefined)}
               />
             )}
