@@ -106,7 +106,9 @@ code-review/
 
 ### 桌面端
 
-使用视频：[SkillOps 桌面端演示](../assets/skillops-desktop-demo.mp4)
+使用演示：
+
+![SkillOps 桌面端演示](../assets/skillops-desktop-demo.gif)
 
 从 GitHub Releases 下载最新版 macOS `.dmg`、Windows `.exe` 或 Linux `.AppImage` 即可安装桌面端。
 

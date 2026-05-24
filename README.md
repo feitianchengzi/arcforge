@@ -106,7 +106,9 @@ Minimal config:
 
 ### Desktop App
 
-Usage video: [SkillOps desktop demo](docs/assets/skillops-desktop-demo.mp4)
+Usage demo:
+
+![SkillOps desktop demo](docs/assets/skillops-desktop-demo.gif)
 
 Install from a release by downloading the latest macOS `.dmg`, Windows `.exe`, or Linux `.AppImage` from GitHub Releases.
 
