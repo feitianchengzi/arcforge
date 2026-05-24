@@ -67,6 +67,14 @@ test("share drift compares targets without remote writes", async () => {
   assert.doesNotMatch(shareDrift, /createPullRequest/);
 });
 
+test("profile deletion is persisted instead of draft-only", async () => {
+  const profilesView = await readFile(new URL("../src/ui/views/profiles.tsx", import.meta.url), "utf8");
+
+  assert.match(profilesView, /function deleteProfile/);
+  assert.match(profilesView, /props\.saveProfiles/);
+  assert.match(profilesView, /retargetProfileReferences/);
+});
+
 test("release workflow publishes cli-only install assets", async () => {
   const workflow = await readFile(new URL("../.github/workflows/package.yml", import.meta.url), "utf8");
   const buildScript = await readFile(new URL("../scripts/build-cli-package.mjs", import.meta.url), "utf8");

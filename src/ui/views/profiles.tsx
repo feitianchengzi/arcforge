@@ -9,7 +9,7 @@ export function Profiles(props: {
   snapshot: WorkspaceSnapshot;
   profile: string;
   setProfile: (value: string) => void;
-  saveProfiles: (config: SkillOpsConfig, nextProfile: string) => void;
+  saveProfiles: (config: SkillOpsConfig, nextProfile: string) => void | Promise<void>;
 }) {
   const { t } = props;
   const sourceProfiles = props.snapshot.config.profiles.length > 0 ? props.snapshot.config.profiles : [emptyProfile("default")];
@@ -45,9 +45,14 @@ export function Profiles(props: {
 
   function deleteProfile() {
     if (draftProfiles.length <= 1) return;
+    const deletedProfile = draftProfiles[activeIndex];
     const nextProfiles = draftProfiles.filter((_item, index) => index !== activeIndex);
+    const nextIndex = Math.max(0, activeIndex - 1);
+    const nextProfile = nextProfiles[nextIndex] ?? nextProfiles[0] ?? emptyProfile("default");
     setDraftProfiles(nextProfiles);
-    setActiveIndex(Math.max(0, activeIndex - 1));
+    setActiveIndex(nextIndex);
+    props.saveProfiles(retargetProfileReferences({ ...props.snapshot.config, profiles: nextProfiles }, deletedProfile?.name, nextProfile.name), nextProfile.name);
+    props.setProfile(nextProfile.name);
   }
 
   function toggleSkill(skillName: string) {
@@ -137,4 +142,13 @@ export function Profiles(props: {
       </section>
     </div>
   );
+}
+
+function retargetProfileReferences(config: SkillOpsConfig, deletedProfileName: string | undefined, nextProfileName: string): SkillOpsConfig {
+  if (!deletedProfileName) return config;
+  return {
+    ...config,
+    applyTargets: config.applyTargets?.map((group) => group.profile === deletedProfileName ? { ...group, profile: nextProfileName } : group),
+    shareTargets: config.shareTargets?.map((group) => group.profile === deletedProfileName ? { ...group, profile: nextProfileName } : group)
+  };
 }
