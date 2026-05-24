@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Download, GitBranch, HardDrive, PackageCheck, Play, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
+import { Download, Edit3, GitBranch, HardDrive, PackageCheck, Play, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
 import type { AppState, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, SharePlanResult, ShareResult, ShareTargetGroup, SkillOpsConfig, TargetRecord, WorkspaceSnapshot } from "../shared/types";
 import { MAX_RECENT_WORKSPACES, readLegacyAppState } from "./app-state";
 import { AddProjectDialog, CliRepairDialog, EmptyState, EnvironmentNotice, PendingProject, ProjectHeader, SettingsDialog } from "./components/shell";
@@ -12,6 +12,23 @@ import { ApplySkills } from "./views/destinations";
 import { Profiles } from "./views/profiles";
 import { Publish } from "./views/share";
 import "./styles.css";
+
+type ProjectSourceMetadata =
+  | { sourceKind: "local"; localSourcePath: string }
+  | { sourceKind: "github"; githubSourceUrl: string };
+
+function projectSourceForRecord(root: string, source?: ProjectSourceMetadata, existing?: RecentWorkspace): Pick<RecentWorkspace, "sourceKind" | "localSourcePath" | "githubSourceUrl"> {
+  if (source?.sourceKind === "github") {
+    return { sourceKind: "github", githubSourceUrl: source.githubSourceUrl };
+  }
+  if (source?.sourceKind === "local") {
+    return { sourceKind: "local", localSourcePath: source.localSourcePath };
+  }
+  if (existing?.sourceKind === "github" && existing.githubSourceUrl) {
+    return { sourceKind: "github", githubSourceUrl: existing.githubSourceUrl };
+  }
+  return { sourceKind: "local", localSourcePath: existing?.localSourcePath ?? root };
+}
 
 function App() {
   const [language, setLanguageState] = useState<Language>(initialLanguage);
@@ -35,10 +52,13 @@ function App() {
   const [applyTargetGroupId, setApplyTargetGroupId] = useState("");
   const [shareTargetGroupId, setShareTargetGroupId] = useState("");
   const [sharedSourceUrl, setSharedSourceUrl] = useState("");
+  const [sourceMode, setSourceMode] = useState<"local" | "github">("local");
   const [showAddProject, setShowAddProject] = useState(false);
+  const [showEditProjectSource, setShowEditProjectSource] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isCliRepairing, setIsCliRepairing] = useState(false);
   const [cliRepairNotice, setCliRepairNotice] = useState<CliRepairNotice | undefined>();
+  const workspaceRequestRef = useRef(0);
   const activeProject = recentWorkspaces.find((item) => item.path === root);
   const isPendingProject = activeProject?.status === "downloading" || activeProject?.status === "error";
 
@@ -204,8 +224,14 @@ function App() {
         setStatus(t.chooseCanceled);
         return;
       }
-      await openWorkspace(normalizeLocalProjectRoot(selected));
+      await openWorkspace(normalizeLocalProjectRoot(selected), {
+        source: {
+          sourceKind: "local",
+          localSourcePath: selected
+        }
+      });
       setShowAddProject(false);
+      setShowEditProjectSource(false);
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     }
@@ -222,7 +248,8 @@ function App() {
       skillCount: 0,
       auditScore: 0,
       status: "downloading",
-      sourceUrl
+      sourceKind: "github",
+      githubSourceUrl: sourceUrl
     };
     const nextRecent = [pendingRecord, ...recentWorkspaces.filter((item) => item.path !== pendingId)].slice(0, MAX_RECENT_WORKSPACES);
     setRecentWorkspaces(nextRecent);
@@ -230,6 +257,7 @@ function App() {
     setRoot(pendingId);
     setSnapshot(undefined);
     setShowAddProject(false);
+    setShowEditProjectSource(false);
     void saveAppState({ activeWorkspace: pendingId });
     try {
       if (!window.skillops) {
@@ -244,7 +272,12 @@ function App() {
         void saveAppState({ recentWorkspaces: next });
         return next;
       });
-      await openWorkspace(sourcePath);
+      await openWorkspace(sourcePath, {
+        source: {
+          sourceKind: "github",
+          githubSourceUrl: sourceUrl
+        }
+      });
     } catch (error) {
       const message = errorMessage(error);
       setRecentWorkspaces((current) => {
@@ -258,6 +291,7 @@ function App() {
 
   async function scan(nextRoot = root) {
     if (!nextRoot) return;
+    const requestId = ++workspaceRequestRef.current;
     try {
       if (!window.skillops) {
         setStatus(t.desktopRequired);
@@ -265,9 +299,12 @@ function App() {
       }
       setStatus(t.scanning);
       const result = await window.skillops.scanWorkspace(nextRoot);
+      if (requestId !== workspaceRequestRef.current) return;
       applySnapshot(result);
       setStatus(t.foundStatus(result.skills.length, result.audit.score));
     } catch (error) {
+      if (requestId !== workspaceRequestRef.current) return;
+      setSnapshot(undefined);
       setStatus(t.errorStatus(errorMessage(error)));
     }
   }
@@ -376,20 +413,30 @@ function App() {
     }
   }
 
-  async function openWorkspace(nextRoot: string, options: { restore?: boolean; moveToTop?: boolean; projectStates?: Record<string, ProjectUiState> } = {}) {
+  async function openWorkspace(nextRoot: string, options: { restore?: boolean; moveToTop?: boolean; projectStates?: Record<string, ProjectUiState>; source?: ProjectSourceMetadata } = {}) {
     if (!window.skillops) {
       setStatus(t.desktopRequired);
       return;
     }
+    const requestId = ++workspaceRequestRef.current;
     setRoot(nextRoot);
+    setSnapshot(undefined);
+    setDriftReports([]);
+    setApplyResults([]);
+    setShareResult(undefined);
+    setSharePlan(undefined);
+    setShareProgress(undefined);
     setStatus(t.scanning);
+    void saveAppState({ activeWorkspace: nextRoot });
     try {
       const result = await window.skillops.scanWorkspace(nextRoot);
+      if (requestId !== workspaceRequestRef.current) return;
       applySnapshot(result, undefined, options.projectStates);
-      rememberWorkspace(result, { moveToTop: options.moveToTop ?? true });
-      void saveAppState({ activeWorkspace: nextRoot });
+      rememberWorkspace(result, { moveToTop: options.moveToTop ?? true, source: options.source });
       setStatus(t.foundStatus(result.skills.length, result.audit.score));
     } catch (error) {
+      if (requestId !== workspaceRequestRef.current) return;
+      setSnapshot(undefined);
       if (!options.restore) setStatus(t.errorStatus(errorMessage(error)));
       else setStatus(t.errorStatus(errorMessage(error)));
     }
@@ -488,15 +535,17 @@ function App() {
     setApplyResults([]);
   }
 
-  function rememberWorkspace(result: WorkspaceSnapshot, options: { moveToTop?: boolean } = { moveToTop: true }) {
-    const record: RecentWorkspace = {
-      path: result.root,
-      name: basename(result.root),
-      lastOpenedAt: new Date().toISOString(),
-      skillCount: result.skills.length,
-      auditScore: result.audit.score
-    };
+  function rememberWorkspace(result: WorkspaceSnapshot, options: { moveToTop?: boolean; source?: ProjectSourceMetadata } = { moveToTop: true }) {
     setRecentWorkspaces((current) => {
+      const existing = current.find((item) => item.path === result.root);
+      const record: RecentWorkspace = {
+        path: result.root,
+        name: basename(result.root),
+        lastOpenedAt: new Date().toISOString(),
+        skillCount: result.skills.length,
+        auditScore: result.audit.score,
+        ...projectSourceForRecord(result.root, options.source, existing)
+      };
       const exists = current.some((item) => item.path === result.root);
       const next = options.moveToTop || !exists
         ? [record, ...current.filter((item) => item.path !== result.root)].slice(0, MAX_RECENT_WORKSPACES)
@@ -516,6 +565,19 @@ function App() {
       void saveAppState({ activeWorkspace: undefined });
       setStatus(t.chooseStatus);
     }
+  }
+
+  function openAddProjectDialog() {
+    setSourceMode("local");
+    setSharedSourceUrl("");
+    setShowAddProject(true);
+  }
+
+  function openEditProjectSourceDialog() {
+    const githubUrl = activeProject?.githubSourceUrl;
+    setSourceMode(githubUrl ? "github" : "local");
+    setSharedSourceUrl(githubUrl ?? "");
+    setShowEditProjectSource(true);
   }
 
   function rememberTarget(destinationPath: string, destinationName: string, profileName = profile) {
@@ -558,7 +620,7 @@ function App() {
               <p>{t.appSubtitle}</p>
             </div>
           </div>
-          <button className="primary" onClick={() => setShowAddProject(true)}><Download size={16} /> {t.addSkillProject}</button>
+          <button className="primary" onClick={openAddProjectDialog}><Download size={16} /> {t.addSkillProject}</button>
           <div>
             <h4>{t.recentWorkspaces}</h4>
             <div className="workspace-list">
@@ -596,6 +658,7 @@ function App() {
           <div className="actions">
             <button onClick={() => scan()} disabled={!root || isPendingProject}><RefreshCw size={16} /> {t.rescan}</button>
             <button onClick={init} disabled={!root || isPendingProject}><Play size={16} /> {t.initConfig}</button>
+            {snapshot && <button onClick={openEditProjectSourceDialog}><Edit3 size={16} /> {t.editProjectSource}</button>}
             {activeWorkspaceCanBeRemoved && <button className="icon-button light" title={t.removeWorkspace} onClick={() => removeRecentWorkspace(root)}><Trash2 size={16} /></button>}
           </div>
         </header>
@@ -684,11 +747,26 @@ function App() {
       {showAddProject && (
         <AddProjectDialog
           t={t}
+          sourceMode={sourceMode}
+          setSourceMode={setSourceMode}
           sharedSourceUrl={sharedSourceUrl}
           setSharedSourceUrl={setSharedSourceUrl}
           chooseWorkspace={chooseWorkspace}
           downloadSharedSource={downloadSharedSource}
           onClose={() => setShowAddProject(false)}
+        />
+      )}
+      {showEditProjectSource && (
+        <AddProjectDialog
+          t={t}
+          title={t.editProjectSource}
+          sourceMode={sourceMode}
+          setSourceMode={setSourceMode}
+          sharedSourceUrl={sharedSourceUrl}
+          setSharedSourceUrl={setSharedSourceUrl}
+          chooseWorkspace={chooseWorkspace}
+          downloadSharedSource={downloadSharedSource}
+          onClose={() => setShowEditProjectSource(false)}
         />
       )}
 

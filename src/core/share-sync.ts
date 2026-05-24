@@ -35,17 +35,11 @@ export async function syncProjectToShareTarget(root: string, targetRoot: string,
   const targetSourceRoot = path.join(targetRoot, config.sourceDir);
   await fs.mkdir(targetSourceRoot, { recursive: true });
   for (const item of skills) {
-    const relativePath = path.relative(sourceRoot, item.path);
-    if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      throw new Error(`Refusing to share item outside source directory: ${item.path}`);
-    }
+    const relativePath = relativeSharedEntryPath(sourceRoot, item.path, item.name);
     await replaceSharedEntry(item.path, path.join(targetSourceRoot, relativePath), targetSourceRoot);
   }
   for (const asset of assets) {
-    const relativePath = path.relative(sourceRoot, asset.path);
-    if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      throw new Error(`Refusing to share item outside source directory: ${asset.path}`);
-    }
+    const relativePath = relativeSharedEntryPath(sourceRoot, asset.path, asset.name);
     await assertSharedAssetWritable(path.join(targetSourceRoot, relativePath), namespace);
     await replaceSharedEntry(asset.path, path.join(targetSourceRoot, relativePath), targetSourceRoot);
     await writeAssetOwner(path.join(targetSourceRoot, relativePath), namespace);
@@ -60,6 +54,14 @@ export async function syncProjectToShareTarget(root: string, targetRoot: string,
     await fs.writeFile(targetReadme, `# ${path.basename(root)}\n`, "utf8");
   }
   await writeSharingReadme(targetRoot, config, visibility, sectionName);
+}
+
+function relativeSharedEntryPath(sourceRoot: string, entryPath: string, fallbackName: string): string {
+  const relativePath = path.relative(sourceRoot, entryPath);
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    throw new Error(`Refusing to share item outside source directory: ${entryPath}`);
+  }
+  return relativePath || fallbackName;
 }
 
 export async function syncProjectMetadata(targetRoot: string, config: SkillOpsConfig, visibility: "private" | "public", sectionName: string): Promise<void> {

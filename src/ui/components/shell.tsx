@@ -21,7 +21,7 @@ export function PendingProject({ t, project }: { t: Dictionary; project: RecentW
       <Download size={36} />
       <h3>{project.name}</h3>
       <p>{failed ? t.projectDownloadFailed : t.projectDownloading}</p>
-      {project.sourceUrl && <pre>{project.sourceUrl}</pre>}
+      {project.githubSourceUrl && <pre>{project.githubSourceUrl}</pre>}
       {failed && project.error && <pre>{project.error}</pre>}
     </section>
   );
@@ -71,6 +71,9 @@ export function CliRepairDialog(props: {
 
 export function AddProjectDialog(props: {
   t: Dictionary;
+  title?: string;
+  sourceMode: "local" | "github";
+  setSourceMode: (value: "local" | "github") => void;
   sharedSourceUrl: string;
   setSharedSourceUrl: (value: string) => void;
   chooseWorkspace: () => void;
@@ -83,21 +86,24 @@ export function AddProjectDialog(props: {
       <section className="modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
         <div className="modal-header">
           <div>
-            <h3>{t.addSkillProject}</h3>
+            <h3>{props.title ?? t.addSkillProject}</h3>
             <p>{t.emptyBody}</p>
           </div>
           <button className="icon-button light" onClick={props.onClose}>x</button>
         </div>
-        <div className="add-project-options">
-          <article className="add-option">
+        <div className="segmented two source-mode">
+          <button className={props.sourceMode === "local" ? "active" : ""} onClick={() => props.setSourceMode("local")}><FolderOpen size={16} /> {t.localSource}</button>
+          <button className={props.sourceMode === "github" ? "active" : ""} onClick={() => props.setSourceMode("github")}><Download size={16} /> {t.githubSource}</button>
+        </div>
+        <div className="add-project-options single">
+          {props.sourceMode === "local" ? <article className="add-option">
             <div>
               <FolderOpen size={20} />
               <h4>{t.addLocalProject}</h4>
               <p>{t.localProjectHelp}</p>
             </div>
             <button className="primary" onClick={props.chooseWorkspace}>{t.addLocalProject}</button>
-          </article>
-          <article className="add-option">
+          </article> : <article className="add-option">
             <div>
               <Download size={20} />
               <h4>{t.addSharedSource}</h4>
@@ -107,7 +113,7 @@ export function AddProjectDialog(props: {
               <input value={props.sharedSourceUrl} placeholder={t.sharedSourcePlaceholder} onChange={(event) => props.setSharedSourceUrl(event.target.value)} />
               <button onClick={props.downloadSharedSource} disabled={!props.sharedSourceUrl.trim()}>{t.downloadSource}</button>
             </div>
-          </article>
+          </article>}
         </div>
         <pre>{t.emptyExample}</pre>
       </section>

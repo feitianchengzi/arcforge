@@ -33,7 +33,6 @@ responses:
 business_logic:
   flow:
     - Parse remote source.
-    - Clone into app data sources cache or pull existing cache.
+    - Clone into app data sources cache under userData/sources or pull existing cache.
     - Checkout ref when present.
-    - Return requested subdirectory or repository root.
-
+    - Return requested subdirectory or repository root. If the returned folder itself contains a skill markdown file, workspace scan treats that folder as a single-skill project.

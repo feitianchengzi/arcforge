@@ -78,6 +78,14 @@ my-skills/
       SKILL.md
 ```
 
+A single skill folder is also valid for local and GitHub sources:
+
+```text
+code-review/
+  SKILL.md
+  references/
+```
+
 Minimal config:
 
 ```json

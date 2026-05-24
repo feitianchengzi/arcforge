@@ -99,7 +99,7 @@ export function SkillsList({ t, snapshot, profile, setProfile }: {
 
   useEffect(() => {
     const nextFiles = flattenFileEntries(filteredFiles);
-    const preferred = nextFiles.find((item) => item.name === "SKILL.md") ?? nextFiles[0];
+    const preferred = nextFiles.find((item) => item.name.toLowerCase() === "skill.md") ?? nextFiles[0];
     if (nextFiles.length === 0) {
       setActiveFilePath("");
       setDocument(undefined);

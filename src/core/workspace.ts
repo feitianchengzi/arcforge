@@ -1,9 +1,12 @@
 import { auditWorkspace } from "./audit.js";
-import { loadConfig, saveConfig } from "./config.js";
+import { defaultConfigForRoot, loadConfig, saveConfig } from "./config.js";
 import { discoverSharedAssets, discoverSkills } from "./skills.js";
 import type { WorkspaceSnapshot, SkillOpsConfig } from "../shared/types.js";
+import { promises as fs } from "node:fs";
 
 export async function scanWorkspace(root: string): Promise<WorkspaceSnapshot> {
+  const stats = await fs.stat(root);
+  if (!stats.isDirectory()) throw new Error("Workspace root is not a directory.");
   const config = await loadConfig(root);
   const skills = await discoverSkills(root, config);
   const assets = await discoverSharedAssets(root, config);
@@ -12,9 +15,10 @@ export async function scanWorkspace(root: string): Promise<WorkspaceSnapshot> {
 }
 
 export async function initWorkspace(root: string, config?: Partial<SkillOpsConfig>): Promise<SkillOpsConfig> {
+  const defaultConfig = await defaultConfigForRoot(root);
   const next: SkillOpsConfig = {
     version: 1,
-    sourceDir: config?.sourceDir ?? "skills",
+    sourceDir: config?.sourceDir ?? defaultConfig.sourceDir,
     teamRepo: config?.teamRepo,
     profiles: config?.profiles ?? [
       {

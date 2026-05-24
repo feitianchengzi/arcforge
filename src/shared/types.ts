@@ -207,6 +207,10 @@ export interface RecentWorkspace {
   skillCount: number;
   auditScore: number;
   status?: "ready" | "downloading" | "error";
+  sourceKind?: "local" | "github";
+  localSourcePath?: string;
+  githubSourceUrl?: string;
+  /** Legacy field kept for app-state migration from older desktop builds. */
   sourceUrl?: string;
   error?: string;
 }

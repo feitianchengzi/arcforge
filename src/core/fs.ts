@@ -23,6 +23,7 @@ export async function copyDirectory(source: string, target: string): Promise<voi
   await fs.mkdir(target, { recursive: true });
   const entries = await fs.readdir(source, { withFileTypes: true });
   for (const entry of entries) {
+    if (entry.name === ".git") continue;
     const sourcePath = path.join(source, entry.name);
     const targetPath = path.join(target, entry.name);
     if (entry.isDirectory()) {

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import type { SkillFileDocument, SkillFileEntry } from "../shared/types.js";
-import { pathExists } from "./fs.js";
+import { findSkillMarkdownFile } from "./skill-markdown.js";
 
 const IGNORED_DIRS = new Set([".git", "node_modules"]);
 const MAX_EDITABLE_FILE_BYTES = 1024 * 1024 * 2;
@@ -44,8 +44,7 @@ export async function writeSkillFile(root: string, filePath: string, content: st
 }
 
 export async function defaultSkillFile(skillPath: string): Promise<string | undefined> {
-  const skillFile = path.join(skillPath, "SKILL.md");
-  return await pathExists(skillFile) ? skillFile : undefined;
+  return findSkillMarkdownFile(skillPath);
 }
 
 async function listDirectory(root: string, dir: string): Promise<SkillFileEntry[]> {
@@ -87,7 +86,7 @@ async function assertSkillPath(root: string, skillPath: string): Promise<string>
   const safeSkillPath = assertWorkspacePath(root, skillPath);
   const stats = await fs.stat(safeSkillPath);
   if (!stats.isDirectory()) throw new Error("Selected skill is not a directory.");
-  if (!(await pathExists(path.join(safeSkillPath, "SKILL.md")))) throw new Error("Selected directory is not a Skill.");
+  if (!(await findSkillMarkdownFile(safeSkillPath))) throw new Error("Selected directory is not a Skill.");
   return safeSkillPath;
 }
 

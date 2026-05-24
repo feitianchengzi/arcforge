@@ -78,6 +78,14 @@ my-skills/
       SKILL.md
 ```
 
+本地来源和 GitHub 来源也可以直接指向单个 skill 文件夹：
+
+```text
+code-review/
+  SKILL.md
+  references/
+```
+
 最小配置示例：
 
 ```json

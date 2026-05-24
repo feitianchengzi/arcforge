@@ -7,6 +7,10 @@ export interface Dictionary {
   addLocalProject: string;
   localProjectHelp: string;
   githubProjectHelp: string;
+  editProjectSource: string;
+  projectSource: string;
+  localSource: string;
+  githubSource: string;
   projectHealth: string;
   projectPath: string;
   settings: string;
@@ -182,8 +186,12 @@ export const dictionaries: Record<Language, Dictionary> = {
     openWorkspace: "Open local folder",
     addSkillProject: "Add Skill project",
     addLocalProject: "Local folder",
-    localProjectHelp: "Use a repository or folder that already contains a skills/ directory.",
-    githubProjectHelp: "Download a shared Skill project into the local SkillOps cache.",
+    localProjectHelp: "Use a repository with skills/ or a single skill folder with SKILL.md.",
+    githubProjectHelp: "Download a Skill project or single skill folder into the local SkillOps cache.",
+    editProjectSource: "Edit project source",
+    projectSource: "Project source",
+    localSource: "Local",
+    githubSource: "GitHub",
     projectHealth: "Project health",
     projectPath: "Project path",
     settings: "Settings",
@@ -198,7 +206,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     noRecentWorkspaces: "No Skill projects yet.",
     removeWorkspace: "Remove project",
     noWorkspace: "No Skill project selected",
-    chooseStatus: "Choose or download a Skill project with a skills/ directory.",
+    chooseStatus: "Choose or download a Skill project with skills/ or a single SKILL.md folder.",
     choosingWorkspace: "Opening folder picker...",
     chooseCanceled: "Project selection canceled.",
     desktopRequired: "Project actions require the Electron desktop window. Please use the SkillOps app window, not the browser tab.",
@@ -237,8 +245,8 @@ export const dictionaries: Record<Language, Dictionary> = {
     rescan: "Rescan",
     initConfig: "Init config",
     emptyTitle: "Add a Skill project",
-    emptyBody: "SkillOps needs to open a repository that contains a skills/ directory. Each skill directory should include a SKILL.md file.",
-    emptyExample: "Example:\nskills/\n  code-review/\n    SKILL.md\n  release-writer/\n    SKILL.md",
+    emptyBody: "SkillOps can open a repository with a skills/ directory, or a single skill folder that contains SKILL.md.",
+    emptyExample: "Example:\nskills/\n  code-review/\n    SKILL.md\n\nSingle skill folder:\ncode-review/\n  SKILL.md",
     metrics: {
       skills: "Skills",
       auditScore: "Audit score",
@@ -357,8 +365,12 @@ export const dictionaries: Record<Language, Dictionary> = {
     openWorkspace: "打开本地文件夹",
     addSkillProject: "添加 Skill 项目",
     addLocalProject: "本地文件夹",
-    localProjectHelp: "选择一个已经包含 skills/ 目录的仓库或文件夹。",
-    githubProjectHelp: "把共享的 Skill 项目下载到本地 SkillOps 缓存。",
+    localProjectHelp: "选择包含 skills/ 的仓库，或直接选择包含 SKILL.md 的单个 skill 文件夹。",
+    githubProjectHelp: "把 Skill 项目或单个 skill 文件夹下载到本地 SkillOps 缓存。",
+    editProjectSource: "编辑项目来源",
+    projectSource: "项目来源",
+    localSource: "本地",
+    githubSource: "GitHub",
     projectHealth: "项目状态",
     projectPath: "项目路径",
     settings: "设置",
@@ -373,7 +385,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     noRecentWorkspaces: "暂无 Skill 项目。",
     removeWorkspace: "移除项目",
     noWorkspace: "未选择 Skill 项目",
-    chooseStatus: "请选择或下载一个包含 skills/ 目录的 Skill 项目。",
+    chooseStatus: "请选择或下载包含 skills/ 的 Skill 项目，或单个 SKILL.md 文件夹。",
     choosingWorkspace: "正在打开文件夹选择器...",
     chooseCanceled: "已取消选择项目。",
     desktopRequired: "项目操作需要在 Electron 桌面窗口中使用，请不要在浏览器标签页中操作。",
@@ -412,8 +424,8 @@ export const dictionaries: Record<Language, Dictionary> = {
     rescan: "重新扫描",
     initConfig: "初始化配置",
     emptyTitle: "添加 Skill 项目",
-    emptyBody: "SkillOps 需要打开一个包含 skills/ 目录的仓库，每个技能目录里应包含 SKILL.md 文件。",
-    emptyExample: "示例：\nskills/\n  code-review/\n    SKILL.md\n  release-writer/\n    SKILL.md",
+    emptyBody: "SkillOps 可以打开包含 skills/ 目录的仓库，也可以直接打开包含 SKILL.md 的单个 skill 文件夹。",
+    emptyExample: "示例：\nskills/\n  code-review/\n    SKILL.md\n\n单个 skill 文件夹：\ncode-review/\n  SKILL.md",
     metrics: {
       skills: "技能数",
       auditScore: "审计评分",

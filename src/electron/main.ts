@@ -231,18 +231,28 @@ function normalizeRecentWorkspaces(items?: RecentWorkspace[]): RecentWorkspace[]
   if (!Array.isArray(items)) return [];
   return items
     .filter((item): item is RecentWorkspace => Boolean(item) && typeof item === "object")
-    .map((item) => ({
-      path: cleanString(item.path) ?? "",
-      name: cleanString(item.name) ?? cleanString(item.path)?.split(/[\\/]/).filter(Boolean).pop() ?? "Skill project",
-      lastOpenedAt: cleanString(item.lastOpenedAt) ?? new Date().toISOString(),
-      skillCount: Number.isFinite(item.skillCount) ? item.skillCount : 0,
-      auditScore: Number.isFinite(item.auditScore) ? item.auditScore : 0,
-      status: item.status === "downloading" || item.status === "error" || item.status === "ready" ? item.status : undefined,
-      sourceUrl: cleanString(item.sourceUrl),
-      error: cleanString(item.error)
-    }))
+    .map((item) => normalizeRecentWorkspace(item))
     .filter((item) => item.path)
     .slice(0, 20);
+}
+
+function normalizeRecentWorkspace(item: RecentWorkspace): RecentWorkspace {
+  const pathValue = cleanString(item.path) ?? "";
+  const githubSourceUrl = cleanString(item.githubSourceUrl) ?? cleanString(item.sourceUrl);
+  const requestedKind = item.sourceKind === "github" || item.sourceKind === "local" ? item.sourceKind : undefined;
+  const sourceKind = requestedKind ?? (githubSourceUrl ? "github" : "local");
+  return {
+    path: pathValue,
+    name: cleanString(item.name) ?? cleanString(item.path)?.split(/[\\/]/).filter(Boolean).pop() ?? "Skill project",
+    lastOpenedAt: cleanString(item.lastOpenedAt) ?? new Date().toISOString(),
+    skillCount: Number.isFinite(item.skillCount) ? item.skillCount : 0,
+    auditScore: Number.isFinite(item.auditScore) ? item.auditScore : 0,
+    status: item.status === "downloading" || item.status === "error" || item.status === "ready" ? item.status : undefined,
+    sourceKind,
+    localSourcePath: sourceKind === "local" ? cleanString(item.localSourcePath) ?? pathValue : undefined,
+    githubSourceUrl: sourceKind === "github" ? githubSourceUrl : undefined,
+    error: cleanString(item.error)
+  };
 }
 
 function normalizeTargetHistory(items?: TargetRecord[]): TargetRecord[] {
@@ -339,7 +349,7 @@ function normalizeStringList(value: unknown): string[] {
 }
 
 function cacheRoot(): string {
-  return path.join(app.getPath("userData"), "cache");
+  return app.getPath("userData");
 }
 
 function cliShimOptions() {
@@ -586,7 +596,7 @@ function renderSkillEditorHtml(root: string, directoryPath: string, filePath: st
       filteredFiles = filterFilesByProfile(files);
       const flat = flatten(filteredFiles);
       if (!flat.some((item) => item.path === currentFilePath)) {
-        const preferred = flat.find((item) => item.name === "SKILL.md") || flat[0];
+        const preferred = flat.find((item) => String(item.name).toLowerCase() === "skill.md") || flat[0];
         currentFilePath = preferred ? preferred.path : undefined;
       }
       tree.innerHTML = renderTree(filteredFiles);

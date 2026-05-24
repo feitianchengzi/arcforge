@@ -25,7 +25,6 @@ responses:
       message: skillops.config.json cannot be written.
 business_logic:
   flow:
-    - Build version 1 config with sourceDir skills.
+    - Build version 1 config with sourceDir skills, or sourceDir . when the selected root is itself a skill folder.
     - Add default profile with wildcard skills and codex, claude, cursor targets.
     - Persist config under the workspace root.
-

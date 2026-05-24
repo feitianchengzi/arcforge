@@ -4,6 +4,7 @@ import type { SharedAssetSummary, SkillSummary } from "../shared/types.js";
 import { parseFrontmatter } from "./frontmatter.js";
 import { pathExists, readText } from "./fs.js";
 import type { SkillOpsConfig } from "../shared/types.js";
+import { findSkillMarkdownFile, hasSkillMarkdownFile } from "./skill-markdown.js";
 
 export async function discoverSkills(root: string, config: SkillOpsConfig): Promise<SkillSummary[]> {
   const sourceRoot = path.resolve(root, config.sourceDir);
@@ -11,8 +12,8 @@ export async function discoverSkills(root: string, config: SkillOpsConfig): Prom
 
   const skills: SkillSummary[] = [];
   await walk(sourceRoot, async (dir) => {
-    const skillFile = path.join(dir, "SKILL.md");
-    if (!(await pathExists(skillFile))) return;
+    const skillFile = await findSkillMarkdownFile(dir);
+    if (!skillFile) return;
     const raw = await readText(skillFile);
     const parsed = parseFrontmatter(raw);
     const name = stringValue(parsed.frontmatter.name) || path.basename(dir);
@@ -37,6 +38,7 @@ export async function discoverSkills(root: string, config: SkillOpsConfig): Prom
 export async function discoverSharedAssets(root: string, config: SkillOpsConfig): Promise<SharedAssetSummary[]> {
   const sourceRoot = path.resolve(root, config.sourceDir);
   if (!(await pathExists(sourceRoot))) return [];
+  if (await hasSkillMarkdownFile(sourceRoot)) return [];
 
   const entries = await fs.readdir(sourceRoot, { withFileTypes: true });
   const assets: SharedAssetSummary[] = [];
@@ -65,7 +67,7 @@ async function walk(dir: string, onDir: (dir: string) => Promise<void>): Promise
 }
 
 async function containsSkillFile(dir: string): Promise<boolean> {
-  if (await pathExists(path.join(dir, "SKILL.md"))) return true;
+  if (await hasSkillMarkdownFile(dir)) return true;
   const entries = await fs.readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;

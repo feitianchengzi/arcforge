@@ -8,7 +8,7 @@
 
 工作区根目录下的 `skillops.config.json` 是控制文件。配置模型为 `SkillOpsConfig`。
 
-配置文件缺失时，系统返回默认配置。默认配置版本为 1，来源目录为 `skills`，默认配置组名称为 `default`，技能选择为全部技能，目标为 Codex、Claude 和 Cursor。
+配置文件缺失时，系统返回默认配置。默认配置版本为 1，来源目录通常为 `skills`；如果工作区根目录本身包含 `SKILL.md` 或大小写不同的 `skill.md`，来源目录为 `.`。默认配置组名称为 `default`，技能选择为全部技能，目标为 Codex、Claude 和 Cursor。
 
 配置文件存在时，系统解析 JSON，并以默认配置补齐缺省字段。配置组字段缺失时使用空数组。
 
@@ -18,7 +18,7 @@
 
 技能发现从配置指定的来源目录开始。来源目录不存在时，发现结果为空数组。
 
-扫描使用递归目录遍历。目录中存在 `SKILL.md` 时，该目录被识别为一个技能。
+扫描使用递归目录遍历。目录中存在 `SKILL.md` 或大小写不同的 `skill.md` 时，该目录被识别为一个技能。
 
 扫描忽略 `.git` 和 `node_modules` 目录。
 
@@ -48,7 +48,7 @@ frontmatter 解析器支持文档开头的 `---` 块。解析结果包含 frontm
 
 共享资产发现只检查来源目录下的顶层目录。
 
-不包含任何 `SKILL.md` 的顶层目录被识别为共享资产。共享资产模型为 `SharedAssetSummary`，嵌入在 `WorkspaceSnapshot` 中。
+不包含任何 `SKILL.md` 或大小写不同的 `skill.md` 的顶层目录被识别为共享资产。来源目录本身是一个技能目录时，系统不生成共享资产。共享资产模型为 `SharedAssetSummary`，嵌入在 `WorkspaceSnapshot` 中。
 
 共享资产用于配置组应用时随所有配置组同步。共享资产不作为独立技能参与结构审计。
 
@@ -75,4 +75,3 @@ frontmatter 解析器支持文档开头的 `---` 块。解析结果包含 frontm
 该方案由 `workspace-scan` 和 `workspace-init` 契约暴露给桌面端。
 
 CLI 的 `scan`、`audit`、`publish-plan`、`drift` 和 `apply-profile` 命令均复用该方案。
-

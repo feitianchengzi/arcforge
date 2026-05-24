@@ -1,6 +1,7 @@
 import path from "node:path";
 import type { AuditFinding, AuditReport, SkillSummary } from "../shared/types.js";
 import { listFiles, readText } from "./fs.js";
+import { findSkillMarkdownFile, isSkillMarkdownName } from "./skill-markdown.js";
 
 const SECRET_PATTERNS = [
   { code: "secret.openai", pattern: /sk-[A-Za-z0-9_-]{20,}/ },
@@ -19,7 +20,8 @@ export async function auditWorkspace(root: string, skills: SkillSummary[]): Prom
   const findings: AuditFinding[] = [];
 
   for (const skill of skills) {
-    const skillFile = path.join(skill.path, "SKILL.md");
+    const skillFile = await findSkillMarkdownFile(skill.path);
+    if (!skillFile) continue;
     const content = await readText(skillFile);
     findings.push(...auditSkillMarkdown(root, skillFile, content));
 
@@ -34,7 +36,7 @@ export async function auditWorkspace(root: string, skills: SkillSummary[]): Prom
 
     const files = await listFiles(skill.path);
     for (const file of files) {
-      if (path.basename(file) === "SKILL.md") continue;
+      if (isSkillMarkdownName(path.basename(file))) continue;
       const text = await maybeReadText(file);
       if (!text) continue;
       findings.push(...auditSecrets(root, file, text));
