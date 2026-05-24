@@ -577,13 +577,24 @@ input[type="checkbox"] { width: auto; min-height: auto; padding: 0; }
 
 .profile-list { display: flex; flex-direction: column; gap: var(--space-sm); margin-top: var(--space-lg); }
 .profile-list button {
+  width: 100%;
   min-height: 44px;
   justify-content: space-between;
   align-items: center;
   border-color: var(--border-default);
+  gap: var(--space-sm);
+  min-width: 0;
 }
 .profile-list button.active { background: var(--surface-selected); border-color: var(--brand-primary); color: var(--brand-primary-hover); }
-.profile-list span { color: var(--text-muted); font-size: 12px; font-weight: 400; }
+.profile-list strong { min-width: 0; overflow-wrap: anywhere; text-align: left; }
+.profile-list span {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
 .check-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); margin-top: var(--space-sm); }
 .check-list.inline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .check-row {
