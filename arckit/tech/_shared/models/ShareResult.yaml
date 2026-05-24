@@ -6,7 +6,7 @@ metadata:
   owner: electron/main
   version: 2
   created: 2026-05-21
-  updated: 2026-05-24
+  updated: 2026-05-25
 type: object
 required:
   - remoteUrl
@@ -35,6 +35,10 @@ properties:
   pushed:
     type: boolean
     description: True when git push completes successfully.
+  sameRepository:
+    type: boolean
+    nullable: true
+    description: True when the share was committed and pushed from the local source repository instead of an isolated checkout.
   delivery:
     type: string
     nullable: true

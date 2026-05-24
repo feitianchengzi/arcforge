@@ -131,10 +131,13 @@ Plan or execute sharing from a local workspace to a Git repository. Outputs JSON
 Usage:
   skillops share plan --repo <repo> [options]
   skillops share run --repo <repo> [options] --confirm
+  skillops share plan --same-repository [options]
+  skillops share run --same-repository [options] --confirm
   skillops share --repo <repo> [options]
 
 Required:
   --repo <repo>                 GitHub owner/repo, GitHub URL, tree URL, or full Git URL.
+                                Not required with --same-repository.
 
 Options:
   --root <dir>                  Workspace root. Defaults to current directory.
@@ -146,6 +149,8 @@ Options:
   --project-name <name>         Project folder name. Required with namedProject.
   --delivery <method>           target-pr, fork-pr, direct-push, or local-branch.
   --branch <name>               Share branch name. Defaults to skillops/share/<project>.
+  --same-repository             Commit and push the local Skill project path to its own Git remote.
+  --same-repository-remote <n>  Git remote name to use when the local repository has multiple remotes.
   --message <text>              Commit message. Defaults to "Share SkillOps project".
   --confirm                     Required for remote writes with share run.
   --cache-dir <dir>             Git worktree cache. Defaults to ~/.skillops/cache.
@@ -154,6 +159,7 @@ Examples:
   skillops share plan --root . --repo github.com/acme/team-skills --profile frontend
   skillops share run --root . --repo github.com/acme/team-skills --delivery target-pr --confirm
   skillops share plan --root . --repo github.com/acme/team-skills/tree/main/projects --target-mode namedProject --project-name web
+  skillops share run --root ./skills/foo --same-repository --same-repository-remote origin --confirm
 `,
   doctor: `SkillOps CLI - doctor
 
@@ -223,10 +229,11 @@ export async function runSkillOpsCommand(args: string[], runtime: CommandRuntime
   if (command === "share") {
     const action = args[1] === "plan" || args[1] === "run" ? args[1] : "plan";
     const remoteUrl = arg(args, "--repo") ?? arg(args, "--remote");
-    if (!remoteUrl) throw new Error("Missing required option: --repo");
+    const sameRepository = hasFlag(args, "--same-repository");
+    if (!remoteUrl && !sameRepository) throw new Error("Missing required option: --repo");
     const options: ShareProjectOptions = {
       root: arg(args, "--root") ?? runtime.cwd,
-      remoteUrl,
+      remoteUrl: remoteUrl ?? "",
       visibility: parseVisibility(arg(args, "--visibility") ?? "private"),
       message: arg(args, "--message"),
       targetMode: parseTargetMode(arg(args, "--target-mode") ?? "direct"),
@@ -236,7 +243,9 @@ export async function runSkillOpsCommand(args: string[], runtime: CommandRuntime
       cacheDir: arg(args, "--cache-dir") ?? runtime.cacheDir ?? defaultCacheDir(),
       delivery: parseDelivery(arg(args, "--delivery")),
       shareBranch: arg(args, "--branch"),
-      confirm: hasFlag(args, "--confirm")
+      confirm: hasFlag(args, "--confirm"),
+      sameRepository,
+      sameRepositoryRemote: arg(args, "--same-repository-remote")
     };
     if (action === "plan") {
       return {

@@ -107,6 +107,22 @@ export interface ShareTargetGroup {
   remoteUrl: string;
   targetMode: ShareTargetMode;
   projectName?: string;
+  sameRepository?: boolean;
+  sameRepositoryRemote?: string;
+}
+
+export interface LocalGitRemote {
+  name: string;
+  fetchUrl?: string;
+  pushUrl?: string;
+  canonicalKey: string;
+}
+
+export interface LocalGitSource {
+  root: string;
+  relativePath: string;
+  currentBranch?: string;
+  remotes: LocalGitRemote[];
 }
 
 export interface DriftItem {
@@ -172,6 +188,8 @@ export interface SharePlanResult {
   branch: string;
   targetPath: string;
   commands: string[];
+  sameRepository?: boolean;
+  localGit?: LocalGitSource;
 }
 
 export interface ShareResult {
@@ -181,6 +199,7 @@ export interface ShareResult {
   checkoutRoot?: string;
   committed: boolean;
   pushed: boolean;
+  sameRepository?: boolean;
   delivery?: ShareDeliveryMethod;
   pullRequestUrl?: string;
   commitHash?: string;
@@ -198,6 +217,7 @@ export interface WorkspaceSnapshot {
   skills: SkillSummary[];
   assets: SharedAssetSummary[];
   audit: AuditReport;
+  localGit?: LocalGitSource;
 }
 
 export interface RecentWorkspace {

@@ -57,6 +57,20 @@ export function projectNameFromSource(sourceUrl: string): string {
   return parts[parts.length - 1] ?? "GitHub source";
 }
 
+function canonicalRemoteKey(value: string): string {
+  const trimmed = value.trim().replace(/\/$/, "").replace(/\.git$/, "");
+  if (!trimmed) return "";
+  const sshMatch = trimmed.match(/^git@github\.com:([^/]+)\/(.+)$/i);
+  if (sshMatch) return `github.com/${sshMatch[1].toLowerCase()}/${sshMatch[2].toLowerCase()}`;
+  const sshUrlMatch = trimmed.match(/^ssh:\/\/git@github\.com\/([^/]+)\/(.+)$/i);
+  if (sshUrlMatch) return `github.com/${sshUrlMatch[1].toLowerCase()}/${sshUrlMatch[2].toLowerCase()}`;
+  const githubPathMatch = trimmed.match(/^(?:https?:\/\/)?github\.com\/([^/]+)\/([^/]+)(?:\/.*)?$/i);
+  if (githubPathMatch) return `github.com/${githubPathMatch[1].toLowerCase()}/${githubPathMatch[2].toLowerCase()}`;
+  const ownerRepoMatch = trimmed.match(/^([\w.-]+)\/([\w.-]+)$/);
+  if (ownerRepoMatch) return `github.com/${ownerRepoMatch[1].toLowerCase()}/${ownerRepoMatch[2].toLowerCase()}`;
+  return trimmed.toLowerCase();
+}
+
 export function formatDate(value: string): string {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 }
@@ -86,10 +100,18 @@ export function createShareTargetGroup(snapshot: WorkspaceSnapshot, profile: str
     id: createId("share"),
     name: basename(snapshot.root),
     profile,
-    remoteUrl: snapshot.config.teamRepo ?? "",
+    remoteUrl: defaultShareRemoteUrl(snapshot),
     targetMode: snapshot.config.shareTargetMode ?? "direct",
     projectName: snapshot.config.shareProjectName ?? basename(snapshot.root)
   };
+}
+
+function defaultShareRemoteUrl(snapshot: WorkspaceSnapshot): string {
+  const configured = snapshot.config.teamRepo?.trim() ?? "";
+  if (!configured) return "";
+  const configuredKey = canonicalRemoteKey(configured);
+  const isCurrentRepository = snapshot.localGit?.remotes.some((remote) => configuredKey && configuredKey === remote.canonicalKey);
+  return isCurrentRepository ? "" : configured;
 }
 
 export function resolveApplyTargetEntries(group: ApplyTargetGroup, defaultTargets: DefaultTarget[]): ResolvedApplyTarget[] {

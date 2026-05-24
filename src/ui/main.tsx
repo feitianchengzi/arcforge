@@ -30,6 +30,14 @@ function projectSourceForRecord(root: string, source?: ProjectSourceMetadata, ex
   return { sourceKind: "local", localSourcePath: existing?.localSourcePath ?? root };
 }
 
+function shareRemoteUrlForGroup(snapshot: WorkspaceSnapshot | undefined, group: ShareTargetGroup): string {
+  if (!group.sameRepository) return group.remoteUrl.trim();
+  const remote = group.sameRepositoryRemote
+    ? snapshot?.localGit?.remotes.find((item) => item.name === group.sameRepositoryRemote)
+    : snapshot?.localGit?.remotes[0];
+  return (remote?.pushUrl || remote?.fetchUrl || group.remoteUrl).trim();
+}
+
 function App() {
   const [language, setLanguageState] = useState<Language>(initialLanguage);
   const t = dictionaries[language];
@@ -364,16 +372,17 @@ function App() {
         return;
       }
       if (snapshot) {
+        const remoteUrl = shareRemoteUrlForGroup(snapshot, group);
         const saved = await window.skillops.saveConfig(root, {
           ...snapshot.config,
-          teamRepo: group.remoteUrl.trim() || undefined,
-          shareTargetMode: group.targetMode,
-          shareProjectName: group.projectName?.trim() || undefined
+          teamRepo: remoteUrl || undefined,
+          shareTargetMode: group.sameRepository ? "direct" : group.targetMode,
+          shareProjectName: group.sameRepository ? undefined : group.projectName?.trim() || undefined
         });
         applySnapshot(saved, group.profile);
       }
       setStatus(t.sharing);
-      const plan = await window.skillops.createSharePlan(root, group.remoteUrl, "private", group.targetMode, group.projectName ?? "", group.profile);
+      const plan = await window.skillops.createSharePlan(root, shareRemoteUrlForGroup(snapshot, group), "private", group.targetMode, group.projectName ?? "", group.profile, undefined, undefined, group.sameRepository, group.sameRepositoryRemote);
       setSharePlan(plan);
       const nextStatus = plan.requiresConfirm ? t.shareReady(plan.branch) : t.shareReadyLocal(plan.branch);
       setShareProgress(nextStatus);
@@ -397,7 +406,7 @@ function App() {
         setShareProgress(t.desktopRequired);
         return;
       }
-      const result = await window.skillops.shareProject(root, group.remoteUrl, "private", message, group.targetMode, group.projectName ?? "", group.profile, plan.delivery, plan.branch, true);
+      const result = await window.skillops.shareProject(root, shareRemoteUrlForGroup(snapshot, group), "private", message, group.targetMode, group.projectName ?? "", group.profile, plan.delivery, plan.branch, true, group.sameRepository, group.sameRepositoryRemote);
       setShareResult(result);
       setSharePlan(undefined);
       const complete = result.pullRequestUrl ? t.sharePrComplete(result.pullRequestUrl) : t.shareComplete(result.branch);

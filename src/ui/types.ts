@@ -36,8 +36,8 @@ declare global {
       saveAppState: (patch: Partial<AppState>) => Promise<AppState>;
       migrateAppState: (legacyState: Partial<AppState>, origin: string) => Promise<AppState>;
       downloadSource: (remoteUrl: string) => Promise<string>;
-      createSharePlan: (root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string) => Promise<SharePlanResult>;
-      shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, confirm?: boolean) => Promise<ShareResult>;
+      createSharePlan: (root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, sameRepository?: boolean, sameRepositoryRemote?: string) => Promise<SharePlanResult>;
+      shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, confirm?: boolean, sameRepository?: boolean, sameRepositoryRemote?: string) => Promise<ShareResult>;
       applyProfile: (root: string, profile: string, targetDir: string) => Promise<ApplyProfileResult>;
       driftReport: (root: string, profile: string, targetDir: string) => Promise<DriftReport>;
       openDriftDiff: (report: DriftReport) => Promise<void>;

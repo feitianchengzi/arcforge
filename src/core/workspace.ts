@@ -3,6 +3,7 @@ import { defaultConfigForRoot, loadConfig, saveConfig } from "./config.js";
 import { discoverSharedAssets, discoverSkills } from "./skills.js";
 import type { WorkspaceSnapshot, SkillOpsConfig } from "../shared/types.js";
 import { promises as fs } from "node:fs";
+import { detectLocalGitSource } from "./local-git.js";
 
 export async function scanWorkspace(root: string): Promise<WorkspaceSnapshot> {
   const stats = await fs.stat(root);
@@ -11,7 +12,8 @@ export async function scanWorkspace(root: string): Promise<WorkspaceSnapshot> {
   const skills = await discoverSkills(root, config);
   const assets = await discoverSharedAssets(root, config);
   const audit = await auditWorkspace(root, skills);
-  return { root, config, skills, assets, audit };
+  const localGit = await detectLocalGitSource(root);
+  return { root, config, skills, assets, audit, localGit };
 }
 
 export async function initWorkspace(root: string, config?: Partial<SkillOpsConfig>): Promise<SkillOpsConfig> {

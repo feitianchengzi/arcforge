@@ -6,7 +6,7 @@ metadata:
   owner: core/workspace
   version: 1
   created: 2026-05-21
-  updated: 2026-05-21
+  updated: 2026-05-25
 type: object
 required:
   - root
@@ -66,4 +66,40 @@ properties:
           type: string
   audit:
     $ref: "./AuditReport.yaml"
-
+  localGit:
+    type: object
+    nullable: true
+    description: Local Git source metadata for the workspace root, used by same-repository sharing.
+    required:
+      - root
+      - relativePath
+      - remotes
+    properties:
+      root:
+        type: string
+        description: Absolute Git repository root path.
+      relativePath:
+        type: string
+        description: Workspace path relative to the Git repository root, or "." when the workspace is the repository root.
+      currentBranch:
+        type: string
+        nullable: true
+        description: Current branch name when the repository is not detached.
+      remotes:
+        type: array
+        items:
+          type: object
+          required:
+            - name
+            - canonicalKey
+          properties:
+            name:
+              type: string
+            fetchUrl:
+              type: string
+              nullable: true
+            pushUrl:
+              type: string
+              nullable: true
+            canonicalKey:
+              type: string

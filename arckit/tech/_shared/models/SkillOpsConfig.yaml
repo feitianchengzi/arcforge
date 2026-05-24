@@ -6,7 +6,7 @@ metadata:
   owner: core/config
   version: 1
   created: 2026-05-21
-  updated: 2026-05-21
+  updated: 2026-05-25
 type: object
 required:
   - version
@@ -101,6 +101,14 @@ properties:
         projectName:
           type: string
           nullable: true
+        sameRepository:
+          type: boolean
+          nullable: true
+          description: True when this desktop share target should use the current local Git repository remote.
+        sameRepositoryRemote:
+          type: string
+          nullable: true
+          description: Local Git remote name selected for same-repository sharing.
   profiles:
     type: array
     items:

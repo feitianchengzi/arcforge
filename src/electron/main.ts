@@ -105,7 +105,7 @@ ipcMain.handle("appState:save", (_event, patch: Partial<AppState>) => saveAppSta
 ipcMain.handle("appState:migrate", (_event, legacyState: Partial<AppState>, origin: string) => migrateAppState(legacyState, origin));
 ipcMain.handle("source:download", (_event, remoteUrl: string) => downloadSourceCommand(remoteUrl, cacheRoot()));
 ipcMain.handle("publish:plan", (_event, root: string, visibility: "private" | "public") => createPublishPlanCommand(root, visibility));
-ipcMain.handle("publish:sharePlan", (_event, root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string) => createSharePlanCommand({
+ipcMain.handle("publish:sharePlan", (_event, root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, sameRepository?: boolean, sameRepositoryRemote?: string) => createSharePlanCommand({
   root,
   remoteUrl,
   visibility,
@@ -114,9 +114,11 @@ ipcMain.handle("publish:sharePlan", (_event, root: string, remoteUrl: string, vi
   profileName,
   delivery,
   shareBranch: branch,
+  sameRepository,
+  sameRepositoryRemote,
   cacheDir: cacheRoot()
 }));
-ipcMain.handle("publish:share", (_event, root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, confirm?: boolean) => shareProjectCommand({
+ipcMain.handle("publish:share", (_event, root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, confirm?: boolean, sameRepository?: boolean, sameRepositoryRemote?: string) => shareProjectCommand({
   root,
   remoteUrl,
   visibility,
@@ -127,6 +129,8 @@ ipcMain.handle("publish:share", (_event, root: string, remoteUrl: string, visibi
   delivery,
   shareBranch: branch,
   confirm,
+  sameRepository,
+  sameRepositoryRemote,
   cacheDir: cacheRoot()
 }));
 ipcMain.handle("profile:apply", (_event, root: string, profile: string, targetDir: string) => applyProfileCommand(root, profile, targetDir));
@@ -333,7 +337,9 @@ function normalizeConfig(config: SkillOpsConfig): SkillOpsConfig {
       profile: group.profile,
       remoteUrl: group.remoteUrl.trim(),
       targetMode: group.targetMode,
-      projectName: group.projectName?.trim() || undefined
+      projectName: group.projectName?.trim() || undefined,
+      sameRepository: group.sameRepository,
+      sameRepositoryRemote: group.sameRepositoryRemote?.trim() || undefined
     })),
     profiles: config.profiles.map((profile) => ({
       name: profile.name.trim(),

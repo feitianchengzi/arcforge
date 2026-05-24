@@ -159,6 +159,10 @@ export interface Dictionary {
   shareNamedProject: string;
   shareNamedProjectHelp: string;
   shareProjectName: string;
+  sameRepository: string;
+  sameRepositoryHelp: string;
+  sameRepositoryRemote: string;
+  sameRepositoryPath: string;
   commitMessage: string;
   sharing: string;
   shareReady: (branch: string) => string;
@@ -340,6 +344,10 @@ export const dictionaries: Record<Language, Dictionary> = {
     shareNamedProject: "Folder by project name",
     shareNamedProjectHelp: "SkillOps writes this project into a named folder under the repository path.",
     shareProjectName: "Project folder name",
+    sameRepository: "Share to the same repository",
+    sameRepositoryHelp: "Commit and push from the local Git repository, using the current Skill project path only.",
+    sameRepositoryRemote: "Git remote",
+    sameRepositoryPath: "Local repository path",
     commitMessage: "Commit message",
     sharing: "Sharing project...",
     shareReady: (branch: string) => `Ready to share from ${branch}. Confirm to write to GitHub.`,
@@ -519,6 +527,10 @@ export const dictionaries: Record<Language, Dictionary> = {
     shareNamedProject: "按项目名称建目录",
     shareNamedProjectHelp: "SkillOps 会把当前项目写入仓库路径下的项目名称目录。",
     shareProjectName: "项目目录名称",
+    sameRepository: "共享到同一个仓库",
+    sameRepositoryHelp: "直接在本地 Git 仓库提交并推送，只操作当前 Skill 项目路径。",
+    sameRepositoryRemote: "Git 源",
+    sameRepositoryPath: "本地仓库路径",
     commitMessage: "提交说明",
     sharing: "正在共享项目...",
     shareReady: (branch: string) => `准备从 ${branch} 共享。确认后会写入 GitHub。`,

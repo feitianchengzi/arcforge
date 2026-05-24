@@ -33,6 +33,7 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
   assert.match(commands, /skillops <command> --help/);
   assert.match(commands, /SkillOps CLI - share/);
   assert.match(commands, /One-time skill selection/);
+  assert.match(commands, /--same-repository/);
   assert.match(commands, /command === "share"/);
   assert.match(commands, /command === "doctor"/);
   assert.match(commands, /requiresConfirm/);
@@ -50,6 +51,8 @@ test("share delivery failures keep manual recovery guidance", async () => {
   assert.match(shareCore, /manual commands below/);
   assert.match(shareCore, /errorStage/);
   assert.match(shareCore, /manualCommands/);
+  assert.match(shareCore, /shareSameRepositoryProject/);
+  assert.match(shareCore, /commitPathIfChanged/);
 });
 
 test("release workflow publishes cli-only install assets", async () => {

@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode } from "../shared/types.js";
+import type { GitHubAccessResult, LocalGitRemote, LocalGitSource, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, WorkspaceSnapshot } from "../shared/types.js";
 import { saveConfig } from "./config.js";
 import { pathExists } from "./fs.js";
 import { checkoutShareBranch, createPullRequest, currentCommit, ensureForkRemote, inspectGitHubAccess, parseGitHubRepo, prepareShareCheckout, pushBranch, resolveRemoteSourceRef, runGit, withShareLock } from "./share-git.js";
@@ -27,6 +27,8 @@ export interface ShareProjectOptions {
   delivery?: ShareDeliveryMethod;
   shareBranch?: string;
   confirm?: boolean;
+  sameRepository?: boolean;
+  sameRepositoryRemote?: string;
 }
 
 export interface DownloadSourceOptions {
@@ -36,10 +38,29 @@ export interface DownloadSourceOptions {
 
 export async function createSharePlan(options: ShareProjectOptions): Promise<SharePlanResult> {
   const root = path.resolve(options.root);
-  const target = parseRemoteSource(options.remoteUrl);
   const snapshot = await scanWorkspace(root);
   const profile = resolveShareProfile(snapshot.config, options.profileName, options.skills);
   const selectedSkills = selectProfileSkills(snapshot.skills, profile.skills, true);
+  if (options.sameRepository) {
+    const sameRepository = resolveSameRepository(snapshot, options.sameRepositoryRemote);
+    const remoteUrl = sameRepository.remote.pushUrl || sameRepository.remote.fetchUrl || options.remoteUrl;
+    const access = sameRepositoryAccess(remoteUrl, sameRepository.remote, []);
+    const branch = sameRepository.localGit.currentBranch || "HEAD";
+    const targetPath = sameRepository.localGit.relativePath || ".";
+    const plan = await createPublishPlan(root, snapshot.config, selectedSkills, options.visibility);
+    return {
+      plan,
+      access,
+      delivery: "directPush",
+      requiresConfirm: true,
+      branch,
+      targetPath,
+      sameRepository: true,
+      localGit: sameRepository.localGit,
+      commands: sameRepositoryCommands(sameRepository.localGit.root, sameRepository.remote.name, branch, targetPath)
+    };
+  }
+  const target = parseRemoteSource(options.remoteUrl);
   const targetMode = options.targetMode ?? "direct";
   const projectName = options.projectName?.trim() || path.basename(root);
   const messages: string[] = [];
@@ -72,10 +93,13 @@ export async function createSharePlan(options: ShareProjectOptions): Promise<Sha
 
 export async function shareProject(options: ShareProjectOptions): Promise<ShareResult> {
   const root = path.resolve(options.root);
-  const target = parseRemoteSource(options.remoteUrl);
   const snapshot = await scanWorkspace(root);
   const profile = resolveShareProfile(snapshot.config, options.profileName, options.skills);
   const selectedSkills = selectProfileSkills(snapshot.skills, profile.skills, true);
+  if (options.sameRepository) {
+    return shareSameRepositoryProject(root, options, snapshot, selectedSkills);
+  }
+  const target = parseRemoteSource(options.remoteUrl);
   const targetMode = options.targetMode ?? "direct";
   const projectName = options.projectName?.trim() || path.basename(root);
   const messages: string[] = [];
@@ -206,6 +230,88 @@ async function stageShareTarget(root: string, targetSubdir: string, sourceDir: s
   await runGit(root, targetSubdir ? ["add", targetSubdir] : ["add", sourceDir, "skillops.config.json", "README.md"], messages);
 }
 
+async function shareSameRepositoryProject(
+  root: string,
+  options: ShareProjectOptions,
+  snapshot: WorkspaceSnapshot,
+  selectedSkills: typeof snapshot.skills
+): Promise<ShareResult> {
+  const messages: string[] = [];
+  const sameRepository = resolveSameRepository(snapshot, options.sameRepositoryRemote);
+  const remoteUrl = sameRepository.remote.pushUrl || sameRepository.remote.fetchUrl || options.remoteUrl;
+  const branch = sameRepository.localGit.currentBranch;
+  if (!branch) {
+    throw new Error("Same-repository sharing requires the local repository to be on a branch, not a detached HEAD.");
+  }
+  if (!options.confirm) {
+    throw new Error("Same-repository sharing commits and pushes from the local repository. Re-run with --confirm.");
+  }
+
+  const localConfig = normalizeConfig({
+    ...snapshot.config,
+    teamRepo: remoteUrl,
+    shareTargetMode: "direct",
+    shareProjectName: undefined
+  });
+  await saveConfig(root, localConfig);
+
+  const targetPath = sameRepository.localGit.relativePath || ".";
+  await runGit(sameRepository.localGit.root, ["add", "--", targetPath], messages);
+  const committed = await commitPathIfChanged(sameRepository.localGit.root, targetPath, options.message, messages);
+  const commitHash = await currentCommit(sameRepository.localGit.root, messages);
+  let pushed = false;
+  let errorStage: string | undefined;
+
+  try {
+    if (!committed) {
+      messages.push("No same-repository share commit was created, so no push was attempted.");
+    } else {
+      errorStage = "push";
+      await pushBranch(sameRepository.localGit.root, sameRepository.remote.name, branch, messages);
+      pushed = true;
+    }
+    errorStage = undefined;
+  } catch (error) {
+    const stage = errorStage ?? "delivery";
+    messages.push(`Same-repository delivery failed during ${stage}: ${error instanceof Error ? error.message : String(error)}`);
+    messages.push("The local commit was kept. Push it manually after fixing remote access or branch protection.");
+  }
+
+  messages.push(`Same-repository sharing used ${targetPath} as the only Git pathspec.`);
+  messages.push(`Selected ${selectedSkills.length} skill${selectedSkills.length === 1 ? "" : "s"} for the share profile.`);
+
+  return {
+    remoteUrl,
+    branch,
+    targetPath,
+    checkoutRoot: sameRepository.localGit.root,
+    committed,
+    pushed,
+    sameRepository: true,
+    delivery: "directPush",
+    commitHash,
+    access: sameRepositoryAccess(remoteUrl, sameRepository.remote, messages),
+    manualCommands: sameRepositoryCommands(sameRepository.localGit.root, sameRepository.remote.name, branch, targetPath),
+    errorStage,
+    messages
+  };
+}
+
+async function commitPathIfChanged(root: string, targetPath: string, message: string | undefined, messages: string[]): Promise<boolean> {
+  const changed = (await runGit(root, ["status", "--porcelain", "--", targetPath], messages)).trim().length > 0;
+  if (!changed) {
+    messages.push("No file changes to commit in the skill project path.");
+    return false;
+  }
+  const stagedFiles = (await runGit(root, ["diff", "--cached", "--name-only", "--", targetPath], messages)).trim();
+  if (!stagedFiles) {
+    messages.push("No staged file changes in the skill project path.");
+    return false;
+  }
+  await runGit(root, ["commit", "-m", message?.trim() || "Share SkillOps project", "--", targetPath], messages);
+  return true;
+}
+
 async function commitIfChanged(root: string, message: string | undefined, messages: string[]): Promise<boolean> {
   const status = await runGit(root, ["status", "--porcelain"], messages);
   const committed = status.trim().length > 0;
@@ -215,6 +321,47 @@ async function commitIfChanged(root: string, message: string | undefined, messag
     messages.push("No file changes to commit.");
   }
   return committed;
+}
+
+function resolveSameRepository(snapshot: WorkspaceSnapshot, remoteName?: string): { localGit: LocalGitSource; remote: LocalGitRemote } {
+  const localGit = snapshot.localGit;
+  if (!localGit) throw new Error("Current SkillOps project is not inside a Git repository.");
+  if (localGit.remotes.length === 0) throw new Error("Current Git repository has no remotes configured.");
+  const requested = remoteName?.trim();
+  const remote = requested
+    ? localGit.remotes.find((item) => item.name === requested)
+    : localGit.remotes[0];
+  if (!remote) {
+    throw new Error(`Git remote ${requested} was not found in the local repository.`);
+  }
+  return { localGit, remote };
+}
+
+function sameRepositoryAccess(remoteUrl: string, remote: LocalGitRemote, messages: string[]): GitHubAccessResult {
+  const target = safeParseGitHubRepo(remoteUrl);
+  return {
+    remoteUrl,
+    cloneUrl: target?.cloneUrl ?? remoteUrl,
+    repository: target?.nameWithOwner,
+    viewerPermission: `local remote: ${remote.name}`,
+    authenticated: true,
+    ghAvailable: false,
+    canPush: true,
+    canCreatePullRequest: false,
+    canFork: false,
+    recommendedDelivery: "directPush",
+    availableDelivery: ["directPush"],
+    unavailableReasons: [`Same-repository sharing pushes through the local Git remote "${remote.name}".`],
+    messages
+  };
+}
+
+function safeParseGitHubRepo(remoteUrl: string): ReturnType<typeof parseGitHubRepo> {
+  try {
+    return parseGitHubRepo(remoteUrl);
+  } catch {
+    return undefined;
+  }
 }
 
 function slug(value: string): string {
@@ -283,6 +430,14 @@ function manualShareCommands(delivery: ShareDeliveryMethod, branch: string, base
     commands.push(`gh pr create --repo ${shellArg(repository)} --head <your-github-login>:${shellArg(branch)} --base ${shellArg(baseBranch)}`);
   }
   return commands;
+}
+
+function sameRepositoryCommands(root: string, remoteName: string, branch: string, targetPath: string): string[] {
+  return [
+    `git -C ${shellArg(root)} add -- ${shellArg(targetPath)}`,
+    `git -C ${shellArg(root)} commit -m ${shellArg("Share SkillOps project")} -- ${shellArg(targetPath)}`,
+    `git -C ${shellArg(root)} push -u ${shellArg(remoteName)} ${shellArg(branch)}`
+  ];
 }
 
 function prTitle(projectName: string): string {

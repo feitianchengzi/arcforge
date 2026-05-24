@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { GitPullRequest, Pencil, Plus, Terminal, Trash2 } from "lucide-react";
-import type { ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetGroup, WorkspaceSnapshot } from "../../shared/types";
+import { GitBranch, GitPullRequest, Pencil, Plus, Terminal, Trash2 } from "lucide-react";
+import type { LocalGitRemote, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetGroup, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import { createShareTargetGroup, selectedSkillCount } from "../utils";
 
@@ -25,6 +25,7 @@ export function Publish(props: {
   const [editingGroup, setEditingGroup] = useState<ShareTargetGroup | undefined>();
   const activeGroup = props.activeTargetGroup;
   const selectedSkills = activeGroup ? selectedSkillCount(props.snapshot, activeGroup.profile) : 0;
+  const activeReady = activeGroup ? shareTargetReady(props.snapshot, activeGroup) : false;
 
   function upsertGroup(group: ShareTargetGroup) {
     const existing = props.targetGroups.some((item) => item.id === group.id);
@@ -51,7 +52,7 @@ export function Publish(props: {
             {props.targetGroups.map((group) => (
               <button key={group.id} className={activeGroup?.id === group.id ? "active" : ""} onClick={() => props.setActiveTargetGroupId(group.id)}>
                 <strong>{group.name}</strong>
-                <span>{group.profile} / {group.remoteUrl}</span>
+                <span>{group.profile} / {shareTargetRemoteLabel(props.snapshot, group)}</span>
               </button>
             ))}
           </div>
@@ -74,15 +75,15 @@ export function Publish(props: {
               </div>
             </div>
             <label>{t.remoteRepository}</label>
-            <div className="pathbox light">{activeGroup.remoteUrl}</div>
+            <div className="pathbox light">{shareTargetRemoteLabel(props.snapshot, activeGroup)}</div>
             <label>{t.shareTargetMode}</label>
-            <div className="pathbox light">{activeGroup.targetMode === "namedProject" ? `${t.shareNamedProject}: ${activeGroup.projectName ?? ""}` : t.shareDirectPath}</div>
+            <div className="pathbox light">{activeGroup.sameRepository ? `${t.sameRepositoryPath}: ${props.snapshot.localGit?.relativePath ?? "."}` : activeGroup.targetMode === "namedProject" ? `${t.shareNamedProject}: ${activeGroup.projectName ?? ""}` : t.shareDirectPath}</div>
           </>
         )}
         <label>{t.commitMessage}</label>
         <input value={message} onChange={(event) => setMessage(event.target.value)} />
         <div className="actions">
-          <button className="primary" onClick={() => activeGroup && props.shareProject(activeGroup, message)} disabled={props.isSharing || !activeGroup || !activeGroup.remoteUrl.trim() || (activeGroup.targetMode === "namedProject" && !activeGroup.projectName?.trim())}>{props.isSharing ? t.sharing : t.shareNow}</button>
+          <button className="primary" onClick={() => activeGroup && props.shareProject(activeGroup, message)} disabled={props.isSharing || !activeGroup || !activeReady}>{props.isSharing ? t.sharing : t.shareNow}</button>
         </div>
         {props.shareProgress && <p className="muted">{props.shareProgress}</p>}
         {props.sharePlan && (
@@ -162,6 +163,7 @@ export function Publish(props: {
         <ShareTargetDialog
           t={t}
           group={editingGroup}
+          snapshot={props.snapshot}
           profileOptions={props.profileOptions}
           onSave={upsertGroup}
           onClose={() => setEditingGroup(undefined)}
@@ -181,14 +183,63 @@ function deliveryLabel(t: Dictionary, value: ShareDeliveryMethod): string {
 function ShareTargetDialog(props: {
   t: Dictionary;
   group: ShareTargetGroup;
+  snapshot: WorkspaceSnapshot;
   profileOptions: string[];
   onSave: (group: ShareTargetGroup) => void;
   onClose: () => void;
 }) {
   const { t } = props;
   const [draft, setDraft] = useState(props.group);
+  const localGit = props.snapshot.localGit;
+  const remotes = localGit?.remotes ?? [];
+  const sameRepositoryAvailable = remotes.length > 0;
+  const selectedRemote = selectSameRepositoryRemote(remotes, draft.sameRepositoryRemote);
+  const selectedRemoteUrl = selectedRemote?.pushUrl || selectedRemote?.fetchUrl || "";
+  const sameRepositoryEnabled = Boolean(draft.sameRepository && sameRepositoryAvailable);
 
   useEffect(() => setDraft(props.group), [props.group]);
+
+  function setSameRepository(enabled: boolean) {
+    if (!enabled) {
+      setDraft({ ...draft, sameRepository: false, sameRepositoryRemote: undefined });
+      return;
+    }
+    const remote = selectedRemote ?? remotes[0];
+    if (!remote) return;
+    setDraft({
+      ...draft,
+      sameRepository: true,
+      sameRepositoryRemote: remote.name,
+      remoteUrl: "",
+      targetMode: "direct",
+      projectName: undefined
+    });
+  }
+
+  function setSameRepositoryRemote(remoteName: string) {
+    const remote = selectSameRepositoryRemote(remotes, remoteName);
+    setDraft({
+      ...draft,
+      sameRepositoryRemote: remoteName,
+      remoteUrl: draft.sameRepository && remote ? "" : draft.remoteUrl
+    });
+  }
+
+  function setRemoteUrl(value: string) {
+    const matchedRemote = remotes.find((remote) => remoteMatchesInput(remote, value));
+    if (matchedRemote) {
+      setDraft({
+        ...draft,
+        remoteUrl: "",
+        sameRepository: true,
+        sameRepositoryRemote: matchedRemote.name,
+        targetMode: "direct",
+        projectName: undefined
+      });
+      return;
+    }
+    setDraft({ ...draft, remoteUrl: value, sameRepository: false, sameRepositoryRemote: undefined });
+  }
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={props.onClose}>
@@ -207,29 +258,92 @@ function ShareTargetDialog(props: {
           {props.profileOptions.map((name) => <option key={name}>{name}</option>)}
         </select>
         <label>{t.remoteRepository}</label>
-        <input value={draft.remoteUrl} placeholder="owner/repo or github.com/owner/repo/tree/main/path" onChange={(event) => setDraft({ ...draft, remoteUrl: event.target.value })} />
-        <label>{t.shareTargetMode}</label>
-        <div className="segmented two">
-          <button className={draft.targetMode === "direct" ? "active" : ""} onClick={() => setDraft({ ...draft, targetMode: "direct" })}>{t.shareDirectPath}</button>
-          <button className={draft.targetMode === "namedProject" ? "active" : ""} onClick={() => setDraft({ ...draft, targetMode: "namedProject" })}>{t.shareNamedProject}</button>
-        </div>
-        {draft.targetMode === "namedProject" && (
+        <input value={sameRepositoryEnabled ? "" : draft.remoteUrl} disabled={sameRepositoryEnabled} placeholder={sameRepositoryEnabled && selectedRemoteUrl ? selectedRemoteUrl : "owner/repo or github.com/owner/repo/tree/main/path"} onChange={(event) => setRemoteUrl(event.target.value)} />
+        {sameRepositoryAvailable && (
+          <div className="target-subsection">
+            <label className="check-row">
+              <input type="checkbox" checked={sameRepositoryEnabled} onChange={(event) => setSameRepository(event.target.checked)} />
+              <span>{t.sameRepository}</span>
+            </label>
+            <p className="muted">{t.sameRepositoryHelp}</p>
+            {remotes.length > 1 && (
+              <>
+                <label>{t.sameRepositoryRemote}</label>
+                <select value={selectedRemote?.name ?? remotes[0]?.name ?? ""} onChange={(event) => setSameRepositoryRemote(event.target.value)}>
+                  {remotes.map((remote) => <option key={remote.name} value={remote.name}>{remote.name} - {remote.pushUrl || remote.fetchUrl}</option>)}
+                </select>
+              </>
+            )}
+            {sameRepositoryEnabled && <div className="source-summary"><GitBranch size={16} /><div><strong>{selectedRemoteUrl}</strong><span>{t.sameRepositoryPath}: {localGit?.relativePath ?? "."}</span></div></div>}
+          </div>
+        )}
+        {!sameRepositoryEnabled && (
           <>
-            <label>{t.shareProjectName}</label>
-            <input value={draft.projectName ?? ""} onChange={(event) => setDraft({ ...draft, projectName: event.target.value })} />
+            <label>{t.shareTargetMode}</label>
+            <div className="segmented two">
+              <button className={draft.targetMode === "direct" ? "active" : ""} onClick={() => setDraft({ ...draft, targetMode: "direct" })}>{t.shareDirectPath}</button>
+              <button className={draft.targetMode === "namedProject" ? "active" : ""} onClick={() => setDraft({ ...draft, targetMode: "namedProject" })}>{t.shareNamedProject}</button>
+            </div>
+            {draft.targetMode === "namedProject" && (
+              <>
+                <label>{t.shareProjectName}</label>
+                <input value={draft.projectName ?? ""} onChange={(event) => setDraft({ ...draft, projectName: event.target.value })} />
+              </>
+            )}
+            <p className="muted">{draft.targetMode === "namedProject" ? t.shareNamedProjectHelp : t.shareDirectPathHelp}</p>
           </>
         )}
-        <p className="muted">{draft.targetMode === "namedProject" ? t.shareNamedProjectHelp : t.shareDirectPathHelp}</p>
         <div className="actions modal-actions">
           <button onClick={props.onClose}>{t.cancel}</button>
           <button className="primary" onClick={() => props.onSave({
             ...draft,
             name: draft.name.trim() || t.unnamedProfile,
-            remoteUrl: draft.remoteUrl.trim(),
-            projectName: draft.projectName?.trim() || undefined
+            remoteUrl: sameRepositoryEnabled ? "" : draft.remoteUrl.trim(),
+            targetMode: sameRepositoryEnabled ? "direct" : draft.targetMode,
+            projectName: sameRepositoryEnabled ? undefined : draft.projectName?.trim() || undefined,
+            sameRepository: sameRepositoryEnabled,
+            sameRepositoryRemote: sameRepositoryEnabled ? selectedRemote?.name : undefined
           })}>{t.saveShareTarget}</button>
         </div>
       </section>
     </div>
   );
+}
+
+function shareTargetReady(snapshot: WorkspaceSnapshot, group: ShareTargetGroup): boolean {
+  if (group.sameRepository) return Boolean(selectSameRepositoryRemote(snapshot.localGit?.remotes ?? [], group.sameRepositoryRemote));
+  return Boolean(group.remoteUrl.trim()) && (group.targetMode !== "namedProject" || Boolean(group.projectName?.trim()));
+}
+
+function shareTargetRemoteLabel(snapshot: WorkspaceSnapshot, group: ShareTargetGroup): string {
+  if (!group.sameRepository) return group.remoteUrl;
+  const remote = selectSameRepositoryRemote(snapshot.localGit?.remotes ?? [], group.sameRepositoryRemote);
+  return remote ? `${remote.name}: ${remote.pushUrl || remote.fetchUrl}` : group.remoteUrl;
+}
+
+function selectSameRepositoryRemote(remotes: LocalGitRemote[], remoteName?: string): LocalGitRemote | undefined {
+  if (remoteName) {
+    const remote = remotes.find((item) => item.name === remoteName);
+    if (remote) return remote;
+  }
+  return remotes[0];
+}
+
+function remoteMatchesInput(remote: LocalGitRemote, value: string): boolean {
+  const key = canonicalRemoteKey(value);
+  return Boolean(key) && (key === remote.canonicalKey || key === canonicalRemoteKey(remote.fetchUrl ?? "") || key === canonicalRemoteKey(remote.pushUrl ?? ""));
+}
+
+function canonicalRemoteKey(value: string): string {
+  const trimmed = value.trim().replace(/\/$/, "").replace(/\.git$/, "");
+  if (!trimmed) return "";
+  const sshMatch = trimmed.match(/^git@github\.com:([^/]+)\/(.+)$/i);
+  if (sshMatch) return `github.com/${sshMatch[1].toLowerCase()}/${sshMatch[2].toLowerCase()}`;
+  const sshUrlMatch = trimmed.match(/^ssh:\/\/git@github\.com\/([^/]+)\/(.+)$/i);
+  if (sshUrlMatch) return `github.com/${sshUrlMatch[1].toLowerCase()}/${sshUrlMatch[2].toLowerCase()}`;
+  const githubPathMatch = trimmed.match(/^(?:https?:\/\/)?github\.com\/([^/]+)\/([^/]+)(?:\/.*)?$/i);
+  if (githubPathMatch) return `github.com/${githubPathMatch[1].toLowerCase()}/${githubPathMatch[2].toLowerCase()}`;
+  const ownerRepoMatch = trimmed.match(/^([\w.-]+)\/([\w.-]+)$/);
+  if (ownerRepoMatch) return `github.com/${ownerRepoMatch[1].toLowerCase()}/${ownerRepoMatch[2].toLowerCase()}`;
+  return trimmed.toLowerCase();
 }

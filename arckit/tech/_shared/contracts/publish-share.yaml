@@ -4,7 +4,7 @@ metadata:
   owner: electron/main
   version: 2
   created: 2026-05-21
-  updated: 2026-05-24
+  updated: 2026-05-25
 endpoint:
   transport: electron-ipc
   channel: publish:share
@@ -59,6 +59,12 @@ request:
     - name: confirm
       type: boolean
       required: false
+    - name: sameRepository
+      type: boolean
+      required: false
+    - name: sameRepositoryRemote
+      type: string
+      required: false
 responses:
   plan:
     description: publish:sharePlan returns PublishPlan, GitHub access result, recommended delivery, share branch, target path and CLI commands.
@@ -67,7 +73,7 @@ responses:
       $ref: "../models/ShareResult.yaml"
   errors:
     - code: REMOTE_URL_REQUIRED
-      message: Remote URL is required.
+      message: Remote URL is required unless sameRepository is true.
     - code: REMOTE_URL_INVALID
       message: Remote URL cannot be parsed.
     - code: PROJECT_NAME_REQUIRED
@@ -80,16 +86,21 @@ responses:
       message: Requested delivery method is not available for the current GitHub access state.
     - code: PR_CREATE_FAILED
       message: Pull Request creation failed after local commit or push.
+    - code: LOCAL_GIT_REMOTE_REQUIRED
+      message: Same-repository sharing requires the workspace to be inside a Git repository with at least one remote.
 business_logic:
   flow:
-    - Parse remote source and target subdirectory.
+    - Parse remote source and target subdirectory unless sameRepository is true.
     - Scan workspace and save local sharing settings.
-    - Inspect GitHub CLI availability, login state and repository permission.
-    - Choose target Pull Request, fork Pull Request, direct push or local branch delivery.
-    - Prepare isolated shared checkout under app data or CLI cache.
-    - Create or reset the share branch from the resolved base branch.
-    - Copy sourceDir, config, and README into target path.
+    - Inspect GitHub CLI availability, login state and repository permission for ordinary remote sharing.
+    - Choose target Pull Request, fork Pull Request, direct push or local branch delivery for ordinary remote sharing.
+    - Prepare isolated shared checkout under app data or CLI cache for ordinary remote sharing.
+    - Create or reset the share branch from the resolved base branch for ordinary remote sharing.
+    - Copy sourceDir, config, and README into target path for ordinary remote sharing.
+    - For sameRepository, resolve local Git root, selected remote, current branch and workspace relative path.
+    - For sameRepository, stage and commit only the workspace relative path.
     - Commit changes when git status is non-empty.
     - Skip push and Pull Request creation when no commit is created.
     - Push branch to origin or fork remote when delivery requires remote writes.
+    - For sameRepository, push current branch to the selected local Git remote.
     - Create Pull Request when delivery is targetPullRequest or forkPullRequest.
