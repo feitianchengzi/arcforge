@@ -1,83 +1,38 @@
-# Release Notes
+# Changelog
 
-This document records the user-facing changes for SkillOps releases. SkillOps is still pre-1.0, so versioned notes focus on workflow capability, packaging behavior, and documentation changes rather than a stable public API guarantee.
+All notable changes to this project will be documented in this file.
 
-## v0.1.6 - 2026-05-25
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
+while it remains in the `0.x` pre-1.0 release line.
 
-### Summary
+## [Unreleased]
 
-This release turns sharing into a fuller GitHub review workflow while keeping
-SkillOps focused on local-first skill governance before distribution. It adds
-Pull Request delivery, same-repository sharing, single-skill source discovery,
-share target drift checks, and clearer audit feedback.
-
-### Highlights
-
-- GitHub PR sharing now starts with a plan, checks access through GitHub CLI,
-  recommends a delivery method, and only writes after explicit confirmation.
-- Same-repository sharing and single-skill sources reduce setup friction for
-  small teams and standalone skill repositories.
-- Share target drift checks help teams see whether shared skill copies still
-  match their source before another review or release.
-- Audit findings now include clearer feedback and links to remediation guidance.
+## [0.1.6] - 2026-05-25
 
 ### Added
 
-- Added GitHub Pull Request sharing for Skill projects.
-- Added CLI share planning and execution split:
-  - `skillops share plan` previews the release plan, GitHub access, recommended delivery method, branch, target path, and follow-up command.
-  - `skillops share run --confirm` performs the remote write.
-- Added GitHub permission detection through GitHub CLI, including authenticated state, repository permission, recommended delivery method, and fallback options.
-- Added delivery modes for target repository Pull Request, fork Pull Request, direct branch push, and local branch.
-- Added desktop share confirmation flow before GitHub writes.
-- Added PR links, checkout path, commit hash, delivery method, and manual recovery commands to share results.
-- Added same-repository sharing so compatible local project and target workflows can reuse the current checkout.
-- Added single-skill project source support for repositories or folders that contain one standalone `SKILL.md`.
-- Added share target drift checks in core, CLI, desktop, IPC, and technical contracts.
-- Added audit finding help links and richer audit feedback in CLI, desktop, and shared report models.
-- Added pending ArcKit notes for agent workbench maintenance, skill effect testing, and security audit follow-up.
+- Added GitHub Pull Request sharing for Skill projects, including plan-first CLI commands, desktop confirmation, permission detection through GitHub CLI, and delivery support for target-repository PRs, fork PRs, direct branch pushes, and local branches.
+- Added same-repository sharing so compatible local project and target workflows can reuse the current checkout instead of creating unnecessary copied worktrees.
+- Added single-skill project source support, allowing SkillOps to scan and govern repositories or folders that contain one standalone `SKILL.md`.
+- Added share target drift checks across CLI, desktop, IPC, contracts, and the share view so teams can see whether shared targets still match source skills.
+- Added audit report help links, richer audit findings, and UI affordances that connect audit output to remediation guidance.
+- Added pending ArcKit notes for future agent workbench maintenance, skill effect testing, and security audit follow-up.
 
 ### Changed
 
-- Sharing now uses an isolated share checkout instead of writing directly in the user's current workspace checkout.
-- Desktop and CLI sharing now follow the same plan-first, confirm-before-write workflow.
-- Desktop sharing now uses the GitHub access recommendation automatically instead of requiring users to choose a delivery method before permission detection.
-- CLI share execution now preserves manual recovery guidance when direct push or Pull Request delivery fails.
-- The Electron preload bridge and IPC handlers now expose a separate share-plan operation before confirmed sharing.
-- ArcKit specs, interaction docs, and technical contracts now describe the GitHub PR workflow and updated `ShareResult`.
-- ArcKit specs and technical contracts now also cover same-repository sharing, single-skill discovery, share drift, and audit feedback.
-- The settings dialog has improved layout, spacing, and responsive behavior.
-- Release note history now covers earlier `0.1.x` releases.
+- Reworked sharing around an isolated share checkout for GitHub writes, with plan results carrying PR links, checkout paths, commit hashes, delivery methods, and manual recovery commands.
+- Updated desktop and CLI sharing to use the same plan-first, confirm-before-write flow and to preserve recovery guidance when remote delivery fails.
+- Improved the settings dialog layout and responsive styling.
+- Updated ArcKit specs, interaction wireframes, technical contracts, and data models for GitHub PR sharing, same-repository sharing, share drift, single-skill source discovery, and audit feedback.
+- Expanded release note history for previous `0.1.x` releases.
 
 ### Fixed
 
 - Fixed share target list wrapping in the desktop UI.
 - Fixed profile deletion so removed profiles persist correctly.
 
-### Breaking Changes
-
-None.
-
-### Upgrade Guide
-
-No special migration is required. Existing SkillOps workspaces can continue using
-their current config; teams using GitHub sharing should review the new plan step
-before running confirmed writes.
-
-### Dependencies Updated
-
-None.
-
-### Known Issues
-
-None.
-
-### Release Status
-
-This `v0.1.6` entry documents changes currently on `main` after `v0.1.5`. The
-release tag has not been created yet.
-
-## v0.1.5 - 2026-05-24
+## [0.1.5] - 2026-05-24
 
 ### Added
 
@@ -90,16 +45,16 @@ release tag has not been created yet.
 
 ### Changed
 
-- Split the large desktop UI implementation into focused view/component modules.
+- Split the large desktop UI implementation into focused view and component modules.
 - Reworked sharing internals so path parsing, Git execution, and file synchronization are separate core responsibilities.
-- Expanded project review and profiles-targets interaction specs to cover editor and target workflow states.
-- Updated desktop app specs and architecture docs to include file editing, saved share targets, and split view behavior.
+- Expanded project review and profile-target interaction specs to cover editor and target workflow states.
+- Updated desktop app specs and architecture docs for file editing, saved share targets, and split view behavior.
 
 ### Fixed
 
 - Fixed CLI release installer shims so release-installed CLI entrypoints resolve correctly.
 
-## v0.1.4 - 2026-05-22
+## [0.1.4] - 2026-05-22
 
 ### Added
 
@@ -121,11 +76,11 @@ release tag has not been created yet.
 - Refined target group state handling.
 - Refreshed README usage assets.
 
-## v0.1.3 - 2026-05-22
+## [0.1.3] - 2026-05-22
 
 ### Added
 
-- Added the ArcKit visual design system, including design tokens, component catalog, light/dark theme notes, and a style preview page.
+- Added the ArcKit visual design system, including design tokens, component catalog, light and dark theme notes, and a style preview page.
 - Added overview and workflow SVG assets for README and documentation.
 - Added same-source sharing support so compatible current checkout workflows can avoid unnecessary copied worktrees.
 
@@ -135,14 +90,14 @@ release tag has not been created yet.
 - Reworked README, comparison, product, and roadmap docs in English and Chinese around SkillOps positioning.
 - Updated sharing specs and technical notes for same-source sharing behavior.
 
-## v0.1.2 - 2026-05-21
+## [0.1.2] - 2026-05-21
 
 ### Added
 
 - Added ArcKit product, interaction, and technical documentation.
 - Added generated release-note configuration for GitHub releases.
 - Added interaction wireframes for app shell, project review, profiles and targets, and sharing.
-- Added technical contracts and models for workspace scan, profile apply/drift, publish plan/share, source download, and environment status.
+- Added technical contracts and models for workspace scan, profile apply and drift, publish plan and share, source download, and environment status.
 - Added shared-asset ownership metadata handling for shared skill collaboration.
 - Added share progress feedback in the publish plan panel.
 
@@ -158,14 +113,14 @@ release tag has not been created yet.
 - Fixed profile apply replacement behavior.
 - Fixed share target path handling.
 
-## v0.1.1 - 2026-05-20
+## [0.1.1] - 2026-05-20
 
 ### Changed
 
 - `v0.1.1` points to the same commit as `v0.1.0`; there is no code diff between the two tags.
 - The tagged release state publishes only packaged release assets from the GitHub release workflow.
 
-## v0.1.0 - 2026-05-20
+## [0.1.0] - 2026-05-20
 
 ### Added
 
@@ -188,3 +143,11 @@ release tag has not been created yet.
 - Read release version base from the app manifest.
 - Checked out the repository before creating releases.
 - Uploaded only packaged release assets.
+
+[0.1.6]: https://github.com/feitianchengzi/skillops/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/feitianchengzi/skillops/compare/v0.1.4...v0.1.5
+[0.1.4]: https://github.com/feitianchengzi/skillops/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/feitianchengzi/skillops/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/feitianchengzi/skillops/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/feitianchengzi/skillops/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/feitianchengzi/skillops/releases/tag/v0.1.0
