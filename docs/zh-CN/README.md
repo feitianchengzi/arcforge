@@ -176,3 +176,4 @@ skillops doctor
 - [对比说明](comparison.md)
 - [架构说明](architecture.md)
 - [路线图](roadmap.md)
+- [发布记录](release-notes.md)

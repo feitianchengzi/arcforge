@@ -176,3 +176,4 @@ Further docs:
 - [Comparison](docs/comparison.md)
 - [Architecture](docs/architecture.md)
 - [Roadmap](docs/roadmap.md)
+- [Release notes](docs/release-notes.md)
