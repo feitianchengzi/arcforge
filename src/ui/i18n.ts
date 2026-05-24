@@ -157,8 +157,23 @@ export interface Dictionary {
   shareProjectName: string;
   commitMessage: string;
   sharing: string;
+  shareReady: (branch: string) => string;
+  shareReadyLocal: (branch: string) => string;
   shareComplete: (branch: string) => string;
+  sharePrComplete: (url: string) => string;
   shareOutput: string;
+  githubAccess: string;
+  deliveryMethod: string;
+  recommended: string;
+  targetPullRequest: string;
+  forkPullRequest: string;
+  directPush: string;
+  localBranch: string;
+  confirmShare: string;
+  cancelShare: string;
+  pullRequest: string;
+  manualCommands: string;
+  cliPreview: string;
 }
 
 export const dictionaries: Record<Language, Dictionary> = {
@@ -319,8 +334,23 @@ export const dictionaries: Record<Language, Dictionary> = {
     shareProjectName: "Project folder name",
     commitMessage: "Commit message",
     sharing: "Sharing project...",
+    shareReady: (branch: string) => `Ready to share from ${branch}. Confirm to write to GitHub.`,
+    shareReadyLocal: (branch: string) => `Ready to create local share branch ${branch}.`,
     shareComplete: (branch: string) => `Shared to ${branch}.`,
-    shareOutput: "Share output"
+    sharePrComplete: (url: string) => `Pull request created: ${url}`,
+    shareOutput: "Share output",
+    githubAccess: "GitHub access",
+    deliveryMethod: "Delivery method",
+    recommended: "Recommended",
+    targetPullRequest: "Target repo PR",
+    forkPullRequest: "Fork PR",
+    directPush: "Push branch",
+    localBranch: "Local branch",
+    confirmShare: "Confirm share",
+    cancelShare: "Cancel",
+    pullRequest: "Pull request",
+    manualCommands: "Manual commands",
+    cliPreview: "CLI preview"
   },
   "zh-CN": {
     appSubtitle: "GitHub 优先的 Skill 项目管理器",
@@ -479,7 +509,22 @@ export const dictionaries: Record<Language, Dictionary> = {
     shareProjectName: "项目目录名称",
     commitMessage: "提交说明",
     sharing: "正在共享项目...",
+    shareReady: (branch: string) => `准备从 ${branch} 共享。确认后会写入 GitHub。`,
+    shareReadyLocal: (branch: string) => `准备创建本地共享分支 ${branch}。`,
     shareComplete: (branch: string) => `已共享到 ${branch}。`,
-    shareOutput: "共享输出"
+    sharePrComplete: (url: string) => `已创建 Pull Request：${url}`,
+    shareOutput: "共享输出",
+    githubAccess: "GitHub 权限",
+    deliveryMethod: "交付方式",
+    recommended: "推荐",
+    targetPullRequest: "目标仓库 PR",
+    forkPullRequest: "Fork PR",
+    directPush: "推送分支",
+    localBranch: "本地分支",
+    confirmShare: "确认共享",
+    cancelShare: "取消",
+    pullRequest: "Pull Request",
+    manualCommands: "手动命令",
+    cliPreview: "CLI 预览"
   }
 };

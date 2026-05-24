@@ -3,9 +3,9 @@ import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { ShareTargetMode } from "../shared/types.js";
+import type { GitHubAccessResult, ShareDeliveryMethod } from "../shared/types.js";
 import { pathExists } from "./fs.js";
-import { canonicalRemoteKey, remoteProjectRef, repoName, shareTargetSubdir, type ParsedRemoteSource } from "./share-remote.js";
+import { canonicalRemoteKey, repoName, type ParsedRemoteSource } from "./share-remote.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -32,38 +32,127 @@ export async function prepareShareCheckout(cacheDir: string, target: ParsedRemot
   return { root: checkoutRoot, branch, source };
 }
 
-export async function directShareTarget(root: string, target: ParsedRemoteSource, targetMode: ShareTargetMode, projectName: string, sourceDir: string, messages: string[]): Promise<{
-  checkoutRoot: string;
-  branch: string;
-  source: ParsedRemoteSource;
-  targetSubdir: string;
-  installRef: string;
-} | undefined> {
-  try {
-    const checkoutRoot = (await runGit(root, ["rev-parse", "--show-toplevel"], messages)).trim();
-    const remoteName = await matchingRemoteName(checkoutRoot, target.cloneUrl, messages);
-    if (!remoteName) return undefined;
-
-    await runGit(checkoutRoot, ["fetch", "--prune", remoteName], messages);
-    const source = await resolveRemoteSourceRef(target, checkoutRoot, messages);
-    const currentBranchName = await currentBranch(checkoutRoot, messages);
-    const branch = source.ref || currentBranchName || await remoteDefaultBranch(checkoutRoot, messages) || "main";
-    if (currentBranchName !== branch) return undefined;
-
-    const targetSubdir = shareTargetSubdir(source.subdir, targetMode, projectName, sourceDir);
-    const expectedRoot = targetSubdir ? path.join(checkoutRoot, targetSubdir) : checkoutRoot;
-    if (path.resolve(root) !== path.resolve(expectedRoot)) return undefined;
-
-    return {
-      checkoutRoot,
-      branch,
-      source,
-      targetSubdir,
-      installRef: remoteProjectRef(source.cloneUrl, branch, targetSubdir)
-    };
-  } catch {
-    return undefined;
+export async function checkoutShareBranch(root: string, baseBranch: string, shareBranch: string, messages: string[]): Promise<void> {
+  if (baseBranch === shareBranch) {
+    messages.push(`Using base branch ${baseBranch} as the share branch.`);
+    return;
   }
+  try {
+    await runGit(root, ["rev-parse", "--verify", `origin/${baseBranch}`], messages);
+    await runGit(root, ["checkout", "-B", shareBranch, `origin/${baseBranch}`], messages);
+  } catch {
+    messages.push(`Remote base origin/${baseBranch} was not found; creating ${shareBranch} from current HEAD.`);
+    await runGit(root, ["checkout", "-B", shareBranch], messages);
+  }
+}
+
+export async function inspectGitHubAccess(remoteUrl: string, messages: string[] = []): Promise<GitHubAccessResult> {
+  const target = parseGitHubRepo(remoteUrl);
+  const base: GitHubAccessResult = {
+    remoteUrl,
+    cloneUrl: target?.cloneUrl ?? remoteUrl,
+    repository: target?.nameWithOwner,
+    authenticated: false,
+    ghAvailable: false,
+    canPush: false,
+    canCreatePullRequest: false,
+    canFork: false,
+    recommendedDelivery: "localBranch",
+    availableDelivery: ["localBranch"],
+    unavailableReasons: [],
+    messages
+  };
+  if (!target) {
+    base.unavailableReasons.push("Remote is not a GitHub repository; only local branch sharing is available.");
+    return base;
+  }
+
+  try {
+    await runGh(["--version"], messages);
+    base.ghAvailable = true;
+  } catch {
+    base.unavailableReasons.push("GitHub CLI is not available on PATH.");
+    return base;
+  }
+
+  try {
+    await runGh(["auth", "status", "--hostname", "github.com"], messages);
+    base.authenticated = true;
+  } catch {
+    base.unavailableReasons.push("GitHub CLI is not authenticated for github.com.");
+    return base;
+  }
+
+  try {
+    const output = await runGh(["repo", "view", target.nameWithOwner, "--json", "viewerPermission,defaultBranchRef,nameWithOwner"], messages);
+    const details = JSON.parse(output || "{}") as {
+      viewerPermission?: string;
+      defaultBranchRef?: { name?: string };
+      nameWithOwner?: string;
+    };
+    base.repository = details.nameWithOwner ?? target.nameWithOwner;
+    base.defaultBranch = details.defaultBranchRef?.name;
+    base.viewerPermission = details.viewerPermission;
+    const permission = (details.viewerPermission ?? "").toUpperCase();
+    base.canPush = ["ADMIN", "MAINTAIN", "WRITE"].includes(permission);
+    base.canCreatePullRequest = base.canPush || ["READ", "TRIAGE"].includes(permission);
+    base.canFork = true;
+  } catch (error) {
+    base.unavailableReasons.push(error instanceof Error ? error.message : String(error));
+    return base;
+  }
+
+  const available: ShareDeliveryMethod[] = ["localBranch"];
+  if (base.canPush) {
+    available.unshift("directPush");
+    available.unshift("targetPullRequest");
+  } else if (base.canFork) {
+    available.unshift("forkPullRequest");
+  }
+  base.availableDelivery = available;
+  base.recommendedDelivery = base.canPush ? "targetPullRequest" : base.canFork ? "forkPullRequest" : "localBranch";
+  if (!base.canPush) base.unavailableReasons.push("Current GitHub user cannot push branches to the target repository.");
+  return base;
+}
+
+export async function createPullRequest(root: string, options: {
+  repository: string;
+  head: string;
+  base: string;
+  title: string;
+  body: string;
+}, messages: string[]): Promise<string> {
+  const output = await runGh([
+    "pr",
+    "create",
+    "--repo",
+    options.repository,
+    "--head",
+    options.head,
+    "--base",
+    options.base,
+    "--title",
+    options.title,
+    "--body",
+    options.body
+  ], messages, root);
+  return output.trim();
+}
+
+export async function ensureForkRemote(root: string, repository: string, messages: string[]): Promise<{ remoteName: string; owner: string; pushUrl: string }> {
+  const owner = await currentGitHubLogin(messages);
+  await runGh(["repo", "fork", repository, "--clone=false", "--remote=false"], messages, root).catch((error) => {
+    messages.push(`gh repo fork skipped or failed; continuing with expected fork remote.\n${error instanceof Error ? error.message : String(error)}`);
+  });
+  const repo = repository.split("/")[1];
+  const pushUrl = `https://github.com/${owner}/${repo}.git`;
+  const remotes = await runGit(root, ["remote"], messages);
+  if (!remotes.split(/\r?\n/).includes("skillops-fork")) {
+    await runGit(root, ["remote", "add", "skillops-fork", pushUrl], messages);
+  } else {
+    await runGit(root, ["remote", "set-url", "skillops-fork", pushUrl], messages);
+  }
+  return { remoteName: "skillops-fork", owner, pushUrl };
 }
 
 export async function resolveRemoteSourceRef(source: ParsedRemoteSource, checkoutRoot: string, messages: string[]): Promise<ParsedRemoteSource> {
@@ -125,15 +214,30 @@ export async function runGit(root: string, args: string[], messages: string[]): 
   }
 }
 
-export async function pushWithRebaseRetry(root: string, branch: string, messages: string[]): Promise<void> {
+export async function pushBranch(root: string, remote: string, branch: string, messages: string[]): Promise<void> {
+  await runGit(root, ["push", "-u", remote, branch], messages);
+}
+
+export async function currentCommit(root: string, messages: string[]): Promise<string | undefined> {
   try {
-    await runGit(root, ["push", "-u", "origin", branch], messages);
+    return (await runGit(root, ["rev-parse", "HEAD"], messages)).trim();
   } catch {
-    messages.push("Push failed; rebasing on the latest remote branch and retrying once.");
-    await runGit(root, ["fetch", "origin", branch], messages);
-    await runGit(root, ["pull", "--rebase", "origin", branch], messages);
-    await runGit(root, ["push", "-u", "origin", branch], messages);
+    return undefined;
   }
+}
+
+export function parseGitHubRepo(remoteUrl: string): { owner: string; repo: string; nameWithOwner: string; cloneUrl: string } | undefined {
+  const key = canonicalRemoteKey(remoteUrl);
+  const match = key.match(/^github\.com\/([^/]+)\/([^/]+)$/i);
+  if (!match) return undefined;
+  const owner = match[1];
+  const repo = match[2].replace(/\.git$/i, "");
+  return {
+    owner,
+    repo,
+    nameWithOwner: `${owner}/${repo}`,
+    cloneUrl: `https://github.com/${owner}/${repo}.git`
+  };
 }
 
 async function remoteDefaultBranch(root: string, messages: string[]): Promise<string | undefined> {
@@ -146,16 +250,26 @@ async function remoteDefaultBranch(root: string, messages: string[]): Promise<st
   }
 }
 
-async function matchingRemoteName(root: string, targetUrl: string, messages: string[]): Promise<string | undefined> {
-  const targetKey = canonicalRemoteKey(targetUrl);
-  const output = await runGit(root, ["remote", "-v"], messages);
-  for (const line of output.split(/\r?\n/)) {
-    const match = line.trim().match(/^(\S+)\s+(\S+)\s+\((fetch|push)\)$/);
-    if (!match) continue;
-    const [, name, url, kind] = match;
-    if (kind === "fetch" && canonicalRemoteKey(url) === targetKey) return name;
+async function runGh(args: string[], messages: string[], cwd?: string): Promise<string> {
+  try {
+    const { stdout, stderr } = await execFileAsync("gh", args, cwd ? { cwd } : undefined);
+    const stdoutText = String(stdout);
+    const output = `${stdoutText}${String(stderr)}`.trim();
+    messages.push(`gh ${args.join(" ")}${output ? `\n${output}` : ""}`);
+    return stdoutText;
+  } catch (error) {
+    const details = error instanceof Error ? error.message : String(error);
+    const stdout = typeof (error as { stdout?: unknown }).stdout === "string" ? (error as { stdout: string }).stdout : "";
+    const stderr = typeof (error as { stderr?: unknown }).stderr === "string" ? (error as { stderr: string }).stderr : "";
+    throw new Error(`gh ${args.join(" ")} failed.\n${details}\n${stdout}${stderr}`.trim());
   }
-  return undefined;
+}
+
+async function currentGitHubLogin(messages: string[]): Promise<string> {
+  const output = await runGh(["api", "user", "--jq", ".login"], messages);
+  const login = output.trim();
+  if (!login) throw new Error("Unable to resolve current GitHub login.");
+  return login;
 }
 
 async function remoteBranchExists(root: string, branch: string, messages: string[]): Promise<boolean> {
@@ -172,14 +286,6 @@ async function remoteBranches(root: string, messages: string[]): Promise<string[
       .map((line) => line.replace(/^origin\//, ""));
   } catch {
     return [];
-  }
-}
-
-async function currentBranch(root: string, messages: string[]): Promise<string> {
-  try {
-    return (await runGit(root, ["rev-parse", "--abbrev-ref", "HEAD"], messages)).trim();
-  } catch {
-    return "main";
   }
 }
 

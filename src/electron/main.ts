@@ -3,13 +3,13 @@ import os from "node:os";
 import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
-import { runSkillOpsCommand, createPublishPlanCommand, applyProfileCommand, driftReportCommand, downloadSourceCommand, shareProjectCommand } from "../commands/index.js";
+import { runSkillOpsCommand, createPublishPlanCommand, applyProfileCommand, driftReportCommand, downloadSourceCommand, shareProjectCommand, createSharePlanCommand } from "../commands/index.js";
 import { scanWorkspace, initWorkspace } from "../core/workspace.js";
 import { saveConfig } from "../core/config.js";
 import { getEnvironmentStatus } from "../core/environment.js";
 import { installCliShim } from "../core/cli-install.js";
 import { defaultSkillFile, listSkillFiles, listWorkspaceFiles, readSkillFile, writeSkillFile } from "../core/skill-files.js";
-import type { AppState, DriftReport, ProjectUiState, RecentWorkspace, ShareTargetMode, SkillEditorWindowContext, SkillOpsConfig, TargetRecord } from "../shared/types.js";
+import type { AppState, DriftReport, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, ShareTargetMode, SkillEditorWindowContext, SkillOpsConfig, TargetRecord } from "../shared/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cliMarkerIndex = process.argv.indexOf("--cli");
@@ -105,7 +105,18 @@ ipcMain.handle("appState:save", (_event, patch: Partial<AppState>) => saveAppSta
 ipcMain.handle("appState:migrate", (_event, legacyState: Partial<AppState>, origin: string) => migrateAppState(legacyState, origin));
 ipcMain.handle("source:download", (_event, remoteUrl: string) => downloadSourceCommand(remoteUrl, cacheRoot()));
 ipcMain.handle("publish:plan", (_event, root: string, visibility: "private" | "public") => createPublishPlanCommand(root, visibility));
-ipcMain.handle("publish:share", (_event, root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string) => shareProjectCommand({
+ipcMain.handle("publish:sharePlan", (_event, root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string) => createSharePlanCommand({
+  root,
+  remoteUrl,
+  visibility,
+  targetMode,
+  projectName,
+  profileName,
+  delivery,
+  shareBranch: branch,
+  cacheDir: cacheRoot()
+}));
+ipcMain.handle("publish:share", (_event, root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, confirm?: boolean) => shareProjectCommand({
   root,
   remoteUrl,
   visibility,
@@ -113,6 +124,9 @@ ipcMain.handle("publish:share", (_event, root: string, remoteUrl: string, visibi
   targetMode,
   projectName,
   profileName,
+  delivery,
+  shareBranch: branch,
+  confirm,
   cacheDir: cacheRoot()
 }));
 ipcMain.handle("profile:apply", (_event, root: string, profile: string, targetDir: string) => applyProfileCommand(root, profile, targetDir));

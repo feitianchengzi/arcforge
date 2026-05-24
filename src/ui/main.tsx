@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Download, GitBranch, HardDrive, PackageCheck, Play, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
-import type { AppState, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, ShareResult, ShareTargetGroup, SkillOpsConfig, TargetRecord, WorkspaceSnapshot } from "../shared/types";
+import type { AppState, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetGroup, SkillOpsConfig, TargetRecord, WorkspaceSnapshot } from "../shared/types";
 import { MAX_RECENT_WORKSPACES, readLegacyAppState } from "./app-state";
 import { AddProjectDialog, CliRepairDialog, EmptyState, EnvironmentNotice, PendingProject, ProjectHeader, SettingsDialog } from "./components/shell";
 import { dictionaries, type Language } from "./i18n";
@@ -23,6 +23,7 @@ function App() {
   const [environment, setEnvironment] = useState<EnvironmentStatus | undefined>();
   const [profile, setProfile] = useState("default");
   const [shareResult, setShareResult] = useState<ShareResult | undefined>();
+  const [sharePlan, setSharePlan] = useState<SharePlanResult | undefined>();
   const [isSharing, setIsSharing] = useState(false);
   const [shareProgress, setShareProgress] = useState<string | undefined>();
   const [driftReports, setDriftReports] = useState<DriftReport[]>([]);
@@ -186,6 +187,7 @@ function App() {
   function setProjectShareTargetGroupId(next: string) {
     setShareTargetGroupId(next);
     setShareResult(undefined);
+    setSharePlan(undefined);
     setShareProgress(undefined);
     if (root) rememberProjectState(root, { shareTargetGroupId: next });
   }
@@ -312,10 +314,11 @@ function App() {
     setProjectShareTargetGroupId(selectedId);
   }
 
-  async function shareProject(group: ShareTargetGroup, message: string) {
+  async function shareProject(group: ShareTargetGroup, message: string, delivery?: ShareDeliveryMethod) {
     if (!root) return;
     setIsSharing(true);
     setShareResult(undefined);
+    setSharePlan(undefined);
     setShareProgress(t.sharing);
     try {
       if (!window.skillops) {
@@ -333,9 +336,34 @@ function App() {
         applySnapshot(saved, group.profile);
       }
       setStatus(t.sharing);
-      const result = await window.skillops.shareProject(root, group.remoteUrl, "private", message, group.targetMode, group.projectName ?? "", group.profile);
+      const plan = await window.skillops.createSharePlan(root, group.remoteUrl, "private", group.targetMode, group.projectName ?? "", group.profile, delivery);
+      setSharePlan(plan);
+      const nextStatus = plan.requiresConfirm ? t.shareReady(plan.branch) : t.shareReadyLocal(plan.branch);
+      setShareProgress(nextStatus);
+      setStatus(nextStatus);
+    } catch (error) {
+      const message = t.errorStatus(errorMessage(error));
+      setShareProgress(message);
+      setStatus(message);
+    } finally {
+      setIsSharing(false);
+    }
+  }
+
+  async function confirmShareProject(group: ShareTargetGroup, message: string, plan: SharePlanResult) {
+    if (!root) return;
+    setIsSharing(true);
+    setShareProgress(t.sharing);
+    try {
+      if (!window.skillops) {
+        setStatus(t.desktopRequired);
+        setShareProgress(t.desktopRequired);
+        return;
+      }
+      const result = await window.skillops.shareProject(root, group.remoteUrl, "private", message, group.targetMode, group.projectName ?? "", group.profile, plan.delivery, plan.branch, true);
       setShareResult(result);
-      const complete = t.shareComplete(result.branch);
+      setSharePlan(undefined);
+      const complete = result.pullRequestUrl ? t.sharePrComplete(result.pullRequestUrl) : t.shareComplete(result.branch);
       setShareProgress(complete);
       setStatus(complete);
       await scan(root);
@@ -634,6 +662,7 @@ function App() {
                 t={t}
                 snapshot={snapshot}
                 shareResult={shareResult}
+                sharePlan={sharePlan}
                 isSharing={isSharing}
                 shareProgress={shareProgress}
                 profileOptions={profileOptions}
@@ -642,6 +671,8 @@ function App() {
                 setActiveTargetGroupId={setProjectShareTargetGroupId}
                 saveTargetGroups={saveShareTargetGroups}
                 shareProject={shareProject}
+                confirmShareProject={confirmShareProject}
+                cancelSharePlan={() => setSharePlan(undefined)}
               />
             )}
             {tab === "audit" && <Audit t={t} snapshot={snapshot} criticalCount={criticalCount} warningCount={warningCount} />}

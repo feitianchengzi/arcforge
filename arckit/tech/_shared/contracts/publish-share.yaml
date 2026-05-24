@@ -2,15 +2,20 @@ metadata:
   path: tech/_shared/contracts/publish-share.yaml
   domain: sharing-ipc
   owner: electron/main
-  version: 1
+  version: 2
   created: 2026-05-21
-  updated: 2026-05-21
+  updated: 2026-05-24
 endpoint:
   transport: electron-ipc
   channel: publish:share
   method_name: shareProject
-  summary: Write the current SkillOps project to a Git repository and push the target branch.
+  summary: Confirm and execute SkillOps sharing with branch, push and optional Pull Request creation.
   auth_required: false
+companion_endpoint:
+  transport: electron-ipc
+  channel: publish:sharePlan
+  method_name: createSharePlan
+  summary: Generate a share plan, inspect GitHub permissions and choose a recommended delivery method without remote writes.
 request:
   args:
     - name: root
@@ -37,7 +42,26 @@ request:
     - name: projectName
       type: string
       required: true
+    - name: profileName
+      type: string
+      required: true
+    - name: delivery
+      type: string
+      required: false
+      enum:
+        - targetPullRequest
+        - forkPullRequest
+        - directPush
+        - localBranch
+    - name: branch
+      type: string
+      required: false
+    - name: confirm
+      type: boolean
+      required: false
 responses:
+  plan:
+    description: publish:sharePlan returns PublishPlan, GitHub access result, recommended delivery, share branch, target path and CLI commands.
   success:
     schema:
       $ref: "../models/ShareResult.yaml"
@@ -50,12 +74,22 @@ responses:
       message: Project name is required when sharing under a project folder.
     - code: GIT_COMMAND_FAILED
       message: Clone, fetch, checkout, pull, commit, or push failed.
+    - code: CONFIRM_REQUIRED
+      message: Remote sharing requires explicit confirmation.
+    - code: DELIVERY_UNAVAILABLE
+      message: Requested delivery method is not available for the current GitHub access state.
+    - code: PR_CREATE_FAILED
+      message: Pull Request creation failed after local commit or push.
 business_logic:
   flow:
     - Parse remote source and target subdirectory.
     - Scan workspace and save local sharing settings.
-    - Prepare shared checkout under app data.
+    - Inspect GitHub CLI availability, login state and repository permission.
+    - Choose target Pull Request, fork Pull Request, direct push or local branch delivery.
+    - Prepare isolated shared checkout under app data or CLI cache.
+    - Create or reset the share branch from the resolved base branch.
     - Copy sourceDir, config, and README into target path.
     - Commit changes when git status is non-empty.
-    - Push branch to origin.
-
+    - Skip push and Pull Request creation when no commit is created.
+    - Push branch to origin or fork remote when delivery requires remote writes.
+    - Create Pull Request when delivery is targetPullRequest or forkPullRequest.

@@ -4,9 +4,9 @@ metadata:
   entity_name: ShareResult
   storage: in_memory
   owner: electron/main
-  version: 1
+  version: 2
   created: 2026-05-21
-  updated: 2026-05-21
+  updated: 2026-05-24
 type: object
 required:
   - remoteUrl
@@ -25,12 +25,39 @@ properties:
     type: string
     nullable: true
     description: Repository-relative project path.
+  checkoutRoot:
+    type: string
+    nullable: true
+    description: Local isolated checkout path containing the share branch.
   committed:
     type: boolean
     description: True when git status contained file changes and a commit was created.
   pushed:
     type: boolean
     description: True when git push completes successfully.
+  delivery:
+    type: string
+    nullable: true
+    enum:
+      - targetPullRequest
+      - forkPullRequest
+      - directPush
+      - localBranch
+    description: Delivery method used for the share operation.
+  pullRequestUrl:
+    type: string
+    nullable: true
+    description: Created GitHub Pull Request URL when PR delivery succeeds.
+  commitHash:
+    type: string
+    nullable: true
+    description: Local share commit hash.
+  manualCommands:
+    type: array
+    nullable: true
+    items:
+      type: string
+    description: Recovery commands for manual push or PR creation.
   messages:
     type: array
     items:
@@ -38,5 +65,4 @@ properties:
     description: Git and sharing operation messages displayed in the desktop UI.
 validation:
   no_changes:
-    description: committed is false when there are no file changes; pushed remains true after successful push.
-
+    description: committed is false when there are no file changes; pushed remains false and no Pull Request is created.

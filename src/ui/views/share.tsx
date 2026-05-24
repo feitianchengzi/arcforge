@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
-import type { ShareResult, ShareTargetGroup, WorkspaceSnapshot } from "../../shared/types";
+import { GitPullRequest, Pencil, Plus, Terminal, Trash2 } from "lucide-react";
+import type { ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetGroup, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import { createShareTargetGroup, selectedSkillCount } from "../utils";
 
@@ -8,6 +8,7 @@ export function Publish(props: {
   t: Dictionary;
   snapshot: WorkspaceSnapshot;
   shareResult?: ShareResult;
+  sharePlan?: SharePlanResult;
   isSharing: boolean;
   shareProgress?: string;
   profileOptions: string[];
@@ -15,10 +16,13 @@ export function Publish(props: {
   activeTargetGroup?: ShareTargetGroup;
   setActiveTargetGroupId: (value: string) => void;
   saveTargetGroups: (groups: ShareTargetGroup[], selectedId: string) => void;
-  shareProject: (group: ShareTargetGroup, message: string) => void;
+  shareProject: (group: ShareTargetGroup, message: string, delivery?: ShareDeliveryMethod) => void;
+  confirmShareProject: (group: ShareTargetGroup, message: string, plan: SharePlanResult) => void;
+  cancelSharePlan: () => void;
 }) {
   const { t } = props;
   const [message, setMessage] = useState("Share SkillOps project");
+  const [delivery, setDelivery] = useState<ShareDeliveryMethod | undefined>();
   const [editingGroup, setEditingGroup] = useState<ShareTargetGroup | undefined>();
   const activeGroup = props.activeTargetGroup;
   const selectedSkills = activeGroup ? selectedSkillCount(props.snapshot, activeGroup.profile) : 0;
@@ -78,16 +82,91 @@ export function Publish(props: {
         )}
         <label>{t.commitMessage}</label>
         <input value={message} onChange={(event) => setMessage(event.target.value)} />
+        <label>{t.deliveryMethod}</label>
+        <div className="segmented share-delivery">
+          {deliveryOptions.map((item) => (
+            <button key={item} className={(delivery ?? props.sharePlan?.delivery) === item ? "active" : ""} onClick={() => setDelivery(item)}>
+              {deliveryLabel(t, item)}
+            </button>
+          ))}
+        </div>
         <div className="actions">
-          <button className="primary" onClick={() => activeGroup && props.shareProject(activeGroup, message)} disabled={props.isSharing || !activeGroup || !activeGroup.remoteUrl.trim() || (activeGroup.targetMode === "namedProject" && !activeGroup.projectName?.trim())}>{props.isSharing ? t.sharing : t.shareNow}</button>
+          <button className="primary" onClick={() => activeGroup && props.shareProject(activeGroup, message, delivery)} disabled={props.isSharing || !activeGroup || !activeGroup.remoteUrl.trim() || (activeGroup.targetMode === "namedProject" && !activeGroup.projectName?.trim())}>{props.isSharing ? t.sharing : t.shareNow}</button>
         </div>
         {props.shareProgress && <p className="muted">{props.shareProgress}</p>}
+        {props.sharePlan && (
+          <div className="target-subsection">
+            <div className="section-header">
+              <div>
+                <strong>{t.githubAccess}</strong>
+                <p className="muted">{props.sharePlan.access.repository ?? props.sharePlan.access.cloneUrl}</p>
+              </div>
+              <span className={props.sharePlan.access.canPush ? "badge good" : "badge warn"}>{props.sharePlan.access.viewerPermission ?? (props.sharePlan.access.authenticated ? "authenticated" : "not signed in")}</span>
+            </div>
+            <div className="list compact">
+              <div className="row">
+                <div>
+                  <strong>{t.recommended}: {deliveryLabel(t, props.sharePlan.access.recommendedDelivery)}</strong>
+                  <p>{props.sharePlan.access.availableDelivery.map((item) => deliveryLabel(t, item)).join(" / ")}</p>
+                </div>
+                <span>{props.sharePlan.branch}</span>
+              </div>
+              <div className="row stacked">
+                <Terminal size={16} />
+                <div>
+                  <strong>{t.cliPreview}</strong>
+                  <p>{props.sharePlan.commands.join("  ")}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {props.shareResult && (
           <>
+            {props.shareResult.pullRequestUrl && (
+              <div className="source-summary">
+                <GitPullRequest size={18} />
+                <div>
+                  <strong>{t.pullRequest}</strong>
+                  <span>{props.shareResult.pullRequestUrl}</span>
+                </div>
+              </div>
+            )}
+            {props.shareResult.manualCommands && props.shareResult.manualCommands.length > 0 && (
+              <>
+                <label>{t.manualCommands}</label>
+                <div className="pathbox light">{[props.shareResult.checkoutRoot ? `cd ${props.shareResult.checkoutRoot}` : "", ...props.shareResult.manualCommands].filter(Boolean).join("\n")}</div>
+              </>
+            )}
             <pre>{props.shareResult.messages.join("\n\n")}</pre>
           </>
         )}
       </section>
+      {props.sharePlan && activeGroup && (
+        <div className="modal-backdrop" role="presentation">
+          <section className="modal small" role="dialog" aria-modal="true">
+            <div className="modal-header">
+              <div>
+                <h3>{t.confirmShare}</h3>
+                <p>{deliveryLabel(t, props.sharePlan.delivery)} / {props.sharePlan.branch}</p>
+              </div>
+            </div>
+            <div className="target-subsection">
+              <div className="row stacked">
+                <GitPullRequest size={16} />
+                <div>
+                  <strong>{props.sharePlan.access.repository ?? props.sharePlan.access.cloneUrl}</strong>
+                  <p>{props.sharePlan.targetPath}</p>
+                </div>
+              </div>
+            </div>
+            <div className="actions modal-actions">
+              <button onClick={props.cancelSharePlan}>{t.cancelShare}</button>
+              <button className="primary" onClick={() => props.sharePlan && props.confirmShareProject(activeGroup, message, props.sharePlan)} disabled={props.isSharing}>{props.isSharing ? t.sharing : t.confirmShare}</button>
+            </div>
+          </section>
+        </div>
+      )}
       {editingGroup && (
         <ShareTargetDialog
           t={t}
@@ -99,6 +178,15 @@ export function Publish(props: {
       )}
     </div>
   );
+}
+
+const deliveryOptions: ShareDeliveryMethod[] = ["targetPullRequest", "forkPullRequest", "directPush", "localBranch"];
+
+function deliveryLabel(t: Dictionary, value: ShareDeliveryMethod): string {
+  if (value === "targetPullRequest") return t.targetPullRequest;
+  if (value === "forkPullRequest") return t.forkPullRequest;
+  if (value === "directPush") return t.directPush;
+  return t.localBranch;
 }
 
 function ShareTargetDialog(props: {

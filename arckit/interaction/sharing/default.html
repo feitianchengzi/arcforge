@@ -17,10 +17,10 @@
         </header>
 
         <details open>
-            <summary>加载中：生成计划或执行共享</summary>
+            <summary>加载中：生成计划、检测权限或执行共享</summary>
             <div class="state-content">
                 <div class="state-description">
-                    <strong>触发条件：</strong>用户点击 Private team repo、Public release 或 Share now。
+                    <strong>触发条件：</strong>用户点击 Private team repo、Public release、Check access 或确认执行共享。
                 </div>
                 <div class="wireframe-canvas">
                     <div class="device-frame desktop" data-kit="NavigationSplitView">
@@ -65,7 +65,131 @@
                 <div class="interactions">
                     <h3>交互行为</h3>
                     <div class="interaction-item"><code>生成计划中</code> → 保留表单，计划区域显示加载。</div>
+                    <div class="interaction-item"><code>检测权限中</code> → 保留表单，权限区域显示加载。</div>
                     <div class="interaction-item"><code>共享执行中</code> → 保留计划和输入，输出区域显示处理中。</div>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>权限结果：GitHub 权限决定交付方式</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>用户输入远端仓库后生成计划，或 CLI 执行权限预检。
+                </div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="NavigationSplitView">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">↻</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-button">Check</div>
+                        </div>
+                        <div class="split-h">
+                            <div class="sidebar" data-kit="List(sidebar)">
+                                <div class="sidebar-section">GitHub access</div>
+                                <div class="list-item"><div class="list-item-title">Auth</div><span class="badge active">signed in</span></div>
+                                <div class="list-item"><div class="list-item-title">Repo</div><span class="badge active">write</span></div>
+                                <div class="list-item"><div class="list-item-title">PR</div><span class="badge active">available</span></div>
+                            </div>
+                            <div class="split-divider-h"></div>
+                            <div class="split-v">
+                                <div class="panel" data-kit="Form">
+                                    <div class="panel-header">Recommended delivery</div>
+                                    <div class="content-area">
+                                        <div class="group-box">
+                                            <div class="group-box-title">Repository</div>
+                                            <div class="placeholder-box">org/team-skills · default branch main</div>
+                                        </div>
+                                        <div class="group-box">
+                                            <div class="group-box-title">Permission</div>
+                                            <span class="badge active">can create branch</span>
+                                            <span class="badge active">can open PR</span>
+                                            <span class="badge">fork fallback available</span>
+                                        </div>
+                                        <div class="picker" data-kit="Picker(segmented)">
+                                            <span>Target repo PR</span><span>Fork PR</span><span>Local branch</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="split-divider-v"></div>
+                                <div class="panel" data-kit="ScrollView">
+                                    <div class="panel-header">Execution preview</div>
+                                    <div class="content-area">
+                                        <div class="group-box">
+                                            <div class="group-box-title">Branch and PR</div>
+                                            <div class="placeholder-box">skillops/share/team-skills → main</div>
+                                            <div class="placeholder-box">PR title: Share SkillOps project team-skills</div>
+                                        </div>
+                                        <div class="button primary">Share now</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>GitHub auth and repository permission status</li>
+                        <li>recommended delivery method picker</li>
+                        <li>branch and Pull Request preview</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>Check</code> → 重新检测 GitHub 登录、仓库权限和 PR 能力。</div>
+                    <div class="interaction-item"><code>选择交付方式</code> → 只允许选择当前权限支持的方式。</div>
+                    <div class="interaction-item"><code>Share now</code> → 进入执行确认，不立即写入远端。</div>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>执行确认：创建 PR 前确认远端写入</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>用户点击 Share now，且权限结果中存在可执行交付方式。
+                </div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="ConfirmationDialog">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">←</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-button">Run</div>
+                        </div>
+                        <div class="content-area">
+                            <div class="modal-overlay">
+                                <div class="modal-content" data-label="Confirm Share">
+                                    <div class="card-title">Create Pull Request</div>
+                                    <div class="group-box">
+                                        <div class="group-box-title">Target</div>
+                                        <div class="placeholder-box">org/team-skills · main</div>
+                                        <div class="placeholder-box">skillops/share/team-skills</div>
+                                    </div>
+                                    <div class="group-box">
+                                        <div class="group-box-title">Changes</div>
+                                        <div class="list-item"><div class="list-item-title">4 skills</div><span class="badge active">included</span></div>
+                                        <div class="list-item"><div class="list-item-title">README section</div><span class="badge active">updated</span></div>
+                                        <div class="list-item"><div class="list-item-title">Audit checklist</div><span class="badge">attached</span></div>
+                                    </div>
+                                    <div class="button">Back</div>
+                                    <div class="button primary">Create PR</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>ConfirmationDialog with target repository and branch</li>
+                        <li>change summary and PR action</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>Back</code> → 返回权限结果和计划输出，保留输入。</div>
+                    <div class="interaction-item"><code>Create PR</code> → 执行共享分支、提交、推送和 Pull Request 创建。</div>
                 </div>
             </div>
         </details>
@@ -120,7 +244,13 @@
                                             <div class="placeholder-box">npx skills add github.com/acme/team-skills/tree/main/projects/team-skills</div>
                                         </div>
                                         <div class="group-box">
+                                            <div class="group-box-title">CLI commands</div>
+                                            <div class="placeholder-box">skillops share plan --repo org/team-skills</div>
+                                            <div class="placeholder-box">skillops share run --delivery target-pr --confirm</div>
+                                        </div>
+                                        <div class="group-box">
                                             <div class="group-box-title">Share output</div>
+                                            <div class="placeholder-box">Pull request: github.com/acme/team-skills/pull/42</div>
                                             <span class="badge active">branch main</span>
                                             <span class="badge active">committed</span>
                                             <span class="badge active">pushed</span>
@@ -143,7 +273,62 @@
                 <div class="interactions">
                     <h3>交互行为</h3>
                     <div class="interaction-item"><code>Private/Public</code> → 生成对应可见性的发布计划。</div>
-                    <div class="interaction-item"><code>Share now</code> → 执行 Git 写入、提交和推送。</div>
+                    <div class="interaction-item"><code>Share now</code> → 检查权限并进入执行确认。</div>
+                    <div class="interaction-item"><code>PR link</code> → 打开 GitHub Pull Request。</div>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>CLI：预检、确认执行和结构化输出</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>用户在终端或 CI 中运行共享计划、权限预检或确认执行命令。
+                </div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="Terminal">
+                        <div class="toolbar" data-kit="toolbar">
+                            <div class="toolbar-button">$</div>
+                            <div class="toolbar-spacer"></div>
+                            <div class="toolbar-button">JSON</div>
+                        </div>
+                        <div class="split-h">
+                            <div class="sidebar" data-kit="List(sidebar)">
+                                <div class="sidebar-section">CLI steps</div>
+                                <div class="list-item"><div class="list-item-title">Plan</div><span class="badge active">ready</span></div>
+                                <div class="list-item"><div class="list-item-title">Access</div><span class="badge active">checked</span></div>
+                                <div class="list-item"><div class="list-item-title">Run</div><span class="badge">requires confirm</span></div>
+                            </div>
+                            <div class="split-divider-h"></div>
+                            <div class="panel" data-kit="ScrollView">
+                                <div class="panel-header">CLI output</div>
+                                <div class="content-area">
+                                    <div class="placeholder-box">skillops share plan --repo org/team-skills --visibility private</div>
+                                    <div class="group-box">
+                                        <div class="group-box-title">JSON preview</div>
+                                        <div class="placeholder-box">recommendedDelivery: target_pull_request</div>
+                                        <div class="placeholder-box">availableDelivery: target_pull_request, fork_pull_request, local_branch</div>
+                                        <div class="placeholder-box">requiresConfirm: true</div>
+                                    </div>
+                                    <div class="placeholder-box">skillops share run --repo org/team-skills --delivery target-pr --confirm</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>terminal command preview</li>
+                        <li>structured JSON permission and delivery result</li>
+                        <li>confirm-gated execution command</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>share plan</code> → 输出计划、权限结果和推荐交付方式，不写远端。</div>
+                    <div class="interaction-item"><code>share run --confirm</code> → 执行提交、推送和 PR 创建。</div>
+                    <div class="interaction-item"><code>CI failure</code> → 输出错误阶段和恢复命令，并设置失败退出状态。</div>
                 </div>
             </div>
         </details>
@@ -201,10 +386,10 @@
         </details>
 
         <details>
-            <summary>错误：地址、项目名、下载或 Git 失败</summary>
+            <summary>错误：地址、项目名、权限、下载、Git 或 PR 失败</summary>
             <div class="state-content">
                 <div class="state-description">
-                    <strong>触发条件：</strong>远端地址为空或无效、命名项目模式缺少项目名、下载失败、Git 命令失败。
+                    <strong>触发条件：</strong>远端地址为空或无效、命名项目模式缺少项目名、GitHub 未登录、权限不足、下载失败、Git 命令失败或 Pull Request 创建失败。
                 </div>
                 <div class="wireframe-canvas">
                     <div class="device-frame desktop" data-kit="NavigationSplitView">
@@ -217,7 +402,9 @@
                             <div class="sidebar" data-kit="List(sidebar)">
                                 <div class="sidebar-section">Share errors</div>
                                 <div class="list-item"><div class="list-item-title">Remote URL</div><span class="badge">invalid</span></div>
+                                <div class="list-item"><div class="list-item-title">GitHub access</div><span class="badge">missing</span></div>
                                 <div class="list-item"><div class="list-item-title">Git push</div><span class="badge">failed</span></div>
+                                <div class="list-item"><div class="list-item-title">Pull Request</div><span class="badge">failed</span></div>
                             </div>
                             <div class="split-divider-h"></div>
                             <div class="panel" data-kit="DetailView">
@@ -226,7 +413,8 @@
                                     <div class="modal-overlay" data-kit="Alert">
                                         <div class="modal-content" data-label="Share Error">
                                             <div class="card-title">Git command failed</div>
-                                            <p>Remote, target mode, project name, and commit message remain in the form.</p>
+                                            <p>Remote, target mode, project name, delivery method, branch, and commit remain in the form.</p>
+                                            <div class="placeholder-box">Recovery: fork PR, local branch, copy commands, or retry.</div>
                                         </div>
                                     </div>
                                     <div class="modal-overlay" data-kit="Sheet">
@@ -247,12 +435,14 @@
                     <ul>
                         <li>Alert for share failure</li>
                         <li>Sheet for source download failure</li>
-                        <li>retained form context</li>
+                        <li>permission recovery choices</li>
+                        <li>retained form, branch and commit context</li>
                     </ul>
                 </div>
                 <div class="interactions">
                     <h3>交互行为</h3>
-                    <div class="interaction-item"><code>Retry</code> → 使用保留输入再次生成计划或共享。</div>
+                    <div class="interaction-item"><code>Retry</code> → 使用保留输入再次生成计划、检测权限或共享。</div>
+                    <div class="interaction-item"><code>Local branch</code> → 保留本地提交并展示手动命令。</div>
                     <div class="interaction-item"><code>Download</code> → 重新下载修正后的来源地址。</div>
                 </div>
             </div>

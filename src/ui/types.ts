@@ -1,4 +1,4 @@
-import type { AppState, ApplyProfileResult, CliInstallStatus, DriftReport, EnvironmentStatus, ShareResult, ShareTargetMode, SkillEditorWindowContext, SkillFileDocument, SkillFileEntry, SkillOpsConfig, WorkspaceSnapshot } from "../shared/types";
+import type { AppState, ApplyProfileResult, CliInstallStatus, DriftReport, EnvironmentStatus, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillEditorWindowContext, SkillFileDocument, SkillFileEntry, SkillOpsConfig, WorkspaceSnapshot } from "../shared/types";
 
 export type Tab = "overview" | "skills" | "profiles" | "destinations" | "share" | "audit";
 
@@ -36,7 +36,8 @@ declare global {
       saveAppState: (patch: Partial<AppState>) => Promise<AppState>;
       migrateAppState: (legacyState: Partial<AppState>, origin: string) => Promise<AppState>;
       downloadSource: (remoteUrl: string) => Promise<string>;
-      shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string) => Promise<ShareResult>;
+      createSharePlan: (root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string) => Promise<SharePlanResult>;
+      shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, confirm?: boolean) => Promise<ShareResult>;
       applyProfile: (root: string, profile: string, targetDir: string) => Promise<ApplyProfileResult>;
       driftReport: (root: string, profile: string, targetDir: string) => Promise<DriftReport>;
       openDriftDiff: (report: DriftReport) => Promise<void>;

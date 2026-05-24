@@ -145,12 +145,48 @@ export interface PublishPlan {
   checklist: string[];
 }
 
+export type ShareDeliveryMethod = "targetPullRequest" | "forkPullRequest" | "directPush" | "localBranch";
+
+export interface GitHubAccessResult {
+  remoteUrl: string;
+  cloneUrl: string;
+  repository?: string;
+  defaultBranch?: string;
+  viewerPermission?: string;
+  authenticated: boolean;
+  ghAvailable: boolean;
+  canPush: boolean;
+  canCreatePullRequest: boolean;
+  canFork: boolean;
+  recommendedDelivery: ShareDeliveryMethod;
+  availableDelivery: ShareDeliveryMethod[];
+  unavailableReasons: string[];
+  messages: string[];
+}
+
+export interface SharePlanResult {
+  plan: PublishPlan;
+  access: GitHubAccessResult;
+  delivery: ShareDeliveryMethod;
+  requiresConfirm: boolean;
+  branch: string;
+  targetPath: string;
+  commands: string[];
+}
+
 export interface ShareResult {
   remoteUrl: string;
   branch: string;
   targetPath?: string;
+  checkoutRoot?: string;
   committed: boolean;
   pushed: boolean;
+  delivery?: ShareDeliveryMethod;
+  pullRequestUrl?: string;
+  commitHash?: string;
+  access?: GitHubAccessResult;
+  manualCommands?: string[];
+  errorStage?: string;
   messages: string[];
 }
 
