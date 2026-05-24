@@ -190,13 +190,14 @@ function App() {
     }
   }
 
-  async function openFeedbackIssue(url = GITHUB_ISSUE_URL) {
+  async function openFeedbackIssue(url: unknown = GITHUB_ISSUE_URL) {
+    const feedbackUrl = typeof url === "string" ? url : GITHUB_ISSUE_URL;
     try {
       if (window.skillops) {
-        await window.skillops.openExternal(url);
+        await window.skillops.openExternal(feedbackUrl);
         return;
       }
-      window.open(url, "_blank", "noopener,noreferrer");
+      window.open(feedbackUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     }

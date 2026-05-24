@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { AlertTriangle, CheckCircle2, Copy, Download, ExternalLink, FolderOpen, PackageCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, Download, ExternalLink, FolderOpen, Globe2, MessageSquare, PackageCheck, X } from "lucide-react";
 import type { EnvironmentStatus, RecentWorkspace, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary, Language } from "../i18n";
 import type { CliRepairNotice, Tab } from "../types";
@@ -131,25 +131,35 @@ export function SettingsDialog(props: {
   const { t } = props;
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={props.onClose}>
-      <section className="modal small" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+      <section className="modal small settings-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
         <div className="modal-header">
           <div>
             <h3>{t.settings}</h3>
           </div>
-          <button className="icon-button light" onClick={props.onClose}>x</button>
+          <button className="icon-button light" aria-label={t.cancel} onClick={props.onClose}><X size={16} /></button>
         </div>
-        <label>{t.language}</label>
-        <select value={props.language} onChange={(event) => props.setLanguage(event.target.value as Language)}>
-          <option value="en">{t.english}</option>
-          <option value="zh-CN">{t.simplifiedChinese}</option>
-        </select>
-        <div className="target-subsection">
-          <div className="section-header">
+        <div className="settings-body">
+          <div className="settings-row">
+            <div className="settings-row-icon">
+              <Globe2 size={16} />
+            </div>
+            <div>
+              <label htmlFor="settings-language">{t.language}</label>
+            </div>
+            <select id="settings-language" value={props.language} onChange={(event) => props.setLanguage(event.target.value as Language)}>
+              <option value="en">{t.english}</option>
+              <option value="zh-CN">{t.simplifiedChinese}</option>
+            </select>
+          </div>
+          <div className="settings-row feedback-row">
+            <div className="settings-row-icon">
+              <MessageSquare size={16} />
+            </div>
             <div>
               <strong>{t.feedback}</strong>
               <p className="muted">{t.feedbackHelp}</p>
             </div>
-            <button onClick={props.openFeedback}><ExternalLink size={16} /> {t.auditOpenIssue}</button>
+            <button onClick={() => props.openFeedback()}><ExternalLink size={16} /> {t.auditOpenIssue}</button>
           </div>
         </div>
       </section>
