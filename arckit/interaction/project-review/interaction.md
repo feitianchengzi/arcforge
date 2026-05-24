@@ -37,7 +37,7 @@
 | 加载中 | 项目扫描中 | ProgressView |
 | 成功（内容） | 快照存在且数据可展示 | Tree / TextEditor / ScrollView / TabView |
 | 空状态 | 技能文件、共享资产或目标历史为空 | ContentUnavailableView |
-| 错误 | 扫描失败或审计读取失败 | ContentUnavailableView + toolbar |
+| 错误 | 扫描失败或审计读取失败 | topbar error status + stage error state |
 
 ## 导航流程
 

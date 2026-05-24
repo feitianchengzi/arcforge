@@ -244,8 +244,8 @@ export async function runSkillOpsCommand(args: string[], runtime: CommandRuntime
         value: await createSharePlanCommand(options)
       };
     }
-    if (!options.confirm && options.delivery !== "localBranch") {
-      const plan = await createSharePlanCommand(options);
+    const plan = !options.confirm ? await createSharePlanCommand(options) : undefined;
+    if (plan?.requiresConfirm) {
       return {
         exitCode: 1,
         value: {

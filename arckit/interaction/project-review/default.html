@@ -11,251 +11,44 @@
         <header>
             <h1>Project Review</h1>
             <div class="meta-info">
-                <div>View: <code>ProjectReview</code></div>
+                <div>Views: <code>Overview / SkillsList / Audit</code></div>
                 <div>平台: <strong>macOS</strong></div>
             </div>
         </header>
 
         <details open>
-            <summary>加载中：等待工作区快照</summary>
+            <summary>总览：项目摘要与下一步入口</summary>
             <div class="state-content">
                 <div class="state-description">
-                    <strong>触发条件：</strong>应用外壳正在扫描项目，审阅页等待 WorkspaceSnapshot。
+                    <strong>触发条件：</strong>扫描完成后进入 Overview 页签。
                 </div>
                 <div class="wireframe-canvas">
-                    <div class="device-frame desktop" data-kit="NavigationSplitView">
-                        <div class="toolbar" data-kit="toolbar">
-                            <div class="toolbar-button">↻</div>
-                            <div class="toolbar-spacer"></div>
-                            <div class="toolbar-button">Scan</div>
-                        </div>
+                    <div class="device-frame desktop" data-kit="AppLayout">
                         <div class="split-h">
-                            <div class="sidebar" data-kit="List(sidebar)">
-                                <div class="sidebar-section">Review tabs</div>
-                                <div class="list-item"><div class="list-item-title">Overview</div><span class="badge active">open</span></div>
-                                <div class="list-item"><div class="list-item-title">Skills</div></div>
-                                <div class="list-item"><div class="list-item-title">Audit</div></div>
-                            </div>
-                            <div class="split-divider-h"></div>
-                            <div class="panel" data-kit="DetailView">
-                                <div class="panel-header">Project review</div>
+                            <aside class="sidebar" data-kit="Sidebar">
+                                <div class="sidebar-section">SkillOps</div>
+                                <div class="button primary">Add Skill project</div>
+                                <div class="sidebar-section">Skill projects</div>
+                                <div class="list-item"><div class="list-item-title">team-skills</div><div class="list-item-subtitle">12 skills / 84/100</div><span class="badge active">active</span></div>
+                            </aside>
+                            <div class="panel" data-kit="Content">
+                                <div class="panel-header">team-skills · Found 12 skills. Audit score 84/100. <span class="badge">Rescan</span> <span class="badge">Init config</span></div>
                                 <div class="content-area">
-                                    <div class="placeholder-box">
-                                        <div class="spinner"></div>
-                                        <p>Loading project health, skills, shared assets, and audit findings.</p>
+                                    <div class="group-box">
+                                        <div class="group-box-title">Project header</div>
+                                        <div class="placeholder-box">/Users/me/team-skills</div>
+                                        <span class="badge active">12 skills</span><span class="badge active">2 assets</span><span class="badge">84/100</span>
                                     </div>
-                                    <div class="card-grid">
-                                        <div class="card"><div class="placeholder-box">Skills metric</div></div>
-                                        <div class="card"><div class="placeholder-box">Audit score</div></div>
-                                        <div class="card"><div class="placeholder-box">Risk count</div></div>
+                                    <div class="tab-bar">
+                                        <div class="tab-item active">Overview</div><div class="tab-item">Skills</div><div class="tab-item">Profiles</div><div class="tab-item">Destinations</div><div class="tab-item">Share</div><div class="tab-item">Audit</div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="component-list">
-                    <h3>组件清单</h3>
-                    <ul>
-                        <li>Review tab sidebar</li>
-                        <li>Progress placeholder and metric skeletons</li>
-                    </ul>
-                </div>
-                <div class="interactions">
-                    <h3>交互行为</h3>
-                    <div class="interaction-item"><code>等待扫描完成</code> → 替换为总览、技能和审计数据。</div>
-                </div>
-            </div>
-        </details>
-
-        <details>
-            <summary>成功：总览、技能和审计数据可用</summary>
-            <div class="state-content">
-                <div class="state-description">
-                    <strong>触发条件：</strong>扫描完成并返回技能、共享资产和审计报告。
-                </div>
-                <div class="wireframe-canvas">
-                    <div class="device-frame desktop" data-kit="NavigationSplitView">
-                        <div class="toolbar" data-kit="toolbar">
-                            <div class="toolbar-button">↻</div>
-                            <div class="toolbar-spacer"></div>
-                            <div class="toolbar-group">
-                                <div class="toolbar-button">Audit</div>
-                                <div class="toolbar-button">Profiles</div>
-                                <div class="toolbar-button">Share</div>
-                            </div>
-                        </div>
-                        <div class="split-h">
-                            <div class="sidebar" data-kit="List(sidebar)">
-                                <div class="sidebar-section">Review</div>
-                                <div class="list-item"><div class="list-item-title">Overview</div><span class="badge active">active</span></div>
-                                <div class="list-item"><div class="list-item-title">Skills</div><span class="badge">12</span></div>
-                                <div class="list-item"><div class="list-item-title">Audit</div><span class="badge">2 warnings</span></div>
-                            </div>
-                            <div class="split-divider-h"></div>
-                            <div class="split-v">
-                                <div class="panel" data-kit="ScrollView">
-                                    <div class="panel-header">Overview</div>
-                                    <div class="content-area">
-                                        <div class="card-grid">
-                                            <div class="card"><div class="card-title">Skills</div><p>12</p></div>
-                                            <div class="card"><div class="card-title">Shared assets</div><p>2</p></div>
-                                            <div class="card"><div class="card-title">Audit score</div><p>84/100</p></div>
-                                            <div class="card"><div class="card-title">Critical</div><p>0</p></div>
-                                        </div>
-                                        <div class="group-box">
-                                            <div class="group-box-title">Next steps</div>
-                                            <div class="button">Review audit</div>
-                                            <div class="button">Configure profiles</div>
-                                            <div class="button">Manage destinations</div>
-                                            <div class="button">Prepare sharing</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="split-divider-v"></div>
-                                <div class="panel" data-kit="Tree + TextEditor">
-                                    <div class="panel-header">Skills file editor</div>
-                                    <div class="content-area">
-                                        <div class="group-box">
-                                            <div class="group-box-title">skills 文件</div>
-                                            <div class="picker" data-kit="Picker(menu)">Profile: frontend</div>
-                                        </div>
-                                        <div class="split-h">
-                                            <div class="panel" data-kit="OutlineGroup">
-                                                <div class="list-item"><div class="list-item-title">▾ code-review</div></div>
-                                                <div class="list-item"><div class="list-item-title">  SKILL.md</div><span class="badge active">open</span></div>
-                                                <div class="list-item"><div class="list-item-title">  references/</div></div>
-                                                <div class="list-item"><div class="list-item-title">▸ release-writer</div></div>
-                                            </div>
-                                            <div class="split-divider-h"></div>
-                                            <div class="panel" data-kit="TextEditor">
-                                                <div class="panel-header">skills/code-review/SKILL.md</div>
-                                                <div class="placeholder-box">Editable skill markdown content</div>
-                                                <div class="toolbar-group">
-                                                    <div class="toolbar-button">Reload</div>
-                                                    <div class="toolbar-button">Open window</div>
-                                                    <div class="toolbar-button">Save</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="list-item">
-                                            <div class="icon-placeholder">!</div>
-                                            <div class="list-item-text">
-                                                <div class="list-item-title">quality.description_missing</div>
-                                                <div class="list-item-subtitle">skills/example-review/SKILL.md:4</div>
-                                            </div>
-                                            <span class="badge">warning</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="component-list">
-                    <h3>组件清单</h3>
-                    <ul>
-                        <li>metric cards and next-step action group</li>
-                        <li>Tree for skills source directory and profile filter</li>
-                        <li>TextEditor for selected skill file</li>
-                        <li>file path, save/reload, detached window, and audit finding disclosure</li>
-                    </ul>
-                </div>
-                <div class="interactions">
-                    <h3>交互行为</h3>
-                    <div class="interaction-item"><code>Review audit</code> → 切换到 Audit 页签。</div>
-                    <div class="interaction-item"><code>选择文件</code> → 右侧编辑器加载当前文件。</div>
-                    <div class="interaction-item"><code>Open window</code> → 独立窗口继承配置组、选中文件、折叠状态和滚动位置。</div>
-                </div>
-            </div>
-        </details>
-
-        <details>
-            <summary>空状态：列表或结果为空</summary>
-            <div class="state-content">
-                <div class="state-description">
-                    <strong>触发条件：</strong>技能文件树、共享资产、目标历史或审计发现为空。
-                </div>
-                <div class="wireframe-canvas">
-                    <div class="device-frame desktop" data-kit="NavigationSplitView">
-                        <div class="toolbar" data-kit="toolbar">
-                            <div class="toolbar-button">↻</div>
-                            <div class="toolbar-spacer"></div>
-                            <div class="toolbar-button">Init</div>
-                        </div>
-                        <div class="split-h">
-                            <div class="sidebar" data-kit="List(sidebar)">
-                                <div class="sidebar-section">Review</div>
-                                <div class="list-item"><div class="list-item-title">Overview</div></div>
-                                <div class="list-item"><div class="list-item-title">Skills</div><span class="badge">0</span></div>
-                                <div class="list-item"><div class="list-item-title">Audit</div><span class="badge active">clean</span></div>
-                            </div>
-                            <div class="split-divider-h"></div>
-                            <div class="panel" data-kit="DetailView">
-                                <div class="panel-header">Empty review sections</div>
-                                <div class="content-area">
-                                    <div class="empty-state" data-kit="ContentUnavailableView">
-                                        <div class="icon-placeholder large">0</div>
-                                        <p>No skills discovered. Check sourceDir and scan again.</p>
-                                    </div>
-                                    <div class="empty-state" data-kit="ContentUnavailableView">
-                                        <div class="icon-placeholder large">✓</div>
-                                        <p>No audit findings from the current rule set.</p>
-                                    </div>
-                                    <div class="empty-state" data-kit="ContentUnavailableView">
-                                        <div class="icon-placeholder large">A</div>
-                                        <p>No shared asset folders.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="component-list">
-                    <h3>组件清单</h3>
-                    <ul>
-                        <li>ContentUnavailableView for skills, audit, and assets</li>
-                        <li>Rescan and init recovery actions</li>
-                    </ul>
-                </div>
-                <div class="interactions">
-                    <h3>交互行为</h3>
-                    <div class="interaction-item"><code>Rescan</code> → 重新读取 sourceDir 并刷新空状态。</div>
-                    <div class="interaction-item"><code>Init</code> → 写入默认配置后重新扫描。</div>
-                </div>
-            </div>
-        </details>
-
-        <details>
-            <summary>错误：扫描或审计读取失败</summary>
-            <div class="state-content">
-                <div class="state-description">
-                    <strong>触发条件：</strong>配置解析失败、技能文件读取失败或审计执行失败。
-                </div>
-                <div class="wireframe-canvas">
-                    <div class="device-frame desktop" data-kit="NavigationSplitView">
-                        <div class="toolbar" data-kit="toolbar">
-                            <div class="toolbar-button">↻</div>
-                            <div class="toolbar-spacer"></div>
-                            <div class="toolbar-button">Retry</div>
-                        </div>
-                        <div class="split-h">
-                            <div class="sidebar" data-kit="List(sidebar)">
-                                <div class="sidebar-section">Review</div>
-                                <div class="list-item"><div class="list-item-title">Overview</div><span class="badge">error</span></div>
-                            </div>
-                            <div class="split-divider-h"></div>
-                            <div class="panel" data-kit="DetailView">
-                                <div class="panel-header">Review unavailable</div>
-                                <div class="content-area">
-                                    <div class="empty-state" data-kit="ContentUnavailableView">
-                                        <div class="icon-placeholder large">!</div>
-                                        <p>Workspace config cannot be parsed or a skill file cannot be read.</p>
+                                    <div class="split-h">
+                                        <div class="panel"><div class="panel-header">Project summary</div><div class="content-area"><div class="placeholder-box">Skills, assets, audit score, critical, warnings</div></div></div>
+                                        <div class="panel"><div class="panel-header">Next steps</div><div class="content-area"><div class="button">Review audit</div><div class="button">Configure profiles</div><div class="button">Manage destinations</div><div class="button">Prepare sharing</div></div></div>
                                     </div>
                                     <div class="group-box">
-                                        <div class="group-box-title">Recovery</div>
-                                        <div class="button primary">Rescan</div>
-                                        <div class="button">Choose another project</div>
+                                        <div class="group-box-title">Target history</div>
+                                        <div class="list-item"><div class="list-item-title">Codex user skills</div><div class="list-item-subtitle">default · last applied today</div></div>
                                     </div>
                                 </div>
                             </div>
@@ -265,14 +58,160 @@
                 <div class="component-list">
                     <h3>组件清单</h3>
                     <ul>
-                        <li>Error ContentUnavailableView</li>
-                        <li>Recovery action group</li>
+                        <li>real app shell sidebar and topbar</li>
+                        <li>ProjectHeader metrics and project tabs</li>
+                        <li>Overview metric panels and next-step buttons</li>
                     </ul>
                 </div>
                 <div class="interactions">
                     <h3>交互行为</h3>
-                    <div class="interaction-item"><code>Retry</code> → 从同一项目根目录重新扫描。</div>
-                    <div class="interaction-item"><code>Choose another project</code> → 返回外壳项目选择。</div>
+                    <div class="interaction-item"><code>Next steps</code> → 切换到对应项目页签。</div>
+                    <div class="interaction-item"><code>Rescan</code> → 重新扫描并刷新摘要。</div>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>技能文件：文件树与编辑器</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>用户进入 Skills 页签。
+                </div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="AppLayout">
+                        <div class="split-h">
+                            <aside class="sidebar" data-kit="Sidebar">
+                                <div class="sidebar-section">Skill projects</div>
+                                <div class="list-item"><div class="list-item-title">team-skills</div><div class="list-item-subtitle">12 skills / 84/100</div></div>
+                            </aside>
+                            <div class="panel" data-kit="Content">
+                                <div class="panel-header">team-skills · Skills</div>
+                                <div class="content-area">
+                                    <div class="tab-bar"><div class="tab-item">Overview</div><div class="tab-item active">Skills</div><div class="tab-item">Profiles</div><div class="tab-item">Destinations</div><div class="tab-item">Share</div><div class="tab-item">Audit</div></div>
+                                    <div class="split-h">
+                                        <div class="sidebar" data-kit="FileTree">
+                                            <div class="sidebar-section">skills · Files</div>
+                                            <div class="input-field">Profile: default</div>
+                                            <div class="list-item"><div class="list-item-title">code-review/SKILL.md</div></div>
+                                            <div class="list-item"><div class="list-item-title">release-writer/SKILL.md</div></div>
+                                            <div class="list-item"><div class="list-item-title">shared-assets/prompt.md</div></div>
+                                        </div>
+                                        <div class="panel" data-kit="Editor">
+                                            <div class="panel-header">code-review/SKILL.md <span class="badge">Reload</span> <span class="badge">Open window</span> <span class="badge active">Save</span></div>
+                                            <div class="content-area">
+                                                <div class="placeholder-box">Markdown editor content</div>
+                                                <div class="placeholder-box">Unsaved changes / File saved status</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="group-box">
+                                        <div class="group-box-title">Shared assets</div>
+                                        <div class="list-item"><div class="list-item-title">templates</div><div class="list-item-subtitle">Synced with every profile</div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>SkillsList file tree panel</li>
+                        <li>skill editor panel with reload, window, save actions</li>
+                        <li>shared assets list</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>选择文件</code> → 读取文件并填充编辑器。</div>
+                    <div class="interaction-item"><code>Save</code> → 写回当前文件，刷新保存状态。</div>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>审计：发现列表与空结果</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>用户进入 Audit 页签。
+                </div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="AppLayout">
+                        <div class="split-h">
+                            <aside class="sidebar" data-kit="Sidebar">
+                                <div class="sidebar-section">Skill projects</div>
+                                <div class="list-item"><div class="list-item-title">team-skills</div><div class="list-item-subtitle">1 critical / 3 warnings</div></div>
+                            </aside>
+                            <div class="panel" data-kit="Content">
+                                <div class="panel-header">team-skills · Audit</div>
+                                <div class="content-area">
+                                    <div class="tab-bar"><div class="tab-item">Overview</div><div class="tab-item">Skills</div><div class="tab-item">Profiles</div><div class="tab-item">Destinations</div><div class="tab-item">Share</div><div class="tab-item active">Audit</div></div>
+                                    <div class="group-box">
+                                        <div class="group-box-title">Audit score</div>
+                                        <span class="badge">84/100</span><span class="badge">1 critical</span><span class="badge">3 warnings</span>
+                                    </div>
+                                    <div class="list">
+                                        <div class="list-item"><div class="list-item-title">secret.private_key</div><div class="list-item-subtitle">skills/code-review/SKILL.md:12</div><span class="badge">critical</span></div>
+                                        <div class="list-item"><div class="list-item-title">metadata.missing_version</div><div class="list-item-subtitle">skills/release-writer/SKILL.md</div><span class="badge">warning</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>Audit tab in ProjectHeader</li>
+                        <li>audit score metrics</li>
+                        <li>finding list with severity badges</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>无发现</code> → 显示 No findings 文案。</div>
+                    <div class="interaction-item"><code>Rescan</code> → 重新执行审计并更新列表。</div>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>错误：扫描或文件读取失败</summary>
+            <div class="state-content">
+                <div class="state-description">
+                    <strong>触发条件：</strong>扫描失败、审计读取失败或技能文件读取失败。
+                </div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="AppLayout">
+                        <div class="split-h">
+                            <aside class="sidebar" data-kit="Sidebar">
+                                <div class="sidebar-section">Skill projects</div>
+                                <div class="list-item"><div class="list-item-title">team-skills</div><div class="list-item-subtitle">Error</div><span class="badge">error</span></div>
+                            </aside>
+                            <div class="panel" data-kit="Content">
+                                <div class="panel-header">team-skills · Error: Cannot open file <span class="badge">Rescan</span></div>
+                                <div class="content-area">
+                                    <div class="empty-state" data-kit="ErrorState">
+                                        <div class="icon-placeholder large">!</div>
+                                        <p>Scan failed or file cannot be opened.</p>
+                                        <div class="button">Rescan</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list">
+                    <h3>组件清单</h3>
+                    <ul>
+                        <li>topbar error status</li>
+                        <li>stage error state</li>
+                        <li>retry action</li>
+                    </ul>
+                </div>
+                <div class="interactions">
+                    <h3>交互行为</h3>
+                    <div class="interaction-item"><code>Rescan</code> → 保留项目选择并重试扫描。</div>
                 </div>
             </div>
         </details>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Download, GitBranch, HardDrive, PackageCheck, Play, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
-import type { AppState, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetGroup, SkillOpsConfig, TargetRecord, WorkspaceSnapshot } from "../shared/types";
+import type { AppState, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, SharePlanResult, ShareResult, ShareTargetGroup, SkillOpsConfig, TargetRecord, WorkspaceSnapshot } from "../shared/types";
 import { MAX_RECENT_WORKSPACES, readLegacyAppState } from "./app-state";
 import { AddProjectDialog, CliRepairDialog, EmptyState, EnvironmentNotice, PendingProject, ProjectHeader, SettingsDialog } from "./components/shell";
 import { dictionaries, type Language } from "./i18n";
@@ -314,7 +314,7 @@ function App() {
     setProjectShareTargetGroupId(selectedId);
   }
 
-  async function shareProject(group: ShareTargetGroup, message: string, delivery?: ShareDeliveryMethod) {
+  async function shareProject(group: ShareTargetGroup, message: string) {
     if (!root) return;
     setIsSharing(true);
     setShareResult(undefined);
@@ -336,7 +336,7 @@ function App() {
         applySnapshot(saved, group.profile);
       }
       setStatus(t.sharing);
-      const plan = await window.skillops.createSharePlan(root, group.remoteUrl, "private", group.targetMode, group.projectName ?? "", group.profile, delivery);
+      const plan = await window.skillops.createSharePlan(root, group.remoteUrl, "private", group.targetMode, group.projectName ?? "", group.profile);
       setSharePlan(plan);
       const nextStatus = plan.requiresConfirm ? t.shareReady(plan.branch) : t.shareReadyLocal(plan.branch);
       setShareProgress(nextStatus);

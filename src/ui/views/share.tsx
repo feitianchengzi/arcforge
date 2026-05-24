@@ -16,13 +16,12 @@ export function Publish(props: {
   activeTargetGroup?: ShareTargetGroup;
   setActiveTargetGroupId: (value: string) => void;
   saveTargetGroups: (groups: ShareTargetGroup[], selectedId: string) => void;
-  shareProject: (group: ShareTargetGroup, message: string, delivery?: ShareDeliveryMethod) => void;
+  shareProject: (group: ShareTargetGroup, message: string) => void;
   confirmShareProject: (group: ShareTargetGroup, message: string, plan: SharePlanResult) => void;
   cancelSharePlan: () => void;
 }) {
   const { t } = props;
   const [message, setMessage] = useState("Share SkillOps project");
-  const [delivery, setDelivery] = useState<ShareDeliveryMethod | undefined>();
   const [editingGroup, setEditingGroup] = useState<ShareTargetGroup | undefined>();
   const activeGroup = props.activeTargetGroup;
   const selectedSkills = activeGroup ? selectedSkillCount(props.snapshot, activeGroup.profile) : 0;
@@ -82,16 +81,8 @@ export function Publish(props: {
         )}
         <label>{t.commitMessage}</label>
         <input value={message} onChange={(event) => setMessage(event.target.value)} />
-        <label>{t.deliveryMethod}</label>
-        <div className="segmented share-delivery">
-          {deliveryOptions.map((item) => (
-            <button key={item} className={(delivery ?? props.sharePlan?.delivery) === item ? "active" : ""} onClick={() => setDelivery(item)}>
-              {deliveryLabel(t, item)}
-            </button>
-          ))}
-        </div>
         <div className="actions">
-          <button className="primary" onClick={() => activeGroup && props.shareProject(activeGroup, message, delivery)} disabled={props.isSharing || !activeGroup || !activeGroup.remoteUrl.trim() || (activeGroup.targetMode === "namedProject" && !activeGroup.projectName?.trim())}>{props.isSharing ? t.sharing : t.shareNow}</button>
+          <button className="primary" onClick={() => activeGroup && props.shareProject(activeGroup, message)} disabled={props.isSharing || !activeGroup || !activeGroup.remoteUrl.trim() || (activeGroup.targetMode === "namedProject" && !activeGroup.projectName?.trim())}>{props.isSharing ? t.sharing : t.shareNow}</button>
         </div>
         {props.shareProgress && <p className="muted">{props.shareProgress}</p>}
         {props.sharePlan && (
@@ -106,7 +97,7 @@ export function Publish(props: {
             <div className="list compact">
               <div className="row">
                 <div>
-                  <strong>{t.recommended}: {deliveryLabel(t, props.sharePlan.access.recommendedDelivery)}</strong>
+                  <strong>{t.deliveryMethod}: {deliveryLabel(t, props.sharePlan.delivery)}</strong>
                   <p>{props.sharePlan.access.availableDelivery.map((item) => deliveryLabel(t, item)).join(" / ")}</p>
                 </div>
                 <span>{props.sharePlan.branch}</span>
@@ -179,8 +170,6 @@ export function Publish(props: {
     </div>
   );
 }
-
-const deliveryOptions: ShareDeliveryMethod[] = ["targetPullRequest", "forkPullRequest", "directPush", "localBranch"];
 
 function deliveryLabel(t: Dictionary, value: ShareDeliveryMethod): string {
   if (value === "targetPullRequest") return t.targetPullRequest;

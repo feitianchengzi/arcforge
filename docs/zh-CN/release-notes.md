@@ -19,6 +19,8 @@
 
 - 共享执行改为使用隔离的共享 checkout，不直接在用户当前工作区 checkout 中写入。
 - 桌面端和 CLI 统一为“先计划、再确认写入”的共享流程。
+- 桌面端共享改为自动使用 GitHub 权限推荐的交付方式，不再要求用户在权限检测前选择交付方式。
+- CLI 共享执行在直接推送或 Pull Request 交付失败时保留手动恢复引导。
 - Electron preload 桥和 IPC handler 新增独立的共享计划操作。
 - ArcKit 规格、交互文档和技术契约同步描述 GitHub PR 工作流和更新后的 `ShareResult`。
 

@@ -35,11 +35,21 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
   assert.match(commands, /One-time skill selection/);
   assert.match(commands, /command === "share"/);
   assert.match(commands, /command === "doctor"/);
+  assert.match(commands, /requiresConfirm/);
   assert.match(cli, /runSkillOpsCommand/);
   assert.match(electronMain, /"--cli"/);
   assert.match(electronMain, /installCliShim/);
   assert.match(electronMain, /system:installCli/);
   assert.match(preload, /installCli/);
+});
+
+test("share delivery failures keep manual recovery guidance", async () => {
+  const shareCore = await readFile(new URL("../src/core/share.ts", import.meta.url), "utf8");
+
+  assert.match(shareCore, /Share delivery failed during/);
+  assert.match(shareCore, /manual commands below/);
+  assert.match(shareCore, /errorStage/);
+  assert.match(shareCore, /manualCommands/);
 });
 
 test("release workflow publishes cli-only install assets", async () => {

@@ -19,6 +19,8 @@ This document records the user-facing changes for SkillOps releases. SkillOps is
 
 - Sharing now uses an isolated share checkout instead of writing directly in the user's current workspace checkout.
 - Desktop and CLI sharing now follow the same plan-first, confirm-before-write workflow.
+- Desktop sharing now uses the GitHub access recommendation automatically instead of requiring users to choose a delivery method before permission detection.
+- CLI share execution now preserves manual recovery guidance when direct push or Pull Request delivery fails.
 - The Electron preload bridge and IPC handlers now expose a separate share-plan operation before confirmed sharing.
 - ArcKit specs, interaction docs, and technical contracts now describe the GitHub PR workflow and updated `ShareResult`.
 

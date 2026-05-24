@@ -34,8 +34,8 @@
 
 | 状态 | 触发条件 | data-kit 关键控件 |
 |------|---------|-----------------|
-| 加载中 | 打开项目或重新扫描 | NavigationSplitView / ProgressView |
-| 成功（内容） | 扫描完成且存在工作区快照 | NavigationSplitView / List(sidebar) / TabView |
+| 加载中 | 打开项目或重新扫描 | AppLayout / Sidebar / ProgressView |
+| 成功（内容） | 扫描完成且存在工作区快照 | AppLayout / Sidebar / ProjectHeader / stage-scroll |
 | 空状态 | 未选择项目或最近项目为空 | ContentUnavailableView / Sheet |
 | 错误 | 下载失败、扫描失败或 Git 不可用 | ContentUnavailableView / Alert |
 
@@ -96,4 +96,3 @@
 | 打开项目 | 顶部显示扫描中，项目上下文立即切换 |
 | 下载来源 | 侧边栏创建下载中临时项目 |
 | 重新扫描 | 保留当前页签并刷新快照 |
-

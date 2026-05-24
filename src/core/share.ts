@@ -71,9 +71,6 @@ export async function createSharePlan(options: ShareProjectOptions): Promise<Sha
 }
 
 export async function shareProject(options: ShareProjectOptions): Promise<ShareResult> {
-  if (options.delivery !== "localBranch" && !options.confirm) {
-    throw new Error("Remote sharing requires confirmation. Re-run with --confirm or choose localBranch delivery.");
-  }
   const root = path.resolve(options.root);
   const target = parseRemoteSource(options.remoteUrl);
   const snapshot = await scanWorkspace(root);
@@ -84,6 +81,9 @@ export async function shareProject(options: ShareProjectOptions): Promise<ShareR
   const messages: string[] = [];
   const access = await inspectGitHubAccess(target.cloneUrl, messages);
   const delivery = normalizeDelivery(options.delivery, access.recommendedDelivery, access.availableDelivery);
+  if (delivery !== "localBranch" && !options.confirm) {
+    throw new Error("Remote sharing requires confirmation. Re-run with --confirm or choose localBranch delivery.");
+  }
   const shareBranch = options.shareBranch?.trim() || defaultShareBranch(projectName);
 
   return withShareLock(options.cacheDir, target, messages, async () => {
@@ -115,37 +115,51 @@ export async function shareProject(options: ShareProjectOptions): Promise<ShareR
     let pushed = false;
     let pullRequestUrl: string | undefined;
 
-    if (!committed) {
-      messages.push("No share commit was created, so no push or pull request was attempted.");
-    } else if (delivery === "localBranch") {
-      messages.push("Local branch delivery selected; no remote push was attempted.");
-    } else if (delivery === "forkPullRequest") {
-      const repository = access.repository ?? parseGitHubRepo(resolvedTarget.cloneUrl)?.nameWithOwner;
-      if (!repository) throw new Error("Fork pull request delivery requires a GitHub repository.");
-      const fork = await ensureForkRemote(checkoutRoot, repository, messages);
-      await pushBranch(checkoutRoot, fork.remoteName, shareBranch, messages);
-      pushed = true;
-      pullRequestUrl = await createPullRequest(checkoutRoot, {
-        repository,
-        head: `${fork.owner}:${shareBranch}`,
-        base: baseBranch,
-        title: prTitle(projectName),
-        body: prBody(projectName, options.visibility, targetSubdir || ".", selectedSkills.length, publishedConfig.profiles.map((item) => item.name))
-      }, messages);
-    } else {
-      await pushBranch(checkoutRoot, "origin", shareBranch, messages);
-      pushed = true;
-      if (delivery === "targetPullRequest") {
+    let errorStage: string | undefined;
+
+    try {
+      if (!committed) {
+        messages.push("No share commit was created, so no push or pull request was attempted.");
+      } else if (delivery === "localBranch") {
+        messages.push("Local branch delivery selected; no remote push was attempted.");
+      } else if (delivery === "forkPullRequest") {
         const repository = access.repository ?? parseGitHubRepo(resolvedTarget.cloneUrl)?.nameWithOwner;
-        if (!repository) throw new Error("Pull request delivery requires a GitHub repository.");
+        if (!repository) throw new Error("Fork pull request delivery requires a GitHub repository.");
+        errorStage = "fork";
+        const fork = await ensureForkRemote(checkoutRoot, repository, messages);
+        errorStage = "push";
+        await pushBranch(checkoutRoot, fork.remoteName, shareBranch, messages);
+        pushed = true;
+        errorStage = "pullRequest";
         pullRequestUrl = await createPullRequest(checkoutRoot, {
           repository,
-          head: shareBranch,
+          head: `${fork.owner}:${shareBranch}`,
           base: baseBranch,
           title: prTitle(projectName),
           body: prBody(projectName, options.visibility, targetSubdir || ".", selectedSkills.length, publishedConfig.profiles.map((item) => item.name))
         }, messages);
+      } else {
+        errorStage = "push";
+        await pushBranch(checkoutRoot, "origin", shareBranch, messages);
+        pushed = true;
+        if (delivery === "targetPullRequest") {
+          const repository = access.repository ?? parseGitHubRepo(resolvedTarget.cloneUrl)?.nameWithOwner;
+          if (!repository) throw new Error("Pull request delivery requires a GitHub repository.");
+          errorStage = "pullRequest";
+          pullRequestUrl = await createPullRequest(checkoutRoot, {
+            repository,
+            head: shareBranch,
+            base: baseBranch,
+            title: prTitle(projectName),
+            body: prBody(projectName, options.visibility, targetSubdir || ".", selectedSkills.length, publishedConfig.profiles.map((item) => item.name))
+          }, messages);
+        }
       }
+      errorStage = undefined;
+    } catch (error) {
+      const stage = errorStage ?? "delivery";
+      messages.push(`Share delivery failed during ${stage}: ${error instanceof Error ? error.message : String(error)}`);
+      messages.push("The share commit and local checkout were kept. Use the manual commands below after fixing GitHub access, branch protection, or remote permissions.");
     }
 
     return {
@@ -160,6 +174,7 @@ export async function shareProject(options: ShareProjectOptions): Promise<ShareR
       commitHash,
       access,
       manualCommands,
+      errorStage,
       messages
     };
   });
