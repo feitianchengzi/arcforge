@@ -14,6 +14,27 @@ test("project is positioned as github-first skillops", () => {
   assert.match(pkg.description, /GitHub-first SkillOps/);
 });
 
+test("audit reports disclose rule-based coverage limits", async () => {
+  const auditCore = await readFile(new URL("../src/core/audit.ts", import.meta.url), "utf8");
+  const dashboard = await readFile(new URL("../src/ui/views/dashboard.tsx", import.meta.url), "utf8");
+  const links = await readFile(new URL("../src/shared/links.ts", import.meta.url), "utf8");
+  const main = await readFile(new URL("../src/electron/main.ts", import.meta.url), "utf8");
+  const shell = await readFile(new URL("../src/ui/components/shell.tsx", import.meta.url), "utf8");
+
+  assert.match(auditCore, /AUDIT_DISCLAIMER/);
+  assert.match(auditCore, /local rule-based scan/);
+  assert.match(auditCore, /feedbackUrl/);
+  assert.match(auditCore, /secret\.anthropic/);
+  assert.match(auditCore, /secret\.aws_access_key/);
+  assert.match(auditCore, /risk\.destructive_shell/);
+  assert.match(auditCore, /risk\.remote_script/);
+  assert.match(links, /github\.com\/feitianchengzi\/skillops\/issues\/new/);
+  assert.match(main, /system:openExternal/);
+  assert.match(dashboard, /auditTransparencyTitle/);
+  assert.match(dashboard, /auditOpenIssue/);
+  assert.match(shell, /feedbackHelp/);
+});
+
 test("installer metadata is managed from the app manifest", () => {
   assert.equal(appManifest.packageName, pkg.name);
   assert.equal(appManifest.version, pkg.version);

@@ -394,12 +394,17 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function Audit({ t, snapshot, criticalCount, warningCount }: { t: Dictionary; snapshot: WorkspaceSnapshot; criticalCount: number; warningCount: number }) {
+export function Audit({ t, snapshot, criticalCount, warningCount, openFeedback }: { t: Dictionary; snapshot: WorkspaceSnapshot; criticalCount: number; warningCount: number; openFeedback: () => void }) {
   return (
     <div className="grid">
       <Metric label={t.metrics.score} value={`${snapshot.audit.score}/100`} />
       <Metric label={t.metrics.criticalFindings} value={criticalCount} tone={criticalCount ? "bad" : "good"} />
       <Metric label={t.metrics.warnings} value={warningCount} tone={warningCount ? "warn" : "good"} />
+      <section className="panel wide audit-disclaimer">
+        <h3>{t.auditTransparencyTitle}</h3>
+        <p>{t.auditTransparencyBody}</p>
+        <button className="primary" onClick={openFeedback}><ExternalLink size={16} /> {t.auditOpenIssue}</button>
+      </section>
       <section className="panel wide">
         <h3>{t.findingsTitle}</h3>
         {snapshot.audit.findings.length === 0 ? <p className="muted">{t.noFindings}</p> : (

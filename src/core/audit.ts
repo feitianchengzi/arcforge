@@ -1,11 +1,17 @@
 import path from "node:path";
 import type { AuditFinding, AuditReport, SkillSummary } from "../shared/types.js";
+import { GITHUB_ISSUE_URL } from "../shared/links.js";
 import { listFiles, readText } from "./fs.js";
 import { findSkillMarkdownFile, isSkillMarkdownName } from "./skill-markdown.js";
 
 const SECRET_PATTERNS = [
-  { code: "secret.openai", pattern: /sk-[A-Za-z0-9_-]{20,}/ },
+  { code: "secret.openai", pattern: /sk-(?!proj-)[A-Za-z0-9_-]{20,}/ },
+  { code: "secret.openai_project", pattern: /sk-proj-[A-Za-z0-9_-]{20,}/ },
+  { code: "secret.anthropic", pattern: /sk-ant-[A-Za-z0-9_-]{20,}/ },
   { code: "secret.github", pattern: /gh[pousr]_[A-Za-z0-9_]{20,}/ },
+  { code: "secret.aws_access_key", pattern: /AKIA[0-9A-Z]{16}/ },
+  { code: "secret.slack", pattern: /xox[baprs]-[A-Za-z0-9-]{20,}/ },
+  { code: "secret.webhook", pattern: /https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9/]+/ },
   { code: "secret.private_key", pattern: /-----BEGIN (RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----/ }
 ];
 
@@ -13,8 +19,14 @@ const RISKY_INSTRUCTIONS = [
   { code: "risk.ignore_safety", pattern: /ignore (all )?(previous|safety|security|system) (instructions|rules|checks)/i },
   { code: "risk.env_access", pattern: /\b(read|open|print|cat)\b.{0,24}\.(env|npmrc|ssh|aws|credentials)\b/i },
   { code: "risk.auto_commit", pattern: /\b(commit|push|merge)\b.{0,24}\b(without asking|automatically|always)\b/i },
-  { code: "risk.exfiltration", pattern: /\b(send|upload|post)\b.{0,40}\b(logs|secrets|env|token|credentials)\b/i }
+  { code: "risk.exfiltration", pattern: /\b(send|upload|post)\b.{0,40}\b(logs|secrets|env|token|credentials)\b/i },
+  { code: "risk.destructive_shell", pattern: /\b(rm\s+-rf|chmod\s+-R\s+777|sudo\s+rm|mkfs|diskutil\s+eraseDisk)\b/i },
+  { code: "risk.remote_script", pattern: /\b(curl|wget)\b.{0,80}\|\s*(sh|bash|zsh|python|node)\b/i },
+  { code: "risk.unreviewed_execution", pattern: /\b(run|execute)\b.{0,40}\b(untrusted|arbitrary|user-provided)\b.{0,20}\b(code|script|command)\b/i },
+  { code: "risk.permission_bypass", pattern: /\b(bypass|disable|turn off)\b.{0,32}\b(approval|permission|sandbox|policy|guardrail)\b/i }
 ];
+
+export const AUDIT_DISCLAIMER = `SkillOps audit is a local rule-based scan. It currently checks known secret patterns, selected risky instruction phrases, high-risk shell command patterns, and basic SKILL.md metadata/structure. It is not a complete security review and can miss issues or report false positives. Treat results as guidance, review skills manually before sharing or publishing, and file an issue on GitHub if you need stronger audit coverage: ${GITHUB_ISSUE_URL}`;
 
 export async function auditWorkspace(root: string, skills: SkillSummary[]): Promise<AuditReport> {
   const findings: AuditFinding[] = [];
@@ -48,7 +60,9 @@ export async function auditWorkspace(root: string, skills: SkillSummary[]): Prom
     generatedAt: new Date().toISOString(),
     skills,
     findings,
-    score: score(findings)
+    score: score(findings),
+    disclaimer: AUDIT_DISCLAIMER,
+    feedbackUrl: GITHUB_ISSUE_URL
   };
 }
 

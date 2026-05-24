@@ -14,6 +14,8 @@ export interface Dictionary {
   projectHealth: string;
   projectPath: string;
   settings: string;
+  feedback: string;
+  feedbackHelp: string;
   recentWorkspaces: string;
   currentWorkspace: string;
   addSharedSource: string;
@@ -94,6 +96,9 @@ export interface Dictionary {
   noDescription: string;
   findingsTitle: string;
   noFindings: string;
+  auditTransparencyTitle: string;
+  auditTransparencyBody: string;
+  auditOpenIssue: string;
   applyProfile: string;
   manageProfiles: string;
   profileHelp: string;
@@ -200,6 +205,8 @@ export const dictionaries: Record<Language, Dictionary> = {
     projectHealth: "Project health",
     projectPath: "Project path",
     settings: "Settings",
+    feedback: "Feedback",
+    feedbackHelp: "Report issues or request stronger audit coverage on GitHub.",
     recentWorkspaces: "Skill projects",
     currentWorkspace: "Current project",
     addSharedSource: "GitHub source",
@@ -280,6 +287,9 @@ export const dictionaries: Record<Language, Dictionary> = {
     noDescription: "No description",
     findingsTitle: "Findings",
     noFindings: "No findings.",
+    auditTransparencyTitle: "Audit coverage is limited",
+    auditTransparencyBody: "This audit is a local rule-based scan. It checks known secret patterns, selected risky instruction phrases, high-risk shell command patterns, and basic SKILL.md metadata/structure. It is not a complete security review and can miss issues or report false positives. Review skills manually before sharing or publishing.",
+    auditOpenIssue: "Submit an issue on GitHub",
     applyProfile: "Apply profile",
     manageProfiles: "Manage profiles",
     profileHelp: "Create reusable skill sets for agents, projects, teams, or release workflows.",
@@ -384,6 +394,8 @@ export const dictionaries: Record<Language, Dictionary> = {
     projectHealth: "项目状态",
     projectPath: "项目路径",
     settings: "设置",
+    feedback: "反馈",
+    feedbackHelp: "在 GitHub 上反馈问题，或提交更强审计能力的需求。",
     recentWorkspaces: "Skill 项目",
     currentWorkspace: "当前项目",
     addSharedSource: "GitHub 来源",
@@ -464,6 +476,9 @@ export const dictionaries: Record<Language, Dictionary> = {
     noDescription: "暂无描述",
     findingsTitle: "发现项",
     noFindings: "没有发现问题。",
+    auditTransparencyTitle: "当前审计覆盖有限",
+    auditTransparencyBody: "当前审计是本地规则扫描，主要检查已知密钥模式、部分高风险指令短语、高风险 shell 命令模式，以及 SKILL.md 的基础元数据和结构。它不是完整安全审计，可能漏报，也可能误报。共享或发布前请手动复核技能内容。",
+    auditOpenIssue: "在 GitHub 提交 issue",
     applyProfile: "应用配置组",
     manageProfiles: "管理配置组",
     profileHelp: "为 Agent、项目、团队或发布流程创建可复用的技能清单。",

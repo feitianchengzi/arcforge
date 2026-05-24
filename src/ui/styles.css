@@ -509,6 +509,21 @@ button.active {
 .finding.critical svg, .finding.critical strong { color: var(--danger); }
 .finding.warning { border-color: var(--warning-border); background: var(--warning-bg); }
 .finding.warning strong { color: var(--warning); }
+.audit-disclaimer {
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
+}
+.audit-disclaimer h3 { color: var(--warning); }
+.audit-disclaimer p {
+  margin-top: var(--space-xs);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.audit-disclaimer button {
+  margin-top: var(--space-md);
+}
 
 .badge {
   display: inline-flex;

@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { AlertTriangle, CheckCircle2, Copy, Download, FolderOpen, PackageCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, Download, ExternalLink, FolderOpen, PackageCheck } from "lucide-react";
 import type { EnvironmentStatus, RecentWorkspace, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary, Language } from "../i18n";
 import type { CliRepairNotice, Tab } from "../types";
@@ -125,6 +125,7 @@ export function SettingsDialog(props: {
   t: Dictionary;
   language: Language;
   setLanguage: (value: Language) => void;
+  openFeedback: () => void;
   onClose: () => void;
 }) {
   const { t } = props;
@@ -142,6 +143,15 @@ export function SettingsDialog(props: {
           <option value="en">{t.english}</option>
           <option value="zh-CN">{t.simplifiedChinese}</option>
         </select>
+        <div className="target-subsection">
+          <div className="section-header">
+            <div>
+              <strong>{t.feedback}</strong>
+              <p className="muted">{t.feedbackHelp}</p>
+            </div>
+            <button onClick={props.openFeedback}><ExternalLink size={16} /> {t.auditOpenIssue}</button>
+          </div>
+        </div>
       </section>
     </div>
   );

@@ -6,7 +6,7 @@ metadata:
   owner: core/audit
   version: 1
   created: 2026-05-21
-  updated: 2026-05-21
+  updated: 2026-05-25
 type: object
 required:
   - root
@@ -14,6 +14,8 @@ required:
   - skills
   - findings
   - score
+  - disclaimer
+  - feedbackUrl
 properties:
   root:
     type: string
@@ -61,6 +63,13 @@ properties:
     type: integer
     minimum: 0
     maximum: 100
+  disclaimer:
+    type: string
+    description: User-facing explanation that the audit is a local rule-based scan with incomplete coverage and possible false positives.
+  feedbackUrl:
+    type: string
+    format: uri
+    description: GitHub issue URL where users can report audit gaps or request stronger rule coverage.
 state_machine:
   scoring:
     initial: 100
@@ -72,4 +81,3 @@ state_machine:
 validation:
   severe_cli_exit:
     description: CLI audit exits with code 2 when any finding has severity critical.
-

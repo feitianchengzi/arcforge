@@ -2,7 +2,7 @@ import path from "node:path";
 import os from "node:os";
 import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { runSkillOpsCommand, createPublishPlanCommand, applyProfileCommand, driftReportCommand, downloadSourceCommand, shareProjectCommand, createSharePlanCommand, shareDriftReportCommand } from "../commands/index.js";
 import { scanWorkspace, initWorkspace } from "../core/workspace.js";
 import { saveConfig } from "../core/config.js";
@@ -100,6 +100,7 @@ ipcMain.handle("workspace:saveConfig", (_event, root: string, config: SkillOpsCo
 ipcMain.handle("system:defaultTargets", () => defaultTargets());
 ipcMain.handle("system:environment", () => getElectronEnvironmentStatus());
 ipcMain.handle("system:installCli", () => installCliShim({ ...cliShimOptions(), updateShellProfile: true }));
+ipcMain.handle("system:openExternal", (_event, url: string) => openExternalUrl(url));
 ipcMain.handle("appState:load", () => loadAppState());
 ipcMain.handle("appState:save", (_event, patch: Partial<AppState>) => saveAppStatePatch(patch));
 ipcMain.handle("appState:migrate", (_event, legacyState: Partial<AppState>, origin: string) => migrateAppState(legacyState, origin));
@@ -156,6 +157,14 @@ ipcMain.handle("skillFile:openWorkspaceWindow", (event, root: string, directoryP
 async function saveWorkspaceConfig(root: string, config: SkillOpsConfig) {
   await saveConfig(root, normalizeConfig(config));
   return scanWorkspace(root);
+}
+
+async function openExternalUrl(url: string): Promise<void> {
+  const parsed = new URL(url);
+  if (parsed.protocol !== "https:" || parsed.hostname !== "github.com" || !parsed.pathname.startsWith("/feitianchengzi/skillops/issues")) {
+    throw new Error("External URL is not allowed.");
+  }
+  await shell.openExternal(parsed.toString());
 }
 
 async function loadAppState(): Promise<AppState> {

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Download, Edit3, GitBranch, HardDrive, PackageCheck, Play, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
 import type { AppState, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, SharePlanResult, ShareResult, ShareTargetGroup, SkillOpsConfig, TargetRecord, WorkspaceSnapshot } from "../shared/types";
+import { GITHUB_ISSUE_URL } from "../shared/links";
 import { MAX_RECENT_WORKSPACES, readLegacyAppState } from "./app-state";
 import { AddProjectDialog, CliRepairDialog, EmptyState, EnvironmentNotice, PendingProject, ProjectHeader, SettingsDialog } from "./components/shell";
 import { dictionaries, type Language } from "./i18n";
@@ -184,6 +185,18 @@ function App() {
       await navigator.clipboard.writeText(details);
       setCliRepairNotice((current) => current ? { ...current, copied: true } : current);
       setStatus(t.cliRepairCopied);
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    }
+  }
+
+  async function openFeedbackIssue(url = GITHUB_ISSUE_URL) {
+    try {
+      if (window.skillops) {
+        await window.skillops.openExternal(url);
+        return;
+      }
+      window.open(url, "_blank", "noopener,noreferrer");
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     }
@@ -775,7 +788,7 @@ function App() {
                 cancelSharePlan={() => setSharePlan(undefined)}
               />
             )}
-            {tab === "audit" && <Audit t={t} snapshot={snapshot} criticalCount={criticalCount} warningCount={warningCount} />}
+            {tab === "audit" && <Audit t={t} snapshot={snapshot} criticalCount={criticalCount} warningCount={warningCount} openFeedback={() => openFeedbackIssue(snapshot.audit.feedbackUrl)} />}
           </>
           )}
         </div>
@@ -812,6 +825,7 @@ function App() {
           t={t}
           language={language}
           setLanguage={setLanguage}
+          openFeedback={openFeedbackIssue}
           onClose={() => setShowSettings(false)}
         />
       )}

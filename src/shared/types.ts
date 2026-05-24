@@ -71,6 +71,8 @@ export interface AuditReport {
   skills: SkillSummary[];
   findings: AuditFinding[];
   score: number;
+  disclaimer: string;
+  feedbackUrl: string;
 }
 
 export interface SkillOpsProfile {

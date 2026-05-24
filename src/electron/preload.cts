@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("skillops", {
   getDefaultTargets: () => ipcRenderer.invoke("system:defaultTargets"),
   getEnvironmentStatus: () => ipcRenderer.invoke("system:environment"),
   installCli: () => ipcRenderer.invoke("system:installCli"),
+  openExternal: (url: string) => ipcRenderer.invoke("system:openExternal", url),
   loadAppState: () => ipcRenderer.invoke("appState:load"),
   saveAppState: (patch: unknown) => ipcRenderer.invoke("appState:save", patch),
   migrateAppState: (legacyState: unknown, origin: string) => ipcRenderer.invoke("appState:migrate", legacyState, origin),

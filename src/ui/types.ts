@@ -32,6 +32,7 @@ declare global {
       getDefaultTargets: () => Promise<DefaultTarget[]>;
       getEnvironmentStatus: () => Promise<EnvironmentStatus>;
       installCli: () => Promise<CliInstallStatus>;
+      openExternal: (url: string) => Promise<void>;
       loadAppState: () => Promise<AppState>;
       saveAppState: (patch: Partial<AppState>) => Promise<AppState>;
       migrateAppState: (legacyState: Partial<AppState>, origin: string) => Promise<AppState>;
