@@ -710,6 +710,8 @@ function App() {
   }
 
   function removeRecentWorkspace(path: string) {
+    const project = recentWorkspaces.find((item) => item.path === path);
+    if (!window.confirm(t.confirmRemoveWorkspace(project?.name || basename(path)))) return;
     const next = recentWorkspaces.filter((item) => item.path !== path);
     setRecentWorkspaces(next);
     void saveAppState({ recentWorkspaces: next });

@@ -52,6 +52,8 @@ export function Publish(props: {
   }
 
   function deleteGroup(groupId: string) {
+    const group = props.targetGroups.find((item) => item.id === groupId);
+    if (!window.confirm(t.confirmDeleteShareTarget(group?.name || t.unnamedProfile))) return;
     const next = props.targetGroups.filter((item) => item.id !== groupId);
     props.saveTargetGroups(next, next[0]?.id ?? "");
   }

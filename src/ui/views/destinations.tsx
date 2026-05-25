@@ -52,6 +52,8 @@ export function ApplySkills(props: {
   }
 
   function deleteGroup(groupId: string) {
+    const group = props.targetGroups.find((item) => item.id === groupId);
+    if (!window.confirm(t.confirmDeleteTargetGroup(group?.name || t.unnamedProfile))) return;
     const next = props.targetGroups.filter((item) => item.id !== groupId);
     props.saveTargetGroups(next, next[0]?.id ?? "");
   }
@@ -220,10 +222,12 @@ function ApplyTargetDialog(props: {
   }
 
   function removeProjectTarget(targetDir: string) {
+    if (!window.confirm(t.confirmRemoveTarget(targetDir))) return;
     setDraft({ ...draft, projectTargetDirs: draft.projectTargetDirs.filter((item) => item !== targetDir) });
   }
 
   function removeCustomTarget(targetDir: string) {
+    if (!window.confirm(t.confirmRemoveTarget(targetDir))) return;
     setDraft({ ...draft, customTargetDirs: (draft.customTargetDirs ?? []).filter((item) => item !== targetDir) });
   }
 

@@ -26,6 +26,7 @@ export interface Dictionary {
   projectDownloadFailed: string;
   noRecentWorkspaces: string;
   removeWorkspace: string;
+  confirmRemoveWorkspace: (name: string) => string;
   noWorkspace: string;
   chooseStatus: string;
   choosingWorkspace: string;
@@ -125,6 +126,7 @@ export interface Dictionary {
   profileHelp: string;
   newProfile: string;
   deleteProfile: string;
+  confirmDeleteProfile: (name: string) => string;
   saveProfiles: string;
   cancel: string;
   edit: string;
@@ -145,6 +147,7 @@ export interface Dictionary {
   newTargetGroup: string;
   editTargetGroup: string;
   deleteTargetGroup: string;
+  confirmDeleteTargetGroup: (name: string) => string;
   saveTargetGroup: string;
   groupName: string;
   selectedTargets: string;
@@ -160,6 +163,7 @@ export interface Dictionary {
   agentRequired: string;
   targetRequired: string;
   remove: string;
+  confirmRemoveTarget: (path: string) => string;
   installPreview: (skills: number, profile: string) => string;
   targetHistory: string;
   noTargetHistory: string;
@@ -177,6 +181,7 @@ export interface Dictionary {
   newShareTarget: string;
   editShareTarget: string;
   deleteShareTarget: string;
+  confirmDeleteShareTarget: (name: string) => string;
   saveShareTarget: string;
   noShareTargets: string;
   remoteRepository: string;
@@ -238,6 +243,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     projectDownloadFailed: "Download failed. Check the repository URL and Git credentials.",
     noRecentWorkspaces: "No Skill projects yet.",
     removeWorkspace: "Remove project",
+    confirmRemoveWorkspace: (name: string) => `Remove "${name}" from recent projects? This does not delete local files.`,
     noWorkspace: "No Skill project selected",
     chooseStatus: "Choose or download a Skill project with skills/ or a single SKILL.md folder.",
     choosingWorkspace: "Opening folder picker...",
@@ -337,6 +343,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     profileHelp: "Create reusable skill sets for agents, projects, teams, or release workflows.",
     newProfile: "New profile",
     deleteProfile: "Delete profile",
+    confirmDeleteProfile: (name: string) => `Delete the "${name}" profile? Target and share groups using it will move to another profile.`,
     saveProfiles: "Save profiles",
     cancel: "Cancel",
     edit: "Edit",
@@ -357,6 +364,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     newTargetGroup: "New target group",
     editTargetGroup: "Edit target group",
     deleteTargetGroup: "Delete target group",
+    confirmDeleteTargetGroup: (name: string) => `Delete the "${name}" target group?`,
     saveTargetGroup: "Save target group",
     groupName: "Group name",
     selectedTargets: "Selected targets",
@@ -372,6 +380,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     agentRequired: "Project folders require at least one agent target.",
     targetRequired: "Select at least one agent target or add a custom target.",
     remove: "Remove",
+    confirmRemoveTarget: (path: string) => `Remove this target path?\n${path}`,
     installPreview: (skills: number, profile: string) => `Ready to apply ${skills} skills from the ${profile} profile.`,
     targetHistory: "Target history",
     noTargetHistory: "No targets applied yet.",
@@ -389,6 +398,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     newShareTarget: "New share target",
     editShareTarget: "Edit share target",
     deleteShareTarget: "Delete share target",
+    confirmDeleteShareTarget: (name: string) => `Delete the "${name}" share target?`,
     saveShareTarget: "Save share target",
     noShareTargets: "No saved share targets.",
     remoteRepository: "Remote repository",
@@ -448,6 +458,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     projectDownloadFailed: "下载失败，请检查仓库地址和 Git 凭据。",
     noRecentWorkspaces: "暂无 Skill 项目。",
     removeWorkspace: "移除项目",
+    confirmRemoveWorkspace: (name: string) => `确认从最近项目中移除“${name}”？这不会删除本地文件。`,
     noWorkspace: "未选择 Skill 项目",
     chooseStatus: "请选择或下载包含 skills/ 的 Skill 项目，或单个 SKILL.md 文件夹。",
     choosingWorkspace: "正在打开文件夹选择器...",
@@ -547,6 +558,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     profileHelp: "为 Agent、项目、团队或发布流程创建可复用的技能清单。",
     newProfile: "新建配置组",
     deleteProfile: "删除配置组",
+    confirmDeleteProfile: (name: string) => `确认删除“${name}”配置组？使用它的目标组合和共享目标会切换到其它配置组。`,
     saveProfiles: "保存配置组",
     cancel: "取消",
     edit: "编辑",
@@ -567,6 +579,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     newTargetGroup: "新建目标组合",
     editTargetGroup: "编辑目标组合",
     deleteTargetGroup: "删除目标组合",
+    confirmDeleteTargetGroup: (name: string) => `确认删除“${name}”目标组合？`,
     saveTargetGroup: "保存目标组合",
     groupName: "组合名称",
     selectedTargets: "已选目标",
@@ -582,6 +595,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     agentRequired: "项目目录需要先选择至少一个 Agent 目标。",
     targetRequired: "请选择至少一个 Agent 目标，或添加一个自定义目标。",
     remove: "移除",
+    confirmRemoveTarget: (path: string) => `确认移除这个目标路径？\n${path}`,
     installPreview: (skills: number, profile: string) => `准备应用 ${profile} 配置组中的 ${skills} 个技能。`,
     targetHistory: "目标历史",
     noTargetHistory: "尚未应用到任何目标。",
@@ -599,6 +613,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     newShareTarget: "新建共享目标",
     editShareTarget: "编辑共享目标",
     deleteShareTarget: "删除共享目标",
+    confirmDeleteShareTarget: (name: string) => `确认删除“${name}”共享目标？`,
     saveShareTarget: "保存共享目标",
     noShareTargets: "暂无已保存的共享目标。",
     remoteRepository: "远端仓库",

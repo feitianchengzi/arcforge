@@ -114,8 +114,26 @@ test("profile deletion is persisted instead of draft-only", async () => {
   const profilesView = await readFile(new URL("../src/ui/views/profiles.tsx", import.meta.url), "utf8");
 
   assert.match(profilesView, /function deleteProfile/);
+  assert.match(profilesView, /window\.confirm/);
+  assert.match(profilesView, /confirmDeleteProfile/);
   assert.match(profilesView, /props\.saveProfiles/);
   assert.match(profilesView, /retargetProfileReferences/);
+});
+
+test("destructive desktop actions require confirmation", async () => {
+  const mainUi = await readFile(new URL("../src/ui/main.tsx", import.meta.url), "utf8");
+  const destinationsView = await readFile(new URL("../src/ui/views/destinations.tsx", import.meta.url), "utf8");
+  const shareView = await readFile(new URL("../src/ui/views/share.tsx", import.meta.url), "utf8");
+  const i18n = await readFile(new URL("../src/ui/i18n.ts", import.meta.url), "utf8");
+
+  assert.match(i18n, /confirmRemoveWorkspace/);
+  assert.match(i18n, /confirmDeleteTargetGroup/);
+  assert.match(i18n, /confirmRemoveTarget/);
+  assert.match(i18n, /confirmDeleteShareTarget/);
+  assert.match(mainUi, /confirmRemoveWorkspace/);
+  assert.match(destinationsView, /confirmDeleteTargetGroup/);
+  assert.match(destinationsView, /confirmRemoveTarget/);
+  assert.match(shareView, /confirmDeleteShareTarget/);
 });
 
 test("release workflow publishes cli-only install assets", async () => {

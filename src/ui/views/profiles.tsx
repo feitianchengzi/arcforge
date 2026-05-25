@@ -46,6 +46,7 @@ export function Profiles(props: {
   function deleteProfile() {
     if (draftProfiles.length <= 1) return;
     const deletedProfile = draftProfiles[activeIndex];
+    if (!window.confirm(t.confirmDeleteProfile(deletedProfile?.name || t.unnamedProfile))) return;
     const nextProfiles = draftProfiles.filter((_item, index) => index !== activeIndex);
     const nextIndex = Math.max(0, activeIndex - 1);
     const nextProfile = nextProfiles[nextIndex] ?? nextProfiles[0] ?? emptyProfile("default");
