@@ -58,6 +58,25 @@ export interface Dictionary {
     share: string;
   };
   nextSteps: string;
+  sourceStatusTitle: string;
+  sourceStatusHelp: string;
+  sourceStatusIdle: string;
+  sourceStatusUnavailable: string;
+  currentConfiguredSource: string;
+  checkSourceUpdates: string;
+  checkingSourceUpdates: string;
+  updateSource: string;
+  updatingSource: string;
+  sourceUpToDate: string;
+  sourceCanUpdate: (behind: number) => string;
+  sourceCannotUpdate: string;
+  sourceAheadBehind: (ahead: number, behind: number) => string;
+  sourceLastFetch: (age: string) => string;
+  sourceNeverFetched: string;
+  sourceCheckedAt: (time: string) => string;
+  sourceBranch: (branch: string, upstream: string) => string;
+  confirmSourceUpdate: (behind: number) => string;
+  sourceUpdated: string;
   reviewAudit: string;
   configureProfiles: string;
   manageDestinations: string;
@@ -249,6 +268,25 @@ export const dictionaries: Record<Language, Dictionary> = {
       share: "Share"
     },
     nextSteps: "Next steps",
+    sourceStatusTitle: "Source updates",
+    sourceStatusHelp: "Check the Git upstream before applying or sharing this project.",
+    sourceStatusIdle: "No source update check has been run for this project.",
+    sourceStatusUnavailable: "No Git remote was detected for this project.",
+    currentConfiguredSource: "Current source",
+    checkSourceUpdates: "Check updates",
+    checkingSourceUpdates: "Checking updates...",
+    updateSource: "Update source",
+    updatingSource: "Updating source...",
+    sourceUpToDate: "Source is up to date.",
+    sourceCanUpdate: (behind: number) => `Source is behind by ${behind} commit${behind === 1 ? "" : "s"}.`,
+    sourceCannotUpdate: "Update is blocked. Resolve local Git state first.",
+    sourceAheadBehind: (ahead: number, behind: number) => `Ahead ${ahead} / behind ${behind}`,
+    sourceLastFetch: (age: string) => `Last fetch ${age} ago`,
+    sourceNeverFetched: "No previous fetch recorded",
+    sourceCheckedAt: (time: string) => `Checked ${time}`,
+    sourceBranch: (branch: string, upstream: string) => `${branch} -> ${upstream}`,
+    confirmSourceUpdate: (behind: number) => `Update this source with a fast-forward pull? The local checkout is behind by ${behind} commit${behind === 1 ? "" : "s"}.`,
+    sourceUpdated: "Source updated. Workspace rescanned.",
     reviewAudit: "Review audit",
     configureProfiles: "Configure profiles",
     manageDestinations: "Manage destinations",
@@ -438,6 +476,25 @@ export const dictionaries: Record<Language, Dictionary> = {
       share: "共享"
     },
     nextSteps: "下一步",
+    sourceStatusTitle: "来源更新",
+    sourceStatusHelp: "应用或共享前先检查 Git 上游状态。",
+    sourceStatusIdle: "当前项目尚未检查来源更新状态。",
+    sourceStatusUnavailable: "当前项目未检测到 Git 远端。",
+    currentConfiguredSource: "当前来源",
+    checkSourceUpdates: "检查更新",
+    checkingSourceUpdates: "正在检查更新...",
+    updateSource: "更新来源",
+    updatingSource: "正在更新来源...",
+    sourceUpToDate: "来源已是最新。",
+    sourceCanUpdate: (behind: number) => `来源落后 ${behind} 个 commit。`,
+    sourceCannotUpdate: "当前无法更新，请先处理本地 Git 状态。",
+    sourceAheadBehind: (ahead: number, behind: number) => `领先 ${ahead} / 落后 ${behind}`,
+    sourceLastFetch: (age: string) => `上次 fetch：${age} 前`,
+    sourceNeverFetched: "没有上次 fetch 记录",
+    sourceCheckedAt: (time: string) => `检查于 ${time}`,
+    sourceBranch: (branch: string, upstream: string) => `${branch} -> ${upstream}`,
+    confirmSourceUpdate: (behind: number) => `确认用 fast-forward pull 更新来源？当前本地落后 ${behind} 个 commit。`,
+    sourceUpdated: "来源已更新，工作区已重新扫描。",
     reviewAudit: "查看审计",
     configureProfiles: "配置技能组",
     manageDestinations: "管理应用目标",

@@ -3,7 +3,7 @@ import os from "node:os";
 import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
-import { runSkillOpsCommand, createPublishPlanCommand, applyProfileCommand, driftReportCommand, downloadSourceCommand, shareProjectCommand, createSharePlanCommand, shareDriftReportCommand } from "../commands/index.js";
+import { runSkillOpsCommand, createPublishPlanCommand, applyProfileCommand, driftReportCommand, downloadSourceCommand, shareProjectCommand, createSharePlanCommand, shareDriftReportCommand, sourceUpdateStatusCommand, updateSourceCommand } from "../commands/index.js";
 import { scanWorkspace, initWorkspace } from "../core/workspace.js";
 import { saveConfig } from "../core/config.js";
 import { getEnvironmentStatus } from "../core/environment.js";
@@ -105,6 +105,8 @@ ipcMain.handle("appState:load", () => loadAppState());
 ipcMain.handle("appState:save", (_event, patch: Partial<AppState>) => saveAppStatePatch(patch));
 ipcMain.handle("appState:migrate", (_event, legacyState: Partial<AppState>, origin: string) => migrateAppState(legacyState, origin));
 ipcMain.handle("source:download", (_event, remoteUrl: string) => downloadSourceCommand(remoteUrl, cacheRoot()));
+ipcMain.handle("source:status", (_event, root: string) => sourceUpdateStatusCommand(root));
+ipcMain.handle("source:update", (_event, root: string, confirm?: boolean) => updateSourceCommand(root, Boolean(confirm)));
 ipcMain.handle("publish:plan", (_event, root: string, visibility: "private" | "public") => createPublishPlanCommand(root, visibility));
 ipcMain.handle("publish:sharePlan", (_event, root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, sameRepository?: boolean, sameRepositoryRemote?: string) => createSharePlanCommand({
   root,

@@ -735,6 +735,9 @@ function App() {
                 warningCount={warningCount}
                 targetHistory={projectTargetHistory}
                 setTab={setProjectTab}
+                setStatus={setStatus}
+                onSourceUpdated={() => scan(root)}
+                isGithubSource={activeProject?.sourceKind === "github"}
               />
             )}
             {tab === "skills" && <SkillsList t={t} snapshot={snapshot} profile={profile} setProfile={setProjectProfile} />}
@@ -817,6 +820,8 @@ function App() {
           setSharedSourceUrl={setSharedSourceUrl}
           chooseWorkspace={chooseWorkspace}
           downloadSharedSource={downloadSharedSource}
+          currentSourceKind={activeProject?.sourceKind}
+          currentSourceValue={activeProject?.sourceKind === "github" ? activeProject.githubSourceUrl : activeProject?.localSourcePath ?? root}
           onClose={() => setShowEditProjectSource(false)}
         />
       )}

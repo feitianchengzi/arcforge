@@ -78,6 +78,8 @@ export function AddProjectDialog(props: {
   setSharedSourceUrl: (value: string) => void;
   chooseWorkspace: () => void;
   downloadSharedSource: () => void;
+  currentSourceKind?: "local" | "github";
+  currentSourceValue?: string;
   onClose: () => void;
 }) {
   const { t } = props;
@@ -91,6 +93,12 @@ export function AddProjectDialog(props: {
           </div>
           <button className="icon-button light" onClick={props.onClose}>x</button>
         </div>
+        {props.currentSourceValue && (
+          <div className="current-source-card">
+            <strong>{t.currentConfiguredSource}: {props.currentSourceKind === "github" ? t.githubSource : t.localSource}</strong>
+            <p>{props.currentSourceValue}</p>
+          </div>
+        )}
         <div className="segmented two source-mode">
           <button className={props.sourceMode === "local" ? "active" : ""} onClick={() => props.setSourceMode("local")}><FolderOpen size={16} /> {t.localSource}</button>
           <button className={props.sourceMode === "github" ? "active" : ""} onClick={() => props.setSourceMode("github")}><Download size={16} /> {t.githubSource}</button>

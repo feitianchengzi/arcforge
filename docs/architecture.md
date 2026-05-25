@@ -21,7 +21,7 @@ src/shared/     shared TypeScript types
 
 ## Data Model
 
-`skillops.config.json` is the workspace control file.
+SkillOps separates source content from local user state. Normal project settings are stored in user-level project state under `~/.skillops/projects`. When `skillops.config.json` is found in a project root, SkillOps migrates it into user-level project state if needed and then removes it from the source checkout.
 
 ```json
 {
@@ -45,6 +45,7 @@ The renderer has no direct Node.js access. It talks to the main process through 
 - choose workspace
 - scan workspace
 - init config
+- check or update GitHub source checkout
 - create publish plan
 - share project to a Git repository
 - apply profile
@@ -53,6 +54,8 @@ The renderer has no direct Node.js access. It talks to the main process through 
 - detached skill file editor window
 
 The packaged Electron executable also supports `--cli`. In that mode it does not create a window and instead executes the same command runner used by the terminal entrypoint.
+
+GitHub-sourced projects are maintained through CLI-first source commands. The status command fetches upstream refs and reports ahead/behind commit counts; the update command requires explicit confirmation and performs only a fast-forward pull, so desktop UI can present the same decision point without owning separate Git logic.
 
 On desktop startup, the main process installs or repairs a user-level `skillops` shim that points back to the packaged executable with `--cli`. The environment check reports shim path, PATH visibility, Git availability, and optional integration tools.
 

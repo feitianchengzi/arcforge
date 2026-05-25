@@ -32,6 +32,7 @@ SkillOps 是发布前和团队治理层。它应该位于 GitHub releases、Claw
 4. 我想公开发布，但不想泄露内部上下文。
 5. 我需要 CLI 在 CI 里做检查。
 6. 我希望在应用或共享前，直接在工作台里查看和编辑 skills。
+7. 我从 GitHub 打开了 skill 项目，希望先知道本地是否落后上游，再决定是否更新。
 
 ## MVP 功能
 
@@ -40,6 +41,7 @@ SkillOps 是发布前和团队治理层。它应该位于 GitHub releases、Claw
 - 以文件树方式查看和编辑工作区 `skills/`，并支持按配置组过滤
 - 将命名 profile 应用到目标目录
 - 报告 profile 源目录与目标目录之间的漂移
+- 通过 CLI 优先命令检查并快进更新 GitHub 来源的 skill 项目
 - 生成私有/公开发布计划
 - 提供 JSON CLI 输出，方便自动化
 

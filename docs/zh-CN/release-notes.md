@@ -2,6 +2,20 @@
 
 本文记录 SkillOps 各版本面向用户的变化。SkillOps 仍处于 `1.0` 之前，因此版本记录重点关注工作流能力、打包行为和文档变化，不承诺稳定的公开 API。
 
+## 未发布
+
+### 新增
+
+- 新增面向 GitHub/Git 来源 skill 项目的 CLI 优先来源维护能力：
+  - `skillops source status` 报告相对上游的 ahead/behind commit 数。
+  - `skillops source update --confirm` 在明确确认后执行 fast-forward-only 更新。
+- 来源状态包含上一次 fetch 的时间，以及距离该 fetch 已经过的时间。
+- 新增来源更新状态和更新结果的共享模型与桌面 IPC hook，方便桌面端展示同一个检查后再更新的决策点。
+
+### 变更
+
+- 重新打开已缓存的 GitHub 来源时，现在只获取远端 refs，不再自动把文件变更 pull 到本地 checkout。
+
 ## v0.1.6 - 2026-05-25
 
 ### 概要

@@ -40,7 +40,7 @@ Possible `0.x` additions, only if needed:
 
 Goal: make SkillOps stable enough that a developer or small team can rely on it without expecting breaking config changes.
 
-- define a compatibility promise for `skillops.config.json`
+- stabilize the user-level project state schema and migration behavior
 - stabilize the core CLI commands and JSON output shape
 - support a cleaner profile editing workflow
 - provide better before-apply diffs and rollback guidance

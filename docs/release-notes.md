@@ -2,6 +2,20 @@
 
 This document records the user-facing changes for SkillOps releases. SkillOps is still pre-1.0, so versioned notes focus on workflow capability, packaging behavior, and documentation changes rather than a stable public API guarantee.
 
+## Unreleased
+
+### Added
+
+- Added CLI-first source maintenance for GitHub/Git-backed skill projects:
+  - `skillops source status` reports upstream ahead/behind commit counts.
+  - `skillops source update --confirm` performs a fast-forward-only update after explicit confirmation.
+- Source status includes the previous fetch timestamp and elapsed time since that fetch.
+- Added desktop IPC hooks and shared models for source update status and update results.
+
+### Changed
+
+- Reopening a cached GitHub source now fetches remote refs without automatically pulling file changes into the local checkout.
+
 ## v0.1.6 - 2026-05-25
 
 ### Summary

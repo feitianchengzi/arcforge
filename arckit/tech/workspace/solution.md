@@ -4,15 +4,17 @@
 
 工作区扫描方案以本地目录为输入，生成可供桌面端和 CLI 复用的工作区快照。方案聚合配置加载、技能发现、共享资产发现、审计执行和本地 Git 来源识别。
 
-## 配置文件
+## 配置与本地项目状态
 
-工作区根目录下的 `skillops.config.json` 是控制文件。配置模型为 `SkillOpsConfig`。
+配置加载采用两层结构：默认配置和用户级本地项目状态。用户级本地项目状态位于 `~/.skillops/projects/<project-key>.json`，由 CLI 和 Desktop 共同读写。
 
-配置文件缺失时，系统返回默认配置。默认配置版本为 1，来源目录通常为 `skills`；如果工作区根目录本身包含 `SKILL.md` 或大小写不同的 `skill.md`，来源目录为 `.`。默认配置组名称为 `default`，技能选择为全部技能，目标为 Codex、Claude 和 Cursor。
+`project-key` 根据项目身份生成。Git 工作区优先使用规范化远端地址和工作区相对 Git 根目录的路径；没有 Git 远端时使用绝对路径。该策略让 GitHub 来源 checkout 的本地配置跟随仓库身份，而普通本地目录仍按路径区分。
 
-配置文件存在时，系统解析 JSON，并以默认配置补齐缺省字段。配置组字段缺失时使用空数组。
+项目根目录下的 `skillops.config.json` 是迁移输入，不是持久配置。系统发现该文件时，如果用户级项目状态不存在，先解析文件并保存为用户级本地项目状态；如果用户级项目状态已经存在，则不覆盖用户级状态。完成判断后系统删除项目根目录下的该文件。
 
-保存配置时，系统写入格式化 JSON，并确保父目录存在。
+保存配置时，系统把格式化 JSON 写入用户级项目状态，不写入来源 checkout。配置组字段缺失时使用空数组。
+
+默认配置版本为 1，来源目录通常为 `skills`；如果工作区根目录本身包含 `SKILL.md` 或大小写不同的 `skill.md`，来源目录为 `.`。默认配置组名称为 `default`，技能选择为全部技能，目标为 Codex、Claude 和 Cursor。
 
 ## 技能发现
 
@@ -64,6 +66,22 @@ frontmatter 解析器支持文档开头的 `---` 块。解析结果包含 frontm
 
 桌面端和 CLI 均以该模型作为主要数据输入。
 
+## 来源更新检查
+
+来源更新检查复用本地 Git 来源识别结果。输入为 SkillOps 工作区根目录，系统解析该目录所属 Git 根目录、当前分支和远端列表。
+
+检查流程读取当前分支的 upstream。若 upstream 未显式配置，系统尝试使用同名 `origin/<branch>` 作为上游。
+
+检查流程执行 `git fetch --prune <remote>` 更新远端引用，然后通过 `git rev-list --left-right --count HEAD...<upstream>` 计算 ahead 与 behind commit 数。
+
+检查结果包含本地 HEAD、上游 HEAD、ahead 数、behind 数、本次 fetch 前的 `FETCH_HEAD` 修改时间、距离上次 fetch 的时长、未提交变更状态、是否可更新和 Git 执行消息。
+
+可更新条件为本地落后上游、没有本地领先提交、没有未提交变更且能够解析远端与当前分支。来源检查前系统先执行项目配置迁移与删除；迁移删除造成的 Git 状态按普通工作区变更处理。
+
+来源更新流程要求调用方传入确认标记。确认后系统重新检查状态，只执行 `git pull --ff-only <remote> <branch>`，并在更新后再次检查状态生成结果。
+
+GitHub 来源下载流程在已有缓存存在时只更新远端 refs，不自动合并工作区文件。用户通过来源更新检查看到落后 commit 数后，再决定是否执行来源更新。
+
 ## 错误语义
 
 配置文件 JSON 解析失败时，错误向调用方传播。
@@ -77,3 +95,5 @@ frontmatter 解析器支持文档开头的 `---` 块。解析结果包含 frontm
 该方案由 `workspace-scan` 和 `workspace-init` 契约暴露给桌面端。
 
 CLI 的 `scan`、`audit`、`publish-plan`、`drift` 和 `apply-profile` 命令均复用该方案。
+
+CLI 的 `source status` 和 `source update` 命令复用本方案中的来源更新检查与快进更新流程。

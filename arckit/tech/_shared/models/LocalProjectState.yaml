@@ -1,0 +1,66 @@
+metadata:
+  path: tech/_shared/models/LocalProjectState.yaml
+  domain: shared
+  entity_name: LocalProjectState
+  storage: ~/.skillops/projects/<project-key>.json
+  owner: core/project-store
+  version: 1
+  created: 2026-05-25
+  updated: 2026-05-25
+type: object
+required:
+  - version
+  - projectKey
+  - root
+  - identity
+  - updatedAt
+properties:
+  version:
+    type: integer
+    const: 1
+    description: Local project state schema version.
+  projectKey:
+    type: string
+    description: Stable hash derived from the project identity.
+  root:
+    type: string
+    description: Last resolved local workspace root path used to open the project.
+  identity:
+    type: object
+    required:
+      - kind
+      - key
+      - root
+    properties:
+      kind:
+        type: string
+        enum:
+          - git
+          - path
+        description: Identity strategy used for the project.
+      key:
+        type: string
+        description: Canonical remote plus relative path for Git projects, or absolute path for local projects.
+      root:
+        type: string
+        description: Resolved workspace root path.
+      gitRoot:
+        type: string
+        nullable: true
+        description: Git repository root when the project is inside a Git checkout.
+      relativePath:
+        type: string
+        nullable: true
+        description: Workspace path relative to gitRoot for Git projects.
+      remote:
+        type: string
+        nullable: true
+        description: Canonical remote key used to identify Git projects.
+  config:
+    $ref: "./SkillOpsConfig.yaml"
+    nullable: true
+    description: User-level project configuration stored outside the source checkout.
+  updatedAt:
+    type: string
+    format: date-time
+    description: Last time SkillOps wrote this local project state.

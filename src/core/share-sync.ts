@@ -44,8 +44,6 @@ export async function syncProjectToShareTarget(root: string, targetRoot: string,
     await replaceSharedEntry(asset.path, path.join(targetSourceRoot, relativePath), targetSourceRoot);
     await writeAssetOwner(path.join(targetSourceRoot, relativePath), namespace);
   }
-  const mergedConfig = await mergeSharedConfig(path.join(targetRoot, "skillops.config.json"), config);
-  await fs.writeFile(path.join(targetRoot, "skillops.config.json"), `${JSON.stringify(mergedConfig, null, 2)}\n`, "utf8");
   const sourceReadme = path.join(root, "README.md");
   const targetReadme = path.join(targetRoot, "README.md");
   if (!(await pathExists(targetReadme)) && await pathExists(sourceReadme)) {
@@ -65,8 +63,6 @@ function relativeSharedEntryPath(sourceRoot: string, entryPath: string, fallback
 }
 
 export async function syncProjectMetadata(targetRoot: string, config: SkillOpsConfig, visibility: "private" | "public", sectionName: string): Promise<void> {
-  const mergedConfig = await mergeSharedConfig(path.join(targetRoot, "skillops.config.json"), config);
-  await fs.writeFile(path.join(targetRoot, "skillops.config.json"), `${JSON.stringify(mergedConfig, null, 2)}\n`, "utf8");
   const targetReadme = path.join(targetRoot, "README.md");
   if (!(await pathExists(targetReadme))) {
     await fs.writeFile(targetReadme, `# ${path.basename(targetRoot)}\n`, "utf8");
@@ -161,22 +157,6 @@ async function replaceDirectoryAtomic(source: string, target: string): Promise<v
   }
 }
 
-async function mergeSharedConfig(configPath: string, next: SkillOpsConfig): Promise<SkillOpsConfig> {
-  if (!(await pathExists(configPath))) return next;
-  try {
-    const existing = JSON.parse(await fs.readFile(configPath, "utf8")) as SkillOpsConfig;
-    const profiles = new Map<string, SkillOpsConfig["profiles"][number]>();
-    for (const profile of existing.profiles ?? []) profiles.set(profile.name, profile);
-    for (const profile of next.profiles) profiles.set(profile.name, profile);
-    return normalizeConfig({
-      ...existing,
-      ...next,
-      profiles: [...profiles.values()]
-    });
-  } catch {
-    return next;
-  }
-}
 
 async function writeSharingReadme(root: string, config: SkillOpsConfig, visibility: "private" | "public", sectionName: string): Promise<void> {
   const readmePath = path.join(root, "README.md");

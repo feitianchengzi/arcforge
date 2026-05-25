@@ -1,0 +1,93 @@
+metadata:
+  path: tech/_shared/models/SourceUpdateStatus.yaml
+  domain: workspace
+  entity_name: SourceUpdateStatus
+  storage: in_memory
+  owner: core/source-update
+  version: 1
+  created: 2026-05-25
+  updated: 2026-05-25
+type: object
+required:
+  - root
+  - gitRoot
+  - relativePath
+  - ahead
+  - behind
+  - dirty
+  - canUpdate
+  - checkedAt
+  - messages
+properties:
+  root:
+    type: string
+    description: SkillOps workspace root requested by the caller.
+  gitRoot:
+    type: string
+    description: Git repository root that contains the workspace root.
+  relativePath:
+    type: string
+    description: Workspace root relative to the Git repository root.
+  branch:
+    type: string
+    nullable: true
+    description: Current local branch name.
+  upstream:
+    type: string
+    nullable: true
+    description: Upstream ref used for ahead/behind comparison.
+  remoteName:
+    type: string
+    nullable: true
+    description: Remote name resolved from upstream.
+  remoteUrl:
+    type: string
+    nullable: true
+    description: Fetch or push URL for the resolved remote.
+  head:
+    type: string
+    nullable: true
+    description: Current local HEAD commit hash.
+  upstreamHead:
+    type: string
+    nullable: true
+    description: Current upstream commit hash after fetch.
+  ahead:
+    type: integer
+    minimum: 0
+    description: Number of local commits ahead of upstream.
+  behind:
+    type: integer
+    minimum: 0
+    description: Number of upstream commits missing locally.
+  dirty:
+    type: boolean
+    description: True when the Git working tree has uncommitted changes.
+  canUpdate:
+    type: boolean
+    description: True when a fast-forward update can run without overwriting local work.
+  previousFetchAt:
+    type: string
+    format: date-time
+    nullable: true
+    description: FETCH_HEAD modification time before this status check fetched upstream refs.
+  previousFetchAgeMs:
+    type: integer
+    minimum: 0
+    nullable: true
+    description: Milliseconds between checkedAt and previousFetchAt.
+  checkedAt:
+    type: string
+    format: date-time
+  messages:
+    type: array
+    items:
+      type: string
+    description: Git commands and outputs captured during the check.
+validation:
+  can_update:
+    description: canUpdate is true only when behind is greater than 0, ahead is 0, and dirty is false.
+  no_upstream:
+    description: Missing upstream is reported as a command error instead of a partial status.
+  fetch_age:
+    description: previousFetchAgeMs is present only when a prior FETCH_HEAD timestamp exists.

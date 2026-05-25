@@ -4,12 +4,12 @@ metadata:
   owner: electron/main
   version: 1
   created: 2026-05-21
-  updated: 2026-05-21
+  updated: 2026-05-25
 endpoint:
   transport: electron-ipc
   channel: workspace:init
   method_name: initWorkspace
-  summary: Initialize the default SkillOps config in a workspace.
+  summary: Initialize or refresh local SkillOps project state for a workspace.
   auth_required: false
 request:
   args:
@@ -22,9 +22,9 @@ responses:
       $ref: "../models/SkillOpsConfig.yaml"
   errors:
     - code: CONFIG_WRITE_FAILED
-      message: skillops.config.json cannot be written.
+      message: Local SkillOps project state cannot be written.
 business_logic:
   flow:
     - Build version 1 config with sourceDir skills, or sourceDir . when the selected root is itself a skill folder.
     - Add default profile with wildcard skills and codex, claude, cursor targets.
-    - Persist config under the workspace root.
+    - Persist config under the user-level SkillOps project state directory.

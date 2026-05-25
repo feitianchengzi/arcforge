@@ -20,7 +20,7 @@ src/shared/     共享 TypeScript 类型
 
 ## 数据模型
 
-`skillops.config.json` 是工作区控制文件。
+SkillOps 区分来源内容和本地用户状态。日常项目设置保存在用户级项目状态 `~/.skillops/projects`。当项目根目录存在 `skillops.config.json` 时，系统按需迁移到用户级项目状态，然后从来源 checkout 删除该文件。
 
 ```json
 {
@@ -44,6 +44,7 @@ src/shared/     共享 TypeScript 类型
 - 选择工作区
 - 扫描工作区
 - 初始化配置
+- 检查或更新 GitHub 来源 checkout
 - 创建发布计划
 - 应用 profile
 - 生成 drift report
@@ -51,6 +52,8 @@ src/shared/     共享 TypeScript 类型
 - 打开独立 skill 文件编辑窗口
 
 桌面端打包产物也支持 `--cli`。在该模式下，Electron 不创建窗口，而是执行终端入口使用的同一套命令编排。
+
+GitHub 来源项目通过 CLI 优先的 source 命令维护。状态命令获取上游 refs 并报告 ahead/behind commit 数；更新命令要求显式确认，并且只执行 fast-forward pull，因此桌面端可以展示同一个用户决策点，而不需要维护另一套 Git 逻辑。
 
 应用启动时，主进程会安装或修复用户级 `skillops` shim。环境检测会报告 shim 路径、PATH 可见性、Git 可用性和可选集成工具状态。
 

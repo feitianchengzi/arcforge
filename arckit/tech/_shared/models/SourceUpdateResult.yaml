@@ -1,0 +1,39 @@
+metadata:
+  path: tech/_shared/models/SourceUpdateResult.yaml
+  domain: workspace
+  entity_name: SourceUpdateResult
+  storage: in_memory
+  owner: core/source-update
+  version: 1
+  created: 2026-05-25
+  updated: 2026-05-25
+type: object
+required:
+  - before
+  - after
+  - updated
+  - fastForwardOnly
+  - messages
+properties:
+  before:
+    $ref: "./SourceUpdateStatus.yaml"
+    description: Source status captured immediately before update.
+  after:
+    $ref: "./SourceUpdateStatus.yaml"
+    description: Source status captured immediately after update or no-op.
+  updated:
+    type: boolean
+    description: True when local HEAD changed during update.
+  fastForwardOnly:
+    type: boolean
+    description: Always true for SkillOps-managed source updates.
+  messages:
+    type: array
+    items:
+      type: string
+    description: Git commands and outputs captured during the update flow.
+validation:
+  fast_forward_only:
+    description: Updates use git pull --ff-only and never create merge commits.
+  no_overwrite:
+    description: Update is rejected when local commits or uncommitted changes are present.

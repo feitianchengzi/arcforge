@@ -56,6 +56,7 @@ SkillOps 主要回答这些运营问题：
 |---|---|---|
 | 团队私有 skill 仓库 | 不搭 registry，也能让 skill 变更经过 Git review | scan、audit、profiles、GitHub share |
 | 按项目配置 agent | 每个项目只安装它应该使用的已批准 skills | profiles、apply-profile、drift |
+| 维护 GitHub 来源项目 | 先查看本地来源落后上游多少 commit，再自主决定是否更新 | source status、source update |
 | 公开发布前检查 | 检查 secrets、风险指令、薄弱 metadata 和内部引用 | audit、publish-plan |
 | 多 agent 漂移控制 | 比较已安装副本和源仓库是否一致 | drift、apply-profile |
 | 本地编辑 skill | 不离开工作台即可查看和编辑 `SKILL.md`、references 与 scripts | 桌面端技能文件编辑器 |
@@ -69,7 +70,6 @@ SkillOps 主要回答这些运营问题：
 
 ```text
 my-skills/
-  skillops.config.json
   skills/
     code-review/
       SKILL.md
@@ -86,7 +86,11 @@ code-review/
   references/
 ```
 
-最小配置示例：
+本地项目设置：
+
+SkillOps 会把日常本地项目设置保存到 `~/.skillops/projects`，因此 GitHub 来源 checkout 不会只因为配置组或目标变化而变脏。如果项目根目录仍存在 `skillops.config.json`，当用户级项目状态不存在时系统会先迁移进去；当用户级项目状态已存在时系统只删除项目根目录下的该文件。
+
+本地状态中的配置结构：
 
 ```json
 {
@@ -171,10 +175,14 @@ skillops scan --root .
 skillops audit --root .
 skillops apply-profile --root . --profile default --target ~/.codex/skills
 skillops drift --root . --profile default --target ~/.codex/skills
+skillops source status --root .
+skillops source update --root . --confirm
 skillops publish-plan --root . --visibility public
 skillops share --root . --repo github.com/acme/team-skills --profile frontend --message "Share frontend skills"
 skillops doctor
 ```
+
+对于从 GitHub 打开的项目，`source status` 会获取上游元数据，并报告本地 checkout 相对上游 ahead/behind 的 commit 数，以及距离上一次 fetch 已经过了多久。`source update` 只有在显式传入 `--confirm` 后才会执行快进更新；当本地有未提交改动或领先上游的提交时，命令会停止并要求用户手动处理。
 
 ## 项目状态
 

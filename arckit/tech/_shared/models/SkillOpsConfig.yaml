@@ -2,7 +2,7 @@ metadata:
   path: tech/_shared/models/SkillOpsConfig.yaml
   domain: shared
   entity_name: SkillOpsConfig
-  storage: skillops.config.json
+  storage: ~/.skillops/projects/<project-key>.json
   owner: core/config
   version: 1
   created: 2026-05-21

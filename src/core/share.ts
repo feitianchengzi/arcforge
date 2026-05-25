@@ -211,7 +211,7 @@ export async function downloadSource(options: DownloadSourceOptions): Promise<st
   const target = path.join(sourcesRoot, dirName);
   await fs.mkdir(sourcesRoot, { recursive: true });
   if (await pathExists(target)) {
-    await execFileAsync("git", ["-C", target, "pull", "--ff-only"]);
+    await execFileAsync("git", ["-C", target, "fetch", "--prune", "origin"]);
   } else {
     await execFileAsync("git", ["clone", source.cloneUrl, target]);
   }
@@ -227,7 +227,7 @@ export async function downloadSource(options: DownloadSourceOptions): Promise<st
 }
 
 async function stageShareTarget(root: string, targetSubdir: string, sourceDir: string, messages: string[]): Promise<void> {
-  await runGit(root, targetSubdir ? ["add", targetSubdir] : ["add", sourceDir, "skillops.config.json", "README.md"], messages);
+  await runGit(root, targetSubdir ? ["add", targetSubdir] : ["add", sourceDir, "README.md"], messages);
 }
 
 async function shareSameRepositoryProject(

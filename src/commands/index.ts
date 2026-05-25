@@ -1,4 +1,3 @@
-import os from "node:os";
 import path from "node:path";
 import { scanWorkspace, initWorkspace } from "../core/workspace.js";
 import { createPublishPlan } from "../core/publish.js";
@@ -6,6 +5,8 @@ import { applyProfile, driftReport } from "../core/profiles.js";
 import { createSharePlan, downloadSource, shareProject, type ShareProjectOptions } from "../core/share.js";
 import { shareDriftReport, type ShareDriftOptions } from "../core/share-drift.js";
 import { getEnvironmentStatus } from "../core/environment.js";
+import { checkSourceUpdate, updateSource } from "../core/source-update.js";
+import { skillOpsHome } from "../core/project-store.js";
 import type { CliShimOptions } from "../core/cli-install.js";
 import type { ShareDeliveryMethod, ShareTargetMode } from "../shared/types.js";
 
@@ -29,13 +30,14 @@ Usage:
   skillops <command> [options]
 
 Commands:
-  init             Create skillops.config.json in a workspace
+  init             Create or refresh local SkillOps project state
   scan             Scan skills, shared assets, and audit status
   audit            Print audit report; exits 2 on critical findings
   publish-plan     Generate a GitHub-first release checklist
   drift            Compare a profile against an installed target
   apply-profile    Copy a profile into an agent or project target
   share            Plan or execute GitHub-first sharing
+  source           Check or update the GitHub source checkout
   doctor           Check Git, CLI install, and optional tools
 
 Common options:
@@ -48,6 +50,8 @@ Examples:
   skillops apply-profile --root . --profile default --target ~/.codex/skills
   skillops share plan --root . --repo github.com/acme/team-skills --profile frontend
   skillops share run --root . --repo github.com/acme/team-skills --profile frontend --confirm
+  skillops source status --root .
+  skillops source update --root . --confirm
   skillops doctor
 
 Help:
@@ -62,7 +66,8 @@ Install:
 const commandHelpText: Record<string, string> = {
   init: `SkillOps CLI - init
 
-Create skillops.config.json in a workspace.
+Create or refresh local SkillOps project state under ~/.skillops/projects.
+This does not write skillops.config.json into the source checkout.
 
 Usage:
   skillops init [--root <dir>]
@@ -161,6 +166,22 @@ Examples:
   skillops share run --root . --repo github.com/acme/team-skills --delivery target-pr --confirm
   skillops share plan --root . --repo github.com/acme/team-skills/tree/main/projects --target-mode namedProject --project-name web
   skillops share run --root ./skills/foo --same-repository --same-repository-remote origin --confirm
+`,
+  source: `SkillOps CLI - source
+
+Check or update a Skill project that came from a GitHub/Git repository. Outputs JSON.
+
+Usage:
+  skillops source status [--root <dir>]
+  skillops source update [--root <dir>] --confirm
+
+Options:
+  --root <dir>  Workspace root. Defaults to current directory.
+  --confirm     Required for source update.
+
+Behavior:
+  status fetches the upstream remote and reports ahead/behind commit counts.
+  update performs a fast-forward-only pull after explicit confirmation.
 `,
   doctor: `SkillOps CLI - doctor
 
@@ -270,6 +291,21 @@ export async function runSkillOpsCommand(args: string[], runtime: CommandRuntime
     };
   }
 
+  if (command === "source") {
+    const action = args[1] === "update" ? "update" : "status";
+    const root = arg(args, "--root") ?? runtime.cwd;
+    if (action === "update") {
+      return {
+        exitCode: 0,
+        value: await updateSource({ root, confirm: hasFlag(args, "--confirm") })
+      };
+    }
+    return {
+      exitCode: 0,
+      value: await checkSourceUpdate({ root })
+    };
+  }
+
   if (command === "doctor") {
     return {
       exitCode: 0,
@@ -330,6 +366,14 @@ export async function downloadSourceCommand(remoteUrl: string, cacheDir?: string
   });
 }
 
+export async function sourceUpdateStatusCommand(root: string) {
+  return checkSourceUpdate({ root });
+}
+
+export async function updateSourceCommand(root: string, confirm: boolean) {
+  return updateSource({ root, confirm });
+}
+
 function arg(args: string[], name: string): string | undefined {
   const index = args.indexOf(name);
   return index === -1 ? undefined : args[index + 1];
@@ -365,5 +409,5 @@ function parseDelivery(value?: string): ShareDeliveryMethod | undefined {
 }
 
 function defaultCacheDir(): string {
-  return path.join(os.homedir(), ".skillops", "cache");
+  return path.join(skillOpsHome(), "cache");
 }

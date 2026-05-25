@@ -50,6 +50,10 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
   const preload = await readFile(new URL("../src/electron/preload.cts", import.meta.url), "utf8");
 
   assert.match(commands, /skillops share --repo/);
+  assert.match(commands, /skillops source status --root \./);
+  assert.match(commands, /SkillOps CLI - source/);
+  assert.match(commands, /command === "source"/);
+  assert.match(commands, /updateSource/);
   assert.match(commands, /Local-first, GitHub-first governance/);
   assert.match(commands, /skillops <command> --help/);
   assert.match(commands, /SkillOps CLI - share/);
@@ -63,8 +67,26 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
   assert.match(electronMain, /installCliShim/);
   assert.match(electronMain, /system:installCli/);
   assert.match(electronMain, /share:drift/);
+  assert.match(electronMain, /source:status/);
   assert.match(preload, /installCli/);
   assert.match(preload, /shareDriftReport/);
+  assert.match(preload, /sourceUpdateStatus/);
+});
+
+test("workspace config is stored outside source checkouts", async () => {
+  const configCore = await readFile(new URL("../src/core/config.ts", import.meta.url), "utf8");
+  const projectStore = await readFile(new URL("../src/core/project-store.ts", import.meta.url), "utf8");
+  const commands = await readFile(new URL("../src/commands/index.ts", import.meta.url), "utf8");
+
+  assert.match(configCore, /saveLocalProjectConfig/);
+  assert.match(configCore, /migrateRepositoryConfig/);
+  assert.match(configCore, /fs.unlink/);
+  assert.match(projectStore, /~\/.skillops|"projects"/);
+  assert.match(projectStore, /SKILLOPS_HOME/);
+  assert.match(projectStore, /canonicalKey/);
+  assert.match(configCore, /skillops.config.json/);
+  assert.match(commands, /local SkillOps project state/);
+  assert.doesNotMatch(commands, /Create skillops.config.json in a workspace/);
 });
 
 test("share delivery failures keep manual recovery guidance", async () => {

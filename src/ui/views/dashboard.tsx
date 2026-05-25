@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, FileText, Folder, RefreshCw, Save } from "lucide-react";
-import type { SkillFileDocument, SkillFileEntry, SkillSummary, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
+import type { SkillFileDocument, SkillFileEntry, SkillSummary, SourceUpdateStatus, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import type { Tab } from "../types";
-import { formatDate } from "../utils";
+import { formatDate, formatDuration } from "../utils";
 import { Metric } from "../components/shell";
 
 export function Overview(props: {
@@ -13,9 +13,57 @@ export function Overview(props: {
   warningCount: number;
   targetHistory: TargetRecord[];
   setTab: (value: Tab) => void;
+  setStatus: (value: string) => void;
+  onSourceUpdated: () => Promise<void>;
+  isGithubSource: boolean;
 }) {
   const { t, snapshot, criticalCount, warningCount } = props;
   const projectTargets = props.targetHistory.filter((item) => item.sourcePath === snapshot.root);
+  const [sourceStatus, setSourceStatus] = useState<SourceUpdateStatus>();
+  const [sourceError, setSourceError] = useState("");
+  const [isCheckingSource, setIsCheckingSource] = useState(false);
+  const [isUpdatingSource, setIsUpdatingSource] = useState(false);
+  const canCheckSource = props.isGithubSource && Boolean(snapshot.localGit?.remotes.length);
+
+  async function checkSourceUpdates() {
+    if (!window.skillops) return;
+    setIsCheckingSource(true);
+    setSourceError("");
+    props.setStatus(t.checkingSourceUpdates);
+    try {
+      const nextStatus = await window.skillops.sourceUpdateStatus(snapshot.root);
+      setSourceStatus(nextStatus);
+      const message = sourceStatusMessage(t, nextStatus);
+      props.setStatus(message);
+    } catch (error) {
+      const message = errorMessage(error);
+      setSourceError(message);
+      props.setStatus(t.errorStatus(message));
+    } finally {
+      setIsCheckingSource(false);
+    }
+  }
+
+  async function updateSource() {
+    if (!window.skillops || !sourceStatus?.canUpdate) return;
+    if (!window.confirm(t.confirmSourceUpdate(sourceStatus.behind))) return;
+    setIsUpdatingSource(true);
+    setSourceError("");
+    props.setStatus(t.updatingSource);
+    try {
+      const result = await window.skillops.updateSource(snapshot.root, true);
+      setSourceStatus(result.after);
+      await props.onSourceUpdated();
+      props.setStatus(t.sourceUpdated);
+    } catch (error) {
+      const message = errorMessage(error);
+      setSourceError(message);
+      props.setStatus(t.errorStatus(message));
+    } finally {
+      setIsUpdatingSource(false);
+    }
+  }
+
   return (
     <div className="grid two">
       <section className="panel">
@@ -37,6 +85,40 @@ export function Overview(props: {
           <button onClick={() => props.setTab("share")}>{t.prepareSharing}</button>
         </div>
       </section>
+      {props.isGithubSource && <section className="panel wide source-status-panel">
+        <div className="panel-heading">
+          <div>
+            <h3>{t.sourceStatusTitle}</h3>
+            <p className="muted">{canCheckSource ? t.sourceStatusHelp : t.sourceStatusUnavailable}</p>
+          </div>
+          <div className="actions">
+            <button onClick={checkSourceUpdates} disabled={!canCheckSource || isCheckingSource || isUpdatingSource}>
+              <RefreshCw size={16} /> {isCheckingSource ? t.checkingSourceUpdates : t.checkSourceUpdates}
+            </button>
+            {sourceStatus?.canUpdate && (
+              <button className="primary" onClick={updateSource} disabled={isCheckingSource || isUpdatingSource}>
+                <CheckCircle2 size={16} /> {isUpdatingSource ? t.updatingSource : t.updateSource}
+              </button>
+            )}
+          </div>
+        </div>
+        {!canCheckSource ? null : sourceError ? (
+          <p className="muted">{t.errorStatus(sourceError)}</p>
+        ) : sourceStatus ? (
+          <div className="source-status-grid">
+            <Metric label={t.sourceAheadBehind(sourceStatus.ahead, sourceStatus.behind)} value={sourceStatus.behind > 0 ? sourceStatus.behind : "0"} tone={sourceStatus.canUpdate ? "warn" : sourceStatus.behind === 0 && sourceStatus.ahead === 0 ? "good" : undefined} />
+            <div className="source-status-details">
+              <strong>{sourceStatusMessage(t, sourceStatus)}</strong>
+              <p>{sourceStatus.branch && sourceStatus.upstream ? t.sourceBranch(sourceStatus.branch, sourceStatus.upstream) : sourceStatus.remoteUrl ?? snapshot.localGit?.remotes[0]?.fetchUrl}</p>
+              <span>{sourceStatus.previousFetchAgeMs !== undefined ? t.sourceLastFetch(formatDuration(sourceStatus.previousFetchAgeMs)) : t.sourceNeverFetched}</span>
+              <span>{t.sourceCheckedAt(formatDate(sourceStatus.checkedAt))}</span>
+              {!sourceStatus.canUpdate && (sourceStatus.ahead > 0 || sourceStatus.dirty) && <span>{t.sourceCannotUpdate}</span>}
+            </div>
+          </div>
+        ) : (
+          <p className="muted">{t.sourceStatusIdle}</p>
+        )}
+      </section>}
       <section className="panel wide">
         <h3>{t.targetHistory}</h3>
         {projectTargets.length === 0 ? <p className="muted">{t.noTargetHistory}</p> : (
@@ -56,6 +138,12 @@ export function Overview(props: {
       </section>
     </div>
   );
+}
+
+function sourceStatusMessage(t: Dictionary, status: SourceUpdateStatus): string {
+  if (status.canUpdate) return t.sourceCanUpdate(status.behind);
+  if (status.behind === 0 && status.ahead === 0 && !status.dirty) return t.sourceUpToDate;
+  return t.sourceCannotUpdate;
 }
 
 export function SkillsList({ t, snapshot, profile, setProfile }: {

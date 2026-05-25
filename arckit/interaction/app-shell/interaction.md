@@ -69,6 +69,7 @@
 
 ### 添加项目弹窗
 
+- **查看当前来源:** 当弹窗用于编辑项目来源时，系统在入口选择上方展示当前保存的来源类型和来源地址或本地路径。
 - **点击 Local folder:** 系统打开目录选择器。
 - **点击 Download:** 系统下载 GitHub/Git 来源到本地缓存，成功后打开下载项目。
 
@@ -77,6 +78,7 @@
 | 名称 | 触发 | data-kit | 内容 |
 |------|------|----------|------|
 | Add Skill project | 点击添加项目 | Sheet | 本地目录入口、GitHub 来源输入、示例结构 |
+| Edit project source | 点击编辑项目来源 | Sheet | 当前已配置来源、本地目录入口、GitHub 来源输入 |
 | Settings | 点击设置 | Sheet | 语言选择 |
 | Git unavailable | 环境检测失败 | Alert | Git 缺失提示和受影响能力 |
 

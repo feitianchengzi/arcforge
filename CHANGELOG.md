@@ -8,6 +8,15 @@ while it remains in the `0.x` pre-1.0 release line.
 
 ## [Unreleased]
 
+### Added
+
+- Added CLI-first source maintenance commands: `skillops source status` reports upstream ahead/behind commit counts and previous fetch age, and `skillops source update --confirm` performs a fast-forward-only update.
+- Added shared source update models and desktop IPC hooks so the desktop app can present the same check-before-update decision point without owning separate Git logic.
+
+### Changed
+
+- GitHub source cache reuse now fetches remote refs without automatically pulling file changes into the local checkout.
+
 ## [0.1.6] - 2026-05-25
 
 ### Added

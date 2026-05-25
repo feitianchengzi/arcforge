@@ -127,6 +127,34 @@ export interface LocalGitSource {
   remotes: LocalGitRemote[];
 }
 
+export interface SourceUpdateStatus {
+  root: string;
+  gitRoot: string;
+  relativePath: string;
+  branch?: string;
+  upstream?: string;
+  remoteName?: string;
+  remoteUrl?: string;
+  head?: string;
+  upstreamHead?: string;
+  ahead: number;
+  behind: number;
+  dirty: boolean;
+  canUpdate: boolean;
+  previousFetchAt?: string;
+  previousFetchAgeMs?: number;
+  checkedAt: string;
+  messages: string[];
+}
+
+export interface SourceUpdateResult {
+  before: SourceUpdateStatus;
+  after: SourceUpdateStatus;
+  updated: boolean;
+  fastForwardOnly: boolean;
+  messages: string[];
+}
+
 export interface DriftItem {
   skill: string;
   kind?: "skill" | "asset";

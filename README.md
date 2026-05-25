@@ -56,6 +56,7 @@ Use SkillOps when you need a local governance step before skills are copied into
 |---|---|---|
 | Private team skill repo | keep skill changes reviewed in Git without running a registry | scan, audit, profiles, GitHub share |
 | Per-project agent setup | install only the approved skills a project should use | profiles, apply-profile, drift |
+| GitHub-sourced skill project maintenance | see whether the local source checkout is behind upstream before choosing to update | source status, source update |
 | Pre-publication review | catch secrets, risky instructions, weak metadata, and internal references | audit, publish-plan |
 | Multi-agent drift control | compare installed copies with the source repository | drift, apply-profile |
 | Local skill editing | inspect and edit `SKILL.md`, references, and scripts without leaving the workspace | desktop skill file editor |
@@ -69,7 +70,6 @@ Expected workspace shape:
 
 ```text
 my-skills/
-  skillops.config.json
   skills/
     code-review/
       SKILL.md
@@ -86,7 +86,11 @@ code-review/
   references/
 ```
 
-Minimal config:
+Local project settings:
+
+SkillOps stores local project settings under `~/.skillops/projects` so GitHub source checkouts do not become dirty just because profiles or targets changed. If a project root still contains `skillops.config.json`, SkillOps migrates it into the user-level project state when no local state exists, or deletes it when local state already exists.
+
+Local state config shape:
 
 ```json
 {
@@ -171,10 +175,14 @@ skillops scan --root .
 skillops audit --root .
 skillops apply-profile --root . --profile default --target ~/.codex/skills
 skillops drift --root . --profile default --target ~/.codex/skills
+skillops source status --root .
+skillops source update --root . --confirm
 skillops publish-plan --root . --visibility public
 skillops share --root . --repo github.com/acme/team-skills --profile frontend --message "Share frontend skills"
 skillops doctor
 ```
+
+For projects opened from GitHub, `source status` fetches upstream metadata and reports how many commits the local checkout is ahead or behind, plus how long it had been since the previous fetch. `source update` only runs after `--confirm`, uses a fast-forward-only pull, and stops when the source has local commits or uncommitted changes.
 
 ## Project Status
 

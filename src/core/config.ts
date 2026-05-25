@@ -1,7 +1,8 @@
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import type { SkillOpsConfig } from "../shared/types.js";
-import { pathExists, writeJson } from "./fs.js";
+import { pathExists } from "./fs.js";
+import { loadLocalProjectState, saveLocalProjectConfig } from "./project-store.js";
 import { hasSkillMarkdownFile } from "./skill-markdown.js";
 
 const CONFIG_FILE = "skillops.config.json";
@@ -11,13 +12,11 @@ export function configPath(root: string): string {
 }
 
 export async function loadConfig(root: string): Promise<SkillOpsConfig> {
-  const filePath = configPath(root);
-  if (!(await pathExists(filePath))) {
-    return defaultConfigForRoot(root);
-  }
-  const raw = await fs.readFile(filePath, "utf8");
-  const parsed = JSON.parse(raw) as SkillOpsConfig;
   const fallback = await defaultConfigForRoot(root);
+  await migrateRepositoryConfig(root);
+  const localState = await loadLocalProjectState(root);
+  const parsed = localState?.config;
+  if (!parsed) return fallback;
   return {
     ...fallback,
     ...parsed,
@@ -34,8 +33,20 @@ export async function defaultConfigForRoot(root: string): Promise<SkillOpsConfig
 }
 
 export async function saveConfig(root: string, config: SkillOpsConfig): Promise<void> {
-  await writeJson(configPath(root), config);
+  await saveLocalProjectConfig(root, config);
 }
+
+export async function migrateRepositoryConfig(root: string): Promise<void> {
+  const filePath = configPath(root);
+  if (!(await pathExists(filePath))) return;
+  const localState = await loadLocalProjectState(root);
+  if (!localState?.config) {
+    const raw = await fs.readFile(filePath, "utf8");
+    await saveLocalProjectConfig(root, JSON.parse(raw) as SkillOpsConfig);
+  }
+  await fs.unlink(filePath);
+}
+
 
 export function defaultConfig(): SkillOpsConfig {
   return {
@@ -51,3 +62,4 @@ export function defaultConfig(): SkillOpsConfig {
     ]
   };
 }
+

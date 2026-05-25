@@ -46,6 +46,15 @@
                                         <div class="panel"><div class="panel-header">Project summary</div><div class="content-area"><div class="placeholder-box">Skills, assets, audit score, critical, warnings</div></div></div>
                                         <div class="panel"><div class="panel-header">Next steps</div><div class="content-area"><div class="button">Review audit</div><div class="button">Configure profiles</div><div class="button">Manage destinations</div><div class="button">Prepare sharing</div></div></div>
                                     </div>
+                                    <div class="group-box" data-kit="SourceStatus">
+                                        <div class="group-box-title">GitHub source status</div>
+                                        <div class="split-h">
+                                            <div class="placeholder-box">branch main · upstream origin/main · last fetch 18 minutes ago</div>
+                                            <div class="placeholder-box">behind 3 commits · ahead 0 · can fast-forward</div>
+                                        </div>
+                                        <div class="button">Check updates</div>
+                                        <div class="button primary">Update source</div>
+                                    </div>
                                     <div class="group-box">
                                         <div class="group-box-title">Target history</div>
                                         <div class="list-item"><div class="list-item-title">Codex user skills</div><div class="list-item-subtitle">default · last applied today</div></div>
@@ -61,12 +70,15 @@
                         <li>real app shell sidebar and topbar</li>
                         <li>ProjectHeader metrics and project tabs</li>
                         <li>Overview metric panels and next-step buttons</li>
+                        <li>SourceStatus card with check, last fetch age, ahead/behind counts, and update action</li>
                     </ul>
                 </div>
                 <div class="interactions">
                     <h3>交互行为</h3>
                     <div class="interaction-item"><code>Next steps</code> → 切换到对应项目页签。</div>
                     <div class="interaction-item"><code>Rescan</code> → 重新扫描并刷新摘要。</div>
+                    <div class="interaction-item"><code>Check updates</code> → 获取上游 refs 并展示 ahead/behind 与上次 fetch 时间。</div>
+                    <div class="interaction-item"><code>Update source</code> → 仅在可快进时确认更新，并在完成后重新扫描。</div>
                 </div>
             </div>
         </details>
