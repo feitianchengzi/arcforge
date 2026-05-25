@@ -191,7 +191,6 @@ export function SkillsList({ t, snapshot, profile, setProfile }: {
   profile: string;
   setProfile: (value: string) => void;
 }) {
-  const hasAssets = snapshot.assets.length > 0;
   const [files, setFiles] = useState<SkillFileEntry[]>([]);
   const [activeFilePath, setActiveFilePath] = useState("");
   const [document, setDocument] = useState<SkillFileDocument>();
@@ -333,7 +332,7 @@ export function SkillsList({ t, snapshot, profile, setProfile }: {
   }
 
   return (
-    <div className={`skills-layout editor ${hasAssets ? "with-assets" : ""}`}>
+    <div className="skills-layout editor">
       <section className="panel file-tree-panel">
         <div className="panel-heading file-tree-heading">
           <div>
@@ -392,20 +391,6 @@ export function SkillsList({ t, snapshot, profile, setProfile }: {
           </div>
         )}
       </section>
-      {hasAssets && (
-        <section className="panel shared-assets-panel">
-          <h3>{t.sharedAssetsTitle}</h3>
-          <p className="muted">{t.sharedAssetsHelp}</p>
-          <div className="list">
-            {snapshot.assets.map((asset) => (
-              <article key={asset.path} className="row">
-                <strong>{asset.name}</strong>
-                <span>{asset.relativePath}</span>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

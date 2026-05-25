@@ -113,8 +113,6 @@ export interface Dictionary {
   fileSaved: string;
   fileLoaded: string;
   sharedAssetsTitle: string;
-  sharedAssetsHelp: string;
-  noSharedAssets: string;
   noDescription: string;
   findingsTitle: string;
   noFindings: string;
@@ -330,8 +328,6 @@ export const dictionaries: Record<Language, Dictionary> = {
     fileSaved: "File saved.",
     fileLoaded: "File loaded.",
     sharedAssetsTitle: "Shared assets",
-    sharedAssetsHelp: "Folders under skills/ without a SKILL.md are treated as shared assets and are synced with every profile.",
-    noSharedAssets: "No shared asset folders.",
     noDescription: "No description",
     findingsTitle: "Findings",
     noFindings: "No findings.",
@@ -545,8 +541,6 @@ export const dictionaries: Record<Language, Dictionary> = {
     fileSaved: "文件已保存。",
     fileLoaded: "文件已加载。",
     sharedAssetsTitle: "共享资产",
-    sharedAssetsHelp: "skills/ 下没有 SKILL.md 的文件夹会被视为共享资产，并随每个配置组一起同步。",
-    noSharedAssets: "暂无共享资产文件夹。",
     noDescription: "暂无描述",
     findingsTitle: "发现项",
     noFindings: "没有发现问题。",

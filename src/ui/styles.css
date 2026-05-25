@@ -261,17 +261,12 @@ button.active {
 .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-lg); }
 .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xl); }
 .skills-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-xl); }
-.skills-layout.with-assets { grid-template-columns: minmax(0, 2fr) minmax(280px, 0.9fr); }
 .skills-layout.editor {
   min-height: 0;
   height: 100%;
   grid-template-columns: 320px minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: var(--space-md);
-}
-.skills-layout.editor.with-assets {
-  grid-template-columns: 320px minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
 }
 .wide { grid-column: 1 / -1; }
 .panel, .metric, .empty {
@@ -450,8 +445,6 @@ button.active {
 }
 .file-tree-folder svg,
 .file-tree-file svg { flex: 0 0 auto; }
-.shared-assets-panel { grid-column: 1 / -1; }
-
 .metric {
   min-height: 118px;
   display: flex;
@@ -841,12 +834,10 @@ input[type="checkbox"] { width: auto; min-height: auto; padding: 0; }
 @media (max-width: 1100px) {
   .content { padding: var(--space-xxl); }
   .grid, .grid.two { grid-template-columns: 1fr; }
-  .skills-layout.with-assets { grid-template-columns: 1fr; }
-  .skills-layout.editor,
-  .skills-layout.editor.with-assets {
+  .skills-layout.editor {
     height: auto;
     grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(520px, 1fr) auto;
+    grid-template-rows: auto minmax(520px, 1fr);
   }
   .file-tree { max-height: 260px; }
 }
