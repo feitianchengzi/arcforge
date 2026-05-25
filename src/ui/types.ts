@@ -39,6 +39,7 @@ declare global {
       downloadSource: (remoteUrl: string) => Promise<string>;
       sourceUpdateStatus: (root: string) => Promise<SourceUpdateStatus>;
       updateSource: (root: string, confirm?: boolean) => Promise<SourceUpdateResult>;
+      openSourceDiff: (status: SourceUpdateStatus) => Promise<void>;
       createSharePlan: (root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, sameRepository?: boolean, sameRepositoryRemote?: string) => Promise<SharePlanResult>;
       shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, confirm?: boolean, sameRepository?: boolean, sameRepositoryRemote?: string) => Promise<ShareResult>;
       applyProfile: (root: string, profile: string, targetDir: string) => Promise<ApplyProfileResult>;

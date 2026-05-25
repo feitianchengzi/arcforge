@@ -1,7 +1,9 @@
 import path from "node:path";
 import os from "node:os";
+import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { runSkillOpsCommand, createPublishPlanCommand, applyProfileCommand, driftReportCommand, downloadSourceCommand, shareProjectCommand, createSharePlanCommand, shareDriftReportCommand, sourceUpdateStatusCommand, updateSourceCommand } from "../commands/index.js";
 import { scanWorkspace, initWorkspace } from "../core/workspace.js";
@@ -9,11 +11,12 @@ import { saveConfig } from "../core/config.js";
 import { getEnvironmentStatus } from "../core/environment.js";
 import { installCliShim } from "../core/cli-install.js";
 import { defaultSkillFile, listSkillFiles, listWorkspaceFiles, readSkillFile, writeSkillFile } from "../core/skill-files.js";
-import type { AppState, DriftReport, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, ShareTargetMode, SkillEditorWindowContext, SkillOpsConfig, TargetRecord } from "../shared/types.js";
+import type { AppState, ApplyDriftCheckRecord, DriftFileDiff, DriftReport, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, ShareDriftCheckRecord, ShareTargetMode, SkillEditorWindowContext, SkillOpsConfig, SourceUpdateCheckRecord, SourceUpdateStatus, TargetRecord } from "../shared/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cliMarkerIndex = process.argv.indexOf("--cli");
 let appStateWriteQueue: Promise<unknown> = Promise.resolve();
+const execFileAsync = promisify(execFile);
 
 app.setName("SkillOps");
 
@@ -107,6 +110,7 @@ ipcMain.handle("appState:migrate", (_event, legacyState: Partial<AppState>, orig
 ipcMain.handle("source:download", (_event, remoteUrl: string) => downloadSourceCommand(remoteUrl, cacheRoot()));
 ipcMain.handle("source:status", (_event, root: string) => sourceUpdateStatusCommand(root));
 ipcMain.handle("source:update", (_event, root: string, confirm?: boolean) => updateSourceCommand(root, Boolean(confirm)));
+ipcMain.handle("source:openDiff", (event, status: SourceUpdateStatus) => openSourceDiffWindow(status, BrowserWindow.fromWebContents(event.sender)));
 ipcMain.handle("publish:plan", (_event, root: string, visibility: "private" | "public") => createPublishPlanCommand(root, visibility));
 ipcMain.handle("publish:sharePlan", (_event, root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, sameRepository?: boolean, sameRepositoryRemote?: string) => createSharePlanCommand({
   root,
@@ -305,8 +309,65 @@ function normalizeProjectState(value?: Record<string, ProjectUiState>): Record<s
       tab: isProjectTab(state.tab) ? state.tab : undefined,
       profile: cleanString(state.profile),
       applyTargetGroupId: cleanString(state.applyTargetGroupId),
-      shareTargetGroupId: cleanString(state.shareTargetGroupId)
+      shareTargetGroupId: cleanString(state.shareTargetGroupId),
+      sourceUpdateCheck: normalizeSourceUpdateCheck(state.sourceUpdateCheck),
+      applyDriftChecks: normalizeApplyDriftChecks(state.applyDriftChecks),
+      shareDriftChecks: normalizeShareDriftChecks(state.shareDriftChecks)
     }]));
+}
+
+function normalizeSourceUpdateCheck(value: unknown): SourceUpdateCheckRecord | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const item = value as SourceUpdateCheckRecord;
+  const checkedAt = cleanString(item.checkedAt);
+  if (!checkedAt) return undefined;
+  return {
+    checkedAt,
+    status: item.status && typeof item.status === "object" ? item.status : undefined,
+    error: cleanString(item.error)
+  };
+}
+
+function normalizeApplyDriftChecks(value: unknown): Record<string, ApplyDriftCheckRecord> | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const entries = Object.entries(value as Record<string, ApplyDriftCheckRecord>)
+    .map(([key, item]) => [cleanString(key), normalizeApplyDriftCheck(item)] as const)
+    .filter((entry): entry is [string, ApplyDriftCheckRecord] => Boolean(entry[0] && entry[1]));
+  return entries.length ? Object.fromEntries(entries) : undefined;
+}
+
+function normalizeApplyDriftCheck(value: unknown): ApplyDriftCheckRecord | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const item = value as ApplyDriftCheckRecord;
+  const checkedAt = cleanString(item.checkedAt);
+  if (!checkedAt) return undefined;
+  return {
+    checkedAt,
+    signature: cleanString(item.signature),
+    reports: Array.isArray(item.reports) ? item.reports.filter((report) => report && typeof report === "object") : [],
+    error: cleanString(item.error)
+  };
+}
+
+function normalizeShareDriftChecks(value: unknown): Record<string, ShareDriftCheckRecord> | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const entries = Object.entries(value as Record<string, ShareDriftCheckRecord>)
+    .map(([key, item]) => [cleanString(key), normalizeShareDriftCheck(item)] as const)
+    .filter((entry): entry is [string, ShareDriftCheckRecord] => Boolean(entry[0] && entry[1]));
+  return entries.length ? Object.fromEntries(entries) : undefined;
+}
+
+function normalizeShareDriftCheck(value: unknown): ShareDriftCheckRecord | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const item = value as ShareDriftCheckRecord;
+  const checkedAt = cleanString(item.checkedAt);
+  if (!checkedAt) return undefined;
+  return {
+    checkedAt,
+    signature: cleanString(item.signature),
+    report: item.report && typeof item.report === "object" ? item.report : undefined,
+    error: cleanString(item.error)
+  };
 }
 
 function mergeRecentWorkspaces(primary?: RecentWorkspace[], secondary?: RecentWorkspace[]): RecentWorkspace[] {
@@ -742,97 +803,376 @@ function renderSkillEditorHtml(root: string, directoryPath: string, filePath: st
 </html>`;
 }
 
+type DiffFileStatus = DriftFileDiff["status"] | "added" | "deleted" | "renamed";
+
+interface DiffFileDocument {
+  path: string;
+  status: DiffFileStatus;
+  leftTitle: string;
+  rightTitle: string;
+  leftText: string;
+  rightText: string;
+}
+
+interface DiffDocument {
+  title: string;
+  subtitle: string;
+  summary: string;
+  leftLabel: string;
+  rightLabel: string;
+  files: DiffFileDocument[];
+}
+
+async function openSourceDiffWindow(status: SourceUpdateStatus, parent?: BrowserWindow | null): Promise<void> {
+  const files = await sourceUpdateDiffFiles(status);
+  await openDiffDocumentWindow({
+    title: "SkillOps Source Diff",
+    subtitle: `${status.branch ?? "HEAD"} -> ${status.upstream ?? "upstream"}`,
+    summary: `${files.length} changed files`,
+    leftLabel: status.head ? `local ${shortHash(status.head)}` : "local",
+    rightLabel: status.upstreamHead ? `upstream ${shortHash(status.upstreamHead)}` : "upstream",
+    files
+  }, parent);
+}
+
 async function openDriftDiffWindow(report: DriftReport, parent?: BrowserWindow | null): Promise<void> {
+  const files = await driftDiffFiles(report);
+  const changedItems = report.items.filter((item) => item.status !== "same");
+  await openDiffDocumentWindow({
+    title: "SkillOps Drift Diff",
+    subtitle: `Profile: ${report.profile} · Target: ${report.targetDir}`,
+    summary: `${changedItems.length} changed / ${report.items.length} checked`,
+    leftLabel: report.sameRepository ? "HEAD" : "target",
+    rightLabel: report.sameRepository ? "working tree" : "local source",
+    files
+  }, parent);
+}
+
+async function openDiffDocumentWindow(document: DiffDocument, parent?: BrowserWindow | null): Promise<void> {
   const win = new BrowserWindow({
     width: 1040,
     height: 760,
     minWidth: 840,
     minHeight: 560,
-    title: "SkillOps Drift Diff",
+    title: document.title,
     parent: parent ?? undefined,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false
     }
   });
-  await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(renderDriftDiffHtml(report))}`);
+  await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(renderDiffDocumentHtml(document))}`);
 }
 
-function renderDriftDiffHtml(report: DriftReport): string {
-  const changedItems = report.items.filter((item) => item.status !== "same");
-  const rows = report.items.map((item) => {
-    const files = item.files ?? [];
-    const fileRows = files.length === 0
-      ? "<p class=\"muted\">No file-level differences.</p>"
-      : `<table>
-          <thead><tr><th>Status</th><th>File</th><th>Source SHA256</th><th>Target SHA256</th></tr></thead>
-          <tbody>${files.map((file) => `<tr>
-            <td><span class="pill ${escapeHtml(file.status)}">${escapeHtml(file.status)}</span></td>
-            <td>${escapeHtml(file.path)}</td>
-            <td><code>${escapeHtml(shortHash(file.sourceHash))}</code></td>
-            <td><code>${escapeHtml(shortHash(file.targetHash))}</code></td>
-          </tr>`).join("")}</tbody>
-        </table>`;
-    const summary = item.summary ?? { missing: 0, changed: 0, extra: 0 };
-    return `<section class="item">
-      <div class="item-header">
-        <div>
-          <h2>${escapeHtml(item.skill)} <span>${escapeHtml(item.kind ?? "skill")}</span></h2>
-          <p>${escapeHtml(item.sourcePath)} -> ${escapeHtml(item.targetPath)}</p>
-        </div>
-        <span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span>
-      </div>
-      <div class="counts">
-        <span>missing ${summary.missing}</span>
-        <span>changed ${summary.changed}</span>
-        <span>extra ${summary.extra}</span>
-      </div>
-      ${fileRows}
-    </section>`;
-  }).join("");
+async function driftDiffFiles(report: DriftReport): Promise<DiffFileDocument[]> {
+  const files: DiffFileDocument[] = [];
+  const sameRepositoryGitRoot = report.sameRepository
+    ? await gitOutput(report.targetDir, ["rev-parse", "--show-toplevel"]).then((value) => value.trim()).catch(() => "")
+    : "";
+  for (const item of report.items) {
+    for (const file of item.files ?? []) {
+      if (!safeRelativePath(file.path)) continue;
+      if (sameRepositoryGitRoot) {
+        const leftText = await readGitBlob(sameRepositoryGitRoot, "HEAD", file.path).catch(() => "");
+        const rightPath = path.join(sameRepositoryGitRoot, file.path);
+        const rightText = await readTextForDiff(rightPath);
+        files.push({
+          path: file.path.replace(/\\/g, "/"),
+          status: driftDisplayStatus(file.status),
+          leftTitle: `HEAD:${file.path}`,
+          rightTitle: rightPath,
+          leftText,
+          rightText
+        });
+        continue;
+      }
+      const displayPath = `${item.skill}/${file.path}`.replace(/\\/g, "/");
+      const leftPath = path.join(item.targetPath, file.path);
+      const rightPath = path.join(item.sourcePath, file.path);
+      const leftText = file.status === "missing" ? "" : await readTextForDiff(leftPath);
+      const rightText = file.status === "extra" ? "" : await readTextForDiff(rightPath);
+      files.push({
+        path: displayPath,
+        status: driftDisplayStatus(file.status),
+        leftTitle: leftPath,
+        rightTitle: rightPath,
+        leftText,
+        rightText
+      });
+    }
+  }
+  return files.sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function driftDisplayStatus(status: DriftFileDiff["status"]): DiffFileStatus {
+  if (status === "missing") return "added";
+  if (status === "extra") return "deleted";
+  return status;
+}
+
+async function sourceUpdateDiffFiles(status: SourceUpdateStatus): Promise<DiffFileDocument[]> {
+  if (!status.head || !status.upstreamHead) throw new Error("Source diff requires local and upstream commit hashes.");
+  const scope = status.relativePath && status.relativePath !== "." ? status.relativePath : undefined;
+  const args = ["diff", "--name-status", "--find-renames", status.head, status.upstreamHead, "--"];
+  if (scope) args.push(scope);
+  const output = await gitOutput(status.gitRoot, args);
+  const files: DiffFileDocument[] = [];
+  for (const item of parseNameStatus(output)) {
+    const leftText = item.status === "added" ? "" : await readGitBlob(status.gitRoot, status.head, item.leftPath).catch(() => "");
+    const rightText = item.status === "deleted" ? "" : await readGitBlob(status.gitRoot, status.upstreamHead!, item.rightPath).catch(() => "");
+    files.push({
+      path: item.rightPath,
+      status: item.status,
+      leftTitle: `${shortHash(status.head)}:${item.leftPath}`,
+      rightTitle: `${shortHash(status.upstreamHead)}:${item.rightPath}`,
+      leftText,
+      rightText
+    });
+  }
+  return files.sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function parseNameStatus(output: string): Array<{ status: DiffFileStatus; leftPath: string; rightPath: string }> {
+  return output
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+    .map((line) => {
+      const parts = line.split("\t");
+      const code = parts[0] ?? "M";
+      if (code.startsWith("R")) {
+        return { status: "renamed" as const, leftPath: parts[1] ?? parts[2] ?? "", rightPath: parts[2] ?? parts[1] ?? "" };
+      }
+      const filePath = parts[1] ?? "";
+      if (code.startsWith("A")) return { status: "added" as const, leftPath: filePath, rightPath: filePath };
+      if (code.startsWith("D")) return { status: "deleted" as const, leftPath: filePath, rightPath: filePath };
+      return { status: "changed" as const, leftPath: filePath, rightPath: filePath };
+    })
+    .filter((item) => safeRelativePath(item.leftPath) && safeRelativePath(item.rightPath));
+}
+
+async function readGitBlob(root: string, revision: string, filePath: string): Promise<string> {
+  return gitOutput(root, ["show", `${revision}:${filePath}`]);
+}
+
+async function gitOutput(cwd: string, args: string[]): Promise<string> {
+  const { stdout } = await execFileAsync("git", args, { cwd, maxBuffer: 12 * 1024 * 1024 });
+  return String(stdout);
+}
+
+async function readTextForDiff(filePath: string): Promise<string> {
+  try {
+    const buffer = await fs.readFile(filePath);
+    if (buffer.includes(0)) return "[Binary file]";
+    if (buffer.byteLength > 2 * 1024 * 1024) return "[File too large to preview]";
+    return buffer.toString("utf8");
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return "";
+    throw error;
+  }
+}
+
+function safeRelativePath(value: string): boolean {
+  if (!value || path.isAbsolute(value)) return false;
+  return !value.split(/[\\/]/).some((part) => part === "..");
+}
+
+function renderDiffDocumentHtml(document: DiffDocument): string {
+  const payload = JSON.stringify(document).replace(/</g, "\\u003c");
 
   return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>SkillOps Drift Diff</title>
+  <title>${escapeHtml(document.title)}</title>
   <style>
     :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #202124; background: #f6f7f9; }
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 28px; }
-    header { margin-bottom: 20px; }
+    html, body { height: 100%; }
+    body { margin: 0; overflow: hidden; }
+    .app { display: grid; grid-template-columns: 310px minmax(0, 1fr); height: 100%; min-height: 0; }
+    aside { border-right: 1px solid #d9dee7; background: #fff; min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+    header { padding: 18px 20px; border-bottom: 1px solid #e5e7eb; background: #fff; }
     h1, h2, p { margin: 0; }
-    h1 { font-size: 24px; }
-    header p, .muted { margin-top: 6px; color: #667085; font-size: 13px; word-break: break-all; }
-    .summary { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-    .summary span, .counts span { border: 1px solid #e5e7eb; border-radius: 999px; padding: 5px 10px; background: #fff; color: #344054; font-size: 12px; }
-    .item { margin-top: 14px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: 16px; }
-    .item-header { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
-    h2 { font-size: 17px; }
-    h2 span { color: #667085; font-size: 12px; font-weight: 500; }
-    .status, .pill { display: inline-flex; border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 600; }
-    .same { background: #e8f5ee; color: #11845b; }
-    .missing, .changed, .extra { background: #fff4d6; color: #9a6700; }
-    .counts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; table-layout: fixed; }
-    th, td { border-top: 1px solid #eef0f3; padding: 9px 8px; text-align: left; vertical-align: top; font-size: 12px; word-break: break-all; }
-    th { color: #667085; font-weight: 700; }
-    th:first-child, td:first-child { width: 104px; }
-    th:nth-child(3), th:nth-child(4), td:nth-child(3), td:nth-child(4) { width: 168px; }
-    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #344054; }
+    h1 { font-size: 20px; line-height: 1.2; }
+    header p, .muted { margin-top: 6px; color: #667085; font-size: 12px; word-break: break-all; }
+    .tree { overflow: auto; padding: 10px; }
+    .tree ul { list-style: none; margin: 0; padding: 0 0 0 14px; }
+    .tree > ul { padding-left: 0; }
+    .folder { margin: 5px 0 3px; color: #475467; font-size: 12px; font-weight: 700; }
+    .file { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 0; border-radius: 6px; padding: 7px 8px; background: transparent; color: #344054; text-align: left; font: inherit; cursor: pointer; }
+    .file:hover, .file.active { background: #eef2f7; }
+    .file span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    .badge { border-radius: 999px; padding: 2px 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+    .badge.changed, .badge.renamed { background: #fff4d6; color: #9a6700; }
+    .badge.missing, .badge.deleted { background: #fee4e2; color: #b42318; }
+    .badge.extra, .badge.added { background: #dcfae6; color: #067647; }
+    main { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto auto minmax(0, 1fr); }
+    .diff-header { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
+    .labels { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border-bottom: 1px solid #d9dee7; background: #f8fafc; }
+    .labels div { padding: 9px 12px; color: #475467; font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .labels div + div { border-left: 1px solid #d9dee7; }
+    .diff { min-height: 0; overflow-y: auto; overflow-x: hidden; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.45; background: #fff; }
+    .row { display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px minmax(0, 1fr); min-height: 22px; align-items: stretch; }
+    .ln { user-select: none; color: #98a2b3; text-align: right; padding: 2px 8px; background: #f8fafc; border-right: 1px solid #edf0f5; }
+    .cell { padding: 2px 10px; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; min-width: 0; border-right: 1px solid #edf0f5; }
+    .row.same .cell { color: #344054; }
+    .row.remove .old, .row.change .old { background: #ffebe9; color: #86181d; }
+    .row.add .new, .row.change .new { background: #e6ffed; color: #116329; }
+    .empty { color: #98a2b3; }
+    .placeholder { padding: 28px; color: #667085; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>SkillOps Drift Diff</h1>
-    <p>Profile: ${escapeHtml(report.profile)} · Target: ${escapeHtml(report.targetDir)}</p>
-    <div class="summary">
-      <span>Total ${report.items.length}</span>
-      <span>Changed ${changedItems.length}</span>
-      <span>Same ${report.items.length - changedItems.length}</span>
-    </div>
-  </header>
-  ${rows || "<p class=\"muted\">No drift items.</p>"}
+  <div class="app">
+    <aside>
+      <header>
+        <h1>${escapeHtml(document.title)}</h1>
+        <p>${escapeHtml(document.subtitle)}</p>
+        <p>${escapeHtml(document.summary)}</p>
+      </header>
+      <nav id="tree" class="tree"></nav>
+    </aside>
+    <main>
+      <header class="diff-header">
+        <div>
+          <h2 id="file-title">No file selected</h2>
+          <p id="file-subtitle" class="muted"></p>
+        </div>
+        <span id="file-status" class="badge changed">changed</span>
+      </header>
+      <div class="labels"><div>${escapeHtml(document.leftLabel)}</div><div>${escapeHtml(document.rightLabel)}</div></div>
+      <section id="diff" class="diff"><div class="placeholder">No file-level differences.</div></section>
+    </main>
+  </div>
+  <script id="diff-data" type="application/json">${payload}</script>
+  <script>
+    const data = JSON.parse(document.getElementById("diff-data").textContent);
+    let activePath = data.files[0]?.path || "";
+    renderTree();
+    renderActiveFile();
+
+    function renderTree() {
+      const tree = {};
+      for (const file of data.files) {
+        const parts = file.path.split("/").filter(Boolean);
+        let node = tree;
+        for (const part of parts.slice(0, -1)) node = node[part] ||= {};
+        node[parts[parts.length - 1] || file.path] = file;
+      }
+      document.getElementById("tree").innerHTML = data.files.length ? renderNode(tree, "") : '<p class="muted">No changed files.</p>';
+      document.querySelectorAll("[data-path]").forEach((button) => {
+        button.addEventListener("click", () => {
+          activePath = button.getAttribute("data-path");
+          renderTree();
+          renderActiveFile();
+        });
+      });
+    }
+
+    function renderNode(node, prefix) {
+      const entries = Object.entries(node).sort(([a], [b]) => a.localeCompare(b));
+      return "<ul>" + entries.map(([name, value]) => {
+        if (value && typeof value.path === "string") {
+          const leaf = value.path.split("/").pop();
+          return '<li><button class="file ' + (value.path === activePath ? "active" : "") + '" data-path="' + escapeAttr(value.path) + '"><span>' + escapeHtml(leaf) + '</span><span class="badge ' + value.status + '">' + statusLabel(value.status) + '</span></button></li>';
+        }
+        return '<li><div class="folder">' + escapeHtml(name) + '</div>' + renderNode(value, prefix ? prefix + "/" + name : name) + '</li>';
+      }).join("") + "</ul>";
+    }
+
+    function renderActiveFile() {
+      const file = data.files.find((item) => item.path === activePath);
+      const diff = document.getElementById("diff");
+      document.getElementById("file-title").textContent = file?.path || "No file selected";
+      document.getElementById("file-subtitle").textContent = file ? file.leftTitle + " -> " + file.rightTitle : "";
+      const status = document.getElementById("file-status");
+      status.textContent = file ? statusLabel(file.status) : "";
+      status.className = "badge " + (file?.status || "changed");
+      if (!file) {
+        diff.innerHTML = '<div class="placeholder">No file-level differences.</div>';
+        return;
+      }
+      diff.innerHTML = buildDiffRows(file.leftText, file.rightText);
+    }
+
+    function buildDiffRows(leftText, rightText) {
+      const left = splitLines(leftText);
+      const right = splitLines(rightText);
+      const operations = lineOperations(left, right);
+      const rows = [];
+      let leftLine = 1;
+      let rightLine = 1;
+      for (let index = 0; index < operations.length; index++) {
+        const op = operations[index];
+        if (op.type === "same") {
+          rows.push(rowHtml("same", leftLine++, op.text, rightLine++, op.text));
+          continue;
+        }
+        const removed = [];
+        const added = [];
+        while (index < operations.length && operations[index].type !== "same") {
+          if (operations[index].type === "remove") removed.push(operations[index].text);
+          else added.push(operations[index].text);
+          index++;
+        }
+        index--;
+        const count = Math.max(removed.length, added.length);
+        for (let offset = 0; offset < count; offset++) {
+          const oldText = removed[offset];
+          const newText = added[offset];
+          const kind = oldText !== undefined && newText !== undefined ? "change" : oldText !== undefined ? "remove" : "add";
+          rows.push(rowHtml(kind, oldText !== undefined ? leftLine++ : "", oldText ?? "", newText !== undefined ? rightLine++ : "", newText ?? ""));
+        }
+      }
+      return rows.join("") || '<div class="placeholder">No line differences.</div>';
+    }
+
+    function lineOperations(left, right) {
+      const table = Array.from({ length: left.length + 1 }, () => Array(right.length + 1).fill(0));
+      for (let i = left.length - 1; i >= 0; i--) {
+        for (let j = right.length - 1; j >= 0; j--) {
+          table[i][j] = left[i] === right[j] ? table[i + 1][j + 1] + 1 : Math.max(table[i + 1][j], table[i][j + 1]);
+        }
+      }
+      const operations = [];
+      let i = 0, j = 0;
+      while (i < left.length && j < right.length) {
+        if (left[i] === right[j]) {
+          operations.push({ type: "same", text: left[i] });
+          i++; j++;
+        } else if (table[i + 1][j] >= table[i][j + 1]) {
+          operations.push({ type: "remove", text: left[i++] });
+        } else {
+          operations.push({ type: "add", text: right[j++] });
+        }
+      }
+      while (i < left.length) operations.push({ type: "remove", text: left[i++] });
+      while (j < right.length) operations.push({ type: "add", text: right[j++] });
+      return operations;
+    }
+
+    function rowHtml(kind, leftLine, leftText, rightLine, rightText) {
+      return '<div class="row ' + kind + '"><div class="ln">' + leftLine + '</div><div class="cell old' + (leftText ? '' : ' empty') + '">' + escapeHtml(leftText) + '</div><div class="ln">' + rightLine + '</div><div class="cell new' + (rightText ? '' : ' empty') + '">' + escapeHtml(rightText) + '</div></div>';
+    }
+
+    function splitLines(text) {
+      if (!text) return [];
+      return text.replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n").split("\\n");
+    }
+
+    function statusLabel(status) {
+      return ({ missing: "missing", changed: "changed", extra: "extra", added: "added", deleted: "deleted", renamed: "renamed" })[status] || status;
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] || char);
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/\`/g, "&#96;");
+    }
+  </script>
 </body>
 </html>`;
 }

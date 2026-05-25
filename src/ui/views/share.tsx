@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, GitBranch, GitPullRequest, Pencil, Plus, Terminal, Trash2 } from "lucide-react";
-import type { DriftReport, LocalGitRemote, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetGroup, WorkspaceSnapshot } from "../../shared/types";
+import type { DriftReport, LocalGitRemote, ShareDeliveryMethod, ShareDriftCheckRecord, SharePlanResult, ShareResult, ShareTargetGroup, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
-import { createShareTargetGroup, selectedSkillCount } from "../utils";
+import { createShareTargetGroup, formatDate, formatTimeAgo, selectedSkillCount } from "../utils";
+
+const AUTO_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 export function Publish(props: {
   t: Dictionary;
@@ -10,6 +12,8 @@ export function Publish(props: {
   shareResult?: ShareResult;
   sharePlan?: SharePlanResult;
   shareDriftReport?: DriftReport;
+  shareDriftCheck?: ShareDriftCheckRecord;
+  shareDriftSignature: string;
   isSharing: boolean;
   isCheckingShareDrift: boolean;
   shareProgress?: string;
@@ -30,6 +34,15 @@ export function Publish(props: {
   const activeGroup = props.activeTargetGroup;
   const selectedSkills = activeGroup ? selectedSkillCount(props.snapshot, activeGroup.profile) : 0;
   const activeReady = activeGroup ? shareTargetReady(props.snapshot, activeGroup) : false;
+  const hasDriftChanges = Boolean(props.shareDriftReport?.items.some((item) => item.status !== "same"));
+  const canShare = Boolean(activeGroup && activeReady && hasDriftChanges && !props.isCheckingShareDrift && !props.isSharing);
+  const displayedAtMs = useMemo(() => Date.now(), [props.snapshot.root, activeGroup?.id, props.shareDriftCheck?.checkedAt]);
+
+  useEffect(() => {
+    if (!activeGroup || !activeReady || props.isCheckingShareDrift) return;
+    if (!isStaleCheck(props.shareDriftCheck, props.shareDriftSignature)) return;
+    props.checkShareTargetDrift(activeGroup);
+  }, [activeGroup?.id, activeReady, props.isCheckingShareDrift, props.shareDriftCheck?.checkedAt, props.shareDriftCheck?.signature, props.shareDriftSignature]);
 
   function upsertGroup(group: ShareTargetGroup) {
     const existing = props.targetGroups.some((item) => item.id === group.id);
@@ -88,10 +101,17 @@ export function Publish(props: {
         <input value={message} onChange={(event) => setMessage(event.target.value)} />
         <div className="actions">
           <button onClick={() => activeGroup && props.checkShareTargetDrift(activeGroup)} disabled={props.isCheckingShareDrift || !activeGroup || !activeReady}>{props.isCheckingShareDrift ? t.checkingDrift : t.checkDrift}</button>
-          <button className="primary" onClick={() => activeGroup && props.shareProject(activeGroup, message)} disabled={props.isSharing || !activeGroup || !activeReady}>{props.isSharing ? t.sharing : t.shareNow}</button>
+          <button className={canShare ? "primary" : undefined} onClick={() => activeGroup && props.shareProject(activeGroup, message)} disabled={!canShare}>{props.isSharing ? t.sharing : t.shareNow}</button>
         </div>
         {props.shareProgress && <p className="muted">{props.shareProgress}</p>}
         <h4>{t.drift}</h4>
+        {props.shareDriftCheck?.checkedAt && (
+          <>
+            <p className="muted">{t.sourceCheckedAgo(formatTimeAgo(props.shareDriftCheck.checkedAt, displayedAtMs))}</p>
+            <p className="muted">{t.sourceCheckedAt(formatDate(props.shareDriftCheck.checkedAt))}</p>
+          </>
+        )}
+        {props.shareDriftCheck?.error && <p className="muted">{t.errorStatus(props.shareDriftCheck.error)}</p>}
         {!props.shareDriftReport ? <p className="muted">{t.driftEmpty}</p> : (
           <div className="list">
             <article className="row stacked">
@@ -189,6 +209,13 @@ export function Publish(props: {
       )}
     </div>
   );
+}
+
+function isStaleCheck(record: ShareDriftCheckRecord | undefined, signature: string): boolean {
+  if (!record?.checkedAt) return true;
+  if (record.signature !== signature) return true;
+  const time = Date.parse(record.checkedAt);
+  return !Number.isFinite(time) || Date.now() - time > AUTO_CHECK_INTERVAL_MS;
 }
 
 function deliveryLabel(t: Dictionary, value: ShareDeliveryMethod): string {

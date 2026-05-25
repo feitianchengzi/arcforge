@@ -72,7 +72,9 @@ export interface Dictionary {
   sourceCannotUpdate: string;
   sourceAheadBehind: (ahead: number, behind: number) => string;
   sourceLastFetch: (age: string) => string;
+  sourceLastFetchAt: (time: string) => string;
   sourceNeverFetched: string;
+  sourceCheckedAgo: (age: string) => string;
   sourceCheckedAt: (time: string) => string;
   sourceBranch: (branch: string, upstream: string) => string;
   confirmSourceUpdate: (behind: number) => string;
@@ -282,8 +284,10 @@ export const dictionaries: Record<Language, Dictionary> = {
     sourceCannotUpdate: "Update is blocked. Resolve local Git state first.",
     sourceAheadBehind: (ahead: number, behind: number) => `Ahead ${ahead} / behind ${behind}`,
     sourceLastFetch: (age: string) => `Last fetch ${age} ago`,
+    sourceLastFetchAt: (time: string) => `Last fetch at ${time}`,
     sourceNeverFetched: "No previous fetch recorded",
-    sourceCheckedAt: (time: string) => `Checked ${time}`,
+    sourceCheckedAgo: (age: string) => `Checked ${age} ago`,
+    sourceCheckedAt: (time: string) => `Checked at ${time}`,
     sourceBranch: (branch: string, upstream: string) => `${branch} -> ${upstream}`,
     confirmSourceUpdate: (behind: number) => `Update this source with a fast-forward pull? The local checkout is behind by ${behind} commit${behind === 1 ? "" : "s"}.`,
     sourceUpdated: "Source updated. Workspace rescanned.",
@@ -490,7 +494,9 @@ export const dictionaries: Record<Language, Dictionary> = {
     sourceCannotUpdate: "当前无法更新，请先处理本地 Git 状态。",
     sourceAheadBehind: (ahead: number, behind: number) => `领先 ${ahead} / 落后 ${behind}`,
     sourceLastFetch: (age: string) => `上次 fetch：${age} 前`,
+    sourceLastFetchAt: (time: string) => `上次 fetch 于 ${time}`,
     sourceNeverFetched: "没有上次 fetch 记录",
+    sourceCheckedAgo: (age: string) => `${age} 前检查`,
     sourceCheckedAt: (time: string) => `检查于 ${time}`,
     sourceBranch: (branch: string, upstream: string) => `${branch} -> ${upstream}`,
     confirmSourceUpdate: (behind: number) => `确认用 fast-forward pull 更新来源？当前本地落后 ${behind} 个 commit。`,

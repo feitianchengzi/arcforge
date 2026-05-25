@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, FileText, Folder, RefreshCw, Save } from "lucide-react";
-import type { SkillFileDocument, SkillFileEntry, SkillSummary, SourceUpdateStatus, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
+import type { SkillFileDocument, SkillFileEntry, SkillSummary, SourceUpdateCheckRecord, SourceUpdateStatus, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import type { Tab } from "../types";
-import { formatDate, formatDuration } from "../utils";
+import { formatDate, formatTimeAgo } from "../utils";
 import { Metric } from "../components/shell";
+
+const AUTO_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 export function Overview(props: {
   t: Dictionary;
@@ -16,14 +18,29 @@ export function Overview(props: {
   setStatus: (value: string) => void;
   onSourceUpdated: () => Promise<void>;
   isGithubSource: boolean;
+  sourceUpdateCheck?: SourceUpdateCheckRecord;
+  saveSourceUpdateCheck: (record: SourceUpdateCheckRecord) => void;
+  openSourceDiff: (status: SourceUpdateStatus | undefined) => void;
 }) {
   const { t, snapshot, criticalCount, warningCount } = props;
   const projectTargets = props.targetHistory.filter((item) => item.sourcePath === snapshot.root);
-  const [sourceStatus, setSourceStatus] = useState<SourceUpdateStatus>();
-  const [sourceError, setSourceError] = useState("");
+  const [sourceStatus, setSourceStatus] = useState<SourceUpdateStatus | undefined>(props.sourceUpdateCheck?.status);
+  const [sourceError, setSourceError] = useState(props.sourceUpdateCheck?.error ?? "");
   const [isCheckingSource, setIsCheckingSource] = useState(false);
   const [isUpdatingSource, setIsUpdatingSource] = useState(false);
   const canCheckSource = props.isGithubSource && Boolean(snapshot.localGit?.remotes.length);
+  const displayedAtMs = useMemo(() => Date.now(), [snapshot.root, props.sourceUpdateCheck?.checkedAt, sourceStatus?.checkedAt]);
+
+  useEffect(() => {
+    setSourceStatus(props.sourceUpdateCheck?.status);
+    setSourceError(props.sourceUpdateCheck?.error ?? "");
+  }, [props.sourceUpdateCheck, snapshot.root]);
+
+  useEffect(() => {
+    if (!canCheckSource || isCheckingSource || isUpdatingSource) return;
+    if (!isStaleCheck(props.sourceUpdateCheck?.checkedAt)) return;
+    void checkSourceUpdates();
+  }, [canCheckSource, props.sourceUpdateCheck?.checkedAt, snapshot.root]);
 
   async function checkSourceUpdates() {
     if (!window.skillops) return;
@@ -33,11 +50,13 @@ export function Overview(props: {
     try {
       const nextStatus = await window.skillops.sourceUpdateStatus(snapshot.root);
       setSourceStatus(nextStatus);
+      props.saveSourceUpdateCheck({ checkedAt: nextStatus.checkedAt, status: nextStatus });
       const message = sourceStatusMessage(t, nextStatus);
       props.setStatus(message);
     } catch (error) {
       const message = errorMessage(error);
       setSourceError(message);
+      props.saveSourceUpdateCheck({ checkedAt: new Date().toISOString(), error: message });
       props.setStatus(t.errorStatus(message));
     } finally {
       setIsCheckingSource(false);
@@ -53,6 +72,7 @@ export function Overview(props: {
     try {
       const result = await window.skillops.updateSource(snapshot.root, true);
       setSourceStatus(result.after);
+      props.saveSourceUpdateCheck({ checkedAt: result.after.checkedAt, status: result.after });
       await props.onSourceUpdated();
       props.setStatus(t.sourceUpdated);
     } catch (error) {
@@ -100,6 +120,11 @@ export function Overview(props: {
                 <CheckCircle2 size={16} /> {isUpdatingSource ? t.updatingSource : t.updateSource}
               </button>
             )}
+            {sourceStatus && (sourceStatus.behind > 0 || sourceStatus.ahead > 0) && (
+              <button onClick={() => props.openSourceDiff(sourceStatus)} disabled={isCheckingSource || isUpdatingSource}>
+                <ExternalLink size={16} /> {t.viewDiff}
+              </button>
+            )}
           </div>
         </div>
         {!canCheckSource ? null : sourceError ? (
@@ -110,7 +135,15 @@ export function Overview(props: {
             <div className="source-status-details">
               <strong>{sourceStatusMessage(t, sourceStatus)}</strong>
               <p>{sourceStatus.branch && sourceStatus.upstream ? t.sourceBranch(sourceStatus.branch, sourceStatus.upstream) : sourceStatus.remoteUrl ?? snapshot.localGit?.remotes[0]?.fetchUrl}</p>
-              <span>{sourceStatus.previousFetchAgeMs !== undefined ? t.sourceLastFetch(formatDuration(sourceStatus.previousFetchAgeMs)) : t.sourceNeverFetched}</span>
+              {sourceStatus.previousFetchAt ? (
+                <>
+                  <span>{t.sourceLastFetch(formatTimeAgo(sourceStatus.previousFetchAt, displayedAtMs))}</span>
+                  <span>{t.sourceLastFetchAt(formatDate(sourceStatus.previousFetchAt))}</span>
+                </>
+              ) : (
+                <span>{t.sourceNeverFetched}</span>
+              )}
+              <span>{t.sourceCheckedAgo(formatTimeAgo(sourceStatus.checkedAt, displayedAtMs))}</span>
               <span>{t.sourceCheckedAt(formatDate(sourceStatus.checkedAt))}</span>
               {!sourceStatus.canUpdate && (sourceStatus.ahead > 0 || sourceStatus.dirty) && <span>{t.sourceCannotUpdate}</span>}
             </div>
@@ -138,6 +171,12 @@ export function Overview(props: {
       </section>
     </div>
   );
+}
+
+function isStaleCheck(checkedAt?: string): boolean {
+  if (!checkedAt) return true;
+  const time = Date.parse(checkedAt);
+  return !Number.isFinite(time) || Date.now() - time > AUTO_CHECK_INTERVAL_MS;
 }
 
 function sourceStatusMessage(t: Dictionary, status: SourceUpdateStatus): string {

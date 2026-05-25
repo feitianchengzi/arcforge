@@ -118,10 +118,17 @@ function parseGitStatus(output: string): DriftFileDiff[] {
     .map((line) => line.trimEnd())
     .filter(Boolean)
     .map((line) => {
+      const statusCode = line.slice(0, 2);
       const rawPath = line.slice(3).trim();
       const filePath = rawPath.includes(" -> ") ? rawPath.split(" -> ").pop() || rawPath : rawPath;
-      return { path: filePath.replace(/^"|"$/g, ""), status: "changed" as const };
+      return { path: filePath.replace(/^"|"$/g, ""), status: gitStatusToDriftStatus(statusCode) };
     });
+}
+
+function gitStatusToDriftStatus(statusCode: string): DriftFileDiff["status"] {
+  if (statusCode.includes("D")) return "extra";
+  if (statusCode.includes("A") || statusCode.includes("?")) return "missing";
+  return "changed";
 }
 
 function summarizeDiff(files: DriftFileDiff[]): { missing: number; changed: number; extra: number } {

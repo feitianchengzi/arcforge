@@ -86,6 +86,12 @@ export function formatDuration(valueMs: number): string {
   return `${days}d`;
 }
 
+export function formatTimeAgo(value: string, nowMs = Date.now()): string {
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return "unknown";
+  return formatDuration(nowMs - time);
+}
+
 export function emptyProfile(name: string): SkillOpsProfile {
   return {
     name,

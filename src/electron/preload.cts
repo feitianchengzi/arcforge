@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld("skillops", {
   downloadSource: (remoteUrl: string) => ipcRenderer.invoke("source:download", remoteUrl),
   sourceUpdateStatus: (root: string) => ipcRenderer.invoke("source:status", root),
   updateSource: (root: string, confirm?: boolean) => ipcRenderer.invoke("source:update", root, confirm),
+  openSourceDiff: (status: unknown) => ipcRenderer.invoke("source:openDiff", status),
   createPublishPlan: (root: string, visibility: "private" | "public") => ipcRenderer.invoke("publish:plan", root, visibility),
   createSharePlan: (root: string, remoteUrl: string, visibility: "private" | "public", targetMode: "direct" | "namedProject", projectName: string, profileName: string, delivery?: string, branch?: string, sameRepository?: boolean, sameRepositoryRemote?: string) => ipcRenderer.invoke("publish:sharePlan", root, remoteUrl, visibility, targetMode, projectName, profileName, delivery, branch, sameRepository, sameRepositoryRemote),
   shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: "direct" | "namedProject", projectName: string, profileName: string, delivery?: string, branch?: string, confirm?: boolean, sameRepository?: boolean, sameRepositoryRemote?: string) => ipcRenderer.invoke("publish:share", root, remoteUrl, visibility, message, targetMode, projectName, profileName, delivery, branch, confirm, sameRepository, sameRepositoryRemote),

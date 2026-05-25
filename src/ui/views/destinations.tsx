@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, FolderOpen, HardDrive, Pencil, Plus, Trash2 } from "lucide-react";
-import type { ApplyProfileResult, ApplyTargetGroup, DriftReport, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
+import type { ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import type { DefaultTarget } from "../types";
-import { basename, createApplyTargetGroup, formatDate, resolveApplyTargetEntries, selectedSkillCount, summarizeApplyResults } from "../utils";
+import { basename, createApplyTargetGroup, formatDate, formatTimeAgo, resolveApplyTargetEntries, selectedSkillCount, summarizeApplyResults } from "../utils";
+
+const AUTO_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 export function ApplySkills(props: {
   t: Dictionary;
@@ -17,6 +19,9 @@ export function ApplySkills(props: {
   saveTargetGroups: (groups: ApplyTargetGroup[], selectedId: string) => void;
   chooseProjectTarget: () => Promise<string | undefined>;
   driftReports: DriftReport[];
+  driftCheck?: ApplyDriftCheckRecord;
+  driftSignature: string;
+  isCheckingDrift: boolean;
   applyResults: ApplyProfileResult[];
   targetHistory: TargetRecord[];
   checkTargetGroupDrift: (group: ApplyTargetGroup) => void;
@@ -29,6 +34,15 @@ export function ApplySkills(props: {
   const selectedTargets = activeGroup ? resolveApplyTargetEntries(activeGroup, props.defaultTargets) : [];
   const selectedSkills = activeGroup ? selectedSkillCount(props.snapshot, activeGroup.profile) : 0;
   const latestApplySummary = summarizeApplyResults(props.applyResults);
+  const hasDriftChanges = props.driftReports.some((report) => report.items.some((item) => item.status !== "same"));
+  const canApply = Boolean(activeGroup && selectedTargets.length > 0 && hasDriftChanges && !props.isCheckingDrift);
+  const displayedAtMs = useMemo(() => Date.now(), [props.snapshot.root, activeGroup?.id, props.driftCheck?.checkedAt]);
+
+  useEffect(() => {
+    if (!activeGroup || props.isCheckingDrift || selectedTargets.length === 0) return;
+    if (!isStaleCheck(props.driftCheck, props.driftSignature)) return;
+    props.checkTargetGroupDrift(activeGroup);
+  }, [activeGroup?.id, props.driftCheck?.checkedAt, props.driftCheck?.signature, props.driftSignature, props.isCheckingDrift, selectedTargets.length]);
 
   function upsertGroup(group: ApplyTargetGroup) {
     const existing = props.targetGroups.some((item) => item.id === group.id);
@@ -119,8 +133,8 @@ export function ApplySkills(props: {
               </div>
             )}
             <div className="actions">
-              <button onClick={() => props.checkTargetGroupDrift(activeGroup)} disabled={selectedTargets.length === 0}>{t.checkDrift}</button>
-              <button className="primary" onClick={() => props.applyTargetGroup(activeGroup)} disabled={selectedTargets.length === 0}>{t.apply}</button>
+              <button onClick={() => props.checkTargetGroupDrift(activeGroup)} disabled={selectedTargets.length === 0 || props.isCheckingDrift}>{props.isCheckingDrift ? t.checkingDrift : t.checkDrift}</button>
+              <button className={canApply ? "primary" : undefined} onClick={() => props.applyTargetGroup(activeGroup)} disabled={!canApply}>{t.apply}</button>
             </div>
             {selectedTargets.length === 0 && <p className="muted">{activeGroup.projectTargetDirs.length > 0 ? t.agentRequired : t.targetRequired}</p>}
             {latestApplySummary && <p className="muted">{t.copiedSkipped(latestApplySummary.copied, latestApplySummary.skipped, latestApplySummary.copiedAssets, latestApplySummary.skippedAssets)}</p>}
@@ -128,6 +142,13 @@ export function ApplySkills(props: {
         )}
 
         <h4>{t.drift}</h4>
+        {props.driftCheck?.checkedAt && (
+          <>
+            <p className="muted">{t.sourceCheckedAgo(formatTimeAgo(props.driftCheck.checkedAt, displayedAtMs))}</p>
+            <p className="muted">{t.sourceCheckedAt(formatDate(props.driftCheck.checkedAt))}</p>
+          </>
+        )}
+        {props.driftCheck?.error && <p className="muted">{t.errorStatus(props.driftCheck.error)}</p>}
         {props.driftReports.length === 0 ? <p className="muted">{t.driftEmpty}</p> : (
           <div className="list">
             {props.driftReports.map((report) => (
@@ -155,6 +176,13 @@ export function ApplySkills(props: {
       )}
     </div>
   );
+}
+
+function isStaleCheck(record: ApplyDriftCheckRecord | undefined, signature: string): boolean {
+  if (!record?.checkedAt) return true;
+  if (record.signature !== signature) return true;
+  const time = Date.parse(record.checkedAt);
+  return !Number.isFinite(time) || Date.now() - time > AUTO_CHECK_INTERVAL_MS;
 }
 
 function ApplyTargetDialog(props: {

@@ -187,6 +187,26 @@ export interface DriftReport {
   messages?: string[];
 }
 
+export interface SourceUpdateCheckRecord {
+  checkedAt: string;
+  status?: SourceUpdateStatus;
+  error?: string;
+}
+
+export interface ApplyDriftCheckRecord {
+  checkedAt: string;
+  signature?: string;
+  reports: DriftReport[];
+  error?: string;
+}
+
+export interface ShareDriftCheckRecord {
+  checkedAt: string;
+  signature?: string;
+  report?: DriftReport;
+  error?: string;
+}
+
 export interface PublishPlan {
   root: string;
   repositoryName: string;
@@ -285,6 +305,9 @@ export interface ProjectUiState {
   profile?: string;
   applyTargetGroupId?: string;
   shareTargetGroupId?: string;
+  sourceUpdateCheck?: SourceUpdateCheckRecord;
+  applyDriftChecks?: Record<string, ApplyDriftCheckRecord>;
+  shareDriftChecks?: Record<string, ShareDriftCheckRecord>;
 }
 
 export interface AppState {
