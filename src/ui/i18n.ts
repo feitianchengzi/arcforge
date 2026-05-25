@@ -26,6 +26,9 @@ export interface Dictionary {
   projectDownloadFailed: string;
   noRecentWorkspaces: string;
   removeWorkspace: string;
+  reorderProjects: string;
+  finishReorderingProjects: string;
+  reorderProject: string;
   confirmRemoveWorkspace: (name: string) => string;
   noWorkspace: string;
   chooseStatus: string;
@@ -241,6 +244,9 @@ export const dictionaries: Record<Language, Dictionary> = {
     projectDownloadFailed: "Download failed. Check the repository URL and Git credentials.",
     noRecentWorkspaces: "No Skill projects yet.",
     removeWorkspace: "Remove project",
+    reorderProjects: "Reorder",
+    finishReorderingProjects: "Done",
+    reorderProject: "Drag to reorder",
     confirmRemoveWorkspace: (name: string) => `Remove "${name}" from recent projects? This does not delete local files.`,
     noWorkspace: "No Skill project selected",
     chooseStatus: "Choose or download a Skill project with skills/ or a single SKILL.md folder.",
@@ -454,6 +460,9 @@ export const dictionaries: Record<Language, Dictionary> = {
     projectDownloadFailed: "下载失败，请检查仓库地址和 Git 凭据。",
     noRecentWorkspaces: "暂无 Skill 项目。",
     removeWorkspace: "移除项目",
+    reorderProjects: "排序",
+    finishReorderingProjects: "完成",
+    reorderProject: "拖拽排序",
     confirmRemoveWorkspace: (name: string) => `确认从最近项目中移除“${name}”？这不会删除本地文件。`,
     noWorkspace: "未选择 Skill 项目",
     chooseStatus: "请选择或下载包含 skills/ 的 Skill 项目，或单个 SKILL.md 文件夹。",

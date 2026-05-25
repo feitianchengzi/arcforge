@@ -108,7 +108,7 @@ main {
 .brand p, .topbar p, .muted { color: var(--text-muted); font-size: 13px; line-height: 1.45; }
 .sidebar .brand p { margin-top: var(--space-xxs); color: var(--text-sidebar-muted); font-size: 12px; }
 .sidebar h4 { color: var(--text-sidebar-muted); }
-.sidebar h4 + .workspace-list { margin-top: var(--space-sm); }
+.workspace-list-heading + .workspace-list { margin-top: var(--space-sm); }
 
 button {
   min-height: 38px;
@@ -147,8 +147,44 @@ button.active {
 
 .workspace-list { display: flex; flex-direction: column; gap: var(--space-sm); }
 .workspace-list p { color: var(--text-sidebar-muted); font-size: 12px; }
-.workspace-item { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); align-items: stretch; border-radius: var(--radius-md); }
-.workspace-item > button:first-child {
+.workspace-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+.workspace-list-heading h4 {
+  margin-top: 0;
+  line-height: 28px;
+}
+.workspace-sort-toggle {
+  min-height: 28px;
+  padding: 4px 8px;
+  align-self: center;
+  justify-content: center;
+  font-size: 11px;
+}
+.workspace-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-xs);
+  align-items: stretch;
+  border-radius: var(--radius-md);
+}
+.workspace-item.reordering { grid-template-columns: 30px minmax(0, 1fr); }
+.workspace-drag-handle {
+  min-width: 0;
+  width: 30px;
+  min-height: 46px;
+  justify-content: center;
+  padding: 0;
+  color: var(--text-sidebar-muted);
+  background: var(--surface-sidebar-muted);
+  border-color: var(--border-sidebar);
+  cursor: grab;
+}
+.workspace-drag-handle:active { cursor: grabbing; }
+.workspace-open-button {
   min-width: 0;
   min-height: 46px;
   flex-direction: column;
@@ -158,7 +194,11 @@ button.active {
   background: var(--surface-sidebar-muted);
   border-color: var(--border-sidebar);
 }
-.workspace-item.active > button:first-child { background: var(--surface-sidebar-active); border-color: #3b4656; color: var(--text-inverse); }
+.workspace-item.active .workspace-drag-handle,
+.workspace-item.active .workspace-open-button { background: var(--surface-sidebar-active); border-color: #3b4656; color: var(--text-inverse); }
+.workspace-item.dragging { opacity: 0.55; }
+.workspace-item.drop-target .workspace-drag-handle,
+.workspace-item.drop-target .workspace-open-button { border-color: #6f89ff; box-shadow: inset 0 0 0 1px #6f89ff; }
 .workspace-item strong,
 .workspace-item span {
   max-width: 100%;

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createRoot } from "react-dom/client";
-import { Download, Edit3, GitBranch, HardDrive, PackageCheck, Play, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
+import { Download, Edit3, GitBranch, GripVertical, HardDrive, ListOrdered, PackageCheck, Play, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
 import type { AppState, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, ShareDriftCheckRecord, SharePlanResult, ShareResult, ShareTargetGroup, SkillOpsConfig, SourceUpdateCheckRecord, TargetRecord, WorkspaceSnapshot } from "../shared/types";
 import { GITHUB_ISSUE_URL } from "../shared/links";
 import { MAX_RECENT_WORKSPACES, readLegacyAppState } from "./app-state";
@@ -70,6 +70,9 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [isCliRepairing, setIsCliRepairing] = useState(false);
   const [cliRepairNotice, setCliRepairNotice] = useState<CliRepairNotice | undefined>();
+  const [isReorderingWorkspaces, setIsReorderingWorkspaces] = useState(false);
+  const [draggingWorkspacePath, setDraggingWorkspacePath] = useState("");
+  const [dragOverWorkspacePath, setDragOverWorkspacePath] = useState("");
   const workspaceRequestRef = useRef(0);
   const activeProject = recentWorkspaces.find((item) => item.path === root);
   const isPendingProject = activeProject?.status === "downloading" || activeProject?.status === "error";
@@ -723,6 +726,58 @@ function App() {
     }
   }
 
+  function reorderRecentWorkspace(draggedPath: string, targetPath: string) {
+    if (!draggedPath || !targetPath || draggedPath === targetPath) return;
+    setRecentWorkspaces((current) => {
+      const fromIndex = current.findIndex((item) => item.path === draggedPath);
+      const toIndex = current.findIndex((item) => item.path === targetPath);
+      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return current;
+      const next = [...current];
+      const [moved] = next.splice(fromIndex, 1);
+      if (!moved) return current;
+      next.splice(toIndex, 0, moved);
+      void saveAppState({ recentWorkspaces: next });
+      return next;
+    });
+  }
+
+  function toggleWorkspaceReorderMode() {
+    setIsReorderingWorkspaces((current) => {
+      if (current) resetWorkspaceDrag();
+      return !current;
+    });
+  }
+
+  function handleWorkspaceDragStart(event: DragEvent, projectPath: string) {
+    if (!isReorderingWorkspaces) return;
+    setDraggingWorkspacePath(projectPath);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", projectPath);
+  }
+
+  function handleWorkspaceDragOver(event: DragEvent, projectPath: string) {
+    if (!isReorderingWorkspaces) return;
+    const draggedPath = draggingWorkspacePath || event.dataTransfer.getData("text/plain");
+    if (!draggedPath || draggedPath === projectPath) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDragOverWorkspacePath(projectPath);
+  }
+
+  function handleWorkspaceDrop(event: DragEvent, projectPath: string) {
+    if (!isReorderingWorkspaces) return;
+    event.preventDefault();
+    const draggedPath = draggingWorkspacePath || event.dataTransfer.getData("text/plain");
+    reorderRecentWorkspace(draggedPath, projectPath);
+    setDraggingWorkspacePath("");
+    setDragOverWorkspacePath("");
+  }
+
+  function resetWorkspaceDrag() {
+    setDraggingWorkspacePath("");
+    setDragOverWorkspacePath("");
+  }
+
   function openAddProjectDialog() {
     setSourceMode("local");
     setSharedSourceUrl("");
@@ -778,11 +833,35 @@ function App() {
           </div>
           <button className="primary" onClick={openAddProjectDialog}><Download size={16} /> {t.addSkillProject}</button>
           <div>
-            <h4>{t.recentWorkspaces}</h4>
+            <div className="workspace-list-heading">
+              <h4>{t.recentWorkspaces}</h4>
+              {recentWorkspaces.length > 1 && (
+                <button className={`workspace-sort-toggle ${isReorderingWorkspaces ? "active" : ""}`} onClick={toggleWorkspaceReorderMode}>
+                  <ListOrdered size={14} /> {isReorderingWorkspaces ? t.finishReorderingProjects : t.reorderProjects}
+                </button>
+              )}
+            </div>
             <div className="workspace-list">
               {recentWorkspaces.length === 0 ? <p>{t.noRecentWorkspaces}</p> : recentWorkspaces.map((item) => (
-                <div key={item.path} className={`workspace-item ${root === item.path ? "active" : ""}`}>
-                  <button onClick={() => {
+                <div
+                  key={item.path}
+                  className={`workspace-item ${isReorderingWorkspaces ? "reordering" : ""} ${root === item.path ? "active" : ""} ${draggingWorkspacePath === item.path ? "dragging" : ""} ${dragOverWorkspacePath === item.path ? "drop-target" : ""}`}
+                  onDragOver={(event) => handleWorkspaceDragOver(event, item.path)}
+                  onDrop={(event) => handleWorkspaceDrop(event, item.path)}
+                >
+                  {isReorderingWorkspaces && (
+                    <button
+                      className="workspace-drag-handle"
+                      draggable
+                      title={t.reorderProject}
+                      aria-label={t.reorderProject}
+                      onDragStart={(event) => handleWorkspaceDragStart(event, item.path)}
+                      onDragEnd={resetWorkspaceDrag}
+                    >
+                      <GripVertical size={14} />
+                    </button>
+                  )}
+                  <button className="workspace-open-button" onClick={() => {
                     setShowAddProject(false);
                     if (item.status === "downloading" || item.status === "error") {
                       setRoot(item.path);
