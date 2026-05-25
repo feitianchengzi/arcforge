@@ -1,9 +1,10 @@
 import path from "node:path";
 import type { DriftFileDiff, DriftReport, LocalGitRemote, LocalGitSource, ShareTargetMode, WorkspaceSnapshot } from "../shared/types.js";
+import { listFiles, pathExists } from "./fs.js";
 import { compareDirectory } from "./profiles.js";
 import { parseRemoteSource, shareTargetSubdir } from "./share-remote.js";
 import { currentCommit, prepareShareCheckout, runGit, withShareLock } from "./share-git.js";
-import { resolveShareProfile, selectProfileSkills } from "./share-sync.js";
+import { readShareManifest, shareManifestEntries, shareNamespace, staleShareManifestEntries, resolveShareProfile, selectProfileSkills } from "./share-sync.js";
 import { scanWorkspace } from "./workspace.js";
 
 export interface ShareDriftOptions {
@@ -21,7 +22,7 @@ export async function shareDriftReport(options: ShareDriftOptions): Promise<Drif
   const root = path.resolve(options.root);
   const snapshot = await scanWorkspace(root);
   const profile = resolveShareProfile(snapshot.config, options.profileName);
-  const selectedSkills = selectProfileSkills(snapshot.skills, profile.skills, true);
+  const selectedSkills = selectProfileSkills(snapshot.skills, profile.skills);
 
   if (options.sameRepository) {
     return sameRepositoryDriftReport(snapshot, profile.name, options.sameRepositoryRemote);
@@ -40,6 +41,8 @@ export async function shareDriftReport(options: ShareDriftOptions): Promise<Drif
     const sourceRoot = path.resolve(root, snapshot.config.sourceDir);
     const targetSourceRoot = path.join(targetRoot, snapshot.config.sourceDir);
     const items: DriftReport["items"] = [];
+    const namespace = shareNamespace(projectName);
+    const desiredEntries = shareManifestEntries(root, snapshot.config, selectedSkills, snapshot.assets, namespace);
 
     for (const skill of selectedSkills) {
       const relativePath = relativeSharedEntryPath(sourceRoot, skill.path, skill.name);
@@ -71,6 +74,22 @@ export async function shareDriftReport(options: ShareDriftOptions): Promise<Drif
       });
     }
 
+    const manifest = await readShareManifest(targetRoot);
+    for (const entry of staleShareManifestEntries(manifest, desiredEntries, namespace, snapshot.config.sourceDir)) {
+      const targetPath = path.join(targetSourceRoot, entry.relativePath);
+      if (!(await pathExists(targetPath))) continue;
+      const files = await deletedEntryFiles(targetPath);
+      items.push({
+        skill: entry.name,
+        kind: entry.kind,
+        status: files.length > 0 ? "changed" : "same",
+        sourcePath: path.join(sourceRoot, entry.relativePath),
+        targetPath,
+        files,
+        summary: summarizeDiff(files)
+      });
+    }
+
     messages.push(`Compared share target ${targetSubdir || "."}.`);
     const commit = await currentCommit(checkout.root, messages);
     return {
@@ -83,6 +102,15 @@ export async function shareDriftReport(options: ShareDriftOptions): Promise<Drif
       messages
     };
   });
+}
+
+async function deletedEntryFiles(targetPath: string): Promise<DriftFileDiff[]> {
+  const files = await listFiles(targetPath);
+  if (files.length === 0) return [{ path: ".skillops-directory", status: "extra" }];
+  return files.map((filePath) => ({
+    path: path.relative(targetPath, filePath) || path.basename(filePath),
+    status: "extra" as const
+  }));
 }
 
 function sameRepositoryDriftReport(snapshot: WorkspaceSnapshot, profileName: string, remoteName?: string): Promise<DriftReport> {

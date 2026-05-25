@@ -3,13 +3,13 @@ import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { GitHubAccessResult, LocalGitRemote, LocalGitSource, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, WorkspaceSnapshot } from "../shared/types.js";
+import type { GitHubAccessResult, LocalGitRemote, LocalGitSource, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillOpsConfig, SkillSummary, WorkspaceSnapshot } from "../shared/types.js";
 import { saveConfig } from "./config.js";
 import { pathExists } from "./fs.js";
 import { checkoutShareBranch, createPullRequest, currentCommit, ensureForkRemote, inspectGitHubAccess, parseGitHubRepo, prepareShareCheckout, pushBranch, resolveRemoteSourceRef, runGit, withShareLock } from "./share-git.js";
 import { createPublishPlan } from "./publish.js";
 import { parseRemoteSource, remoteProjectRef, repoName, shareTargetSubdir, sourceProjectRoot } from "./share-remote.js";
-import { namespaceProfiles, normalizeConfig, resolveShareProfile, selectProfileSkills, syncProjectToShareTarget } from "./share-sync.js";
+import { SHARE_MANIFEST_FILE, namespaceProfiles, normalizeConfig, resolveShareProfile, selectProfileSkills, shareNamespace, syncProjectToShareTarget } from "./share-sync.js";
 import { scanWorkspace } from "./workspace.js";
 
 const execFileAsync = promisify(execFile);
@@ -40,7 +40,7 @@ export async function createSharePlan(options: ShareProjectOptions): Promise<Sha
   const root = path.resolve(options.root);
   const snapshot = await scanWorkspace(root);
   const profile = resolveShareProfile(snapshot.config, options.profileName, options.skills);
-  const selectedSkills = selectProfileSkills(snapshot.skills, profile.skills, true);
+  const selectedSkills = selectProfileSkills(snapshot.skills, profile.skills, Boolean(options.skills?.length));
   if (options.sameRepository) {
     const sameRepository = resolveSameRepository(snapshot, options.sameRepositoryRemote);
     const remoteUrl = sameRepository.remote.pushUrl || sameRepository.remote.fetchUrl || options.remoteUrl;
@@ -95,7 +95,7 @@ export async function shareProject(options: ShareProjectOptions): Promise<ShareR
   const root = path.resolve(options.root);
   const snapshot = await scanWorkspace(root);
   const profile = resolveShareProfile(snapshot.config, options.profileName, options.skills);
-  const selectedSkills = selectProfileSkills(snapshot.skills, profile.skills, true);
+  const selectedSkills = selectProfileSkills(snapshot.skills, profile.skills, Boolean(options.skills?.length));
   if (options.sameRepository) {
     return shareSameRepositoryProject(root, options, snapshot, selectedSkills);
   }
@@ -119,14 +119,14 @@ export async function shareProject(options: ShareProjectOptions): Promise<ShareR
     const targetSubdir = shareTargetSubdir(resolvedTarget.subdir, targetMode, projectName, snapshot.config.sourceDir);
     const targetRoot = targetSubdir ? path.join(checkoutRoot, targetSubdir) : checkoutRoot;
     const installRef = remoteProjectRef(resolvedTarget.cloneUrl, baseBranch, targetSubdir);
-    const namespace = slug(projectName);
+    const namespace = shareNamespace(projectName);
     const localConfig = normalizeConfig({
       ...snapshot.config,
       teamRepo: options.remoteUrl.trim(),
       shareTargetMode: targetMode,
       shareProjectName: options.projectName?.trim() || undefined
     });
-    const publishedConfig = namespaceProfiles(normalizeConfig({ ...localConfig, teamRepo: installRef, profiles: [profile] }), namespace);
+    const publishedConfig = namespaceProfiles(normalizeConfig({ ...localConfig, teamRepo: installRef, profiles: [publishedShareProfile(profile, selectedSkills)] }), namespace);
 
     await saveConfig(root, localConfig);
     await syncProjectToShareTarget(root, targetRoot, publishedConfig, selectedSkills, snapshot.assets, options.visibility, projectName, namespace);
@@ -227,7 +227,15 @@ export async function downloadSource(options: DownloadSourceOptions): Promise<st
 }
 
 async function stageShareTarget(root: string, targetSubdir: string, sourceDir: string, messages: string[]): Promise<void> {
-  await runGit(root, targetSubdir ? ["add", targetSubdir] : ["add", sourceDir, "README.md"], messages);
+  await runGit(root, targetSubdir ? ["add", targetSubdir] : ["add", sourceDir, "README.md", SHARE_MANIFEST_FILE], messages);
+}
+
+function publishedShareProfile(profile: SkillOpsConfig["profiles"][number], selectedSkills: SkillSummary[]): SkillOpsConfig["profiles"][number] {
+  if (profile.skills.includes("*")) return profile;
+  return {
+    ...profile,
+    skills: selectedSkills.map((skill) => skill.name)
+  };
 }
 
 async function shareSameRepositoryProject(
