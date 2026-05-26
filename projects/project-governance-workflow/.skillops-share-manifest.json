@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-26T14:19:07.390Z",
+  "entries": [
+    {
+      "namespace": "projects-project-governance-workflow",
+      "sourceDir": "skills",
+      "kind": "skill",
+      "name": "project-governance-workflow",
+      "relativePath": "project-governance-workflow"
+    }
+  ]
+}
