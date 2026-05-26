@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import type { SkillOpsConfig } from "../shared/types.js";
 import { pathExists } from "./fs.js";
 import { loadLocalProjectState, saveLocalProjectConfig } from "./project-store.js";
-import { hasSkillMarkdownFile } from "./skill-markdown.js";
+import { hasDescendantSkillMarkdownFile, hasSkillMarkdownFile } from "./skill-markdown.js";
 
 const CONFIG_FILE = "skillops.config.json";
 
@@ -26,10 +26,26 @@ export async function loadConfig(root: string): Promise<SkillOpsConfig> {
 }
 
 export async function defaultConfigForRoot(root: string): Promise<SkillOpsConfig> {
+  const conventionalSourceDir = path.join(root, "skills");
   return {
     ...defaultConfig(),
-    sourceDir: await hasSkillMarkdownFile(root) ? "." : "skills"
+    sourceDir: await defaultSourceDirForRoot(root, conventionalSourceDir)
   };
+}
+
+async function defaultSourceDirForRoot(root: string, conventionalSourceDir = path.join(root, "skills")): Promise<string> {
+  if (await hasSkillMarkdownFile(root)) return ".";
+  if (await isDirectory(conventionalSourceDir) && await hasDescendantSkillMarkdownFile(conventionalSourceDir)) return "skills";
+  if (await hasDescendantSkillMarkdownFile(root)) return ".";
+  return "skills";
+}
+
+async function isDirectory(filePath: string): Promise<boolean> {
+  try {
+    return (await fs.stat(filePath)).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 export async function saveConfig(root: string, config: SkillOpsConfig): Promise<void> {
@@ -62,4 +78,3 @@ export function defaultConfig(): SkillOpsConfig {
     ]
   };
 }
-

@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import { pathExists } from "./fs.js";
 
 const SKILL_MARKDOWN = "SKILL.md";
+const IGNORED_SCAN_DIRS = new Set([".git", "node_modules", "dist"]);
 
 export async function findSkillMarkdownFile(dir: string): Promise<string | undefined> {
   const exactPath = path.join(dir, SKILL_MARKDOWN);
@@ -19,6 +20,24 @@ export async function findSkillMarkdownFile(dir: string): Promise<string | undef
 
 export async function hasSkillMarkdownFile(dir: string): Promise<boolean> {
   return Boolean(await findSkillMarkdownFile(dir));
+}
+
+export async function hasDescendantSkillMarkdownFile(dir: string): Promise<boolean> {
+  if (await hasSkillMarkdownFile(dir)) return true;
+
+  let entries;
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (IGNORED_SCAN_DIRS.has(entry.name)) continue;
+    if (await hasDescendantSkillMarkdownFile(path.join(dir, entry.name))) return true;
+  }
+  return false;
 }
 
 export function isSkillMarkdownName(name: string): boolean {

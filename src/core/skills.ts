@@ -6,6 +6,8 @@ import { pathExists, readText } from "./fs.js";
 import type { SkillOpsConfig } from "../shared/types.js";
 import { findSkillMarkdownFile, hasSkillMarkdownFile } from "./skill-markdown.js";
 
+const IGNORED_SCAN_DIRS = new Set([".git", "node_modules", "dist"]);
+
 export async function discoverSkills(root: string, config: SkillOpsConfig): Promise<SkillSummary[]> {
   const sourceRoot = path.resolve(root, config.sourceDir);
   if (!(await pathExists(sourceRoot))) return [];
@@ -40,18 +42,24 @@ export async function discoverSharedAssets(root: string, config: SkillOpsConfig)
   if (!(await pathExists(sourceRoot))) return [];
   if (await hasSkillMarkdownFile(sourceRoot)) return [];
 
-  const entries = await fs.readdir(sourceRoot, { withFileTypes: true });
+  const assetRoots = config.sourceDir === "." ? await discoverSkillContainerDirs(sourceRoot) : [sourceRoot];
   const assets: SharedAssetSummary[] = [];
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    if (entry.name === ".git" || entry.name === "node_modules") continue;
-    const assetPath = path.join(sourceRoot, entry.name);
-    if (await containsSkillFile(assetPath)) continue;
-    assets.push({
-      name: entry.name,
-      path: assetPath,
-      relativePath: path.relative(root, assetPath)
-    });
+  const seen = new Set<string>();
+  for (const assetRoot of assetRoots) {
+    const entries = await fs.readdir(assetRoot, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (IGNORED_SCAN_DIRS.has(entry.name)) continue;
+      const assetPath = path.join(assetRoot, entry.name);
+      if (seen.has(assetPath)) continue;
+      if (await containsSkillFile(assetPath)) continue;
+      seen.add(assetPath);
+      assets.push({
+        name: entry.name,
+        path: assetPath,
+        relativePath: path.relative(root, assetPath)
+      });
+    }
   }
   return assets.sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -61,20 +69,38 @@ async function walk(dir: string, onDir: (dir: string) => Promise<void>): Promise
   const entries = await fs.readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    if (entry.name === ".git" || entry.name === "node_modules") continue;
+    if (IGNORED_SCAN_DIRS.has(entry.name)) continue;
     await walk(path.join(dir, entry.name), onDir);
   }
 }
 
 async function containsSkillFile(dir: string): Promise<boolean> {
   if (await hasSkillMarkdownFile(dir)) return true;
-  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    if (entry.name === ".git" || entry.name === "node_modules") continue;
+    if (IGNORED_SCAN_DIRS.has(entry.name)) continue;
     if (await containsSkillFile(path.join(dir, entry.name))) return true;
   }
   return false;
+}
+
+async function discoverSkillContainerDirs(root: string): Promise<string[]> {
+  const containers: string[] = [];
+  async function visit(dir: string): Promise<void> {
+    if (path.basename(dir).toLowerCase() === "skills") {
+      containers.push(dir);
+      return;
+    }
+    const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (IGNORED_SCAN_DIRS.has(entry.name)) continue;
+      await visit(path.join(dir, entry.name));
+    }
+  }
+  await visit(root);
+  return containers;
 }
 
 function stringValue(value: unknown): string {
