@@ -118,6 +118,23 @@ export interface Dictionary {
   fileLoaded: string;
   mergeSkills: string;
   mergeHelp: string;
+  importSourceProject: string;
+  importSourceHelp: string;
+  importLocalSource: string;
+  importRemoteSource: string;
+  importSelectedSkills: string;
+  importIntoCurrentProject: string;
+  importTargetHelp: string;
+  importTargetProfile: string;
+  importTargetProfileHelp: string;
+  importNewTargetProfile: string;
+  importNewTargetProfilePlaceholder: string;
+  importWriteDirectory: string;
+  chooseWriteDirectory: string;
+  importExampleTargetPath: (path: string) => string;
+  importPreviewChanges: string;
+  importTargetOutsideProject: string;
+  importWriteDirectorySelected: (path: string) => string;
   sourceInputPlaceholder: string;
   sourceProject: string;
   chooseSourceProject: string;
@@ -353,18 +370,35 @@ export const dictionaries: Record<Language, Dictionary> = {
     fileSaved: "File saved.",
     fileLoaded: "File loaded.",
     mergeSkills: "Merge skills",
-    mergeHelp: "Move selected skills into another Skill project and record that project as an application source.",
-    sourceInputPlaceholder: "Local folder or github.com/owner/repo",
-    sourceProject: "Target Skill project",
+    mergeHelp: "Import skills from another Skill project into the current project.",
+    importSourceProject: "Source Skill project",
+    importSourceHelp: "Choose the project that contains the skills you want to bring into this project.",
+    importLocalSource: "Choose local source",
+    importRemoteSource: "Load GitHub source",
+    importSelectedSkills: "Skills to import",
+    importIntoCurrentProject: "Import into current project",
+    importTargetHelp: "Imported skills are written into the current project. Conflicts are shown before anything is copied.",
+    importTargetProfile: "Put imported skills in",
+    importTargetProfileHelp: "This skill group controls where the imported skills appear in Skills filters and which application targets can use them.",
+    importNewTargetProfile: "New skill group",
+    importNewTargetProfilePlaceholder: "Skill group name",
+    importWriteDirectory: "Write into directory",
+    chooseWriteDirectory: "Choose directory",
+    importExampleTargetPath: (path: string) => `Example skill path: ${path}`,
+    importPreviewChanges: "Preview import result",
+    importTargetOutsideProject: "Choose a folder inside the current project.",
+    importWriteDirectorySelected: (path: string) => `Write directory selected: ${path}`,
+    sourceInputPlaceholder: "github.com/owner/repo or Git URL",
+    sourceProject: "Source Skill project",
     chooseSourceProject: "Choose project",
-    targetPath: "Target project path",
+    targetPath: "Write directory",
     appliedTargetDir: "Application target directory",
     createPlan: "Create plan",
-    runMerge: "Run merge",
-    mergePlan: "Merge plan",
-    mergeConflict: "Conflicts must be resolved before merge.",
+    runMerge: "Import skills",
+    mergePlan: "Import preview",
+    mergeConflict: "Conflicts must be resolved before importing.",
     mergeReady: "Plan is ready.",
-    mergeComplete: (copied: number, skipped: number) => `Merged ${copied} skills. Skipped ${skipped}.`,
+    mergeComplete: (copied: number, skipped: number) => `Imported ${copied} skills. Skipped ${skipped}.`,
     appliedSources: "Applied sources",
     noAppliedSources: "No applied source records yet.",
     reapply: "Reapply",
@@ -587,16 +621,33 @@ export const dictionaries: Record<Language, Dictionary> = {
     fileSaved: "文件已保存。",
     fileLoaded: "文件已加载。",
     mergeSkills: "归并技能",
-    mergeHelp: "把选中的技能归并到另一个 Skill 项目，并把该项目记录为应用来源。",
-    sourceInputPlaceholder: "本地文件夹或 github.com/owner/repo",
-    sourceProject: "目标 Skill 项目",
+    mergeHelp: "从另一个 Skill 项目把技能归并到当前项目。",
+    importSourceProject: "来源 Skill 项目",
+    importSourceHelp: "选择包含待归并技能的项目。",
+    importLocalSource: "选择本地来源",
+    importRemoteSource: "加载 GitHub 来源",
+    importSelectedSkills: "要归并的技能",
+    importIntoCurrentProject: "归并到当前项目",
+    importTargetHelp: "技能会写入当前项目。执行前会先展示新增、已一致和冲突。",
+    importTargetProfile: "归并后放入",
+    importTargetProfileHelp: "技能组用于 Skills 页筛选，也决定后续哪些应用目标会使用这些技能。可以选择已有技能组，也可以新建。",
+    importNewTargetProfile: "新建技能组",
+    importNewTargetProfilePlaceholder: "技能组名称",
+    importWriteDirectory: "写入目录",
+    chooseWriteDirectory: "选择目录",
+    importExampleTargetPath: (path: string) => `示例技能路径：${path}`,
+    importPreviewChanges: "预览归并结果",
+    importTargetOutsideProject: "请选择当前项目内的文件夹。",
+    importWriteDirectorySelected: (path: string) => `已选择写入目录：${path}`,
+    sourceInputPlaceholder: "github.com/owner/repo 或 Git 地址",
+    sourceProject: "来源 Skill 项目",
     chooseSourceProject: "选择项目",
-    targetPath: "目标项目目录",
+    targetPath: "写入目录",
     appliedTargetDir: "应用目标目录",
     createPlan: "生成计划",
-    runMerge: "执行归并",
-    mergePlan: "归并计划",
-    mergeConflict: "存在冲突，需修复后再归并。",
+    runMerge: "归并技能",
+    mergePlan: "归并预览",
+    mergeConflict: "存在冲突，需处理后再归并。",
     mergeReady: "计划可执行。",
     mergeComplete: (copied: number, skipped: number) => `已归并 ${copied} 个技能，跳过 ${skipped} 个。`,
     appliedSources: "应用关系",

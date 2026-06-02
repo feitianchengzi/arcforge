@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("skillops", {
   chooseWorkspace: () => ipcRenderer.invoke("workspace:choose"),
+  chooseDirectory: (defaultPath?: string, parentPath?: string) => ipcRenderer.invoke("workspace:chooseDirectory", defaultPath, parentPath),
   scanWorkspace: (root: string) => ipcRenderer.invoke("workspace:scan", root),
   saveConfig: (root: string, config: unknown) => ipcRenderer.invoke("workspace:saveConfig", root, config),
   openWorkspaceFolder: (root: string) => ipcRenderer.invoke("workspace:openFolder", root),
@@ -17,6 +18,8 @@ contextBridge.exposeInMainWorld("skillops", {
   updateSource: (root: string, confirm?: boolean) => ipcRenderer.invoke("source:update", root, confirm),
   createMergePlan: (options: unknown) => ipcRenderer.invoke("merge:plan", options),
   mergeIntoProject: (options: unknown) => ipcRenderer.invoke("merge:run", options),
+  createImportSkillsPlan: (options: unknown) => ipcRenderer.invoke("import:plan", options),
+  importSkillsIntoProject: (options: unknown) => ipcRenderer.invoke("import:run", options),
   listAppliedSources: (root: string) => ipcRenderer.invoke("applied:list", root),
   driftAppliedSources: (root: string, id?: string) => ipcRenderer.invoke("applied:drift", root, id),
   runAppliedSources: (root: string, id?: string) => ipcRenderer.invoke("applied:run", root, id),

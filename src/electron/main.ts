@@ -11,7 +11,7 @@ import { saveConfig } from "../core/config.js";
 import { getEnvironmentStatus } from "../core/environment.js";
 import { installCliShim } from "../core/cli-install.js";
 import { defaultSkillFile, listSkillFiles, listWorkspaceFiles, readSkillFile, writeSkillFile } from "../core/skill-files.js";
-import { applyFromSource, createMergePlan, driftAppliedSources, driftFromSource, listAppliedSources, mergeIntoProject, resolveSkillProjectRoot, runAppliedSources, type MergeOptions } from "../core/sources.js";
+import { applyFromSource, createImportSkillsPlan, createMergePlan, driftAppliedSources, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, resolveSkillProjectRoot, runAppliedSources, type ImportSkillsOptions, type MergeOptions } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
 import type { AppState, ApplyDriftCheckRecord, DriftFileDiff, DriftReport, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, ShareDriftCheckRecord, ShareTargetMode, SkillEditorWindowContext, SkillOpsConfig, TargetRecord } from "../shared/types.js";
 
@@ -99,6 +99,21 @@ ipcMain.handle("workspace:choose", async (event) => {
   return result.canceled ? undefined : result.filePaths[0];
 });
 
+ipcMain.handle("workspace:chooseDirectory", async (event, defaultPath?: string, parentPath?: string) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  win?.show();
+  win?.focus();
+  const options = {
+    properties: ["openDirectory", "createDirectory", "showHiddenFiles"] as Array<"openDirectory" | "createDirectory" | "showHiddenFiles">,
+    defaultPath: defaultPath ? path.resolve(defaultPath) : undefined
+  };
+  const result = win
+    ? await dialog.showOpenDialog(win, options)
+    : await dialog.showOpenDialog(options);
+  if (result.canceled) return undefined;
+  return parentPath ? directorySelectionResult(result.filePaths[0], parentPath) : result.filePaths[0];
+});
+
 ipcMain.handle("workspace:scan", (_event, root: string) => scanWorkspace(root));
 ipcMain.handle("workspace:saveConfig", (_event, root: string, config: SkillOpsConfig) => saveWorkspaceConfig(root, config));
 ipcMain.handle("workspace:openFolder", (_event, root: string) => openWorkspaceFolder(root));
@@ -114,6 +129,8 @@ ipcMain.handle("source:status", (_event, root: string) => checkSourceUpdate({ ro
 ipcMain.handle("source:update", (_event, root: string, confirm?: boolean) => updateSource({ root, confirm: Boolean(confirm) }));
 ipcMain.handle("merge:plan", (_event, options: MergeOptions) => createMergePlan({ ...options, cacheDir: cacheRoot() }));
 ipcMain.handle("merge:run", (_event, options: MergeOptions) => mergeIntoProject({ ...options, cacheDir: cacheRoot(), confirm: true }));
+ipcMain.handle("import:plan", (_event, options: ImportSkillsOptions) => createImportSkillsPlan({ ...options, cacheDir: cacheRoot() }));
+ipcMain.handle("import:run", (_event, options: ImportSkillsOptions) => importSkillsIntoProject({ ...options, cacheDir: cacheRoot(), confirm: true }));
 ipcMain.handle("applied:list", (_event, root: string) => listAppliedSources(root));
 ipcMain.handle("applied:drift", (_event, root: string, id?: string) => driftAppliedSources(root, id));
 ipcMain.handle("applied:run", (_event, root: string, id?: string) => runAppliedSources(root, id, true));
@@ -188,6 +205,27 @@ async function openWorkspaceFolder(root: string): Promise<void> {
   const message = await shell.openPath(target);
   if (message) {
     throw new Error(message);
+  }
+}
+
+async function directorySelectionResult(selectedPath: string, parentPath: string): Promise<{ path: string; relativePath: string; isInside: boolean }> {
+  const selected = await realLocalPath(selectedPath);
+  const parent = await realLocalPath(parentPath);
+  const relativePath = path.relative(parent, selected) || ".";
+  const isInside = relativePath === "." || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
+  return {
+    path: selected,
+    relativePath,
+    isInside
+  };
+}
+
+async function realLocalPath(filePath: string): Promise<string> {
+  const resolved = path.resolve(filePath);
+  try {
+    return await fs.realpath(resolved);
+  } catch {
+    return resolved;
   }
 }
 
@@ -933,6 +971,8 @@ async function readTextForDiff(filePath: string): Promise<string> {
     return buffer.toString("utf8");
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") return "";
+    if (isNodeError(error) && error.code === "EISDIR") return "[Directory]";
+    if (isNodeError(error) && (error.code === "EACCES" || error.code === "EPERM")) return "[File is not readable]";
     throw error;
   }
 }

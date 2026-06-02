@@ -119,7 +119,7 @@ function sameRepositoryDriftReport(snapshot: WorkspaceSnapshot, profileName: str
   const remoteUrl = remote.pushUrl || remote.fetchUrl || "";
   const targetPath = normalizeGitRelativePath(localGit.relativePath || ".");
   const targetDir = targetPath === "." ? localGit.root : path.join(localGit.root, targetPath);
-  return runGit(localGit.root, ["status", "--porcelain", "--", targetPath], []).then((output) => {
+  return runGit(localGit.root, ["status", "--porcelain", "--untracked-files=all", "--", targetPath], []).then((output) => {
     const files = parseGitStatus(output);
     const changed = files.length > 0;
     return {

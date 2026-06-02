@@ -1,0 +1,7 @@
+interface:
+  display_name: "Project Demo Video"
+  short_description: "Generate project demo GIFs, videos, and reusable music beds"
+  default_prompt: "Use $project-demo-video to understand this repository, confirm a demo story, pause for visual preview approval, then generate a software demo GIF or promo video with background music when useful."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,7 +1,7 @@
 import crypto, { randomUUID } from "node:crypto";
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import type { AppliedSourceRecord, DriftReport, MergePlan, MergeResult, SkillOpsConfig, SkillSummary } from "../shared/types.js";
+import type { AppliedSourceRecord, DriftReport, ImportSkillsPlan, ImportSkillsResult, MergePlan, MergeResult, SkillOpsConfig, SkillSummary } from "../shared/types.js";
 import { defaultConfigForRoot, loadConfig, saveConfig } from "./config.js";
 import { copyDirectory, pathExists } from "./fs.js";
 import { applyProfile, compareDirectory, driftReport } from "./profiles.js";
@@ -29,6 +29,17 @@ export interface AppliedSourceOptions {
   profile?: string;
   targetDir?: string;
   skills?: string[];
+  cacheDir?: string;
+}
+
+export interface ImportSkillsOptions {
+  root: string;
+  from: string;
+  profile?: string;
+  skills?: string[];
+  targetDir?: string;
+  targetProfile?: string;
+  confirm?: boolean;
   cacheDir?: string;
 }
 
@@ -103,6 +114,68 @@ export async function mergeIntoProject(options: MergeOptions): Promise<MergeResu
     skipped,
     appliedRecord,
     messages: [`Merged ${copied.length} skills to ${plan.targetProjectName}.`, `Updated applied source ${appliedRecord.id}.`]
+  };
+}
+
+export async function createImportSkillsPlan(options: ImportSkillsOptions): Promise<ImportSkillsPlan> {
+  const root = path.resolve(options.root);
+  const sourceProjectRoot = await resolveSkillProjectRoot(options.from, requiredCacheDir(options.cacheDir));
+  const current = await scanWorkspace(root);
+  const sourceSnapshot = await scanWorkspace(sourceProjectRoot);
+  const sourceProfile = options.profile?.trim() || sourceSnapshot.config.profiles[0]?.name || "default";
+  const targetProfile = options.targetProfile?.trim() || current.config.profiles[0]?.name || "default";
+  const targetDir = options.targetDir?.trim() || current.config.sourceDir || "skills";
+  const selected = selectedSkills(sourceSnapshot.skills, sourceSnapshot.config, sourceProfile, options.skills);
+  if (selected.length === 0) throw new Error("No skills selected for import.");
+  const targetRoot = path.resolve(root, targetDir);
+  assertInside(targetRoot, root, "import");
+  const skills = await Promise.all(selected.map(async (skill) => {
+    const target = path.join(targetRoot, skill.name);
+    const comparison = await compareDirectory(skill.path, target);
+    return {
+      name: skill.name,
+      sourcePath: skill.path,
+      targetPath: target,
+      status: comparison.status === "missing" ? "new" as const : comparison.status === "same" ? "same" as const : "conflict" as const,
+      files: comparison.files
+    };
+  }));
+  const appliedRecord = await appliedRecordFor(root, sourceProjectRoot, path.basename(sourceProjectRoot), sourceProfile, targetDir, selected.map((skill) => skill.name));
+  return {
+    root,
+    sourceProjectRoot,
+    sourceProjectName: path.basename(sourceSnapshot.root),
+    sourceProfile,
+    targetDir,
+    targetProfile,
+    skills,
+    appliedRecord,
+    hasConflicts: skills.some((item) => item.status === "conflict")
+  };
+}
+
+export async function importSkillsIntoProject(options: ImportSkillsOptions): Promise<ImportSkillsResult> {
+  const plan = await createImportSkillsPlan(options);
+  if (!options.confirm) throw new Error("Import requires confirm after reviewing the plan.");
+  if (plan.hasConflicts) throw new Error(`Import has conflicts: ${plan.skills.filter((item) => item.status === "conflict").map((item) => item.name).join(", ")}`);
+  const copied: string[] = [];
+  const skipped: string[] = [];
+  for (const item of plan.skills) {
+    if (item.status === "same") {
+      skipped.push(item.name);
+      continue;
+    }
+    await replaceDirectory(item.sourcePath, item.targetPath);
+    copied.push(item.name);
+  }
+  await mergeSourceProfile(plan.root, plan.targetProfile, plan.skills.map((item) => item.name));
+  const appliedRecord = await upsertAppliedSource(plan.root, plan.appliedRecord);
+  return {
+    plan: { ...plan, appliedRecord },
+    copied,
+    skipped,
+    appliedRecord,
+    messages: [`Imported ${copied.length} skills from ${plan.sourceProjectName}.`, `Updated applied source ${appliedRecord.id}.`]
   };
 }
 
@@ -280,7 +353,10 @@ function cleanRelativePath(value: string): string {
 
 function assertInside(target: string, root: string, action: string): void {
   const relative = path.relative(root, target);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) throw new Error(`Refusing to ${action} outside target project: ${target}`);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    const boundary = action === "import" ? "current project" : "target project";
+    throw new Error(`Refusing to ${action} outside ${boundary}: ${target}`);
+  }
 }
 
 function mergeNames(left: string[], right: string[]): string[] {

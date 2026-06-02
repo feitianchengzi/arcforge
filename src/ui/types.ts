@@ -1,4 +1,4 @@
-import type { AppState, AppliedSourceRecord, ApplyProfileResult, CliInstallStatus, DriftReport, EnvironmentStatus, MergePlan, MergeResult, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillEditorWindowContext, SkillFileDocument, SkillFileEntry, SkillOpsConfig, SourceUpdateResult, SourceUpdateStatus, WorkspaceSnapshot } from "../shared/types";
+import type { AppState, AppliedSourceRecord, ApplyProfileResult, CliInstallStatus, DriftReport, EnvironmentStatus, ImportSkillsPlan, ImportSkillsResult, MergePlan, MergeResult, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillEditorWindowContext, SkillFileDocument, SkillFileEntry, SkillOpsConfig, SourceUpdateResult, SourceUpdateStatus, WorkspaceSnapshot } from "../shared/types";
 
 export type Tab = "overview" | "skills" | "profiles" | "destinations" | "share" | "audit";
 
@@ -22,10 +22,17 @@ export interface ResolvedApplyTarget {
   path: string;
 }
 
+export interface DirectorySelectionResult {
+  path: string;
+  relativePath: string;
+  isInside: boolean;
+}
+
 declare global {
   interface Window {
     skillops: {
       chooseWorkspace: () => Promise<string | undefined>;
+      chooseDirectory?: (defaultPath?: string, parentPath?: string) => Promise<string | DirectorySelectionResult | undefined>;
       scanWorkspace: (root: string) => Promise<WorkspaceSnapshot>;
       saveConfig: (root: string, config: SkillOpsConfig) => Promise<WorkspaceSnapshot>;
       openWorkspaceFolder: (root: string) => Promise<void>;
@@ -41,6 +48,8 @@ declare global {
       updateSource: (root: string, confirm?: boolean) => Promise<SourceUpdateResult>;
       createMergePlan: (options: { root: string; to: string; targetPath: string; profile?: string; skills?: string[]; targetDir?: string; confirm?: boolean }) => Promise<MergePlan>;
       mergeIntoProject: (options: { root: string; to: string; targetPath: string; profile?: string; skills?: string[]; targetDir?: string; confirm?: boolean }) => Promise<MergeResult>;
+      createImportSkillsPlan: (options: { root: string; from: string; profile?: string; skills?: string[]; targetDir?: string; targetProfile?: string; confirm?: boolean }) => Promise<ImportSkillsPlan>;
+      importSkillsIntoProject: (options: { root: string; from: string; profile?: string; skills?: string[]; targetDir?: string; targetProfile?: string; confirm?: boolean }) => Promise<ImportSkillsResult>;
       listAppliedSources: (root: string) => Promise<AppliedSourceRecord[]>;
       driftAppliedSources: (root: string, id?: string) => Promise<DriftReport[]>;
       runAppliedSources: (root: string, id?: string) => Promise<Array<{ record: AppliedSourceRecord; result: ApplyProfileResult }>>;

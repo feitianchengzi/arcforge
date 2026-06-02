@@ -134,6 +134,26 @@ export interface MergeResult {
   messages: string[];
 }
 
+export interface ImportSkillsPlan {
+  root: string;
+  sourceProjectRoot: string;
+  sourceProjectName: string;
+  sourceProfile: string;
+  targetDir: string;
+  targetProfile: string;
+  skills: MergeSkillPlanItem[];
+  appliedRecord: AppliedSourceRecord;
+  hasConflicts: boolean;
+}
+
+export interface ImportSkillsResult {
+  plan: ImportSkillsPlan;
+  copied: string[];
+  skipped: string[];
+  appliedRecord: AppliedSourceRecord;
+  messages: string[];
+}
+
 export interface ApplyTargetGroup {
   id: string;
   name: string;

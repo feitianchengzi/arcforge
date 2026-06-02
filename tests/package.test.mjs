@@ -115,7 +115,7 @@ test("share drift compares targets without remote writes", async () => {
   assert.match(shareDrift, /normalizeGitRelativePath/);
   assert.match(localGit, /fs\.realpath/);
   assert.match(localGit, /Workspace path is outside the Git repository/);
-  assert.match(shareDrift, /status", "--porcelain"/);
+  assert.match(shareDrift, /status", "--porcelain", "--untracked-files=all"/);
   assert.doesNotMatch(shareDrift, /pushBranch/);
   assert.doesNotMatch(shareDrift, /createPullRequest/);
 });
@@ -128,6 +128,47 @@ test("profile deletion is persisted instead of draft-only", async () => {
   assert.match(profilesView, /confirmDeleteProfile/);
   assert.match(profilesView, /props\.saveProfiles/);
   assert.match(profilesView, /retargetProfileReferences/);
+});
+
+test("desktop skill merge imports source skills into the current project", async () => {
+  const sourcesCore = await readFile(new URL("../src/core/sources.ts", import.meta.url), "utf8");
+  const dashboard = await readFile(new URL("../src/ui/views/dashboard.tsx", import.meta.url), "utf8");
+  const i18n = await readFile(new URL("../src/ui/i18n.ts", import.meta.url), "utf8");
+  const electronMain = await readFile(new URL("../src/electron/main.ts", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../src/electron/preload.cts", import.meta.url), "utf8");
+
+  assert.match(sourcesCore, /createImportSkillsPlan/);
+  assert.match(sourcesCore, /importSkillsIntoProject/);
+  assert.match(sourcesCore, /sourceProjectRoot/);
+  assert.match(sourcesCore, /mergeSourceProfile\(plan\.root, plan\.targetProfile/);
+  assert.match(electronMain, /import:plan/);
+  assert.match(electronMain, /import:run/);
+  assert.match(electronMain, /directorySelectionResult/);
+  assert.match(electronMain, /path\.relative\(parent, selected\)/);
+  assert.match(preload, /createImportSkillsPlan/);
+  assert.match(preload, /importSkillsIntoProject/);
+  assert.match(preload, /workspace:chooseDirectory", defaultPath, parentPath/);
+  assert.match(dashboard, /t\.importSourceProject/);
+  assert.match(dashboard, /t\.importIntoCurrentProject/);
+  assert.match(dashboard, /chooseDirectory/);
+  assert.match(dashboard, /selected\.relativePath/);
+  assert.match(dashboard, /selected\.isInside/);
+  assert.match(dashboard, /chooseWorkspace/);
+  assert.match(dashboard, /createImportSkillsPlan/);
+  assert.match(dashboard, /importSkillsIntoProject/);
+  assert.match(i18n, /从另一个 Skill 项目把技能归并到当前项目/);
+  assert.doesNotMatch(dashboard, /createMergePlan/);
+  assert.doesNotMatch(dashboard, /mergeIntoProject/);
+});
+
+test("desktop drift diff uses file-level git status and tolerates unexpected directory entries", async () => {
+  const shareDrift = await readFile(new URL("../src/core/share-drift.ts", import.meta.url), "utf8");
+  const electronMain = await readFile(new URL("../src/electron/main.ts", import.meta.url), "utf8");
+
+  assert.match(shareDrift, /--untracked-files=all/);
+  assert.match(electronMain, /diff:openDrift/);
+  assert.match(electronMain, /error\.code === "EISDIR"/);
+  assert.match(electronMain, /\\[Directory\\]/);
 });
 
 test("destructive desktop actions require confirmation", async () => {

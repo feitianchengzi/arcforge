@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, FileText, Folder, RefreshCw, Save } from "lucide-react";
-import type { MergePlan, SkillFileDocument, SkillFileEntry, SkillSummary, SourceUpdateStatus, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
+import type { ImportSkillsPlan, SkillFileDocument, SkillFileEntry, SkillSummary, SourceUpdateStatus, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import type { Tab } from "../types";
 import { basename, formatDate, formatTimeAgo } from "../utils";
 import { Metric } from "../components/shell";
 
 const AUTO_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const NEW_IMPORT_PROFILE_VALUE = "__new_import_profile__";
 
 export function Overview(props: {
   t: Dictionary;
@@ -415,27 +416,35 @@ function MergeSkillsDialog(props: {
   onMerged: () => void;
 }) {
   const { t, snapshot } = props;
-  const [targetProjectInput, setTargetProjectInput] = useState("");
   const [remoteInput, setRemoteInput] = useState("");
-  const [targetProjectRoot, setTargetProjectRoot] = useState(snapshot.root);
-  const [profile, setProfile] = useState(props.currentProfile);
-  const [targetPath, setTargetPath] = useState(`skills/${basename(snapshot.root)}`);
-  const [targetDir, setTargetDir] = useState(".skillops/skills");
-  const [selectedSkills, setSelectedSkills] = useState<string[]>(snapshot.skills.map((skill) => skill.name));
-  const [plan, setPlan] = useState<MergePlan>();
+  const [sourceSnapshot, setSourceSnapshot] = useState<WorkspaceSnapshot>();
+  const [sourceProjectRoot, setSourceProjectRoot] = useState("");
+  const [sourceProfile, setSourceProfile] = useState("default");
+  const [targetProfile, setTargetProfile] = useState(props.currentProfile);
+  const [newTargetProfile, setNewTargetProfile] = useState("");
+  const [targetDir, setTargetDir] = useState(snapshot.config.sourceDir);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [plan, setPlan] = useState<ImportSkillsPlan>();
   const [status, setStatus] = useState(t.mergeHelp);
   const [isBusy, setIsBusy] = useState(false);
+  const resolvedTargetProfile = targetProfile === NEW_IMPORT_PROFILE_VALUE ? newTargetProfile.trim() : targetProfile;
+  const fullTargetPath = resolveLocalPath(snapshot.root, targetDir);
+  const exampleSkillName = selectedSkills[0] || sourceSnapshot?.skills[0]?.name || "skill-name";
+  const exampleTargetPath = joinLocalPath(fullTargetPath, exampleSkillName);
 
-  async function loadTargetProject(input: string, remote = false) {
+  async function loadSourceProject(input: string, remote = false) {
     if (!window.skillops || !input.trim()) return;
     setIsBusy(true);
     try {
       const root = remote ? await window.skillops.addRemoteWorkspace(input.trim()) : input.trim();
       const nextSnapshot = await window.skillops.scanWorkspace(root);
-      setTargetProjectRoot(nextSnapshot.root);
+      setSourceSnapshot(nextSnapshot);
+      setSourceProjectRoot(nextSnapshot.root);
       setPlan(undefined);
-      setTargetProjectInput(nextSnapshot.root);
       setRemoteInput("");
+      const nextProfile = nextSnapshot.config.profiles[0]?.name ?? "default";
+      setSourceProfile(nextProfile);
+      setSelectedSkills(skillNamesForProfile(nextSnapshot, nextProfile));
       setStatus(t.foundStatus(nextSnapshot.skills.length, nextSnapshot.audit.score));
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
@@ -444,16 +453,19 @@ function MergeSkillsDialog(props: {
     }
   }
 
-  async function chooseSourceProject() {
+  async function chooseLocalSourceProject() {
     if (!window.skillops) return;
     const selected = await window.skillops.chooseWorkspace();
     if (!selected) return;
     setIsBusy(true);
     try {
       const nextSnapshot = await window.skillops.scanWorkspace(selected);
-      setTargetProjectRoot(nextSnapshot.root);
+      setSourceSnapshot(nextSnapshot);
+      setSourceProjectRoot(nextSnapshot.root);
       setPlan(undefined);
-      setTargetProjectInput(nextSnapshot.root);
+      const nextProfile = nextSnapshot.config.profiles[0]?.name ?? "default";
+      setSourceProfile(nextProfile);
+      setSelectedSkills(skillNamesForProfile(nextSnapshot, nextProfile));
       setStatus(t.foundStatus(nextSnapshot.skills.length, nextSnapshot.audit.score));
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
@@ -467,17 +479,48 @@ function MergeSkillsDialog(props: {
     setPlan(undefined);
   }
 
+  async function chooseWriteDirectory() {
+    if (!window.skillops) return;
+    try {
+      let selected: string | { path: string; relativePath: string; isInside: boolean } | undefined;
+      try {
+        selected = window.skillops.chooseDirectory
+          ? await window.skillops.chooseDirectory(snapshot.root, snapshot.root)
+          : await window.skillops.chooseWorkspace();
+      } catch {
+        selected = await window.skillops.chooseWorkspace();
+      }
+      if (!selected) return;
+      const selectedPath = typeof selected === "string" ? selected : selected.path;
+      const nextTargetDir = typeof selected === "string" ? relativeLocalPath(snapshot.root, selected) : selected.relativePath;
+      setTargetDir(nextTargetDir);
+      setPlan(undefined);
+      const isInside = typeof selected === "string" ? isSameOrDescendantLocalPath(selected, snapshot.root) : selected.isInside;
+      if (!isInside) {
+        setStatus(t.importTargetOutsideProject);
+        return;
+      }
+      setStatus(t.importWriteDirectorySelected(selectedPath));
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    }
+  }
+
   async function createPlan() {
-    if (!window.skillops || !targetProjectRoot) return;
+    if (!window.skillops || !sourceProjectRoot) return;
+    if (!isSameOrDescendantLocalPath(fullTargetPath, snapshot.root)) {
+      setStatus(t.importTargetOutsideProject);
+      return;
+    }
     setIsBusy(true);
     try {
-      const nextPlan = await window.skillops.createMergePlan({
+      const nextPlan = await window.skillops.createImportSkillsPlan({
         root: snapshot.root,
-        to: targetProjectRoot,
-        targetPath,
-        profile,
+        from: sourceProjectRoot,
+        profile: sourceProfile,
         skills: selectedSkills,
-        targetDir
+        targetDir,
+        targetProfile: resolvedTargetProfile
       });
       setPlan(nextPlan);
       setStatus(nextPlan.hasConflicts ? t.mergeConflict : t.mergeReady);
@@ -492,13 +535,13 @@ function MergeSkillsDialog(props: {
     if (!window.skillops || !plan || plan.hasConflicts) return;
     setIsBusy(true);
     try {
-      const result = await window.skillops.mergeIntoProject({
+      const result = await window.skillops.importSkillsIntoProject({
         root: snapshot.root,
-        to: targetProjectRoot,
-        targetPath,
-        profile,
+        from: sourceProjectRoot,
+        profile: sourceProfile,
         skills: selectedSkills,
         targetDir,
+        targetProfile: resolvedTargetProfile,
         confirm: true
       });
       setStatus(t.mergeComplete(result.copied.length, result.skipped.length));
@@ -522,41 +565,65 @@ function MergeSkillsDialog(props: {
         </div>
         <div className="grid two compact-grid">
           <section>
-            <label>{t.sourceProject}</label>
-            <div className="source-summary">
-              <Folder size={16} />
-              <div>
-                <strong>{basename(targetProjectRoot)}</strong>
-                <span>{targetProjectRoot}</span>
+            <label>{t.importSourceProject}</label>
+            <p className="muted">{t.importSourceHelp}</p>
+            {sourceProjectRoot ? (
+              <div className="source-summary">
+                <Folder size={16} />
+                <div>
+                  <strong>{basename(sourceProjectRoot)}</strong>
+                  <span>{sourceProjectRoot}</span>
+                </div>
               </div>
-            </div>
-            <button onClick={chooseSourceProject} disabled={isBusy}>{t.chooseSourceProject}</button>
-            <div className="download-source light">
-              <input value={targetProjectInput} placeholder={t.sourceInputPlaceholder} onChange={(event) => setTargetProjectInput(event.target.value)} />
-              <button onClick={() => loadTargetProject(targetProjectInput)} disabled={isBusy || !targetProjectInput.trim()}>{t.chooseSourceProject}</button>
-            </div>
+            ) : (
+              <p className="muted">{t.selectSkillFile}</p>
+            )}
+            <button onClick={chooseLocalSourceProject} disabled={isBusy}>{t.importLocalSource}</button>
             <div className="download-source light">
               <input value={remoteInput} placeholder="github.com/owner/repo" onChange={(event) => setRemoteInput(event.target.value)} />
-              <button onClick={() => loadTargetProject(remoteInput, true)} disabled={isBusy || !remoteInput.trim()}>{t.addRemoteSource}</button>
+              <button onClick={() => loadSourceProject(remoteInput, true)} disabled={isBusy || !remoteInput.trim()}>{t.importRemoteSource}</button>
             </div>
-            <label>{t.profile}</label>
-            <select value={profile} onChange={(event) => { setProfile(event.target.value); setPlan(undefined); }}>
+            {sourceSnapshot && (
+              <>
+                <label>{t.profile}</label>
+                <select value={sourceProfile} onChange={(event) => {
+                  const nextProfile = event.target.value;
+                  setSourceProfile(nextProfile);
+                  setSelectedSkills(skillNamesForProfile(sourceSnapshot, nextProfile));
+                  setPlan(undefined);
+                }}>
+                  {sourceSnapshot.config.profiles.map((item) => <option key={item.name}>{item.name}</option>)}
+                </select>
+              </>
+            )}
+            <label>{t.importIntoCurrentProject}</label>
+            <p className="muted">{t.importTargetHelp}</p>
+            <label>{t.importTargetProfile}</label>
+            <p className="muted">{t.importTargetProfileHelp}</p>
+            <select value={targetProfile} onChange={(event) => { setTargetProfile(event.target.value); setPlan(undefined); }}>
               {snapshot.config.profiles.map((item) => <option key={item.name}>{item.name}</option>)}
+              <option value={NEW_IMPORT_PROFILE_VALUE}>{t.importNewTargetProfile}</option>
             </select>
-            <label>{t.targetPath}</label>
-            <input value={targetPath} onChange={(event) => { setTargetPath(event.target.value); setPlan(undefined); }} />
-            <label>{t.appliedTargetDir}</label>
-            <input value={targetDir} onChange={(event) => { setTargetDir(event.target.value); setPlan(undefined); }} />
+            {targetProfile === NEW_IMPORT_PROFILE_VALUE && (
+              <input value={newTargetProfile} placeholder={t.importNewTargetProfilePlaceholder} onChange={(event) => { setNewTargetProfile(event.target.value); setPlan(undefined); }} />
+            )}
+            <label>{t.importWriteDirectory}</label>
+            <div className="download-source light">
+              <input value={targetDir} onChange={(event) => { setTargetDir(event.target.value); setPlan(undefined); }} />
+              <button onClick={chooseWriteDirectory} disabled={isBusy}>{t.chooseWriteDirectory}</button>
+            </div>
+            <p className="muted">{t.importExampleTargetPath(exampleTargetPath)}</p>
           </section>
           <section>
-            <label>{t.includedSkills}</label>
+            <label>{t.importSelectedSkills}</label>
             <div className="check-list merge-skill-list">
-              {snapshot.skills.map((skill) => (
+              {(sourceSnapshot?.skills ?? []).map((skill) => (
                 <label key={skill.name} className="check-row">
                   <input type="checkbox" checked={selectedSkills.includes(skill.name)} onChange={() => toggleSkill(skill.name)} />
                   <span>{skill.name}</span>
                 </label>
               ))}
+              {!sourceSnapshot && <p className="muted">{t.importSourceHelp}</p>}
             </div>
             {plan && (
               <div className="target-subsection">
@@ -575,12 +642,19 @@ function MergeSkillsDialog(props: {
         </div>
         <div className="actions modal-actions">
           <button onClick={props.onClose}>{t.cancel}</button>
-          <button onClick={createPlan} disabled={isBusy || !targetProjectRoot || selectedSkills.length === 0}>{t.createPlan}</button>
+          <button onClick={createPlan} disabled={isBusy || !sourceProjectRoot || selectedSkills.length === 0 || !resolvedTargetProfile}>{t.importPreviewChanges}</button>
           <button className="primary" onClick={runMerge} disabled={isBusy || !plan || plan.hasConflicts}>{t.runMerge}</button>
         </div>
       </section>
     </div>
   );
+}
+
+function skillNamesForProfile(snapshot: WorkspaceSnapshot, profileName: string): string[] {
+  const profile = snapshot.config.profiles.find((item) => item.name === profileName);
+  if (!profile || profile.skills.includes("*")) return snapshot.skills.map((skill) => skill.name);
+  const selected = new Set(profile.skills);
+  return snapshot.skills.filter((skill) => selected.has(skill.name)).map((skill) => skill.name);
 }
 
 function FileTree({ entries, activeFilePath, collapsedFolders, setActiveFilePath, toggleFolder, depth = 0 }: {
@@ -672,6 +746,25 @@ function joinLocalPath(base: string, ...parts: string[]): string {
     .join(separator);
 }
 
+function resolveLocalPath(base: string, target: string): string {
+  if (/^(?:[A-Za-z]:[\\/]|[\\/])/.test(target)) return target;
+  return joinLocalPath(base, target);
+}
+
+function relativeLocalPath(base: string, target: string): string {
+  const normalizedBase = normalizeLocalPath(base);
+  const normalizedTarget = normalizeLocalPath(target);
+  if (normalizedTarget === normalizedBase) return ".";
+  if (normalizedTarget.startsWith(`${normalizedBase}/`)) return normalizedTarget.slice(normalizedBase.length + 1);
+  return target;
+}
+
+function isSameOrDescendantLocalPath(candidate: string, parent: string): boolean {
+  const normalizedCandidate = normalizeLocalPath(candidate);
+  const normalizedParent = normalizeLocalPath(parent);
+  return normalizedCandidate === normalizedParent || normalizedCandidate.startsWith(`${normalizedParent}/`);
+}
+
 function pathSeparator(filePath: string): string {
   return filePath.includes("\\") ? "\\" : "/";
 }
@@ -688,6 +781,32 @@ function isDescendantPath(candidate: string, parent: string): boolean {
 
 function normalizePath(filePath: string): string {
   return filePath.replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
+function normalizeLocalPath(filePath: string): string {
+  const withoutFileScheme = filePath.trim().replace(/^file:\/\//, "");
+  let decoded = withoutFileScheme;
+  try {
+    decoded = decodeURIComponent(withoutFileScheme);
+  } catch {
+    decoded = withoutFileScheme;
+  }
+  const normalized = decoded
+    .replace(/\\/g, "/")
+    .replace(/\/+/g, "/")
+    .replace(/\/+$/, "");
+  const isAbsolute = normalized.startsWith("/");
+  const parts: string[] = [];
+  for (const part of normalized.split("/")) {
+    if (!part || part === ".") continue;
+    if (part === "..") {
+      parts.pop();
+      continue;
+    }
+    parts.push(part);
+  }
+  const joined = `${isAbsolute ? "/" : ""}${parts.join("/")}`;
+  return /darwin/i.test(navigator.platform) ? joined.toLocaleLowerCase() : joined;
 }
 
 function errorMessage(error: unknown): string {
