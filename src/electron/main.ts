@@ -956,15 +956,19 @@ function renderDiffDocumentHtml(document: DiffDocument): string {
     html, body { height: 100%; }
     body { margin: 0; overflow: hidden; }
     .app { display: grid; grid-template-columns: 310px minmax(0, 1fr); height: 100%; min-height: 0; }
-    aside { border-right: 1px solid #d9dee7; background: #fff; min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+    aside { min-width: 0; min-height: 0; border-right: 1px solid #d9dee7; background: #fff; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
     header { padding: 18px 20px; border-bottom: 1px solid #e5e7eb; background: #fff; }
     h1, h2, p { margin: 0; }
     h1 { font-size: 20px; line-height: 1.2; }
     header p, .muted { margin-top: 6px; color: #667085; font-size: 12px; word-break: break-all; }
-    .tree { overflow: auto; padding: 10px; }
+    .tree { min-height: 0; overflow: auto; padding: 10px; }
     .tree ul { list-style: none; margin: 0; padding: 0 0 0 14px; }
     .tree > ul { padding-left: 0; }
-    .folder { margin: 5px 0 3px; color: #475467; font-size: 12px; font-weight: 700; }
+    .folder { width: 100%; display: flex; gap: 6px; align-items: center; min-height: 28px; border: 0; border-radius: 6px; margin: 5px 0 3px; padding: 6px 8px; background: transparent; color: #475467; text-align: left; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .folder:hover { background: #f8fafc; }
+    .folder span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .caret, .folder-icon { width: 14px; height: 14px; flex: 0 0 14px; color: #667085; }
+    .caret svg, .folder-icon svg { display: block; width: 14px; height: 14px; stroke: currentColor; }
     .file { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 0; border-radius: 6px; padding: 7px 8px; background: transparent; color: #344054; text-align: left; font: inherit; cursor: pointer; }
     .file:hover, .file.active { background: #eef2f7; }
     .file span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
@@ -1014,6 +1018,7 @@ function renderDiffDocumentHtml(document: DiffDocument): string {
   <script>
     const data = JSON.parse(document.getElementById("diff-data").textContent);
     let activePath = data.files[0]?.path || "";
+    const collapsedFolders = new Set();
     renderTree();
     renderActiveFile();
 
@@ -1033,6 +1038,18 @@ function renderDiffDocumentHtml(document: DiffDocument): string {
           renderActiveFile();
         });
       });
+      document.querySelectorAll("[data-folder]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const folderPath = button.getAttribute("data-folder");
+          if (!folderPath) return;
+          if (collapsedFolders.has(folderPath)) {
+            collapsedFolders.delete(folderPath);
+          } else {
+            collapsedFolders.add(folderPath);
+          }
+          renderTree();
+        });
+      });
     }
 
     function renderNode(node, prefix) {
@@ -1042,7 +1059,10 @@ function renderDiffDocumentHtml(document: DiffDocument): string {
           const leaf = value.path.split("/").pop();
           return '<li><button class="file ' + (value.path === activePath ? "active" : "") + '" data-path="' + escapeAttr(value.path) + '"><span>' + escapeHtml(leaf) + '</span><span class="badge ' + value.status + '">' + statusLabel(value.status) + '</span></button></li>';
         }
-        return '<li><div class="folder">' + escapeHtml(name) + '</div>' + renderNode(value, prefix ? prefix + "/" + name : name) + '</li>';
+        const folderPath = prefix ? prefix + "/" + name : name;
+        const collapsed = collapsedFolders.has(folderPath);
+        const children = collapsed ? "" : renderNode(value, folderPath);
+        return '<li><button class="folder" data-folder="' + escapeAttr(folderPath) + '"><span class="caret">' + caretIcon(collapsed) + '</span><span class="folder-icon">' + folderIcon() + '</span><span>' + escapeHtml(name) + '</span></button>' + children + '</li>';
       }).join("") + "</ul>";
     }
 
@@ -1128,6 +1148,16 @@ function renderDiffDocumentHtml(document: DiffDocument): string {
 
     function statusLabel(status) {
       return ({ missing: "missing", changed: "changed", extra: "extra", added: "added", deleted: "deleted", renamed: "renamed" })[status] || status;
+    }
+
+    function caretIcon(collapsed) {
+      return collapsed
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+    }
+
+    function folderIcon() {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>';
     }
 
     function escapeHtml(value) {

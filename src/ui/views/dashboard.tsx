@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, FileText, Folder, Plus, RefreshCw, Save } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, FileText, Folder, RefreshCw, Save } from "lucide-react";
 import type { MergePlan, SkillFileDocument, SkillFileEntry, SkillSummary, SourceUpdateStatus, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import type { Tab } from "../types";
@@ -336,9 +336,7 @@ export function SkillsList({ t, snapshot, profile, setProfile, onMerged }: {
         <div className="panel-heading file-tree-heading">
           <div className="file-tree-title-row">
             <h3 className="file-tree-title"><span>{snapshot.config.sourceDir}</span><span>{t.skillFilesTitle}</span></h3>
-            <button className="icon-button light" title={t.mergeSkills} aria-label={t.mergeSkills} onClick={() => setShowMergePanel(true)}>
-              <Plus size={15} />
-            </button>
+            <button className="file-tree-merge-button" onClick={() => setShowMergePanel(true)}>{t.mergeSkills}</button>
           </div>
           <div className="file-tree-controls">
             <label className="compact-select">

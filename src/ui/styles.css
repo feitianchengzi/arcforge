@@ -348,6 +348,12 @@ button.active {
   white-space: nowrap;
 }
 .file-tree-title span { min-width: 0; }
+.file-tree-merge-button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
 .file-tree-controls {
   width: 100%;
   display: grid;
