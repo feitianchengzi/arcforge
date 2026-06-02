@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overview - 线框图</title>
+    <link rel="stylesheet" href="../wireframe-style.css">
+</head>
+<body>
+    <div class="wireframe-container">
+        <header><h1>Overview</h1><div class="meta-info"><div>Page: <code>overview</code></div></div></header>
+        <details open>
+            <summary>项目总览</summary>
+            <div class="state-content">
+                <div class="state-description"><strong>触发条件：</strong>项目扫描成功。</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="Dashboard">
+                        <div class="toolbar"><div class="nav-title">team-skills</div><div class="toolbar-spacer"></div><div class="toolbar-button">↻</div><div class="toolbar-button">Folder</div></div>
+                        <div class="panel-header">/Users/project/team-skills</div>
+                        <div class="tab-bar">
+                            <div class="tab-item active">Overview</div>
+                            <div class="tab-item">Skills</div>
+                            <div class="tab-item">Profiles</div>
+                            <div class="tab-item">Destinations</div>
+                            <div class="tab-item">Share</div>
+                            <div class="tab-item">Audit</div>
+                        </div>
+                        <div class="split-h">
+                            <main class="panel">
+                                <div class="panel-header">Project health <span class="badge active">84</span></div>
+                                <div class="content-area">
+                                    <div class="card-grid">
+                                        <div class="card"><div class="card-title">Skills</div><div>12 total / 2 changed</div></div>
+                                        <div class="card"><div class="card-title">Assets</div><div>3 shared</div></div>
+                                        <div class="card"><div class="card-title">Targets</div><div>3 applied / 1 drifted</div></div>
+                                    </div>
+                                    <div class="group-box">
+                                        <div class="group-box-title">Next actions</div>
+                                        <div class="list-item"><div class="list-item-text"><div class="list-item-title">Review audit findings</div><div class="list-item-subtitle">5 warnings need attention</div></div><div class="button small">Open</div></div>
+                                        <div class="list-item"><div class="list-item-text"><div class="list-item-title">Merge skills</div><div class="list-item-subtitle">2 skills can move into a maintenance source</div></div><div class="button small">Open</div></div>
+                                        <div class="list-item"><div class="list-item-text"><div class="list-item-title">Check destination drift</div><div class="list-item-subtitle">Codex target differs from source</div></div><div class="button small">Open</div></div>
+                                    </div>
+                                </div>
+                            </main>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>Dashboard metrics</li><li>project tabs</li><li>next action list</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">点击入口进入具体页面，Overview 不直接执行写入。</div></div>
+            </div>
+        </details>
+        <details>
+            <summary>加载、空状态与扫描失败</summary>
+            <div class="state-content">
+                <div class="state-description"><strong>触发条件：</strong>初次扫描、无技能或扫描失败。</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="StatusView">
+                        <div class="panel">
+                            <div class="panel-header">Scanning project</div>
+                            <div class="content-area">
+                                <div class="spinner"></div>
+                                <div class="placeholder-box">Scanning / empty skills / scan failed message appears here.</div>
+                                <div class="button primary">Rescan</div>
+                                <div class="button">Back Home</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>ProgressView</li><li>empty state</li><li>inline error</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">失败时保留项目路径和错误原因，重试后刷新摘要。</div></div>
+            </div>
+        </details>
+    </div>
+</body>
+</html>

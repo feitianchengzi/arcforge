@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home - 线框图</title>
+    <link rel="stylesheet" href="../wireframe-style.css">
+</head>
+<body>
+    <div class="wireframe-container">
+        <header><h1>Home</h1><div class="meta-info"><div>Page: <code>home</code></div></div></header>
+        <details open>
+            <summary>最近项目与空状态</summary>
+            <div class="state-content">
+                <div class="state-description"><strong>触发条件：</strong>应用启动或无当前项目。</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="AppLayout">
+                        <div class="split-h">
+                            <aside class="sidebar" data-kit="Sidebar">
+                                <div class="sidebar-section">SkillOps</div>
+                                <div class="button primary">Add project</div>
+                                <div class="sidebar-section">Recent projects</div>
+                                <div class="list-item"><div class="list-item-title">team-skills</div><div class="list-item-subtitle">12 skills / 84</div></div>
+                                <div class="list-item"><div class="list-item-title">download failed</div><div class="list-item-subtitle">remote auth error</div></div>
+                            </aside>
+                            <main class="panel" data-kit="Content">
+                                <div class="panel-header">Select a project <span class="badge">Git OK</span></div>
+                                <div class="content-area">
+                                    <div class="placeholder-box">No active project. Choose a recent project or add a local / remote Skill project.</div>
+                                    <div class="button primary">Add project</div>
+                                    <div class="button">Settings</div>
+                                </div>
+                            </main>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>Sidebar recent list</li><li>empty state</li><li>environment notice</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">点击最近项目后扫描并进入 Overview。</div></div>
+            </div>
+        </details>
+        <details>
+            <summary>添加项目 Sheet</summary>
+            <div class="state-content">
+                <div class="state-description"><strong>触发条件：</strong>用户点击 Add project。</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="Sheet">
+                        <div class="panel">
+                            <div class="panel-header">Add project</div>
+                            <div class="content-area">
+                                <div class="tab-bar"><div class="tab-item active">Local folder</div><div class="tab-item">Remote Git</div></div>
+                                <div class="placeholder-box">Choose a local Skill project folder.</div>
+                                <div class="button">Choose folder</div>
+                                <div class="input-field">github.com/acme/team-skills</div>
+                                <div class="button primary">Download and open</div>
+                                <div class="placeholder-box">Inline error keeps the entered source.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>Sheet</li><li>source type tabs</li><li>directory picker</li><li>remote input</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">远程项目下载到本地缓存后进入扫描。</div></div>
+            </div>
+        </details>
+    </div>
+</body>
+</html>

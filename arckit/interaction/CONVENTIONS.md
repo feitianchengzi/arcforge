@@ -2,11 +2,11 @@
 
 ## 源-投影原则
 
-`interaction.md` 中的「交互策略」是同一页面或流程的交互源。策略定义核心任务、主路径、决策点、信息揭示、状态流、反馈恢复和输入输出边界。
+`interaction.md` 中的「交互策略」是同一页面的交互源。策略定义核心任务、主路径、决策点、信息揭示、状态流、反馈恢复和输入输出边界。
 
 `default.html` 是交互策略的线框投影。线框必须体现策略中的核心任务、主路径、决策点和状态流。
 
-`interaction.md` 的页面状态、导航流程、交互行为、弹窗、错误处理和加载策略是交互策略的规范投影。
+`interaction.md` 的页面状态、页面导航、交互行为、弹窗、错误处理和加载策略是交互策略的规范投影。
 
 ## 变更类型
 
@@ -23,11 +23,13 @@ arckit/interaction/
 ├── INDEX.md
 ├── CONVENTIONS.md
 ├── wireframe-style.css
-├── [flow-or-page]/
+├── [page-name]/
 │   ├── default.html
 │   └── interaction.md
 └── _archive/
 ```
+
+一级目录严格代表页面，不代表流程、功能域、模块组或任务域。跨页面关系写入 `_map/RELATIONS.md`，同一页面中过多的弹窗或状态可拆为该页面目录内的子视图 HTML。
 
 ## 线框图规范
 
@@ -35,7 +37,7 @@ arckit/interaction/
 
 HTML 禁止使用品牌色、主题色、彩色内联样式和业务逻辑脚本。
 
-每个 `default.html` 至少覆盖加载中、成功、空状态和错误状态。弹窗或差异窗口作为状态内结构直接渲染。
+每个 `default.html` 覆盖页面关键状态。加载中、成功、空状态、错误状态、弹窗或差异窗口按页面策略需要作为状态内结构直接渲染。
 
 每个状态保持模板结构：`details > summary > state-content > state-description + wireframe-canvas + component-list + interactions`。
 
@@ -52,4 +54,3 @@ HTML 禁止使用品牌色、主题色、彩色内联样式和业务逻辑脚本
 ## 状态标识
 
 ✅ 已完成 | 🟡 进行中 | ⚪ 计划中 | 🔴 已废弃
-

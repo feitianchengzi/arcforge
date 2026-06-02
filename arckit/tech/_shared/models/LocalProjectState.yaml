@@ -6,7 +6,7 @@ metadata:
   owner: core/project-store
   version: 1
   created: 2026-05-25
-  updated: 2026-05-25
+  updated: 2026-06-01
 type: object
 required:
   - version
@@ -60,6 +60,12 @@ properties:
     $ref: "./SkillOpsConfig.yaml"
     nullable: true
     description: User-level project configuration stored outside the source checkout.
+  appliedSources:
+    type: array
+    nullable: true
+    items:
+      $ref: "./AppliedSourceRecord.yaml"
+    description: Applied source Skill project records for the current project.
   updatedAt:
     type: string
     format: date-time

@@ -13,6 +13,8 @@ export interface Dictionary {
   githubSource: string;
   projectHealth: string;
   projectPath: string;
+  openProjectFolder: string;
+  projectFolderOpened: string;
   settings: string;
   feedback: string;
   feedbackHelp: string;
@@ -20,7 +22,7 @@ export interface Dictionary {
   currentWorkspace: string;
   addSharedSource: string;
   sharedSourcePlaceholder: string;
-  downloadSource: string;
+  addRemoteSource: string;
   downloadingSource: string;
   projectDownloading: string;
   projectDownloadFailed: string;
@@ -89,7 +91,6 @@ export interface Dictionary {
   prepareSharing: string;
   projectSummary: string;
   rescan: string;
-  initConfig: string;
   emptyTitle: string;
   emptyBody: string;
   emptyExample: string;
@@ -115,6 +116,23 @@ export interface Dictionary {
   unsavedChanges: string;
   fileSaved: string;
   fileLoaded: string;
+  mergeSkills: string;
+  mergeHelp: string;
+  sourceInputPlaceholder: string;
+  sourceProject: string;
+  chooseSourceProject: string;
+  targetPath: string;
+  appliedTargetDir: string;
+  createPlan: string;
+  runMerge: string;
+  mergePlan: string;
+  mergeConflict: string;
+  mergeReady: string;
+  mergeComplete: (copied: number, skipped: number) => string;
+  appliedSources: string;
+  noAppliedSources: string;
+  reapply: string;
+  appliedSourceSummary: (skills: number, profile: string) => string;
   sharedAssetsTitle: string;
   noDescription: string;
   findingsTitle: string;
@@ -231,6 +249,8 @@ export const dictionaries: Record<Language, Dictionary> = {
     githubSource: "GitHub",
     projectHealth: "Project health",
     projectPath: "Project path",
+    openProjectFolder: "Open folder",
+    projectFolderOpened: "Project folder opened.",
     settings: "Settings",
     feedback: "Feedback",
     feedbackHelp: "Report issues or request stronger audit coverage on GitHub.",
@@ -238,7 +258,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     currentWorkspace: "Current project",
     addSharedSource: "GitHub source",
     sharedSourcePlaceholder: "owner/repo or github.com/owner/repo/tree/main/path",
-    downloadSource: "Download",
+    addRemoteSource: "Add source",
     downloadingSource: "Downloading shared source...",
     projectDownloading: "Downloading repository and preparing this Skill project.",
     projectDownloadFailed: "Download failed. Check the repository URL and Git credentials.",
@@ -280,17 +300,17 @@ export const dictionaries: Record<Language, Dictionary> = {
       share: "Share"
     },
     nextSteps: "Next steps",
-    sourceStatusTitle: "Source updates",
-    sourceStatusHelp: "Check the Git upstream before applying or sharing this project.",
-    sourceStatusIdle: "No source update check has been run for this project.",
+    sourceStatusTitle: "Git updates",
+    sourceStatusHelp: "Automatically checks the Git upstream daily before applying or sharing this project.",
+    sourceStatusIdle: "No Git update check has been run for this project.",
     sourceStatusUnavailable: "No Git remote was detected for this project.",
     currentConfiguredSource: "Current source",
     checkSourceUpdates: "Check updates",
     checkingSourceUpdates: "Checking updates...",
-    updateSource: "Update source",
-    updatingSource: "Updating source...",
-    sourceUpToDate: "Source is up to date.",
-    sourceCanUpdate: (behind: number) => `Source is behind by ${behind} commit${behind === 1 ? "" : "s"}.`,
+    updateSource: "Update checkout",
+    updatingSource: "Updating checkout...",
+    sourceUpToDate: "Checkout is up to date.",
+    sourceCanUpdate: (behind: number) => `Checkout is behind by ${behind} commit${behind === 1 ? "" : "s"}.`,
     sourceCannotUpdate: "Update is blocked. Resolve local Git state first.",
     sourceAheadBehind: (ahead: number, behind: number) => `Ahead ${ahead} / behind ${behind}`,
     sourceLastFetch: (age: string) => `Last fetch ${age} ago`,
@@ -299,15 +319,14 @@ export const dictionaries: Record<Language, Dictionary> = {
     sourceCheckedAgo: (age: string) => `Checked ${age} ago`,
     sourceCheckedAt: (time: string) => `Checked at ${time}`,
     sourceBranch: (branch: string, upstream: string) => `${branch} -> ${upstream}`,
-    confirmSourceUpdate: (behind: number) => `Update this source with a fast-forward pull? The local checkout is behind by ${behind} commit${behind === 1 ? "" : "s"}.`,
-    sourceUpdated: "Source updated. Workspace rescanned.",
+    confirmSourceUpdate: (behind: number) => `Update this checkout with a fast-forward pull? The local checkout is behind by ${behind} commit${behind === 1 ? "" : "s"}.`,
+    sourceUpdated: "Checkout updated. Workspace rescanned.",
     reviewAudit: "Review audit",
     configureProfiles: "Configure profiles",
     manageDestinations: "Manage destinations",
     prepareSharing: "Prepare sharing",
     projectSummary: "Project summary",
     rescan: "Rescan",
-    initConfig: "Init config",
     emptyTitle: "Add a Skill project",
     emptyBody: "SkillOps can open a repository with a skills/ directory, or a single skill folder that contains SKILL.md.",
     emptyExample: "Example:\nskills/\n  code-review/\n    SKILL.md\n\nSingle skill folder:\ncode-review/\n  SKILL.md",
@@ -333,6 +352,23 @@ export const dictionaries: Record<Language, Dictionary> = {
     unsavedChanges: "Unsaved changes",
     fileSaved: "File saved.",
     fileLoaded: "File loaded.",
+    mergeSkills: "Merge skills",
+    mergeHelp: "Move selected skills into another Skill project and record that project as an application source.",
+    sourceInputPlaceholder: "Local folder or github.com/owner/repo",
+    sourceProject: "Target Skill project",
+    chooseSourceProject: "Choose project",
+    targetPath: "Target project path",
+    appliedTargetDir: "Application target directory",
+    createPlan: "Create plan",
+    runMerge: "Run merge",
+    mergePlan: "Merge plan",
+    mergeConflict: "Conflicts must be resolved before merge.",
+    mergeReady: "Plan is ready.",
+    mergeComplete: (copied: number, skipped: number) => `Merged ${copied} skills. Skipped ${skipped}.`,
+    appliedSources: "Applied sources",
+    noAppliedSources: "No applied source records yet.",
+    reapply: "Reapply",
+    appliedSourceSummary: (skills: number, profile: string) => `${skills} skills / ${profile}`,
     sharedAssetsTitle: "Shared assets",
     noDescription: "No description",
     findingsTitle: "Findings",
@@ -447,6 +483,8 @@ export const dictionaries: Record<Language, Dictionary> = {
     githubSource: "GitHub",
     projectHealth: "项目状态",
     projectPath: "项目路径",
+    openProjectFolder: "打开文件夹",
+    projectFolderOpened: "已打开项目文件夹。",
     settings: "设置",
     feedback: "反馈",
     feedbackHelp: "在 GitHub 上反馈问题，或提交更强审计能力的需求。",
@@ -454,7 +492,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     currentWorkspace: "当前项目",
     addSharedSource: "GitHub 来源",
     sharedSourcePlaceholder: "owner/repo 或 github.com/owner/repo/tree/main/path",
-    downloadSource: "下载",
+    addRemoteSource: "添加来源",
     downloadingSource: "正在下载共享来源...",
     projectDownloading: "正在下载仓库并准备这个 Skill 项目。",
     projectDownloadFailed: "下载失败，请检查仓库地址和 Git 凭据。",
@@ -496,17 +534,17 @@ export const dictionaries: Record<Language, Dictionary> = {
       share: "共享"
     },
     nextSteps: "下一步",
-    sourceStatusTitle: "来源更新",
-    sourceStatusHelp: "应用或共享前先检查 Git 上游状态。",
-    sourceStatusIdle: "当前项目尚未检查来源更新状态。",
+    sourceStatusTitle: "Git 更新",
+    sourceStatusHelp: "应用或共享前会每日自动检查 Git 上游状态。",
+    sourceStatusIdle: "当前项目尚未检查 Git 更新状态。",
     sourceStatusUnavailable: "当前项目未检测到 Git 远端。",
     currentConfiguredSource: "当前来源",
     checkSourceUpdates: "检查更新",
     checkingSourceUpdates: "正在检查更新...",
-    updateSource: "更新来源",
-    updatingSource: "正在更新来源...",
-    sourceUpToDate: "来源已是最新。",
-    sourceCanUpdate: (behind: number) => `来源落后 ${behind} 个 commit。`,
+    updateSource: "更新 checkout",
+    updatingSource: "正在更新 checkout...",
+    sourceUpToDate: "当前 checkout 已是最新。",
+    sourceCanUpdate: (behind: number) => `当前 checkout 落后 ${behind} 个 commit。`,
     sourceCannotUpdate: "当前无法更新，请先处理本地 Git 状态。",
     sourceAheadBehind: (ahead: number, behind: number) => `领先 ${ahead} / 落后 ${behind}`,
     sourceLastFetch: (age: string) => `上次 fetch：${age} 前`,
@@ -515,15 +553,14 @@ export const dictionaries: Record<Language, Dictionary> = {
     sourceCheckedAgo: (age: string) => `${age} 前检查`,
     sourceCheckedAt: (time: string) => `检查于 ${time}`,
     sourceBranch: (branch: string, upstream: string) => `${branch} -> ${upstream}`,
-    confirmSourceUpdate: (behind: number) => `确认用 fast-forward pull 更新来源？当前本地落后 ${behind} 个 commit。`,
-    sourceUpdated: "来源已更新，工作区已重新扫描。",
+    confirmSourceUpdate: (behind: number) => `确认用 fast-forward pull 更新当前 checkout？当前本地落后 ${behind} 个 commit。`,
+    sourceUpdated: "Checkout 已更新，工作区已重新扫描。",
     reviewAudit: "查看审计",
     configureProfiles: "配置技能组",
     manageDestinations: "管理应用目标",
     prepareSharing: "准备共享",
     projectSummary: "项目摘要",
     rescan: "重新扫描",
-    initConfig: "初始化配置",
     emptyTitle: "添加 Skill 项目",
     emptyBody: "SkillOps 可以打开包含 skills/ 目录的仓库，也可以直接打开包含 SKILL.md 的单个 skill 文件夹。",
     emptyExample: "示例：\nskills/\n  code-review/\n    SKILL.md\n\n单个 skill 文件夹：\ncode-review/\n  SKILL.md",
@@ -549,6 +586,23 @@ export const dictionaries: Record<Language, Dictionary> = {
     unsavedChanges: "有未保存修改",
     fileSaved: "文件已保存。",
     fileLoaded: "文件已加载。",
+    mergeSkills: "归并技能",
+    mergeHelp: "把选中的技能归并到另一个 Skill 项目，并把该项目记录为应用来源。",
+    sourceInputPlaceholder: "本地文件夹或 github.com/owner/repo",
+    sourceProject: "目标 Skill 项目",
+    chooseSourceProject: "选择项目",
+    targetPath: "目标项目目录",
+    appliedTargetDir: "应用目标目录",
+    createPlan: "生成计划",
+    runMerge: "执行归并",
+    mergePlan: "归并计划",
+    mergeConflict: "存在冲突，需修复后再归并。",
+    mergeReady: "计划可执行。",
+    mergeComplete: (copied: number, skipped: number) => `已归并 ${copied} 个技能，跳过 ${skipped} 个。`,
+    appliedSources: "应用关系",
+    noAppliedSources: "暂无应用关系记录。",
+    reapply: "重新应用",
+    appliedSourceSummary: (skills: number, profile: string) => `${skills} 个技能 / ${profile}`,
     sharedAssetsTitle: "共享资产",
     noDescription: "暂无描述",
     findingsTitle: "发现项",

@@ -1,4 +1,4 @@
-import type { AppState, ApplyProfileResult, CliInstallStatus, DriftReport, EnvironmentStatus, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillEditorWindowContext, SkillFileDocument, SkillFileEntry, SkillOpsConfig, SourceUpdateResult, SourceUpdateStatus, WorkspaceSnapshot } from "../shared/types";
+import type { AppState, AppliedSourceRecord, ApplyProfileResult, CliInstallStatus, DriftReport, EnvironmentStatus, MergePlan, MergeResult, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillEditorWindowContext, SkillFileDocument, SkillFileEntry, SkillOpsConfig, SourceUpdateResult, SourceUpdateStatus, WorkspaceSnapshot } from "../shared/types";
 
 export type Tab = "overview" | "skills" | "profiles" | "destinations" | "share" | "audit";
 
@@ -27,8 +27,8 @@ declare global {
     skillops: {
       chooseWorkspace: () => Promise<string | undefined>;
       scanWorkspace: (root: string) => Promise<WorkspaceSnapshot>;
-      initWorkspace: (root: string) => Promise<unknown>;
       saveConfig: (root: string, config: SkillOpsConfig) => Promise<WorkspaceSnapshot>;
+      openWorkspaceFolder: (root: string) => Promise<void>;
       getDefaultTargets: () => Promise<DefaultTarget[]>;
       getEnvironmentStatus: () => Promise<EnvironmentStatus>;
       installCli: () => Promise<CliInstallStatus>;
@@ -36,14 +36,18 @@ declare global {
       loadAppState: () => Promise<AppState>;
       saveAppState: (patch: Partial<AppState>) => Promise<AppState>;
       migrateAppState: (legacyState: Partial<AppState>, origin: string) => Promise<AppState>;
-      downloadSource: (remoteUrl: string) => Promise<string>;
+      addRemoteWorkspace: (remoteUrl: string) => Promise<string>;
       sourceUpdateStatus: (root: string) => Promise<SourceUpdateStatus>;
       updateSource: (root: string, confirm?: boolean) => Promise<SourceUpdateResult>;
-      openSourceDiff: (status: SourceUpdateStatus) => Promise<void>;
-      createSharePlan: (root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, sameRepository?: boolean, sameRepositoryRemote?: string) => Promise<SharePlanResult>;
+      createMergePlan: (options: { root: string; to: string; targetPath: string; profile?: string; skills?: string[]; targetDir?: string; confirm?: boolean }) => Promise<MergePlan>;
+      mergeIntoProject: (options: { root: string; to: string; targetPath: string; profile?: string; skills?: string[]; targetDir?: string; confirm?: boolean }) => Promise<MergeResult>;
+      listAppliedSources: (root: string) => Promise<AppliedSourceRecord[]>;
+      driftAppliedSources: (root: string, id?: string) => Promise<DriftReport[]>;
+      runAppliedSources: (root: string, id?: string) => Promise<Array<{ record: AppliedSourceRecord; result: ApplyProfileResult }>>;
+      applyFromSource: (root: string, from: string | undefined, profile: string, targetDir: string, save?: boolean, skills?: string[]) => Promise<{ result: ApplyProfileResult; record?: AppliedSourceRecord }>;
+      driftFromSource: (root: string, from: string | undefined, profile: string, targetDir: string, skills?: string[]) => Promise<DriftReport>;
+      createSharePlan: (root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, message?: string, delivery?: ShareDeliveryMethod, branch?: string, sameRepository?: boolean, sameRepositoryRemote?: string) => Promise<SharePlanResult>;
       shareProject: (root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, confirm?: boolean, sameRepository?: boolean, sameRepositoryRemote?: string) => Promise<ShareResult>;
-      applyProfile: (root: string, profile: string, targetDir: string) => Promise<ApplyProfileResult>;
-      driftReport: (root: string, profile: string, targetDir: string) => Promise<DriftReport>;
       shareDriftReport: (root: string, remoteUrl: string, targetMode: ShareTargetMode, projectName: string, profileName: string, sameRepository?: boolean, sameRepositoryRemote?: string) => Promise<DriftReport>;
       openDriftDiff: (report: DriftReport) => Promise<void>;
       listSkillFiles: (root: string, skillPath: string) => Promise<SkillFileEntry[]>;

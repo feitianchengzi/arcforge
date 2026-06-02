@@ -5,13 +5,15 @@ import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
-import { runSkillOpsCommand, createPublishPlanCommand, applyProfileCommand, driftReportCommand, downloadSourceCommand, shareProjectCommand, createSharePlanCommand, shareDriftReportCommand, sourceUpdateStatusCommand, updateSourceCommand } from "../commands/index.js";
-import { scanWorkspace, initWorkspace } from "../core/workspace.js";
+import { runSkillOpsCommand, shareProjectCommand, createSharePlanCommand, shareDriftReportCommand } from "../commands/index.js";
+import { scanWorkspace } from "../core/workspace.js";
 import { saveConfig } from "../core/config.js";
 import { getEnvironmentStatus } from "../core/environment.js";
 import { installCliShim } from "../core/cli-install.js";
 import { defaultSkillFile, listSkillFiles, listWorkspaceFiles, readSkillFile, writeSkillFile } from "../core/skill-files.js";
-import type { AppState, ApplyDriftCheckRecord, DriftFileDiff, DriftReport, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, ShareDriftCheckRecord, ShareTargetMode, SkillEditorWindowContext, SkillOpsConfig, SourceUpdateCheckRecord, SourceUpdateStatus, TargetRecord } from "../shared/types.js";
+import { applyFromSource, createMergePlan, driftAppliedSources, driftFromSource, listAppliedSources, mergeIntoProject, resolveSkillProjectRoot, runAppliedSources, type MergeOptions } from "../core/sources.js";
+import { checkSourceUpdate, updateSource } from "../core/source-update.js";
+import type { AppState, ApplyDriftCheckRecord, DriftFileDiff, DriftReport, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, ShareDriftCheckRecord, ShareTargetMode, SkillEditorWindowContext, SkillOpsConfig, TargetRecord } from "../shared/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cliMarkerIndex = process.argv.indexOf("--cli");
@@ -98,8 +100,8 @@ ipcMain.handle("workspace:choose", async (event) => {
 });
 
 ipcMain.handle("workspace:scan", (_event, root: string) => scanWorkspace(root));
-ipcMain.handle("workspace:init", (_event, root: string) => initWorkspace(root));
 ipcMain.handle("workspace:saveConfig", (_event, root: string, config: SkillOpsConfig) => saveWorkspaceConfig(root, config));
+ipcMain.handle("workspace:openFolder", (_event, root: string) => openWorkspaceFolder(root));
 ipcMain.handle("system:defaultTargets", () => defaultTargets());
 ipcMain.handle("system:environment", () => getElectronEnvironmentStatus());
 ipcMain.handle("system:installCli", () => installCliShim({ ...cliShimOptions(), updateShellProfile: true }));
@@ -107,15 +109,21 @@ ipcMain.handle("system:openExternal", (_event, url: string) => openExternalUrl(u
 ipcMain.handle("appState:load", () => loadAppState());
 ipcMain.handle("appState:save", (_event, patch: Partial<AppState>) => saveAppStatePatch(patch));
 ipcMain.handle("appState:migrate", (_event, legacyState: Partial<AppState>, origin: string) => migrateAppState(legacyState, origin));
-ipcMain.handle("source:download", (_event, remoteUrl: string) => downloadSourceCommand(remoteUrl, cacheRoot()));
-ipcMain.handle("source:status", (_event, root: string) => sourceUpdateStatusCommand(root));
-ipcMain.handle("source:update", (_event, root: string, confirm?: boolean) => updateSourceCommand(root, Boolean(confirm)));
-ipcMain.handle("source:openDiff", (event, status: SourceUpdateStatus) => openSourceDiffWindow(status, BrowserWindow.fromWebContents(event.sender)));
-ipcMain.handle("publish:plan", (_event, root: string, visibility: "private" | "public") => createPublishPlanCommand(root, visibility));
-ipcMain.handle("publish:sharePlan", (_event, root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, sameRepository?: boolean, sameRepositoryRemote?: string) => createSharePlanCommand({
+ipcMain.handle("workspace:addRemote", (_event, remoteUrl: string) => resolveSkillProjectRoot(remoteUrl, cacheRoot()));
+ipcMain.handle("source:status", (_event, root: string) => checkSourceUpdate({ root }));
+ipcMain.handle("source:update", (_event, root: string, confirm?: boolean) => updateSource({ root, confirm: Boolean(confirm) }));
+ipcMain.handle("merge:plan", (_event, options: MergeOptions) => createMergePlan({ ...options, cacheDir: cacheRoot() }));
+ipcMain.handle("merge:run", (_event, options: MergeOptions) => mergeIntoProject({ ...options, cacheDir: cacheRoot(), confirm: true }));
+ipcMain.handle("applied:list", (_event, root: string) => listAppliedSources(root));
+ipcMain.handle("applied:drift", (_event, root: string, id?: string) => driftAppliedSources(root, id));
+ipcMain.handle("applied:run", (_event, root: string, id?: string) => runAppliedSources(root, id, true));
+ipcMain.handle("apply:run", (_event, root: string, from: string | undefined, profile: string, targetDir: string, save?: boolean, skills?: string[]) => applyFromSource(root, from, profile, targetDir, Boolean(save), skills, cacheRoot()));
+ipcMain.handle("apply:drift", (_event, root: string, from: string | undefined, profile: string, targetDir: string, skills?: string[]) => driftFromSource(root, from, profile, targetDir, skills, cacheRoot()));
+ipcMain.handle("share:plan", (_event, root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, message?: string, delivery?: ShareDeliveryMethod, branch?: string, sameRepository?: boolean, sameRepositoryRemote?: string) => createSharePlanCommand({
   root,
   remoteUrl,
   visibility,
+  message,
   targetMode,
   projectName,
   profileName,
@@ -125,7 +133,7 @@ ipcMain.handle("publish:sharePlan", (_event, root: string, remoteUrl: string, vi
   sameRepositoryRemote,
   cacheDir: cacheRoot()
 }));
-ipcMain.handle("publish:share", (_event, root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, confirm?: boolean, sameRepository?: boolean, sameRepositoryRemote?: string) => shareProjectCommand({
+ipcMain.handle("share:run", (_event, root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, confirm?: boolean, sameRepository?: boolean, sameRepositoryRemote?: string) => shareProjectCommand({
   root,
   remoteUrl,
   visibility,
@@ -140,8 +148,6 @@ ipcMain.handle("publish:share", (_event, root: string, remoteUrl: string, visibi
   sameRepositoryRemote,
   cacheDir: cacheRoot()
 }));
-ipcMain.handle("profile:apply", (_event, root: string, profile: string, targetDir: string) => applyProfileCommand(root, profile, targetDir));
-ipcMain.handle("profile:drift", (_event, root: string, profile: string, targetDir: string) => driftReportCommand(root, profile, targetDir));
 ipcMain.handle("share:drift", (_event, root: string, remoteUrl: string, targetMode: ShareTargetMode, projectName: string, profileName: string, sameRepository?: boolean, sameRepositoryRemote?: string) => shareDriftReportCommand({
   root,
   remoteUrl,
@@ -152,7 +158,7 @@ ipcMain.handle("share:drift", (_event, root: string, remoteUrl: string, targetMo
   sameRepositoryRemote,
   cacheDir: cacheRoot()
 }));
-ipcMain.handle("profile:openDriftDiff", (event, report: DriftReport) => openDriftDiffWindow(report, BrowserWindow.fromWebContents(event.sender)));
+ipcMain.handle("diff:openDrift", (event, report: DriftReport) => openDriftDiffWindow(report, BrowserWindow.fromWebContents(event.sender)));
 ipcMain.handle("skillFile:list", (_event, root: string, skillPath: string) => listSkillFiles(root, skillPath));
 ipcMain.handle("skillFile:listWorkspace", (_event, root: string, directoryPath: string) => listWorkspaceFiles(root, directoryPath));
 ipcMain.handle("skillFile:read", (_event, root: string, filePath: string) => readSkillFile(root, filePath));
@@ -171,6 +177,18 @@ async function openExternalUrl(url: string): Promise<void> {
     throw new Error("External URL is not allowed.");
   }
   await shell.openExternal(parsed.toString());
+}
+
+async function openWorkspaceFolder(root: string): Promise<void> {
+  const target = path.resolve(root);
+  const stat = await fs.stat(target);
+  if (!stat.isDirectory()) {
+    throw new Error("Workspace path is not a directory.");
+  }
+  const message = await shell.openPath(target);
+  if (message) {
+    throw new Error(message);
+  }
 }
 
 async function loadAppState(): Promise<AppState> {
@@ -310,22 +328,10 @@ function normalizeProjectState(value?: Record<string, ProjectUiState>): Record<s
       profile: cleanString(state.profile),
       applyTargetGroupId: cleanString(state.applyTargetGroupId),
       shareTargetGroupId: cleanString(state.shareTargetGroupId),
-      sourceUpdateCheck: normalizeSourceUpdateCheck(state.sourceUpdateCheck),
       applyDriftChecks: normalizeApplyDriftChecks(state.applyDriftChecks),
-      shareDriftChecks: normalizeShareDriftChecks(state.shareDriftChecks)
+      shareDriftChecks: normalizeShareDriftChecks(state.shareDriftChecks),
+      sourceUpdateCheck: normalizeSourceUpdateCheck(state.sourceUpdateCheck)
     }]));
-}
-
-function normalizeSourceUpdateCheck(value: unknown): SourceUpdateCheckRecord | undefined {
-  if (!value || typeof value !== "object") return undefined;
-  const item = value as SourceUpdateCheckRecord;
-  const checkedAt = cleanString(item.checkedAt);
-  if (!checkedAt) return undefined;
-  return {
-    checkedAt,
-    status: item.status && typeof item.status === "object" ? item.status : undefined,
-    error: cleanString(item.error)
-  };
 }
 
 function normalizeApplyDriftChecks(value: unknown): Record<string, ApplyDriftCheckRecord> | undefined {
@@ -367,6 +373,18 @@ function normalizeShareDriftCheck(value: unknown): ShareDriftCheckRecord | undef
     signature: cleanString(item.signature),
     report: item.report && typeof item.report === "object" ? item.report : undefined,
     error: cleanString(item.error)
+  };
+}
+
+function normalizeSourceUpdateCheck(value: unknown): ProjectUiState["sourceUpdateCheck"] {
+  if (!value || typeof value !== "object") return undefined;
+  const item = value as ProjectUiState["sourceUpdateCheck"];
+  const checkedAt = cleanString(item?.checkedAt);
+  if (!checkedAt) return undefined;
+  return {
+    checkedAt,
+    status: item?.status && typeof item.status === "object" ? item.status : undefined,
+    error: cleanString(item?.error)
   };
 }
 
@@ -823,18 +841,6 @@ interface DiffDocument {
   files: DiffFileDocument[];
 }
 
-async function openSourceDiffWindow(status: SourceUpdateStatus, parent?: BrowserWindow | null): Promise<void> {
-  const files = await sourceUpdateDiffFiles(status);
-  await openDiffDocumentWindow({
-    title: "SkillOps Source Diff",
-    subtitle: `${status.branch ?? "HEAD"} -> ${status.upstream ?? "upstream"}`,
-    summary: `${files.length} changed files`,
-    leftLabel: status.head ? `local ${shortHash(status.head)}` : "local",
-    rightLabel: status.upstreamHead ? `upstream ${shortHash(status.upstreamHead)}` : "upstream",
-    files
-  }, parent);
-}
-
 async function openDriftDiffWindow(report: DriftReport, parent?: BrowserWindow | null): Promise<void> {
   const files = await driftDiffFiles(report);
   const changedItems = report.items.filter((item) => item.status !== "same");
@@ -908,47 +914,6 @@ function driftDisplayStatus(status: DriftFileDiff["status"]): DiffFileStatus {
   if (status === "missing") return "added";
   if (status === "extra") return "deleted";
   return status;
-}
-
-async function sourceUpdateDiffFiles(status: SourceUpdateStatus): Promise<DiffFileDocument[]> {
-  if (!status.head || !status.upstreamHead) throw new Error("Source diff requires local and upstream commit hashes.");
-  const scope = status.relativePath && status.relativePath !== "." ? status.relativePath : undefined;
-  const args = ["diff", "--name-status", "--find-renames", status.head, status.upstreamHead, "--"];
-  if (scope) args.push(scope);
-  const output = await gitOutput(status.gitRoot, args);
-  const files: DiffFileDocument[] = [];
-  for (const item of parseNameStatus(output)) {
-    const leftText = item.status === "added" ? "" : await readGitBlob(status.gitRoot, status.head, item.leftPath).catch(() => "");
-    const rightText = item.status === "deleted" ? "" : await readGitBlob(status.gitRoot, status.upstreamHead!, item.rightPath).catch(() => "");
-    files.push({
-      path: item.rightPath,
-      status: item.status,
-      leftTitle: `${shortHash(status.head)}:${item.leftPath}`,
-      rightTitle: `${shortHash(status.upstreamHead)}:${item.rightPath}`,
-      leftText,
-      rightText
-    });
-  }
-  return files.sort((left, right) => left.path.localeCompare(right.path));
-}
-
-function parseNameStatus(output: string): Array<{ status: DiffFileStatus; leftPath: string; rightPath: string }> {
-  return output
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
-    .filter(Boolean)
-    .map((line) => {
-      const parts = line.split("\t");
-      const code = parts[0] ?? "M";
-      if (code.startsWith("R")) {
-        return { status: "renamed" as const, leftPath: parts[1] ?? parts[2] ?? "", rightPath: parts[2] ?? parts[1] ?? "" };
-      }
-      const filePath = parts[1] ?? "";
-      if (code.startsWith("A")) return { status: "added" as const, leftPath: filePath, rightPath: filePath };
-      if (code.startsWith("D")) return { status: "deleted" as const, leftPath: filePath, rightPath: filePath };
-      return { status: "changed" as const, leftPath: filePath, rightPath: filePath };
-    })
-    .filter((item) => safeRelativePath(item.leftPath) && safeRelativePath(item.rightPath));
 }
 
 async function readGitBlob(root: string, revision: string, filePath: string): Promise<string> {
@@ -1175,10 +1140,6 @@ function renderDiffDocumentHtml(document: DiffDocument): string {
   </script>
 </body>
 </html>`;
-}
-
-function shortHash(value?: string): string {
-  return value ? value.slice(0, 12) : "";
 }
 
 function escapeHtml(value: string): string {

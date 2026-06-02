@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Destinations - 线框图</title>
+    <link rel="stylesheet" href="../wireframe-style.css">
+</head>
+<body>
+    <div class="wireframe-container">
+        <header><h1>Destinations</h1><div class="meta-info"><div>Page: <code>destinations</code></div></div></header>
+        <details open>
+            <summary>目标列表与详情</summary>
+            <div class="state-content">
+                <div class="state-description"><strong>触发条件：</strong>进入 Destinations 页面。</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="DestinationList">
+                        <div class="toolbar"><div class="nav-title">Destinations</div><div class="toolbar-spacer"></div><div class="button small">Add destination</div><div class="button small">Check drift</div></div>
+                        <div class="split-h">
+                            <aside class="sidebar">
+                                <div class="sidebar-section">Application relations</div>
+                                <div class="list-item active"><div class="list-item-text"><div class="list-item-title">customer-app</div><div class="list-item-subtitle">from team-skills / drifted</div></div><span class="badge">drift</span></div>
+                                <div class="sidebar-section">One-time targets</div>
+                                <div class="list-item"><div class="list-item-title">Codex home</div></div>
+                            </aside>
+                            <main class="panel">
+                                <div class="panel-header">customer-app application relation</div>
+                                <div class="content-area">
+                                    <div class="card-grid">
+                                        <div class="card"><div class="card-title">Source</div><div>team-skills</div></div>
+                                        <div class="card"><div class="card-title">Profile</div><div>Team default</div></div>
+                                        <div class="card"><div class="card-title">Target path</div><div>.codex/skills</div></div>
+                                        <div class="card"><div class="card-title">Status</div><div>1 file drifted</div></div>
+                                    </div>
+                                    <div class="group-box"><div class="group-box-title">Applied skills</div>
+                                        <div class="list-item"><div class="list-item-title">review-code</div><span class="badge">changed</span></div>
+                                        <div class="list-item"><div class="list-item-title">release-checklist</div><span class="badge active">ok</span></div>
+                                    </div>
+                                    <div class="button primary">Reapply profile</div>
+                                    <div class="button">View diff</div>
+                                </div>
+                            </main>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>DestinationList</li><li>target details</li><li>applied skills</li><li>drift status</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">目标详情只展示和准备计划，写入前进入确认。</div></div>
+            </div>
+        </details>
+        <details>
+            <summary>添加目标、应用计划与漂移差异</summary>
+            <div class="state-content">
+                <div class="state-description"><strong>触发条件：</strong>用户添加目标、重新应用或查看差异。</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="PlanAndDiff">
+                        <div class="modal-overlay">
+                            <div class="modal-content" data-label="Add destination">
+                                <div class="picker">Maintenance source: team-skills</div>
+                                <div class="picker">Type: Codex / Project / Custom</div>
+                                <div class="input-field">Target path</div>
+                                <div class="picker">Profile: Team default</div>
+                                <div class="toggle-row"><span>Save as application relation</span><div class="toggle-track on"></div></div>
+                                <div class="button primary">Create plan</div>
+                            </div>
+                            <div class="modal-content" data-label="Apply plan">
+                                <div class="placeholder-box">3 files will be written. 1 file will be overwritten.</div>
+                                <div class="button primary">Apply</div>
+                            </div>
+                            <div class="modal-content" data-label="Drift diff">
+                                <div class="placeholder-box">Source vs target diff preview.</div>
+                                <div class="button primary">Reapply</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>Sheet</li><li>PlanPreview</li><li>DiffView</li><li>InlineError</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">应用失败保留计划和目标路径，允许修正后重试。</div></div>
+            </div>
+        </details>
+    </div>
+</body>
+</html>

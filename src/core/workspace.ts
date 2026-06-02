@@ -1,7 +1,7 @@
 import { auditWorkspace } from "./audit.js";
-import { defaultConfigForRoot, loadConfig, saveConfig } from "./config.js";
+import { loadConfig } from "./config.js";
 import { discoverSharedAssets, discoverSkills } from "./skills.js";
-import type { WorkspaceSnapshot, SkillOpsConfig } from "../shared/types.js";
+import type { WorkspaceSnapshot } from "../shared/types.js";
 import { promises as fs } from "node:fs";
 import { detectLocalGitSource } from "./local-git.js";
 
@@ -14,23 +14,4 @@ export async function scanWorkspace(root: string): Promise<WorkspaceSnapshot> {
   const audit = await auditWorkspace(root, skills);
   const localGit = await detectLocalGitSource(root);
   return { root, config, skills, assets, audit, localGit };
-}
-
-export async function initWorkspace(root: string, config?: Partial<SkillOpsConfig>): Promise<SkillOpsConfig> {
-  const defaultConfig = await defaultConfigForRoot(root);
-  const next: SkillOpsConfig = {
-    version: 1,
-    sourceDir: config?.sourceDir ?? defaultConfig.sourceDir,
-    teamRepo: config?.teamRepo,
-    profiles: config?.profiles ?? [
-      {
-        name: "default",
-        description: "Default skill set for this workspace.",
-        skills: ["*"],
-        targets: ["claude", "codex", "cursor"]
-      }
-    ]
-  };
-  await saveConfig(root, next);
-  return next;
 }

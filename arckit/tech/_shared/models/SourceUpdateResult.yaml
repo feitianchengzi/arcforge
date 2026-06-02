@@ -26,7 +26,7 @@ properties:
     description: True when local HEAD changed during update.
   fastForwardOnly:
     type: boolean
-    description: Always true for SkillOps-managed source updates.
+    description: Always true for SkillOps-managed Git checkout updates.
   messages:
     type: array
     items:

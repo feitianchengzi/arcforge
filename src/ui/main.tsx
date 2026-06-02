@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createRoot } from "react-dom/client";
-import { Download, Edit3, GitBranch, GripVertical, HardDrive, ListOrdered, PackageCheck, Play, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
-import type { AppState, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, ShareDriftCheckRecord, SharePlanResult, ShareResult, ShareTargetGroup, SkillOpsConfig, SourceUpdateCheckRecord, TargetRecord, WorkspaceSnapshot } from "../shared/types";
+import { Download, Edit3, FolderOpen, GitBranch, GripVertical, HardDrive, ListOrdered, PackageCheck, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
+import type { AppState, AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, ShareDriftCheckRecord, SharePlanResult, ShareResult, ShareTargetGroup, SkillOpsConfig, SourceUpdateCheckRecord, TargetRecord, WorkspaceSnapshot } from "../shared/types";
 import { GITHUB_ISSUE_URL } from "../shared/links";
 import { MAX_RECENT_WORKSPACES, readLegacyAppState } from "./app-state";
 import { AddProjectDialog, CliRepairDialog, EmptyState, EnvironmentNotice, PendingProject, ProjectHeader, SettingsDialog } from "./components/shell";
@@ -57,6 +57,8 @@ function App() {
   const [shareProgress, setShareProgress] = useState<string | undefined>();
   const [driftReports, setDriftReports] = useState<DriftReport[]>([]);
   const [applyResults, setApplyResults] = useState<ApplyProfileResult[]>([]);
+  const [appliedSources, setAppliedSources] = useState<AppliedSourceRecord[]>([]);
+  const [appliedSourceDriftReports, setAppliedSourceDriftReports] = useState<DriftReport[]>([]);
   const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>([]);
   const [targetHistory, setTargetHistory] = useState<TargetRecord[]>([]);
   const [projectStates, setProjectStates] = useState<Record<string, ProjectUiState>>({});
@@ -73,6 +75,8 @@ function App() {
   const [isReorderingWorkspaces, setIsReorderingWorkspaces] = useState(false);
   const [draggingWorkspacePath, setDraggingWorkspacePath] = useState("");
   const [dragOverWorkspacePath, setDragOverWorkspacePath] = useState("");
+  const [appStateHydrated, setAppStateHydrated] = useState(false);
+  const [defaultTargetsLoaded, setDefaultTargetsLoaded] = useState(false);
   const workspaceRequestRef = useRef(0);
   const activeProject = recentWorkspaces.find((item) => item.path === root);
   const isPendingProject = activeProject?.status === "downloading" || activeProject?.status === "error";
@@ -87,7 +91,6 @@ function App() {
   const activeProjectState = root ? projectStates[root] : undefined;
   const activeApplyDriftSignature = activeApplyTargetGroup ? applyDriftSignature(activeApplyTargetGroup, defaultTargets) : "";
   const activeShareDriftSignature = activeShareTargetGroup ? shareDriftSignature(snapshot, activeShareTargetGroup) : "";
-  const sourceUpdateCheck = activeProjectState?.sourceUpdateCheck;
   const savedApplyDriftCheck = activeApplyTargetGroup ? activeProjectState?.applyDriftChecks?.[activeApplyTargetGroup.id] : undefined;
   const savedShareDriftCheck = activeShareTargetGroup ? activeProjectState?.shareDriftChecks?.[activeShareTargetGroup.id] : undefined;
   const activeApplyDriftCheck = savedApplyDriftCheck?.signature === activeApplyDriftSignature ? savedApplyDriftCheck : undefined;
@@ -100,7 +103,8 @@ function App() {
     void hydrateAppState();
     void window.skillops.getDefaultTargets().then((targets) => {
       setDefaultTargets(targets);
-    }).catch((error) => setStatus(t.errorStatus(errorMessage(error))));
+    }).catch((error) => setStatus(t.errorStatus(errorMessage(error))))
+      .finally(() => setDefaultTargetsLoaded(true));
     void refreshEnvironment();
   }, []);
 
@@ -153,6 +157,8 @@ function App() {
       }
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
+    } finally {
+      setAppStateHydrated(true);
     }
   }
 
@@ -317,7 +323,7 @@ function App() {
     }
   }
 
-  async function downloadSharedSource() {
+  async function addRemoteSource() {
     const sourceUrl = sharedSourceUrl.trim();
     if (!sourceUrl) return;
     const pendingId = `pending:${encodeURIComponent(sourceUrl)}`;
@@ -345,14 +351,14 @@ function App() {
         return;
       }
       setStatus(t.downloadingSource);
-      const sourcePath = await window.skillops.downloadSource(sourceUrl);
+      const sourceRoot = await window.skillops.addRemoteWorkspace(sourceUrl);
       setSharedSourceUrl("");
       setRecentWorkspaces((current) => {
         const next = current.filter((item) => item.path !== pendingId);
         void saveAppState({ recentWorkspaces: next });
         return next;
       });
-      await openWorkspace(sourcePath, {
+      await openWorkspace(sourceRoot, {
         source: {
           sourceKind: "github",
           githubSourceUrl: sourceUrl
@@ -389,15 +395,15 @@ function App() {
     }
   }
 
-  async function init() {
+  async function openProjectFolder() {
     if (!root) return;
     try {
       if (!window.skillops) {
         setStatus(t.desktopRequired);
         return;
       }
-      await window.skillops.initWorkspace(root);
-      await scan(root);
+      await window.skillops.openWorkspaceFolder(root);
+      setStatus(t.projectFolderOpened);
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     }
@@ -454,7 +460,7 @@ function App() {
         applySnapshot(saved, group.profile);
       }
       setStatus(t.sharing);
-      const plan = await window.skillops.createSharePlan(root, shareRemoteUrlForGroup(snapshot, group), "private", group.targetMode, group.projectName ?? "", group.profile, undefined, undefined, group.sameRepository, group.sameRepositoryRemote);
+      const plan = await window.skillops.createSharePlan(root, shareRemoteUrlForGroup(snapshot, group), "private", group.targetMode, group.projectName ?? "", group.profile, message, undefined, undefined, group.sameRepository, group.sameRepositoryRemote);
       setSharePlan(plan);
       const nextStatus = plan.requiresConfirm ? t.shareReady(plan.branch) : t.shareReadyLocal(plan.branch);
       setShareProgress(nextStatus);
@@ -526,6 +532,7 @@ function App() {
     setRoot(nextRoot);
     setSnapshot(undefined);
     setDriftReports([]);
+    setAppliedSourceDriftReports([]);
     setApplyResults([]);
     setShareResult(undefined);
     setSharePlan(undefined);
@@ -538,6 +545,7 @@ function App() {
       applySnapshot(result, undefined, options.projectStates);
       rememberWorkspace(result, { moveToTop: options.moveToTop ?? true, source: options.source });
       setStatus(t.foundStatus(result.skills.length, result.audit.score));
+      await refreshAppliedSources(result.root);
     } catch (error) {
       if (requestId !== workspaceRequestRef.current) return;
       setSnapshot(undefined);
@@ -570,9 +578,9 @@ function App() {
       const results: ApplyProfileResult[] = [];
       const reports: DriftReport[] = [];
       for (const target of targets) {
-        const result = await window.skillops.applyProfile(root, group.profile, target.path);
-        results.push(result);
-        reports.push(await window.skillops.driftReport(root, group.profile, target.path));
+        const result = await window.skillops.applyFromSource(root, undefined, group.profile, target.path, false);
+        results.push(result.result);
+        reports.push(await window.skillops.driftFromSource(root, undefined, group.profile, target.path));
         rememberTarget(target.path, `${group.name} / ${target.name}`, group.profile);
       }
       setApplyResults(results);
@@ -603,7 +611,7 @@ function App() {
       }
       const reports: DriftReport[] = [];
       for (const target of targets) {
-        reports.push(await window.skillops.driftReport(root, group.profile, target.path));
+        reports.push(await window.skillops.driftFromSource(root, undefined, group.profile, target.path));
       }
       setDriftReports(reports);
       rememberApplyDriftCheck(group.id, { checkedAt: new Date().toISOString(), signature: applyDriftSignature(group, defaultTargets), reports });
@@ -631,24 +639,6 @@ function App() {
     }
   }
 
-  async function openSourceDiff(status: SourceUpdateCheckRecord["status"]) {
-    if (!status) return;
-    try {
-      if (!window.skillops) {
-        setStatus(t.desktopRequired);
-        return;
-      }
-      await window.skillops.openSourceDiff(status);
-    } catch (error) {
-      setStatus(t.errorStatus(errorMessage(error)));
-    }
-  }
-
-  function rememberSourceUpdateCheck(record: SourceUpdateCheckRecord) {
-    if (!root) return;
-    updateProjectState(root, (current) => ({ ...current, sourceUpdateCheck: record }));
-  }
-
   function rememberApplyDriftCheck(groupId: string, record: ApplyDriftCheckRecord) {
     if (!root) return;
     updateProjectState(root, (current) => ({
@@ -662,6 +652,14 @@ function App() {
     updateProjectState(root, (current) => ({
       ...current,
       shareDriftChecks: { ...(current.shareDriftChecks ?? {}), [groupId]: record }
+    }));
+  }
+
+  function rememberSourceUpdateCheck(record: SourceUpdateCheckRecord) {
+    if (!root) return;
+    updateProjectState(root, (current) => ({
+      ...current,
+      sourceUpdateCheck: record
     }));
   }
 
@@ -690,6 +688,49 @@ function App() {
     setDriftReports(applyRecord?.signature === applySignature ? applyRecord.reports : []);
     setShareDriftReport(shareRecord?.signature === shareSignature ? shareRecord.report : undefined);
     setApplyResults([]);
+    void refreshAppliedSources(result.root);
+  }
+
+  async function refreshAppliedSources(projectRoot = root) {
+    if (!window.skillops || !projectRoot) return;
+    try {
+      setAppliedSources(await window.skillops.listAppliedSources(projectRoot));
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    }
+  }
+
+  async function checkAppliedSourceDrift(id?: string) {
+    if (!root || !window.skillops) return;
+    setIsCheckingApplyDrift(true);
+    try {
+      const reports = await window.skillops.driftAppliedSources(root, id);
+      setAppliedSourceDriftReports(reports);
+      const changed = reports.reduce((sum, report) => sum + report.items.filter((item) => item.status !== "same").length, 0);
+      const checked = reports.reduce((sum, report) => sum + report.items.length, 0);
+      setStatus(`${changed} changed / ${checked} checked`);
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    } finally {
+      setIsCheckingApplyDrift(false);
+    }
+  }
+
+  async function runAppliedSource(id?: string) {
+    if (!root || !window.skillops) return;
+    try {
+      const results = await window.skillops.runAppliedSources(root, id);
+      await refreshAppliedSources(root);
+      setApplyResults(results.map((item) => item.result));
+      setStatus(t.copiedSkipped(
+        results.reduce((sum, item) => sum + item.result.copied.length, 0),
+        results.reduce((sum, item) => sum + item.result.skipped.length, 0),
+        results.reduce((sum, item) => sum + (item.result.copiedAssets?.length ?? 0), 0),
+        results.reduce((sum, item) => sum + (item.result.skippedAssets?.length ?? 0), 0)
+      ));
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    }
   }
 
   function rememberWorkspace(result: WorkspaceSnapshot, options: { moveToTop?: boolean; source?: ProjectSourceMetadata } = { moveToTop: true }) {
@@ -892,7 +933,7 @@ function App() {
           </div>
           <div className="actions">
             <button onClick={() => scan()} disabled={!root || isPendingProject}><RefreshCw size={16} /> {t.rescan}</button>
-            <button onClick={init} disabled={!root || isPendingProject}><Play size={16} /> {t.initConfig}</button>
+            {snapshot && <button onClick={openProjectFolder}><FolderOpen size={16} /> {t.openProjectFolder}</button>}
             {snapshot && <button onClick={openEditProjectSourceDialog}><Edit3 size={16} /> {t.editProjectSource}</button>}
             {activeWorkspaceCanBeRemoved && <button className="icon-button light" title={t.removeWorkspace} onClick={() => removeRecentWorkspace(root)}><Trash2 size={16} /></button>}
           </div>
@@ -924,14 +965,16 @@ function App() {
                 targetHistory={projectTargetHistory}
                 setTab={setProjectTab}
                 setStatus={setStatus}
-                onSourceUpdated={() => scan(root)}
-                isGithubSource={activeProject?.sourceKind === "github"}
-                sourceUpdateCheck={sourceUpdateCheck}
+                sourceUpdateCheck={activeProjectState?.sourceUpdateCheck}
+                autoCheckReady={appStateHydrated}
                 saveSourceUpdateCheck={rememberSourceUpdateCheck}
-                openSourceDiff={openSourceDiff}
+                onSourceUpdated={() => scan(root)}
               />
             )}
-            {tab === "skills" && <SkillsList t={t} snapshot={snapshot} profile={profile} setProfile={setProjectProfile} />}
+            {tab === "skills" && <SkillsList t={t} snapshot={snapshot} profile={profile} setProfile={setProjectProfile} onMerged={() => {
+              void refreshAppliedSources(root);
+              void scan(root);
+            }} />}
             {tab === "profiles" && (
               <Profiles
                 t={t}
@@ -956,11 +999,16 @@ function App() {
                 driftReports={driftReports}
                 driftCheck={activeApplyDriftCheck}
                 driftSignature={activeApplyDriftSignature}
+                autoCheckReady={appStateHydrated && defaultTargetsLoaded}
                 isCheckingDrift={isCheckingApplyDrift}
                 applyResults={applyResults}
+                appliedSources={appliedSources}
+                appliedSourceDriftReports={appliedSourceDriftReports}
                 targetHistory={projectTargetHistory}
                 checkTargetGroupDrift={checkTargetGroupDrift}
                 applyTargetGroup={applyTargetGroup}
+                checkAppliedSourceDrift={checkAppliedSourceDrift}
+                runAppliedSource={runAppliedSource}
                 openDriftDiff={openDriftDiff}
               />
             )}
@@ -973,6 +1021,7 @@ function App() {
                 shareDriftReport={shareDriftReport}
                 shareDriftCheck={activeShareDriftCheck}
                 shareDriftSignature={activeShareDriftSignature}
+                autoCheckReady={appStateHydrated}
                 isSharing={isSharing}
                 isCheckingShareDrift={isCheckingShareDrift}
                 shareProgress={shareProgress}
@@ -1002,7 +1051,7 @@ function App() {
           sharedSourceUrl={sharedSourceUrl}
           setSharedSourceUrl={setSharedSourceUrl}
           chooseWorkspace={chooseWorkspace}
-          downloadSharedSource={downloadSharedSource}
+          addRemoteSource={addRemoteSource}
           onClose={() => setShowAddProject(false)}
         />
       )}
@@ -1015,7 +1064,7 @@ function App() {
           sharedSourceUrl={sharedSourceUrl}
           setSharedSourceUrl={setSharedSourceUrl}
           chooseWorkspace={chooseWorkspace}
-          downloadSharedSource={downloadSharedSource}
+          addRemoteSource={addRemoteSource}
           currentSourceKind={activeProject?.sourceKind}
           currentSourceValue={activeProject?.sourceKind === "github" ? activeProject.githubSourceUrl : activeProject?.localSourcePath ?? root}
           onClose={() => setShowEditProjectSource(false)}

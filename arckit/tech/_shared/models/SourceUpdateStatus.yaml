@@ -6,7 +6,7 @@ metadata:
   owner: core/source-update
   version: 1
   created: 2026-05-25
-  updated: 2026-05-25
+  updated: 2026-06-01
 type: object
 required:
   - root
@@ -21,7 +21,7 @@ required:
 properties:
   root:
     type: string
-    description: SkillOps workspace root requested by the caller.
+    description: Workspace root requested by the caller.
   gitRoot:
     type: string
     description: Git repository root that contains the workspace root.

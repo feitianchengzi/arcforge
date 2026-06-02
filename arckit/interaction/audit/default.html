@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit - 线框图</title>
+    <link rel="stylesheet" href="../wireframe-style.css">
+</head>
+<body>
+    <div class="wireframe-container">
+        <header><h1>Audit</h1><div class="meta-info"><div>Page: <code>audit</code></div></div></header>
+        <details open>
+            <summary>发现列表与详情</summary>
+            <div class="state-content">
+                <div class="state-description"><strong>触发条件：</strong>审计完成且存在发现。</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="AuditView">
+                        <div class="toolbar"><div class="nav-title">Audit</div><div class="toolbar-spacer"></div><div class="button small">Rescan</div></div>
+                        <div class="content-area">
+                            <div class="card-grid">
+                                <div class="card"><div class="card-title">Score</div><div>84</div></div>
+                                <div class="card"><div class="card-title">Blocking</div><div>1</div></div>
+                                <div class="card"><div class="card-title">Warnings</div><div>5</div></div>
+                            </div>
+                        </div>
+                        <div class="split-h">
+                            <aside class="sidebar" data-kit="FindingList">
+                                <div class="content-area">
+                                    <div class="picker">Severity: All</div>
+                                    <div class="list-item active"><div class="list-item-text"><div class="list-item-title">Missing description</div><div class="list-item-subtitle">review-code/SKILL.md:3</div></div><span class="badge">warn</span></div>
+                                    <div class="list-item"><div class="list-item-title">Local absolute path</div></div>
+                                </div>
+                            </aside>
+                            <main class="panel" data-kit="FindingDetail">
+                                <div class="panel-header">Missing description</div>
+                                <div class="content-area">
+                                    <div class="placeholder-box">Rule explanation, evidence, path and line number.</div>
+                                    <div class="group-box"><div class="group-box-title">Location</div><div>review-code/SKILL.md line 3</div></div>
+                                    <div class="button primary">Fix in Skills</div>
+                                    <div class="button">View rule</div>
+                                </div>
+                            </main>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>score summary</li><li>FindingList</li><li>severity filter</li><li>FindingDetail</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">Fix in Skills 携带文件路径和行号进入 Skills 页面。</div></div>
+            </div>
+        </details>
+        <details>
+            <summary>通过、重新扫描与失败</summary>
+            <div class="state-content">
+                <div class="state-description"><strong>触发条件：</strong>无发现、用户重新扫描或审计失败。</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="AuditStatus">
+                        <div class="panel">
+                            <div class="panel-header">Audit status</div>
+                            <div class="content-area">
+                                <div class="empty-state"><div class="icon-placeholder large"></div><div>No findings</div></div>
+                                <div class="spinner"></div>
+                                <div class="placeholder-box">If scan fails, previous findings stay visible and error appears here.</div>
+                                <div class="button primary">Rescan</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>empty state</li><li>ProgressView</li><li>InlineError</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">重新扫描失败不清空旧结果，用户可继续定位已有发现。</div></div>
+            </div>
+        </details>
+    </div>
+</body>
+</html>

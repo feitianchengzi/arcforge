@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, FileText, Folder, RefreshCw, Save } from "lucide-react";
-import type { SkillFileDocument, SkillFileEntry, SkillSummary, SourceUpdateCheckRecord, SourceUpdateStatus, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, FileText, Folder, Plus, RefreshCw, Save } from "lucide-react";
+import type { MergePlan, SkillFileDocument, SkillFileEntry, SkillSummary, SourceUpdateStatus, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import type { Tab } from "../types";
-import { formatDate, formatTimeAgo } from "../utils";
+import { basename, formatDate, formatTimeAgo } from "../utils";
 import { Metric } from "../components/shell";
 
 const AUTO_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -16,48 +16,51 @@ export function Overview(props: {
   targetHistory: TargetRecord[];
   setTab: (value: Tab) => void;
   setStatus: (value: string) => void;
+  sourceUpdateCheck?: {
+    checkedAt: string;
+    status?: SourceUpdateStatus;
+    error?: string;
+  };
+  autoCheckReady: boolean;
+  saveSourceUpdateCheck: (record: { checkedAt: string; status?: SourceUpdateStatus; error?: string }) => void;
   onSourceUpdated: () => Promise<void>;
-  isGithubSource: boolean;
-  sourceUpdateCheck?: SourceUpdateCheckRecord;
-  saveSourceUpdateCheck: (record: SourceUpdateCheckRecord) => void;
-  openSourceDiff: (status: SourceUpdateStatus | undefined) => void;
 }) {
   const { t, snapshot, criticalCount, warningCount } = props;
   const projectTargets = props.targetHistory.filter((item) => item.sourcePath === snapshot.root);
-  const [sourceStatus, setSourceStatus] = useState<SourceUpdateStatus | undefined>(props.sourceUpdateCheck?.status);
-  const [sourceError, setSourceError] = useState(props.sourceUpdateCheck?.error ?? "");
+  const [sourceStatus, setSourceStatus] = useState<SourceUpdateStatus>();
+  const [sourceError, setSourceError] = useState("");
   const [isCheckingSource, setIsCheckingSource] = useState(false);
   const [isUpdatingSource, setIsUpdatingSource] = useState(false);
-  const canCheckSource = props.isGithubSource && Boolean(snapshot.localGit?.remotes.length);
-  const displayedAtMs = useMemo(() => Date.now(), [snapshot.root, props.sourceUpdateCheck?.checkedAt, sourceStatus?.checkedAt]);
+  const canCheckSource = Boolean(snapshot.localGit?.remotes.length);
+  const displayedAtMs = useMemo(() => Date.now(), [snapshot.root, sourceStatus?.checkedAt]);
 
   useEffect(() => {
     setSourceStatus(props.sourceUpdateCheck?.status);
     setSourceError(props.sourceUpdateCheck?.error ?? "");
-  }, [props.sourceUpdateCheck, snapshot.root]);
+  }, [props.sourceUpdateCheck?.checkedAt, snapshot.root]);
 
   useEffect(() => {
+    if (!props.autoCheckReady) return;
     if (!canCheckSource || isCheckingSource || isUpdatingSource) return;
     if (!isStaleCheck(props.sourceUpdateCheck?.checkedAt)) return;
-    void checkSourceUpdates();
-  }, [canCheckSource, props.sourceUpdateCheck?.checkedAt, snapshot.root]);
+    void checkSourceUpdates({ silent: true });
+  }, [props.autoCheckReady, canCheckSource, props.sourceUpdateCheck?.checkedAt, snapshot.root]);
 
-  async function checkSourceUpdates() {
+  async function checkSourceUpdates(options: { silent?: boolean } = {}) {
     if (!window.skillops) return;
     setIsCheckingSource(true);
     setSourceError("");
-    props.setStatus(t.checkingSourceUpdates);
+    if (!options.silent) props.setStatus(t.checkingSourceUpdates);
     try {
       const nextStatus = await window.skillops.sourceUpdateStatus(snapshot.root);
       setSourceStatus(nextStatus);
       props.saveSourceUpdateCheck({ checkedAt: nextStatus.checkedAt, status: nextStatus });
-      const message = sourceStatusMessage(t, nextStatus);
-      props.setStatus(message);
+      if (!options.silent) props.setStatus(sourceStatusMessage(t, nextStatus));
     } catch (error) {
       const message = errorMessage(error);
       setSourceError(message);
       props.saveSourceUpdateCheck({ checkedAt: new Date().toISOString(), error: message });
-      props.setStatus(t.errorStatus(message));
+      if (!options.silent) props.setStatus(t.errorStatus(message));
     } finally {
       setIsCheckingSource(false);
     }
@@ -72,7 +75,6 @@ export function Overview(props: {
     try {
       const result = await window.skillops.updateSource(snapshot.root, true);
       setSourceStatus(result.after);
-      props.saveSourceUpdateCheck({ checkedAt: result.after.checkedAt, status: result.after });
       await props.onSourceUpdated();
       props.setStatus(t.sourceUpdated);
     } catch (error) {
@@ -105,24 +107,19 @@ export function Overview(props: {
           <button onClick={() => props.setTab("share")}>{t.prepareSharing}</button>
         </div>
       </section>
-      {props.isGithubSource && <section className="panel wide source-status-panel">
+      <section className="panel wide source-status-panel">
         <div className="panel-heading">
           <div>
             <h3>{t.sourceStatusTitle}</h3>
             <p className="muted">{canCheckSource ? t.sourceStatusHelp : t.sourceStatusUnavailable}</p>
           </div>
           <div className="actions">
-            <button onClick={checkSourceUpdates} disabled={!canCheckSource || isCheckingSource || isUpdatingSource}>
+            <button onClick={() => checkSourceUpdates()} disabled={!canCheckSource || isCheckingSource || isUpdatingSource}>
               <RefreshCw size={16} /> {isCheckingSource ? t.checkingSourceUpdates : t.checkSourceUpdates}
             </button>
             {sourceStatus?.canUpdate && (
               <button className="primary" onClick={updateSource} disabled={isCheckingSource || isUpdatingSource}>
                 <CheckCircle2 size={16} /> {isUpdatingSource ? t.updatingSource : t.updateSource}
-              </button>
-            )}
-            {sourceStatus && (sourceStatus.behind > 0 || sourceStatus.ahead > 0) && (
-              <button onClick={() => props.openSourceDiff(sourceStatus)} disabled={isCheckingSource || isUpdatingSource}>
-                <ExternalLink size={16} /> {t.viewDiff}
               </button>
             )}
           </div>
@@ -151,7 +148,7 @@ export function Overview(props: {
         ) : (
           <p className="muted">{t.sourceStatusIdle}</p>
         )}
-      </section>}
+      </section>
       <section className="panel wide">
         <h3>{t.targetHistory}</h3>
         {projectTargets.length === 0 ? <p className="muted">{t.noTargetHistory}</p> : (
@@ -185,11 +182,12 @@ function sourceStatusMessage(t: Dictionary, status: SourceUpdateStatus): string 
   return t.sourceCannotUpdate;
 }
 
-export function SkillsList({ t, snapshot, profile, setProfile }: {
+export function SkillsList({ t, snapshot, profile, setProfile, onMerged }: {
   t: Dictionary;
   snapshot: WorkspaceSnapshot;
   profile: string;
   setProfile: (value: string) => void;
+  onMerged?: () => void | Promise<void>;
 }) {
   const [files, setFiles] = useState<SkillFileEntry[]>([]);
   const [activeFilePath, setActiveFilePath] = useState("");
@@ -197,6 +195,7 @@ export function SkillsList({ t, snapshot, profile, setProfile }: {
   const [draft, setDraft] = useState("");
   const [status, setStatus] = useState(t.selectSkillFile);
   const [isBusy, setIsBusy] = useState(false);
+  const [showMergePanel, setShowMergePanel] = useState(false);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set());
   const treeRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLTextAreaElement>(null);
@@ -335,8 +334,11 @@ export function SkillsList({ t, snapshot, profile, setProfile }: {
     <div className="skills-layout editor">
       <section className="panel file-tree-panel">
         <div className="panel-heading file-tree-heading">
-          <div>
+          <div className="file-tree-title-row">
             <h3 className="file-tree-title"><span>{snapshot.config.sourceDir}</span><span>{t.skillFilesTitle}</span></h3>
+            <button className="icon-button light" title={t.mergeSkills} aria-label={t.mergeSkills} onClick={() => setShowMergePanel(true)}>
+              <Plus size={15} />
+            </button>
           </div>
           <div className="file-tree-controls">
             <label className="compact-select">
@@ -390,6 +392,194 @@ export function SkillsList({ t, snapshot, profile, setProfile }: {
             <p>{status}</p>
           </div>
         )}
+      </section>
+      {showMergePanel && (
+        <MergeSkillsDialog
+          t={t}
+          snapshot={snapshot}
+          currentProfile={activeProfile?.name ?? profile}
+          onClose={() => setShowMergePanel(false)}
+          onMerged={() => {
+            setShowMergePanel(false);
+            void onMerged?.();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function MergeSkillsDialog(props: {
+  t: Dictionary;
+  snapshot: WorkspaceSnapshot;
+  currentProfile: string;
+  onClose: () => void;
+  onMerged: () => void;
+}) {
+  const { t, snapshot } = props;
+  const [targetProjectInput, setTargetProjectInput] = useState("");
+  const [remoteInput, setRemoteInput] = useState("");
+  const [targetProjectRoot, setTargetProjectRoot] = useState(snapshot.root);
+  const [profile, setProfile] = useState(props.currentProfile);
+  const [targetPath, setTargetPath] = useState(`skills/${basename(snapshot.root)}`);
+  const [targetDir, setTargetDir] = useState(".skillops/skills");
+  const [selectedSkills, setSelectedSkills] = useState<string[]>(snapshot.skills.map((skill) => skill.name));
+  const [plan, setPlan] = useState<MergePlan>();
+  const [status, setStatus] = useState(t.mergeHelp);
+  const [isBusy, setIsBusy] = useState(false);
+
+  async function loadTargetProject(input: string, remote = false) {
+    if (!window.skillops || !input.trim()) return;
+    setIsBusy(true);
+    try {
+      const root = remote ? await window.skillops.addRemoteWorkspace(input.trim()) : input.trim();
+      const nextSnapshot = await window.skillops.scanWorkspace(root);
+      setTargetProjectRoot(nextSnapshot.root);
+      setPlan(undefined);
+      setTargetProjectInput(nextSnapshot.root);
+      setRemoteInput("");
+      setStatus(t.foundStatus(nextSnapshot.skills.length, nextSnapshot.audit.score));
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function chooseSourceProject() {
+    if (!window.skillops) return;
+    const selected = await window.skillops.chooseWorkspace();
+    if (!selected) return;
+    setIsBusy(true);
+    try {
+      const nextSnapshot = await window.skillops.scanWorkspace(selected);
+      setTargetProjectRoot(nextSnapshot.root);
+      setPlan(undefined);
+      setTargetProjectInput(nextSnapshot.root);
+      setStatus(t.foundStatus(nextSnapshot.skills.length, nextSnapshot.audit.score));
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  function toggleSkill(skillName: string) {
+    setSelectedSkills((current) => current.includes(skillName) ? current.filter((item) => item !== skillName) : [...current, skillName]);
+    setPlan(undefined);
+  }
+
+  async function createPlan() {
+    if (!window.skillops || !targetProjectRoot) return;
+    setIsBusy(true);
+    try {
+      const nextPlan = await window.skillops.createMergePlan({
+        root: snapshot.root,
+        to: targetProjectRoot,
+        targetPath,
+        profile,
+        skills: selectedSkills,
+        targetDir
+      });
+      setPlan(nextPlan);
+      setStatus(nextPlan.hasConflicts ? t.mergeConflict : t.mergeReady);
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function runMerge() {
+    if (!window.skillops || !plan || plan.hasConflicts) return;
+    setIsBusy(true);
+    try {
+      const result = await window.skillops.mergeIntoProject({
+        root: snapshot.root,
+        to: targetProjectRoot,
+        targetPath,
+        profile,
+        skills: selectedSkills,
+        targetDir,
+        confirm: true
+      });
+      setStatus(t.mergeComplete(result.copied.length, result.skipped.length));
+      props.onMerged();
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={props.onClose}>
+      <section className="modal merge-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <h3>{t.mergeSkills}</h3>
+            <p>{status}</p>
+          </div>
+          <button className="icon-button light" onClick={props.onClose}>x</button>
+        </div>
+        <div className="grid two compact-grid">
+          <section>
+            <label>{t.sourceProject}</label>
+            <div className="source-summary">
+              <Folder size={16} />
+              <div>
+                <strong>{basename(targetProjectRoot)}</strong>
+                <span>{targetProjectRoot}</span>
+              </div>
+            </div>
+            <button onClick={chooseSourceProject} disabled={isBusy}>{t.chooseSourceProject}</button>
+            <div className="download-source light">
+              <input value={targetProjectInput} placeholder={t.sourceInputPlaceholder} onChange={(event) => setTargetProjectInput(event.target.value)} />
+              <button onClick={() => loadTargetProject(targetProjectInput)} disabled={isBusy || !targetProjectInput.trim()}>{t.chooseSourceProject}</button>
+            </div>
+            <div className="download-source light">
+              <input value={remoteInput} placeholder="github.com/owner/repo" onChange={(event) => setRemoteInput(event.target.value)} />
+              <button onClick={() => loadTargetProject(remoteInput, true)} disabled={isBusy || !remoteInput.trim()}>{t.addRemoteSource}</button>
+            </div>
+            <label>{t.profile}</label>
+            <select value={profile} onChange={(event) => { setProfile(event.target.value); setPlan(undefined); }}>
+              {snapshot.config.profiles.map((item) => <option key={item.name}>{item.name}</option>)}
+            </select>
+            <label>{t.targetPath}</label>
+            <input value={targetPath} onChange={(event) => { setTargetPath(event.target.value); setPlan(undefined); }} />
+            <label>{t.appliedTargetDir}</label>
+            <input value={targetDir} onChange={(event) => { setTargetDir(event.target.value); setPlan(undefined); }} />
+          </section>
+          <section>
+            <label>{t.includedSkills}</label>
+            <div className="check-list merge-skill-list">
+              {snapshot.skills.map((skill) => (
+                <label key={skill.name} className="check-row">
+                  <input type="checkbox" checked={selectedSkills.includes(skill.name)} onChange={() => toggleSkill(skill.name)} />
+                  <span>{skill.name}</span>
+                </label>
+              ))}
+            </div>
+            {plan && (
+              <div className="target-subsection">
+                <strong>{t.mergePlan}</strong>
+                <div className="list compact">
+                  {plan.skills.map((item) => (
+                    <article key={item.name} className="row">
+                      <span>{item.name}</span>
+                      <span className={`badge ${item.status === "conflict" ? "warn" : item.status === "new" ? "good" : ""}`}>{item.status}</span>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+        <div className="actions modal-actions">
+          <button onClick={props.onClose}>{t.cancel}</button>
+          <button onClick={createPlan} disabled={isBusy || !targetProjectRoot || selectedSkills.length === 0}>{t.createPlan}</button>
+          <button className="primary" onClick={runMerge} disabled={isBusy || !plan || plan.hasConflicts}>{t.runMerge}</button>
+        </div>
       </section>
     </div>
   );

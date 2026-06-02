@@ -6,6 +6,7 @@ import { parseRemoteSource, shareTargetSubdir } from "./share-remote.js";
 import { currentCommit, prepareShareCheckout, runGit, withShareLock } from "./share-git.js";
 import { readShareManifest, shareManifestEntries, shareNamespace, staleShareManifestEntries, resolveShareProfile, selectProfileSkills } from "./share-sync.js";
 import { scanWorkspace } from "./workspace.js";
+import { normalizeGitRelativePath } from "./local-git.js";
 
 export interface ShareDriftOptions {
   root: string;
@@ -116,7 +117,7 @@ async function deletedEntryFiles(targetPath: string): Promise<DriftFileDiff[]> {
 function sameRepositoryDriftReport(snapshot: WorkspaceSnapshot, profileName: string, remoteName?: string): Promise<DriftReport> {
   const { localGit, remote } = resolveSameRepository(snapshot, remoteName);
   const remoteUrl = remote.pushUrl || remote.fetchUrl || "";
-  const targetPath = localGit.relativePath || ".";
+  const targetPath = normalizeGitRelativePath(localGit.relativePath || ".");
   const targetDir = targetPath === "." ? localGit.root : path.join(localGit.root, targetPath);
   return runGit(localGit.root, ["status", "--porcelain", "--", targetPath], []).then((output) => {
     const files = parseGitStatus(output);

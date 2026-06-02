@@ -1,0 +1,56 @@
+metadata:
+  path: tech/_shared/models/AppliedSourceRecord.yaml
+  domain: shared
+  entity_name: AppliedSourceRecord
+  storage: ~/.skillops/projects/<project-key>.json
+  owner: core/project-store
+  version: 1
+  created: 2026-06-01
+  updated: 2026-06-01
+type: object
+required:
+  - id
+  - sourceRoot
+  - profile
+  - targetDir
+  - skills
+  - updatedAt
+properties:
+  id:
+    type: string
+    description: Stable applied source record identifier.
+  sourceRoot:
+    type: string
+    description: Local Skill project root used as the application source.
+  sourceRemoteUrl:
+    type: string
+    nullable: true
+    description: Remote URL originally resolved for the source project, when available.
+  sourceName:
+    type: string
+    nullable: true
+    description: User-facing source name captured for display and sorting.
+  profile:
+    type: string
+    description: Profile name used from the source Skill project.
+  targetDir:
+    type: string
+    description: Target directory relative to the current project unless absolute.
+  skills:
+    type: array
+    items:
+      type: string
+    description: Skill names governed by this applied source record.
+  sourceCommit:
+    type: string
+    nullable: true
+    description: Source Skill project commit hash captured when available.
+  appliedAt:
+    type: string
+    format: date-time
+    nullable: true
+    description: Last time the record was applied to the target directory.
+  updatedAt:
+    type: string
+    format: date-time
+    description: Last time the applied source record was changed.

@@ -55,10 +55,11 @@ Use SkillOps when you need a local governance step before skills are copied into
 | Scenario | Use SkillOps for | Main path |
 |---|---|---|
 | Private team skill repo | keep skill changes reviewed in Git without running a registry | scan, audit, profiles, GitHub share |
-| Per-project agent setup | install only the approved skills a project should use | profiles, apply-profile, drift |
-| GitHub-sourced skill project maintenance | see whether the local source checkout is behind upstream before choosing to update | source status, source update |
+| Per-project agent setup | install only the approved skills a project should use | apply, drift, applied |
+| Project-born skill maintenance | merge useful project skills into another Skill project and keep the current project as an applied target | merge, applied |
+| GitHub-sourced skill project maintenance | see whether the current Git checkout is behind upstream before choosing to update | source status, source update |
 | Pre-publication review | catch secrets, risky instructions, weak metadata, and internal references | audit, publish-plan |
-| Multi-agent drift control | compare installed copies with the source repository | drift, apply-profile |
+| Multi-agent drift control | compare installed copies with the source Skill project | drift, applied |
 | Local skill editing | inspect and edit `SKILL.md`, references, and scripts without leaving the workspace | desktop skill file editor |
 | CI guardrail | produce JSON checks before sharing or publishing | CLI commands |
 
@@ -170,19 +171,23 @@ node dist/cli/index.js help
 Common commands:
 
 ```bash
-skillops init --root .
 skillops scan --root .
 skillops audit --root .
-skillops apply-profile --root . --profile default --target ~/.codex/skills
-skillops drift --root . --profile default --target ~/.codex/skills
 skillops source status --root .
 skillops source update --root . --confirm
+skillops merge plan --root . --to ../team-skills --skills code-review --target-path skills/project-a
+skillops merge run --root . --to github.com/acme/team-skills --skills code-review --target-path skills/project-a --confirm
+skillops applied list --root .
+skillops applied drift --root .
+skillops apply --from ../team-skills --profile default --target ~/.codex/skills
+skillops drift --from github.com/acme/team-skills --profile default --target ~/.codex/skills
 skillops publish-plan --root . --visibility public
-skillops share --root . --repo github.com/acme/team-skills --profile frontend --message "Share frontend skills"
+skillops share plan --root . --repo github.com/acme/team-skills --profile frontend
+skillops share run --root . --repo github.com/acme/team-skills --profile frontend --message "Share frontend skills" --confirm
 skillops doctor
 ```
 
-For projects opened from GitHub, `source status` fetches upstream metadata and reports how many commits the local checkout is ahead or behind, plus how long it had been since the previous fetch. `source update` only runs after `--confirm`, uses a fast-forward-only pull, and stops when the source has local commits or uncommitted changes.
+Remote Skill projects passed to `merge`, `apply`, or `drift` are downloaded to a local cache first and then treated as local folders. `source status` and `source update` are independent Git checkout operations: they inspect the current `--root`, report ahead/behind status, and only update with `--confirm` using a fast-forward-only pull.
 
 ## Project Status
 

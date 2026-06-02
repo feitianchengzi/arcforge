@@ -1,0 +1,36 @@
+metadata:
+  path: tech/_shared/contracts/workspace-add-remote.yaml
+  domain: workspace
+  owner: electron/main
+  version: 3
+  created: 2026-06-01
+  updated: 2026-06-01
+endpoint:
+  transport: electron-ipc
+  channel: workspace:addRemote
+  method_name: addRemoteWorkspace
+  summary: Download or reuse a remote GitHub/Git Skill project and return its local cached root path.
+  auth_required: false
+request:
+  args:
+    - name: remoteUrl
+      type: string
+      required: true
+responses:
+  success:
+    schema:
+      type: string
+      description: Local cached Skill project root path.
+  errors:
+    - code: REMOTE_URL_REQUIRED
+      message: Remote URL is required.
+    - code: REMOTE_URL_INVALID
+      message: Use a GitHub path or full Git URL.
+    - code: GIT_COMMAND_FAILED
+      message: Git clone, fetch, checkout or cache reuse failed.
+business_logic:
+  flow:
+    - Normalize GitHub shorthand, GitHub URL or full Git URL.
+    - Clone or fetch into the app cache directory through the source resolver.
+    - Load the cached project config to resolve the Skill project root.
+    - Return the local root so the desktop can open or use it directly.

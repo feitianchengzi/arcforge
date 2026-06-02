@@ -93,6 +93,47 @@ export interface SkillOpsConfig {
   profiles: SkillOpsProfile[];
 }
 
+export interface AppliedSourceRecord {
+  id: string;
+  sourceRoot: string;
+  sourceName?: string;
+  sourceRemoteUrl?: string;
+  profile: string;
+  targetDir: string;
+  skills: string[];
+  sourceCommit?: string;
+  appliedAt?: string;
+  updatedAt: string;
+}
+
+export interface MergeSkillPlanItem {
+  name: string;
+  sourcePath: string;
+  targetPath: string;
+  status: "new" | "same" | "conflict";
+  files?: DriftFileDiff[];
+}
+
+export interface MergePlan {
+  root: string;
+  targetProjectRoot: string;
+  targetProjectName: string;
+  targetPath: string;
+  profile: string;
+  targetDir: string;
+  skills: MergeSkillPlanItem[];
+  appliedRecord: AppliedSourceRecord;
+  hasConflicts: boolean;
+}
+
+export interface MergeResult {
+  plan: MergePlan;
+  copied: string[];
+  skipped: string[];
+  appliedRecord: AppliedSourceRecord;
+  messages: string[];
+}
+
 export interface ApplyTargetGroup {
   id: string;
   name: string;
@@ -187,12 +228,6 @@ export interface DriftReport {
   messages?: string[];
 }
 
-export interface SourceUpdateCheckRecord {
-  checkedAt: string;
-  status?: SourceUpdateStatus;
-  error?: string;
-}
-
 export interface ApplyDriftCheckRecord {
   checkedAt: string;
   signature?: string;
@@ -204,6 +239,12 @@ export interface ShareDriftCheckRecord {
   checkedAt: string;
   signature?: string;
   report?: DriftReport;
+  error?: string;
+}
+
+export interface SourceUpdateCheckRecord {
+  checkedAt: string;
+  status?: SourceUpdateStatus;
   error?: string;
 }
 
@@ -305,9 +346,9 @@ export interface ProjectUiState {
   profile?: string;
   applyTargetGroupId?: string;
   shareTargetGroupId?: string;
-  sourceUpdateCheck?: SourceUpdateCheckRecord;
   applyDriftChecks?: Record<string, ApplyDriftCheckRecord>;
   shareDriftChecks?: Record<string, ShareDriftCheckRecord>;
+  sourceUpdateCheck?: SourceUpdateCheckRecord;
 }
 
 export interface AppState {

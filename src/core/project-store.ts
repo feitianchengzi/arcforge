@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import type { SkillOpsConfig } from "../shared/types.js";
+import type { AppliedSourceRecord, SkillOpsConfig } from "../shared/types.js";
 import { pathExists, writeJson } from "./fs.js";
 import { detectLocalGitSource } from "./local-git.js";
 
@@ -12,6 +12,7 @@ export interface LocalProjectState {
   root: string;
   identity: ProjectIdentity;
   config?: SkillOpsConfig;
+  appliedSources?: AppliedSourceRecord[];
   updatedAt: string;
 }
 
@@ -40,6 +41,22 @@ export async function loadLocalProjectState(root: string): Promise<LocalProjectS
 }
 
 export async function saveLocalProjectConfig(root: string, config: SkillOpsConfig): Promise<LocalProjectState> {
+  const current = await loadLocalProjectState(root);
+  return saveLocalProjectState(root, {
+    config,
+    appliedSources: current?.appliedSources
+  });
+}
+
+export async function saveLocalProjectAppliedSources(root: string, appliedSources: AppliedSourceRecord[]): Promise<LocalProjectState> {
+  const current = await loadLocalProjectState(root);
+  return saveLocalProjectState(root, {
+    config: current?.config,
+    appliedSources
+  });
+}
+
+async function saveLocalProjectState(root: string, patch: Pick<LocalProjectState, "config" | "appliedSources">): Promise<LocalProjectState> {
   const identity = await identifyProject(root);
   const projectKey = projectKeyForIdentity(identity);
   const state: LocalProjectState = {
@@ -47,7 +64,8 @@ export async function saveLocalProjectConfig(root: string, config: SkillOpsConfi
     projectKey,
     root: path.resolve(root),
     identity,
-    config,
+    config: patch.config,
+    appliedSources: patch.appliedSources,
     updatedAt: new Date().toISOString()
   };
   await writeJson(path.join(projectStoreDir(), `${projectKey}.json`), state);

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, FolderOpen, HardDrive, Pencil, Plus, Trash2 } from "lucide-react";
-import type { ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
+import type { AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import type { DefaultTarget } from "../types";
 import { basename, createApplyTargetGroup, formatDate, formatTimeAgo, resolveApplyTargetEntries, selectedSkillCount, summarizeApplyResults } from "../utils";
@@ -21,11 +21,16 @@ export function ApplySkills(props: {
   driftReports: DriftReport[];
   driftCheck?: ApplyDriftCheckRecord;
   driftSignature: string;
+  autoCheckReady: boolean;
   isCheckingDrift: boolean;
   applyResults: ApplyProfileResult[];
+  appliedSources: AppliedSourceRecord[];
+  appliedSourceDriftReports: DriftReport[];
   targetHistory: TargetRecord[];
   checkTargetGroupDrift: (group: ApplyTargetGroup) => void;
   applyTargetGroup: (group: ApplyTargetGroup) => void;
+  checkAppliedSourceDrift: (id?: string) => void;
+  runAppliedSource: (id?: string) => void;
   openDriftDiff: (report: DriftReport) => void;
 }) {
   const { t } = props;
@@ -39,10 +44,11 @@ export function ApplySkills(props: {
   const displayedAtMs = useMemo(() => Date.now(), [props.snapshot.root, activeGroup?.id, props.driftCheck?.checkedAt]);
 
   useEffect(() => {
+    if (!props.autoCheckReady) return;
     if (!activeGroup || props.isCheckingDrift || selectedTargets.length === 0) return;
     if (!isStaleCheck(props.driftCheck, props.driftSignature)) return;
     props.checkTargetGroupDrift(activeGroup);
-  }, [activeGroup?.id, props.driftCheck?.checkedAt, props.driftCheck?.signature, props.driftSignature, props.isCheckingDrift, selectedTargets.length]);
+  }, [props.autoCheckReady, activeGroup?.id, props.driftCheck?.checkedAt, props.driftCheck?.signature, props.driftSignature, props.isCheckingDrift, selectedTargets.length]);
 
   function upsertGroup(group: ApplyTargetGroup) {
     const existing = props.targetGroups.some((item) => item.id === group.id);
@@ -91,6 +97,24 @@ export function ApplySkills(props: {
                   <span>{item.destinationPath}</span>
                 </div>
                 <span>{t.lastApplied}: {formatDate(item.lastAppliedAt)}</span>
+              </article>
+            ))}
+          </div>
+        )}
+        <h4>{t.appliedSources}</h4>
+        {props.appliedSources.length === 0 ? <p className="muted">{t.noAppliedSources}</p> : (
+          <div className="list">
+            {props.appliedSources.map((record) => (
+              <article key={record.id} className="row stacked">
+                <div>
+                  <strong>{record.sourceName ?? record.sourceRoot}</strong>
+                  <p>{t.appliedSourceSummary(record.skills.length, record.profile)}</p>
+                  <span>{record.targetDir}</span>
+                </div>
+                <div className="actions">
+                  <button onClick={() => props.checkAppliedSourceDrift(record.id)} disabled={props.isCheckingDrift}>{props.isCheckingDrift ? t.checkingDrift : t.checkDrift}</button>
+                  <button onClick={() => props.runAppliedSource(record.id)}>{t.reapply}</button>
+                </div>
               </article>
             ))}
           </div>
@@ -163,6 +187,22 @@ export function ApplySkills(props: {
               </article>
             ))}
           </div>
+        )}
+        {props.appliedSourceDriftReports.length > 0 && (
+          <>
+            <h4>{t.appliedSources}</h4>
+            <div className="list">
+              {props.appliedSourceDriftReports.map((report) => (
+                <article key={`applied-${report.targetDir}`} className="row stacked">
+                  <div>
+                    <strong>{report.targetDir}</strong>
+                    <p>{report.items.filter((item) => item.status !== "same").length} changed / {report.items.length} checked</p>
+                  </div>
+                  <button onClick={() => props.openDriftDiff(report)}><ExternalLink size={16} /> {t.viewDiff}</button>
+                </article>
+              ))}
+            </div>
+          </>
         )}
       </section>
       {editingGroup && (

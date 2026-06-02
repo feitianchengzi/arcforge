@@ -4,7 +4,7 @@
 
 配置组同步方案负责从工作区配置中选择技能，把技能和共享资产复制到目标目录，并通过哈希比较生成漂移报告。
 
-方案由 `applyProfile` 和 `driftReport` 两个 core 能力组成。桌面端和 CLI 均复用这两个能力。
+方案由 `applyProfile` 和 `driftReport` 两个 core 能力组成。应用关系、桌面端和 CLI 均复用这两个能力。
 
 ## 配置组选取
 
@@ -24,7 +24,7 @@
 
 目标目录使用工作区根目录和调用方传入的目标路径解析为绝对路径。
 
-CLI 默认目标路径为 `.skillops/skills`。
+CLI 调用方负责传入目标路径。归并生成的应用关系默认目标路径为 `.skillops/skills`。
 
 桌面端可以传入 agent 默认目录、用户选择的项目目录或自定义路径。
 
@@ -80,6 +80,6 @@ CLI 默认目标路径为 `.skillops/skills`。
 
 ## 关联契约
 
-该方案由 `profile-apply` 和 `profile-drift` 契约暴露给桌面端。
+该方案由 `apply-run` 和 `apply-drift` 契约暴露给桌面端。
 
-CLI 的 `apply-profile` 和 `drift` 命令复用该方案并输出 JSON。
+CLI 的 `apply`、`drift`、`applied drift` 和 `applied run` 命令复用该方案并输出 JSON。

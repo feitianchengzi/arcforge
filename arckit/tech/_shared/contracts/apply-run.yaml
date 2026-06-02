@@ -1,0 +1,56 @@
+metadata:
+  path: tech/_shared/contracts/apply-run.yaml
+  domain: profiles-sync
+  owner: electron/main
+  version: 3
+  created: 2026-06-01
+  updated: 2026-06-01
+endpoint:
+  transport: electron-ipc
+  channel: apply:run
+  method_name: applyFromSource
+  summary: Copy a profile from the current workspace or another Skill project into a target directory.
+  auth_required: false
+request:
+  args:
+    - name: root
+      type: string
+      required: true
+    - name: from
+      type: string
+      required: false
+    - name: profile
+      type: string
+      required: true
+    - name: targetDir
+      type: string
+      required: true
+    - name: save
+      type: boolean
+      required: false
+    - name: skills
+      type: string[]
+      required: false
+responses:
+  success:
+    schema:
+      type: object
+      properties:
+        result:
+          $ref: "../models/ApplyProfileResult.yaml"
+        record:
+          $ref: "../models/AppliedSourceRecord.yaml"
+          nullable: true
+  errors:
+    - code: PROFILE_NOT_FOUND
+      message: Profile not found.
+    - code: SOURCE_NOT_FOUND
+      message: Source Skill project cannot be resolved.
+    - code: TARGET_WRITE_FAILED
+      message: Target directory cannot be created or written.
+business_logic:
+  flow:
+    - Resolve from to a local Skill project root when provided; otherwise use the current workspace.
+    - Scan the source workspace and optionally constrain the selected skills.
+    - Replace existing skill and asset directories through temporary-directory copy and atomic rename.
+    - Persist an applied source record only when save is true and from is provided.

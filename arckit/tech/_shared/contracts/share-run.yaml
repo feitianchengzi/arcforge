@@ -1,21 +1,16 @@
 metadata:
-  path: tech/_shared/contracts/publish-share.yaml
+  path: tech/_shared/contracts/share-run.yaml
   domain: sharing-ipc
   owner: electron/main
-  version: 2
-  created: 2026-05-21
-  updated: 2026-05-25
+  version: 3
+  created: 2026-06-01
+  updated: 2026-06-01
 endpoint:
   transport: electron-ipc
-  channel: publish:share
+  channel: share:run
   method_name: shareProject
   summary: Confirm and execute SkillOps sharing with branch, push and optional Pull Request creation.
   auth_required: false
-companion_endpoint:
-  transport: electron-ipc
-  channel: publish:sharePlan
-  method_name: createSharePlan
-  summary: Generate a share plan, inspect GitHub permissions and choose a recommended delivery method without remote writes.
 request:
   args:
     - name: root
@@ -66,8 +61,6 @@ request:
       type: string
       required: false
 responses:
-  plan:
-    description: publish:sharePlan returns PublishPlan, GitHub access result, recommended delivery, share branch, target path and CLI commands.
   success:
     schema:
       $ref: "../models/ShareResult.yaml"

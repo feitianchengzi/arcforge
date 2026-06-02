@@ -11,6 +11,7 @@ import { createPublishPlan } from "./publish.js";
 import { parseRemoteSource, remoteProjectRef, repoName, shareTargetSubdir, sourceProjectRoot } from "./share-remote.js";
 import { SHARE_MANIFEST_FILE, namespaceProfiles, normalizeConfig, resolveShareProfile, selectProfileSkills, shareNamespace, syncProjectToShareTarget } from "./share-sync.js";
 import { scanWorkspace } from "./workspace.js";
+import { normalizeGitRelativePath } from "./local-git.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -46,7 +47,7 @@ export async function createSharePlan(options: ShareProjectOptions): Promise<Sha
     const remoteUrl = sameRepository.remote.pushUrl || sameRepository.remote.fetchUrl || options.remoteUrl;
     const access = sameRepositoryAccess(remoteUrl, sameRepository.remote, []);
     const branch = sameRepository.localGit.currentBranch || "HEAD";
-    const targetPath = sameRepository.localGit.relativePath || ".";
+    const targetPath = normalizeGitRelativePath(sameRepository.localGit.relativePath || ".");
     const plan = await createPublishPlan(root, snapshot.config, selectedSkills, options.visibility);
     return {
       plan,
@@ -57,7 +58,7 @@ export async function createSharePlan(options: ShareProjectOptions): Promise<Sha
       targetPath,
       sameRepository: true,
       localGit: sameRepository.localGit,
-      commands: sameRepositoryCommands(sameRepository.localGit.root, sameRepository.remote.name, branch, targetPath)
+      commands: sameRepositoryCommands(sameRepository.localGit.root, sameRepository.remote.name, branch, targetPath, options.message)
     };
   }
   const target = parseRemoteSource(options.remoteUrl);
@@ -84,6 +85,7 @@ export async function createSharePlan(options: ShareProjectOptions): Promise<Sha
       targetMode,
       projectName,
       profileName: options.profileName,
+      message: options.message,
       delivery,
       branch,
       confirm: false
@@ -263,7 +265,7 @@ async function shareSameRepositoryProject(
   });
   await saveConfig(root, localConfig);
 
-  const targetPath = sameRepository.localGit.relativePath || ".";
+  const targetPath = normalizeGitRelativePath(sameRepository.localGit.relativePath || ".");
   await runGit(sameRepository.localGit.root, ["add", "--", targetPath], messages);
   const committed = await commitPathIfChanged(sameRepository.localGit.root, targetPath, options.message, messages);
   const commitHash = await currentCommit(sameRepository.localGit.root, messages);
@@ -299,7 +301,7 @@ async function shareSameRepositoryProject(
     delivery: "directPush",
     commitHash,
     access: sameRepositoryAccess(remoteUrl, sameRepository.remote, messages),
-    manualCommands: sameRepositoryCommands(sameRepository.localGit.root, sameRepository.remote.name, branch, targetPath),
+    manualCommands: sameRepositoryCommands(sameRepository.localGit.root, sameRepository.remote.name, branch, targetPath, options.message),
     errorStage,
     messages
   };
@@ -396,6 +398,7 @@ function shareCommands(options: {
   targetMode: ShareTargetMode;
   projectName?: string;
   profileName?: string;
+  message?: string;
   delivery: ShareDeliveryMethod;
   branch: string;
   confirm: boolean;
@@ -419,6 +422,7 @@ function shareCommands(options: {
   ];
   if (options.projectName) base.push("--project-name", shellArg(options.projectName));
   if (options.profileName) base.push("--profile", shellArg(options.profileName));
+  if (options.message?.trim()) base.push("--message", shellArg(options.message.trim()));
   if (options.confirm) base.push("--confirm");
   return [
     base.join(" "),
@@ -440,10 +444,11 @@ function manualShareCommands(delivery: ShareDeliveryMethod, branch: string, base
   return commands;
 }
 
-function sameRepositoryCommands(root: string, remoteName: string, branch: string, targetPath: string): string[] {
+function sameRepositoryCommands(root: string, remoteName: string, branch: string, targetPath: string, message?: string): string[] {
+  const commitMessage = message?.trim() || "Share SkillOps project";
   return [
     `git -C ${shellArg(root)} add -- ${shellArg(targetPath)}`,
-    `git -C ${shellArg(root)} commit -m ${shellArg("Share SkillOps project")} -- ${shellArg(targetPath)}`,
+    `git -C ${shellArg(root)} commit -m ${shellArg(commitMessage)} -- ${shellArg(targetPath)}`,
     `git -C ${shellArg(root)} push -u ${shellArg(remoteName)} ${shellArg(branch)}`
   ];
 }

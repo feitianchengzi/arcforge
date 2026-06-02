@@ -28,7 +28,7 @@ properties:
     type: array
     items:
       type: string
-    description: Skill names skipped by apply-profile. Existing target directories are replaced, so this is normally empty.
+    description: Skill names skipped by profile application. Existing target directories are replaced, so this is normally empty.
   copiedAssets:
     type: array
     nullable: true
@@ -40,7 +40,7 @@ properties:
     nullable: true
     items:
       type: string
-    description: Shared asset names skipped by apply-profile. Existing target directories are replaced, so this is normally empty.
+    description: Shared asset names skipped by profile application. Existing target directories are replaced, so this is normally empty.
 validation:
   replace_existing:
-    description: Existing target directories are removed and copied again from the source by apply-profile.
+    description: Existing target directories are removed and copied again from the source by profile application.

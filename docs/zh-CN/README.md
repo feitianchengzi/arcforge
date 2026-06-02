@@ -55,10 +55,11 @@ SkillOps 主要回答这些运营问题：
 | 场景 | 用 SkillOps 做什么 | 主要能力 |
 |---|---|---|
 | 团队私有 skill 仓库 | 不搭 registry，也能让 skill 变更经过 Git review | scan、audit、profiles、GitHub share |
-| 按项目配置 agent | 每个项目只安装它应该使用的已批准 skills | profiles、apply-profile、drift |
-| 维护 GitHub 来源项目 | 先查看本地来源落后上游多少 commit，再自主决定是否更新 | source status、source update |
+| 按项目配置 agent | 每个项目只安装它应该使用的已批准 skills | apply、drift、applied |
+| 项目内自然产生的 skill 正式维护 | 把业务项目中的可复用 skill 归并到另一个 Skill 项目，并让当前项目成为应用目标 | merge、applied |
+| 维护 GitHub 来源项目 | 先查看当前 Git checkout 落后上游多少 commit，再自主决定是否更新 | source status、source update |
 | 公开发布前检查 | 检查 secrets、风险指令、薄弱 metadata 和内部引用 | audit、publish-plan |
-| 多 agent 漂移控制 | 比较已安装副本和源仓库是否一致 | drift、apply-profile |
+| 多 agent 漂移控制 | 比较已安装副本和来源 Skill 项目是否一致 | drift、applied |
 | 本地编辑 skill | 不离开工作台即可查看和编辑 `SKILL.md`、references 与 scripts | 桌面端技能文件编辑器 |
 | CI 守门 | 在共享或发布前输出 JSON 检查结果 | CLI commands |
 
@@ -170,19 +171,23 @@ node dist/cli/index.js help
 常用命令：
 
 ```bash
-skillops init --root .
 skillops scan --root .
 skillops audit --root .
-skillops apply-profile --root . --profile default --target ~/.codex/skills
-skillops drift --root . --profile default --target ~/.codex/skills
 skillops source status --root .
 skillops source update --root . --confirm
+skillops merge plan --root . --to ../team-skills --skills code-review --target-path skills/project-a
+skillops merge run --root . --to github.com/acme/team-skills --skills code-review --target-path skills/project-a --confirm
+skillops applied list --root .
+skillops applied drift --root .
+skillops apply --from ../team-skills --profile default --target ~/.codex/skills
+skillops drift --from github.com/acme/team-skills --profile default --target ~/.codex/skills
 skillops publish-plan --root . --visibility public
-skillops share --root . --repo github.com/acme/team-skills --profile frontend --message "Share frontend skills"
+skillops share plan --root . --repo github.com/acme/team-skills --profile frontend
+skillops share run --root . --repo github.com/acme/team-skills --profile frontend --message "Share frontend skills" --confirm
 skillops doctor
 ```
 
-对于从 GitHub 打开的项目，`source status` 会获取上游元数据，并报告本地 checkout 相对上游 ahead/behind 的 commit 数，以及距离上一次 fetch 已经过了多久。`source update` 只有在显式传入 `--confirm` 后才会执行快进更新；当本地有未提交改动或领先上游的提交时，命令会停止并要求用户手动处理。
+传给 `merge`、`apply` 或 `drift` 的远程 Skill 项目会先下载到本地缓存，然后以本地目录参与后续操作。`source status` 和 `source update` 是独立的 Git checkout 操作：它们只检查当前 `--root`，报告 ahead/behind 状态，并且只有在显式传入 `--confirm` 后才会执行 fast-forward-only 更新。
 
 ## 项目状态
 

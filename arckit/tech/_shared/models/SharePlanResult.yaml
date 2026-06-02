@@ -1,0 +1,54 @@
+metadata:
+  path: tech/_shared/models/SharePlanResult.yaml
+  domain: sharing-ipc
+  entity_name: SharePlanResult
+  storage: in_memory
+  owner: electron/main
+  version: 1
+  created: 2026-06-01
+  updated: 2026-06-01
+type: object
+required:
+  - plan
+  - access
+  - delivery
+  - requiresConfirm
+  - branch
+  - targetPath
+  - commands
+properties:
+  plan:
+    $ref: "./PublishPlan.yaml"
+    description: File list, install commands and release checklist for the shared project.
+  access:
+    type: object
+    description: GitHub access and delivery capability result.
+  delivery:
+    type: string
+    enum:
+      - targetPullRequest
+      - forkPullRequest
+      - directPush
+      - localBranch
+    description: Recommended or requested delivery method.
+  requiresConfirm:
+    type: boolean
+    description: True when share:run requires explicit confirmation before remote writes.
+  branch:
+    type: string
+    description: Share branch name.
+  targetPath:
+    type: string
+    description: Repository-relative target path.
+  commands:
+    type: array
+    items:
+      type: string
+    description: Manual commands that mirror the planned sharing operation.
+  sameRepository:
+    type: boolean
+    nullable: true
+    description: True when sharing writes back to the current Git repository.
+validation:
+  no_remote_write:
+    description: share:plan never commits, pushes or creates Pull Requests.

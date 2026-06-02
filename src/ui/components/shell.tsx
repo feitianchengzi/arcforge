@@ -77,7 +77,7 @@ export function AddProjectDialog(props: {
   sharedSourceUrl: string;
   setSharedSourceUrl: (value: string) => void;
   chooseWorkspace: () => void;
-  downloadSharedSource: () => void;
+  addRemoteSource: () => void;
   currentSourceKind?: "local" | "github";
   currentSourceValue?: string;
   onClose: () => void;
@@ -119,7 +119,7 @@ export function AddProjectDialog(props: {
             </div>
             <div className="download-source light">
               <input value={props.sharedSourceUrl} placeholder={t.sharedSourcePlaceholder} onChange={(event) => props.setSharedSourceUrl(event.target.value)} />
-              <button onClick={props.downloadSharedSource} disabled={!props.sharedSourceUrl.trim()}>{t.downloadSource}</button>
+              <button onClick={props.addRemoteSource} disabled={!props.sharedSourceUrl.trim()}>{t.addRemoteSource}</button>
             </div>
           </article>}
         </div>

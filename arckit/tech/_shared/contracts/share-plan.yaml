@@ -1,0 +1,68 @@
+metadata:
+  path: tech/_shared/contracts/share-plan.yaml
+  domain: sharing-ipc
+  owner: electron/main
+  version: 1
+  created: 2026-06-01
+  updated: 2026-06-01
+endpoint:
+  transport: electron-ipc
+  channel: share:plan
+  method_name: createSharePlan
+  summary: Generate a GitHub sharing plan, permission result, delivery choice, branch and commands without remote writes.
+  auth_required: false
+request:
+  args:
+    - name: root
+      type: string
+      required: true
+    - name: remoteUrl
+      type: string
+      required: true
+    - name: visibility
+      type: string
+      required: true
+      enum:
+        - private
+        - public
+    - name: targetMode
+      type: string
+      required: true
+      enum:
+        - direct
+        - namedProject
+    - name: projectName
+      type: string
+      required: true
+    - name: profileName
+      type: string
+      required: true
+    - name: message
+      type: string
+      required: false
+    - name: delivery
+      type: string
+      required: false
+    - name: branch
+      type: string
+      required: false
+    - name: sameRepository
+      type: boolean
+      required: false
+    - name: sameRepositoryRemote
+      type: string
+      required: false
+responses:
+  success:
+    schema:
+      $ref: "../models/SharePlanResult.yaml"
+  errors:
+    - code: REMOTE_URL_REQUIRED
+      message: Remote URL is required unless sameRepository is true.
+    - code: DELIVERY_UNAVAILABLE
+      message: Requested delivery method is not available for the current GitHub access state.
+business_logic:
+  flow:
+    - Resolve direct, named project or same-repository target.
+    - Inspect GitHub access and delivery options.
+    - Build a plan without committing, pushing or creating a Pull Request.

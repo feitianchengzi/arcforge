@@ -331,6 +331,13 @@ button.active {
   gap: var(--space-sm);
   align-items: stretch;
 }
+.file-tree-title-row {
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+}
 .file-tree-title {
   display: inline-flex;
   align-items: baseline;

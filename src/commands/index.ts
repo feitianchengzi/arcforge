@@ -1,12 +1,12 @@
 import path from "node:path";
-import { scanWorkspace, initWorkspace } from "../core/workspace.js";
+import { scanWorkspace } from "../core/workspace.js";
 import { createPublishPlan } from "../core/publish.js";
-import { applyProfile, driftReport } from "../core/profiles.js";
-import { createSharePlan, downloadSource, shareProject, type ShareProjectOptions } from "../core/share.js";
+import { createSharePlan, shareProject, type ShareProjectOptions } from "../core/share.js";
 import { shareDriftReport, type ShareDriftOptions } from "../core/share-drift.js";
 import { getEnvironmentStatus } from "../core/environment.js";
-import { checkSourceUpdate, updateSource } from "../core/source-update.js";
 import { skillOpsHome } from "../core/project-store.js";
+import { addAppliedSource, applyFromSource, createMergePlan, driftAppliedSources, driftFromSource, listAppliedSources, mergeIntoProject, removeAppliedSource, runAppliedSources } from "../core/sources.js";
+import { checkSourceUpdate, updateSource } from "../core/source-update.js";
 import type { CliShimOptions } from "../core/cli-install.js";
 import type { ShareDeliveryMethod, ShareTargetMode } from "../shared/types.js";
 
@@ -30,14 +30,15 @@ Usage:
   skillops <command> [options]
 
 Commands:
-  init             Create or refresh local SkillOps project state
   scan             Scan skills, shared assets, and audit status
   audit            Print audit report; exits 2 on critical findings
-  publish-plan     Generate a GitHub-first release checklist
+  source           Check or update the current Git checkout
+  merge            Merge project skills into another Skill project
+  applied          Manage applied source records for the current project
+  apply            Copy a profile into an agent or project target
   drift            Compare a profile against an installed target
-  apply-profile    Copy a profile into an agent or project target
+  publish-plan     Generate a GitHub-first release checklist
   share            Plan or execute GitHub-first sharing
-  source           Check or update the GitHub source checkout
   doctor           Check Git, CLI install, and optional tools
 
 Common options:
@@ -47,43 +48,28 @@ Common options:
 Examples:
   skillops scan --root .
   skillops audit --root .
-  skillops apply-profile --root . --profile default --target ~/.codex/skills
-  skillops share plan --root . --repo github.com/acme/team-skills --profile frontend
-  skillops share run --root . --repo github.com/acme/team-skills --profile frontend --confirm
   skillops source status --root .
   skillops source update --root . --confirm
+  skillops merge plan --root . --to ../team-skills --skills review --target-path skills/project-a
+  skillops merge run --root . --to github.com/acme/team-skills --skills review --target-path skills/project-a --confirm
+  skillops applied drift --root .
+  skillops apply --from ../team-skills --profile default --target ~/.codex/skills
+  skillops share plan --root . --repo github.com/acme/team-skills --profile frontend
+  skillops share run --root . --repo github.com/acme/team-skills --profile frontend --confirm
   skillops doctor
 
 Help:
   skillops help <command>
   skillops <command> --help
-
-Install:
-  Requires Node.js 20 or newer on PATH.
-  curl -fsSL https://github.com/feitianchengzi/skillops/releases/latest/download/install.sh | sh
 `;
 
 const commandHelpText: Record<string, string> = {
-  init: `SkillOps CLI - init
-
-Create or refresh local SkillOps project state under ~/.skillops/projects.
-This does not write skillops.config.json into the source checkout.
-
-Usage:
-  skillops init [--root <dir>]
-
-Options:
-  --root <dir>  Workspace root. Defaults to current directory.
-`,
   scan: `SkillOps CLI - scan
 
 Scan skills, shared assets, and audit status. Outputs JSON.
 
 Usage:
   skillops scan [--root <dir>]
-
-Options:
-  --root <dir>  Workspace root. Defaults to current directory.
 `,
   audit: `SkillOps CLI - audit
 
@@ -91,9 +77,55 @@ Print the audit report as JSON. Exits 2 when critical findings exist.
 
 Usage:
   skillops audit [--root <dir>]
+`,
+  source: `SkillOps CLI - source
+
+Check or update any Git checkout. This is independent from Skill project merge or apply relationships.
+
+Usage:
+  skillops source status [--root <dir>]
+  skillops source update [--root <dir>] --confirm
+`,
+  merge: `SkillOps CLI - merge
+
+Merge current project skills into another Skill project and record that project as the applied source.
+
+Usage:
+  skillops merge plan --to <path-or-url> --target-path <dir> [options]
+  skillops merge run --to <path-or-url> --target-path <dir> [options] --confirm
 
 Options:
-  --root <dir>  Workspace root. Defaults to current directory.
+  --root <dir>         Current project root. Defaults to current directory.
+  --to <path-or-url>   Target Skill project path, GitHub shorthand or Git URL.
+  --skills <a,b>       Skills to merge. Defaults to the selected profile.
+  --profile <name>     Profile to update in the target project. Defaults to default.
+  --target-path <dir>  Directory in the target project where skills are written.
+  --target <dir>       Applied target directory recorded for the current project. Defaults to .skillops/skills.
+`,
+  applied: `SkillOps CLI - applied
+
+Manage the current project's applied source records.
+
+Usage:
+  skillops applied list [--root <dir>]
+  skillops applied add --from <path-or-url> --profile <name> --target <dir> [--skills <a,b>]
+  skillops applied remove <id> [--root <dir>]
+  skillops applied drift [--root <dir>] [--id <record-id>]
+  skillops applied run [--root <dir>] [--id <record-id>] --confirm
+`,
+  apply: `SkillOps CLI - apply
+
+Copy a profile from another Skill project or the current workspace into a target directory. Outputs JSON.
+
+Usage:
+  skillops apply [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir> [--save]
+`,
+  drift: `SkillOps CLI - drift
+
+Compare a profile from another Skill project or the current workspace against an installed target directory. Outputs JSON.
+
+Usage:
+  skillops drift [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir>
 `,
   "publish-plan": `SkillOps CLI - publish-plan
 
@@ -101,34 +133,6 @@ Generate a GitHub-first release checklist and install command hints. This comman
 
 Usage:
   skillops publish-plan [--root <dir>] [--visibility private|public]
-
-Options:
-  --root <dir>                  Workspace root. Defaults to current directory.
-  --visibility private|public   Release visibility. Defaults to private.
-`,
-  drift: `SkillOps CLI - drift
-
-Compare a profile from the source workspace against an installed target directory. Outputs JSON.
-
-Usage:
-  skillops drift [--root <dir>] [--profile <name>] [--target <dir>]
-
-Options:
-  --root <dir>      Workspace root. Defaults to current directory.
-  --profile <name>  Profile to compare. Defaults to default.
-  --target <dir>    Installed target directory. Defaults to .skillops/skills.
-`,
-  "apply-profile": `SkillOps CLI - apply-profile
-
-Copy a profile from the source workspace into an agent or project target directory. Outputs JSON.
-
-Usage:
-  skillops apply-profile [--root <dir>] [--profile <name>] [--target <dir>]
-
-Options:
-  --root <dir>      Workspace root. Defaults to current directory.
-  --profile <name>  Profile to copy. Defaults to default.
-  --target <dir>    Destination directory. Defaults to .skillops/skills.
 `,
   share: `SkillOps CLI - share
 
@@ -139,58 +143,10 @@ Usage:
   skillops share run --repo <repo> [options] --confirm
   skillops share plan --same-repository [options]
   skillops share run --same-repository [options] --confirm
-  skillops share --repo <repo> [options]
-
-Required:
-  --repo <repo>                 GitHub owner/repo, GitHub URL, tree URL, or full Git URL.
-                                Not required with --same-repository.
-
-Options:
-  --root <dir>                  Workspace root. Defaults to current directory.
-  --profile <name>              Profile to share. Defaults to default.
-  --skills <a,b>                One-time skill selection. Overrides profile skills for this share.
-  --visibility private|public   Share visibility metadata. Defaults to private.
-  --target-mode direct          Use the repository path as the Skill project root.
-  --target-mode namedProject    Write under a project folder.
-  --project-name <name>         Project folder name. Required with namedProject.
-  --delivery <method>           target-pr, fork-pr, direct-push, or local-branch.
-  --branch <name>               Share branch name. Defaults to skillops/share/<project>.
-  --same-repository             Commit and push the local Skill project path to its own Git remote.
-  --same-repository-remote <n>  Git remote name to use when the local repository has multiple remotes.
-  --message <text>              Commit message. Defaults to "Share SkillOps project".
-  --confirm                     Required for remote writes with share run.
-  --cache-dir <dir>             Git worktree cache. Defaults to ~/.skillops/cache.
-
-Examples:
-  skillops share plan --root . --repo github.com/acme/team-skills --profile frontend
-  skillops share run --root . --repo github.com/acme/team-skills --delivery target-pr --confirm
-  skillops share plan --root . --repo github.com/acme/team-skills/tree/main/projects --target-mode namedProject --project-name web
-  skillops share run --root ./skills/foo --same-repository --same-repository-remote origin --confirm
-`,
-  source: `SkillOps CLI - source
-
-Check or update a Skill project that came from a GitHub/Git repository. Outputs JSON.
-
-Usage:
-  skillops source status [--root <dir>]
-  skillops source update [--root <dir>] --confirm
-
-Options:
-  --root <dir>  Workspace root. Defaults to current directory.
-  --confirm     Required for source update.
-
-Behavior:
-  status fetches the upstream remote and reports ahead/behind commit counts.
-  update performs a fast-forward-only pull after explicit confirmation.
 `,
   doctor: `SkillOps CLI - doctor
 
 Check local runtime dependencies and optional integrations. Outputs JSON.
-
-Checks:
-  Git availability
-  Desktop CLI shim status when launched from the packaged desktop app
-  Optional tools: skillshare, npx, clawhub
 
 Usage:
   skillops doctor
@@ -199,30 +155,37 @@ Usage:
 
 export async function runSkillOpsCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
   const command = args[0] ?? "help";
-  if (command === "help") {
-    return { exitCode: 0, text: helpFor(args[1]) };
-  }
+  if (command === "help") return { exitCode: 0, text: helpFor(args[1]) };
   if (command === "--help" || command === "-h" || args.includes("--help") || args.includes("-h")) {
     return { exitCode: 0, text: helpFor(command === "--help" || command === "-h" ? undefined : command) };
   }
 
-  if (command === "init") {
-    const root = arg(args, "--root") ?? runtime.cwd;
-    return { exitCode: 0, value: await initWorkspace(root) };
-  }
-
   if (command === "scan") {
-    const root = arg(args, "--root") ?? runtime.cwd;
-    return { exitCode: 0, value: await scanWorkspace(root) };
+    return { exitCode: 0, value: await scanWorkspace(arg(args, "--root") ?? runtime.cwd) };
   }
 
   if (command === "audit") {
+    const snapshot = await scanWorkspace(arg(args, "--root") ?? runtime.cwd);
+    return { exitCode: snapshot.audit.findings.some((item) => item.severity === "critical") ? 2 : 0, value: snapshot.audit };
+  }
+
+  if (command === "source") return runSourceCommand(args, runtime);
+  if (command === "merge") return runMergeCommand(args, runtime);
+  if (command === "applied") return runAppliedCommand(args, runtime);
+
+  if (command === "apply") {
     const root = arg(args, "--root") ?? runtime.cwd;
-    const snapshot = await scanWorkspace(root);
+    const profile = arg(args, "--profile") ?? "default";
     return {
-      exitCode: snapshot.audit.findings.some((item) => item.severity === "critical") ? 2 : 0,
-      value: snapshot.audit
+      exitCode: 0,
+      value: await applyFromSource(root, arg(args, "--from"), profile, requiredArg(args, "--target"), hasFlag(args, "--save"), parseSkills(arg(args, "--skills")), runtime.cacheDir ?? defaultCacheDir())
     };
+  }
+
+  if (command === "drift") {
+    const root = arg(args, "--root") ?? runtime.cwd;
+    const profile = arg(args, "--profile") ?? "default";
+    return { exitCode: 0, value: await driftFromSource(root, arg(args, "--from"), profile, requiredArg(args, "--target"), parseSkills(arg(args, "--skills")), runtime.cacheDir ?? defaultCacheDir()) };
   }
 
   if (command === "publish-plan") {
@@ -230,22 +193,6 @@ export async function runSkillOpsCommand(args: string[], runtime: CommandRuntime
     const visibility = parseVisibility(arg(args, "--visibility") ?? "private");
     const snapshot = await scanWorkspace(root);
     return { exitCode: 0, value: await createPublishPlan(root, snapshot.config, snapshot.skills, visibility) };
-  }
-
-  if (command === "drift") {
-    const root = arg(args, "--root") ?? runtime.cwd;
-    const profile = arg(args, "--profile") ?? "default";
-    const target = arg(args, "--target") ?? ".skillops/skills";
-    const snapshot = await scanWorkspace(root);
-    return { exitCode: 0, value: await driftReport(root, snapshot.config, snapshot.skills, snapshot.assets, profile, target) };
-  }
-
-  if (command === "apply-profile") {
-    const root = arg(args, "--root") ?? runtime.cwd;
-    const profile = arg(args, "--profile") ?? "default";
-    const target = arg(args, "--target") ?? ".skillops/skills";
-    const snapshot = await scanWorkspace(root);
-    return { exitCode: 0, value: await applyProfile(root, snapshot.config, snapshot.skills, snapshot.assets, profile, target) };
   }
 
   if (command === "share") {
@@ -269,51 +216,60 @@ export async function runSkillOpsCommand(args: string[], runtime: CommandRuntime
       sameRepository,
       sameRepositoryRemote: arg(args, "--same-repository-remote")
     };
-    if (action === "plan") {
-      return {
-        exitCode: 0,
-        value: await createSharePlanCommand(options)
-      };
-    }
+    if (action === "plan") return { exitCode: 0, value: await createSharePlanCommand(options) };
     const plan = !options.confirm ? await createSharePlanCommand(options) : undefined;
-    if (plan?.requiresConfirm) {
-      return {
-        exitCode: 1,
-        value: {
-          error: "Remote sharing requires --confirm.",
-          plan
-        }
-      };
-    }
-    return {
-      exitCode: 0,
-      value: await shareProjectCommand(options)
-    };
+    if (plan?.requiresConfirm) return { exitCode: 1, value: { error: "Remote sharing requires --confirm.", plan } };
+    return { exitCode: 0, value: await shareProjectCommand(options) };
   }
 
-  if (command === "source") {
-    const action = args[1] === "update" ? "update" : "status";
-    const root = arg(args, "--root") ?? runtime.cwd;
-    if (action === "update") {
-      return {
-        exitCode: 0,
-        value: await updateSource({ root, confirm: hasFlag(args, "--confirm") })
-      };
-    }
-    return {
-      exitCode: 0,
-      value: await checkSourceUpdate({ root })
-    };
-  }
-
-  if (command === "doctor") {
-    return {
-      exitCode: 0,
-      value: await getEnvironmentStatus(runtime.cliShim)
-    };
-  }
+  if (command === "doctor") return { exitCode: 0, value: await getEnvironmentStatus(runtime.cliShim) };
 
   throw new Error(`Unknown command: ${command}`);
+}
+
+async function runSourceCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
+  const action = args[1] === "update" ? "update" : "status";
+  const root = arg(args, "--root") ?? runtime.cwd;
+  if (action === "update") return { exitCode: 0, value: await updateSource({ root, confirm: hasFlag(args, "--confirm") }) };
+  return { exitCode: 0, value: await checkSourceUpdate({ root }) };
+}
+
+async function runMergeCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
+  const action = args[1] === "run" ? "run" : "plan";
+  const options = {
+    root: arg(args, "--root") ?? runtime.cwd,
+    to: requiredArg(args, "--to"),
+    targetPath: requiredArg(args, "--target-path"),
+    profile: arg(args, "--profile") ?? "default",
+    skills: parseSkills(arg(args, "--skills")),
+    targetDir: arg(args, "--target") ?? ".skillops/skills",
+    confirm: hasFlag(args, "--confirm"),
+    cacheDir: arg(args, "--cache-dir") ?? runtime.cacheDir ?? defaultCacheDir()
+  };
+  return { exitCode: 0, value: action === "run" ? await mergeIntoProject(options) : await createMergePlan(options) };
+}
+
+async function runAppliedCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
+  const action = args[1] ?? "list";
+  const root = arg(args, "--root") ?? runtime.cwd;
+  if (action === "list") return { exitCode: 0, value: await listAppliedSources(root) };
+  if (action === "add") {
+    return {
+      exitCode: 0,
+      value: await addAppliedSource({
+        root,
+        from: requiredArg(args, "--from"),
+        profile: requiredArg(args, "--profile"),
+        targetDir: requiredArg(args, "--target"),
+        skills: parseSkills(arg(args, "--skills")),
+        cacheDir: arg(args, "--cache-dir") ?? runtime.cacheDir ?? defaultCacheDir()
+      })
+    };
+  }
+  if (action === "remove") return { exitCode: 0, value: await removeAppliedSource(root, requiredPositional(args[2], "applied record id")) };
+  if (action === "drift") return { exitCode: 0, value: await driftAppliedSources(root, arg(args, "--id")) };
+  if (action === "run") return { exitCode: 0, value: await runAppliedSources(root, arg(args, "--id"), hasFlag(args, "--confirm")) };
+  throw new Error(`Unknown applied action: ${action}`);
 }
 
 function helpFor(command?: string): string {
@@ -323,60 +279,32 @@ function helpFor(command?: string): string {
   return text;
 }
 
-export async function createPublishPlanCommand(root: string, visibility: "private" | "public") {
-  const snapshot = await scanWorkspace(root);
-  return createPublishPlan(root, snapshot.config, snapshot.skills, visibility);
-}
-
-export async function applyProfileCommand(root: string, profile: string, targetDir: string) {
-  const snapshot = await scanWorkspace(root);
-  return applyProfile(root, snapshot.config, snapshot.skills, snapshot.assets, profile, targetDir);
-}
-
-export async function driftReportCommand(root: string, profile: string, targetDir: string) {
-  const snapshot = await scanWorkspace(root);
-  return driftReport(root, snapshot.config, snapshot.skills, snapshot.assets, profile, targetDir);
-}
-
 export async function shareProjectCommand(options: ShareProjectOptions) {
-  return shareProject({
-    ...options,
-    cacheDir: options.cacheDir || defaultCacheDir()
-  });
+  return shareProject({ ...options, cacheDir: options.cacheDir || defaultCacheDir() });
 }
 
 export async function createSharePlanCommand(options: ShareProjectOptions) {
-  return createSharePlan({
-    ...options,
-    cacheDir: options.cacheDir || defaultCacheDir()
-  });
+  return createSharePlan({ ...options, cacheDir: options.cacheDir || defaultCacheDir() });
 }
 
 export async function shareDriftReportCommand(options: ShareDriftOptions) {
-  return shareDriftReport({
-    ...options,
-    cacheDir: options.cacheDir || defaultCacheDir()
-  });
-}
-
-export async function downloadSourceCommand(remoteUrl: string, cacheDir?: string) {
-  return downloadSource({
-    remoteUrl,
-    cacheDir: cacheDir || defaultCacheDir()
-  });
-}
-
-export async function sourceUpdateStatusCommand(root: string) {
-  return checkSourceUpdate({ root });
-}
-
-export async function updateSourceCommand(root: string, confirm: boolean) {
-  return updateSource({ root, confirm });
+  return shareDriftReport({ ...options, cacheDir: options.cacheDir || defaultCacheDir() });
 }
 
 function arg(args: string[], name: string): string | undefined {
   const index = args.indexOf(name);
   return index === -1 ? undefined : args[index + 1];
+}
+
+function requiredArg(args: string[], name: string): string {
+  const value = arg(args, name);
+  if (!value) throw new Error(`Missing required option: ${name}`);
+  return value;
+}
+
+function requiredPositional(value: string | undefined, label: string): string {
+  if (!value || value.startsWith("--")) throw new Error(`Missing required ${label}.`);
+  return value;
 }
 
 function hasFlag(args: string[], name: string): boolean {

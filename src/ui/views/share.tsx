@@ -14,6 +14,7 @@ export function Publish(props: {
   shareDriftReport?: DriftReport;
   shareDriftCheck?: ShareDriftCheckRecord;
   shareDriftSignature: string;
+  autoCheckReady: boolean;
   isSharing: boolean;
   isCheckingShareDrift: boolean;
   shareProgress?: string;
@@ -30,6 +31,7 @@ export function Publish(props: {
 }) {
   const { t } = props;
   const [message, setMessage] = useState("Share SkillOps project");
+  const [plannedMessage, setPlannedMessage] = useState("Share SkillOps project");
   const [editingGroup, setEditingGroup] = useState<ShareTargetGroup | undefined>();
   const activeGroup = props.activeTargetGroup;
   const selectedSkills = activeGroup ? selectedSkillCount(props.snapshot, activeGroup.profile) : 0;
@@ -39,10 +41,11 @@ export function Publish(props: {
   const displayedAtMs = useMemo(() => Date.now(), [props.snapshot.root, activeGroup?.id, props.shareDriftCheck?.checkedAt]);
 
   useEffect(() => {
+    if (!props.autoCheckReady) return;
     if (!activeGroup || !activeReady || props.isCheckingShareDrift) return;
     if (!isStaleCheck(props.shareDriftCheck, props.shareDriftSignature)) return;
     props.checkShareTargetDrift(activeGroup);
-  }, [activeGroup?.id, activeReady, props.isCheckingShareDrift, props.shareDriftCheck?.checkedAt, props.shareDriftCheck?.signature, props.shareDriftSignature]);
+  }, [props.autoCheckReady, activeGroup?.id, activeReady, props.isCheckingShareDrift, props.shareDriftCheck?.checkedAt, props.shareDriftCheck?.signature, props.shareDriftSignature]);
 
   function upsertGroup(group: ShareTargetGroup) {
     const existing = props.targetGroups.some((item) => item.id === group.id);
@@ -103,7 +106,12 @@ export function Publish(props: {
         <input value={message} onChange={(event) => setMessage(event.target.value)} />
         <div className="actions">
           <button onClick={() => activeGroup && props.checkShareTargetDrift(activeGroup)} disabled={props.isCheckingShareDrift || !activeGroup || !activeReady}>{props.isCheckingShareDrift ? t.checkingDrift : t.checkDrift}</button>
-          <button className={canShare ? "primary" : undefined} onClick={() => activeGroup && props.shareProject(activeGroup, message)} disabled={!canShare}>{props.isSharing ? t.sharing : t.shareNow}</button>
+          <button className={canShare ? "primary" : undefined} onClick={() => {
+            if (!activeGroup) return;
+            const nextMessage = message.trim() || "Share SkillOps project";
+            setPlannedMessage(nextMessage);
+            props.shareProject(activeGroup, nextMessage);
+          }} disabled={!canShare}>{props.isSharing ? t.sharing : t.shareNow}</button>
         </div>
         {props.shareProgress && <p className="muted">{props.shareProgress}</p>}
         <h4>{t.drift}</h4>
@@ -189,12 +197,13 @@ export function Publish(props: {
                 <div>
                   <strong>{props.sharePlan.access.repository ?? props.sharePlan.access.cloneUrl}</strong>
                   <p>{props.sharePlan.targetPath}</p>
+                  <span>{t.commitMessage}: {plannedMessage}</span>
                 </div>
               </div>
             </div>
             <div className="actions modal-actions">
               <button onClick={props.cancelSharePlan}>{t.cancelShare}</button>
-              <button className="primary" onClick={() => props.sharePlan && props.confirmShareProject(activeGroup, message, props.sharePlan)} disabled={props.isSharing}>{props.isSharing ? t.sharing : t.confirmShare}</button>
+              <button className="primary" onClick={() => props.sharePlan && props.confirmShareProject(activeGroup, plannedMessage, props.sharePlan)} disabled={props.isSharing}>{props.isSharing ? t.sharing : t.confirmShare}</button>
             </div>
           </section>
         </div>
