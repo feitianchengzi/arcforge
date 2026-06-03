@@ -9,7 +9,7 @@ import { pathExists } from "./fs.js";
 import { checkoutShareBranch, createPullRequest, currentCommit, ensureForkRemote, inspectGitHubAccess, parseGitHubRepo, prepareShareCheckout, pushBranch, resolveRemoteSourceRef, runGit, withShareLock } from "./share-git.js";
 import { createPublishPlan } from "./publish.js";
 import { parseRemoteSource, remoteProjectRef, repoName, shareTargetSubdir, sourceProjectRoot } from "./share-remote.js";
-import { SHARE_MANIFEST_FILE, namespaceProfiles, normalizeConfig, resolveShareProfile, selectProfileSkills, shareNamespace, syncProjectToShareTarget } from "./share-sync.js";
+import { namespaceProfiles, normalizeConfig, resolveShareProfile, selectProfileSkills, shareNamespace, syncProjectToShareTarget } from "./share-sync.js";
 import { scanWorkspace } from "./workspace.js";
 import { normalizeGitRelativePath } from "./local-git.js";
 
@@ -229,7 +229,7 @@ export async function downloadSource(options: DownloadSourceOptions): Promise<st
 }
 
 async function stageShareTarget(root: string, targetSubdir: string, sourceDir: string, messages: string[]): Promise<void> {
-  await runGit(root, targetSubdir ? ["add", targetSubdir] : ["add", sourceDir, "README.md", SHARE_MANIFEST_FILE], messages);
+  await runGit(root, targetSubdir ? ["add", targetSubdir] : ["add", sourceDir, "README.md"], messages);
 }
 
 function publishedShareProfile(profile: SkillOpsConfig["profiles"][number], selectedSkills: SkillSummary[]): SkillOpsConfig["profiles"][number] {

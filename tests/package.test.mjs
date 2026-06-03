@@ -120,6 +120,16 @@ test("share drift compares targets without remote writes", async () => {
   assert.doesNotMatch(shareDrift, /createPullRequest/);
 });
 
+test("share sync does not create project-local bookkeeping files", async () => {
+  const shareCore = await readFile(new URL("../src/core/share.ts", import.meta.url), "utf8");
+  const shareSync = await readFile(new URL("../src/core/share-sync.ts", import.meta.url), "utf8");
+  const shareDrift = await readFile(new URL("../src/core/share-drift.ts", import.meta.url), "utf8");
+
+  assert.doesNotMatch(shareCore, /SHARE_MANIFEST_FILE|\.skillops-share-manifest\.json/);
+  assert.doesNotMatch(shareSync, /SHARE_MANIFEST_FILE|\.skillops-share-manifest\.json|readShareManifest|writeShareManifest|staleShareManifestEntries/);
+  assert.doesNotMatch(shareDrift, /readShareManifest|staleShareManifestEntries|deletedEntryFiles/);
+});
+
 test("profile deletion is persisted instead of draft-only", async () => {
   const profilesView = await readFile(new URL("../src/ui/views/profiles.tsx", import.meta.url), "utf8");
 

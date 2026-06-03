@@ -4,22 +4,6 @@ import { promises as fs } from "node:fs";
 import type { SharedAssetSummary, SkillOpsConfig, SkillSummary } from "../shared/types.js";
 import { copyDirectory, pathExists } from "./fs.js";
 
-export const SHARE_MANIFEST_FILE = ".skillops-share-manifest.json";
-
-export interface ShareManifestEntry {
-  namespace: string;
-  sourceDir: string;
-  kind: "skill" | "asset";
-  name: string;
-  relativePath: string;
-}
-
-export interface ShareManifest {
-  version: 1;
-  updatedAt: string;
-  entries: ShareManifestEntry[];
-}
-
 export function resolveShareProfile(config: SkillOpsConfig, profileName?: string, skillNames?: string[]): SkillOpsConfig["profiles"][number] {
   const selectedProfile = profileName
     ? config.profiles.find((item) => item.name === profileName)
@@ -49,9 +33,6 @@ export async function syncProjectToShareTarget(root: string, targetRoot: string,
   await fs.mkdir(targetRoot, { recursive: true });
   const sourceRoot = path.resolve(root, config.sourceDir);
   const targetSourceRoot = path.join(targetRoot, config.sourceDir);
-  const manifest = await readShareManifest(targetRoot);
-  const desiredEntries = shareManifestEntries(root, config, skills, assets, namespace);
-  await pruneRemovedSharedEntries(targetSourceRoot, manifest.entries, desiredEntries, namespace, config.sourceDir);
   await fs.mkdir(targetSourceRoot, { recursive: true });
   for (const item of skills) {
     const relativePath = relativeSharedEntryPath(sourceRoot, item.path, item.name);
@@ -71,54 +52,6 @@ export async function syncProjectToShareTarget(root: string, targetRoot: string,
     await fs.writeFile(targetReadme, `# ${path.basename(root)}\n`, "utf8");
   }
   await writeSharingReadme(targetRoot, config, visibility, sectionName);
-  await writeShareManifest(targetRoot, mergeShareManifest(manifest, desiredEntries, namespace, config.sourceDir));
-}
-
-export function shareManifestEntries(root: string, config: SkillOpsConfig, skills: SkillSummary[], assets: SharedAssetSummary[], namespace: string): ShareManifestEntry[] {
-  const sourceRoot = path.resolve(root, config.sourceDir);
-  return [
-    ...skills.map((skill) => ({
-      namespace,
-      sourceDir: config.sourceDir,
-      kind: "skill" as const,
-      name: skill.name,
-      relativePath: relativeSharedEntryPath(sourceRoot, skill.path, skill.name)
-    })),
-    ...assets.map((asset) => ({
-      namespace,
-      sourceDir: config.sourceDir,
-      kind: "asset" as const,
-      name: asset.name,
-      relativePath: relativeSharedEntryPath(sourceRoot, asset.path, asset.name)
-    }))
-  ];
-}
-
-export async function readShareManifest(targetRoot: string): Promise<ShareManifest> {
-  const filePath = path.join(targetRoot, SHARE_MANIFEST_FILE);
-  if (!(await pathExists(filePath))) return emptyShareManifest();
-  try {
-    const raw = JSON.parse(await fs.readFile(filePath, "utf8")) as Partial<ShareManifest>;
-    if (raw.version !== 1 || !Array.isArray(raw.entries)) return emptyShareManifest();
-    return {
-      version: 1,
-      updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : new Date(0).toISOString(),
-      entries: raw.entries
-        .map(normalizeShareManifestEntry)
-        .filter((entry): entry is ShareManifestEntry => Boolean(entry))
-    };
-  } catch {
-    throw new Error(`Share manifest is invalid: ${filePath}`);
-  }
-}
-
-export function staleShareManifestEntries(manifest: ShareManifest, desiredEntries: ShareManifestEntry[], namespace: string, sourceDir: string): ShareManifestEntry[] {
-  const desiredKeys = new Set(desiredEntries.map(shareManifestEntryKey));
-  return manifest.entries.filter((entry) => entry.namespace === namespace && entry.sourceDir === sourceDir && !desiredKeys.has(shareManifestEntryKey(entry)));
-}
-
-export function shareManifestEntryKey(entry: Pick<ShareManifestEntry, "kind" | "relativePath">): string {
-  return `${entry.kind}:${entry.relativePath}`;
 }
 
 export function shareNamespace(value: string): string {
@@ -131,61 +64,6 @@ function relativeSharedEntryPath(sourceRoot: string, entryPath: string, fallback
     throw new Error(`Refusing to share item outside source directory: ${entryPath}`);
   }
   return relativePath || fallbackName;
-}
-
-async function writeShareManifest(targetRoot: string, manifest: ShareManifest): Promise<void> {
-  await fs.writeFile(path.join(targetRoot, SHARE_MANIFEST_FILE), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-}
-
-function mergeShareManifest(manifest: ShareManifest, desiredEntries: ShareManifestEntry[], namespace: string, sourceDir: string): ShareManifest {
-  return {
-    version: 1,
-    updatedAt: new Date().toISOString(),
-    entries: [
-      ...manifest.entries.filter((entry) => entry.namespace !== namespace || entry.sourceDir !== sourceDir),
-      ...desiredEntries
-    ].sort((a, b) => shareManifestEntryKey(a).localeCompare(shareManifestEntryKey(b)) || a.namespace.localeCompare(b.namespace))
-  };
-}
-
-async function pruneRemovedSharedEntries(targetSourceRoot: string, previousEntries: ShareManifestEntry[], desiredEntries: ShareManifestEntry[], namespace: string, sourceDir: string): Promise<void> {
-  const staleEntries = staleShareManifestEntries({ version: 1, updatedAt: "", entries: previousEntries }, desiredEntries, namespace, sourceDir);
-  for (const entry of staleEntries) {
-    const targetPath = path.join(targetSourceRoot, entry.relativePath);
-    assertInsideRoot(targetPath, targetSourceRoot, "delete");
-    if (!(await pathExists(targetPath))) continue;
-    await fs.rm(targetPath, { recursive: true, force: true });
-    await pruneEmptyParents(path.dirname(targetPath), targetSourceRoot);
-  }
-}
-
-async function pruneEmptyParents(startDir: string, stopDir: string): Promise<void> {
-  let current = path.resolve(startDir);
-  const stop = path.resolve(stopDir);
-  while (current !== stop && current.startsWith(`${stop}${path.sep}`)) {
-    const entries = await fs.readdir(current).catch(() => []);
-    if (entries.length > 0) return;
-    await fs.rmdir(current);
-    current = path.dirname(current);
-  }
-}
-
-function normalizeShareManifestEntry(value: unknown): ShareManifestEntry | undefined {
-  if (!value || typeof value !== "object") return undefined;
-  const entry = value as Partial<ShareManifestEntry>;
-  if (entry.kind !== "skill" && entry.kind !== "asset") return undefined;
-  if (!entry.namespace || !entry.sourceDir || !entry.name || !entry.relativePath) return undefined;
-  return {
-    namespace: entry.namespace,
-    sourceDir: entry.sourceDir,
-    kind: entry.kind,
-    name: entry.name,
-    relativePath: entry.relativePath
-  };
-}
-
-function emptyShareManifest(): ShareManifest {
-  return { version: 1, updatedAt: new Date(0).toISOString(), entries: [] };
 }
 
 export async function syncProjectMetadata(targetRoot: string, config: SkillOpsConfig, visibility: "private" | "public", sectionName: string): Promise<void> {
