@@ -1,27 +1,28 @@
-# Architecture
+# 架构说明
 
-## Stack
+[English](en/architecture.md)
 
-- Electron for the desktop shell
-- React + TypeScript for the renderer
-- TypeScript core modules and command runners shared by desktop and CLI
-- Node.js file system APIs for local workspace operations
-- No backend service in the MVP
+## 技术栈
 
-## Packages
+- Electron 作为桌面壳
+- React + TypeScript 构建渲染进程
+- TypeScript core 同时供桌面端和 CLI 使用
+- Node.js 文件系统 API 处理本地工作区
+- MVP 阶段没有后端服务
+
+## 目录
 
 ```text
-src/core/       shared SkillOps domain logic
-src/commands/   shared command orchestration for CLI and desktop
-src/electron/   Electron main process and preload bridge
-src/ui/         React desktop UI
-src/cli/        command line entrypoint
-src/shared/     shared TypeScript types
+src/core/       SkillOps 领域逻辑
+src/electron/   Electron 主进程和 preload bridge
+src/ui/         React 桌面 UI
+src/cli/        命令行入口
+src/shared/     共享 TypeScript 类型
 ```
 
-## Data Model
+## 数据模型
 
-SkillOps separates source content from local user state. Normal project settings are stored in user-level project state under `~/.skillops/projects`. When `skillops.config.json` is found in a project root, SkillOps migrates it into user-level project state if needed and then removes it from the source checkout.
+SkillOps 区分来源内容和本地用户状态。日常项目设置保存在用户级项目状态 `~/.skillops/projects`。当项目根目录存在 `skillops.config.json` 时，系统按需迁移到用户级项目状态，然后从来源 checkout 删除该文件。
 
 ```json
 {
@@ -38,45 +39,44 @@ SkillOps separates source content from local user state. Normal project settings
 }
 ```
 
-## Security Model
+## 安全模型
 
-The renderer has no direct Node.js access. It talks to the main process through a narrow preload API. The main process maps those calls to the shared command runner or core modules:
+渲染进程不能直接访问 Node.js。它通过 preload 暴露的窄 API 与主进程通信：
 
-- choose workspace
-- scan workspace
-- init config
-- check or update GitHub source checkout
-- create publish plan
-- share project to a Git repository
-- apply profile
-- drift report
-- skill file list/read/write
-- detached skill file editor window
+- 选择工作区
+- 扫描工作区
+- 初始化配置
+- 检查或更新 GitHub 来源 checkout
+- 创建发布计划
+- 应用 profile
+- 生成 drift report
+- 列出、读取和写入 skill 文件
+- 打开独立 skill 文件编辑窗口
 
-The packaged Electron executable also supports `--cli`. In that mode it does not create a window and instead executes the same command runner used by the terminal entrypoint.
+桌面端打包产物也支持 `--cli`。在该模式下，Electron 不创建窗口，而是执行终端入口使用的同一套命令编排。
 
-GitHub-sourced projects are maintained through CLI-first source commands. The status command fetches upstream refs and reports ahead/behind commit counts; the update command requires explicit confirmation and performs only a fast-forward pull, so desktop UI can present the same decision point without owning separate Git logic.
+GitHub 来源项目通过 CLI 优先的 source 命令维护。状态命令获取上游 refs 并报告 ahead/behind commit 数；更新命令要求显式确认，并且只执行 fast-forward pull，因此桌面端可以展示同一个用户决策点，而不需要维护另一套 Git 逻辑。
 
-On desktop startup, the main process installs or repairs a user-level `skillops` shim that points back to the packaged executable with `--cli`. The environment check reports shim path, PATH visibility, Git availability, and optional integration tools.
+应用启动时，主进程会安装或修复用户级 `skillops` shim。环境检测会报告 shim 路径、PATH 可见性、Git 可用性和可选集成工具状态。
 
-Skill file editing is still local-first and main-process mediated. The renderer requests a workspace-scoped directory tree and individual text files through IPC. The main process rejects paths outside the current workspace, large files, and binary files. Detached editor windows receive the same file context, profile filter, collapsed folder state, language labels, and scroll positions as the embedded editor.
+技能文件编辑仍然保持本地优先并由主进程代理。渲染进程通过 IPC 请求工作区范围内的目录树和单个文本文件。主进程会拒绝当前工作区之外的路径、超大文件和二进制文件。独立编辑窗口接收与内置编辑器一致的文件上下文、配置组过滤、目录收起状态、语言文案和滚动位置。
 
-The MVP audit engine is local and rule-based. It detects:
+MVP 的审计引擎是本地规则引擎，能检测：
 
-- common secret patterns
-- dangerous agent instructions
-- missing or weak skill metadata
-- risky references to `.env`, credentials, and automatic pushes
+- 常见 secret
+- 危险 agent 指令
+- 缺失或薄弱的 skill 元数据
+- 对 `.env`、凭据、自动 push 等风险行为的引用
 
-Future versions can add pluggable audit rules and CI annotations.
+未来可以加入可插拔审计规则和 CI annotation。
 
-## Integration Strategy
+## 集成策略
 
-SkillOps should orchestrate existing tools instead of replacing them.
+SkillOps 应该编排已有工具，而不是替代它们。
 
-Planned integration points:
+计划集成：
 
-- `skillshare` for multi-agent sync
-- `npx skills` for public install compatibility
-- GitHub CLI or GitHub API for repo creation and releases
-- GitHub Actions for audit checks
+- `skillshare`：多 agent 同步
+- `npx skills`：公开安装兼容
+- GitHub CLI 或 GitHub API：仓库创建和 release
+- GitHub Actions：审计检查

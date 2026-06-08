@@ -1,6 +1,6 @@
 # SkillOps
 
-[English](../../README.md)
+[English](../en/README.md)
 
 SkillOps 是面向 AI agent skills 的本地优先、GitHub 优先治理工作台。
 
@@ -109,15 +109,32 @@ SkillOps 会把日常本地项目设置保存到 `~/.skillops/projects`，因此
 }
 ```
 
-### 从当前仓库安装
+### 从当前仓库安装 SkillOps
 
-clone 当前仓库后，在支持加载本地 skill 的 agent 中打开项目，并运行 `skills/skillops-install`。这个安装 skill 会把仓库里的 `skills/skillops` 复制到用户级 agent skill 目录，构建本地 `skillops` CLI shim，并安装可调起源码桌面端的 `skillops-desktop` launcher：
+clone 当前仓库后，从源码 checkout 执行一次 SkillOps 安装：
 
 ```bash
 node skills/skillops-install/scripts/install-from-repo.mjs --agent codex --desktop install
 ```
 
+这个命令会把仓库里的 `skills/skillops` 安装到用户级 agent skill 目录，构建本地 `skillops` CLI shim，并安装可调起源码桌面端的 `skillops-desktop` launcher。
+
 需要生成本地桌面端安装包时使用 `--desktop package`，输出在 `release/`；脚本仍会保留源码 launcher。只有明确希望脚本修改 shell profile 以加入 CLI 和 Desktop launcher 时，才使用 `--update-path`。
+
+安装完成后，在任意项目中打开 coding agent，并把 `skillops` 作为工作流入口。SkillOps 默认把当前目录当作项目根目录，使用 CLI 执行可复现、带 JSON 结果的动作；只有当工作流需要可视化审阅、编辑、批量选择、冲突复核或完整漂移差异时，才打开桌面端。
+
+典型项目内流程：
+
+```text
+在 agent 中打开项目
+-> 使用 skillops 扫描或审计本地 skills
+-> 把可复用的项目内 skill 归并到正式 Skill 项目
+-> 把已批准的 profile 应用到 agent 或项目目标
+-> 检查正式来源和已安装副本之间的漂移
+-> 准备 GitHub 优先的共享或发布说明
+```
+
+当 skills 位于 `.codex/skills` 这类项目内 agent 目录时，项目根目录仍然作为 `--root`，由 SkillOps 把该目录作为 `--source-dir` 传给 CLI。这样本地项目状态、Git 状态、应用来源记录和漂移报告都归属于真实项目，而不是隐藏的 agent 目录。
 
 ### 桌面端
 

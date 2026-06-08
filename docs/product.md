@@ -1,70 +1,72 @@
-# Product Brief
+# 产品说明
 
-## Positioning
+[English](en/product.md)
 
-SkillOps is a project-local governance layer for AI agent skills, designed for indie developers and small teams who work through coding agents.
+## 定位
 
-Users primarily use SkillOps from inside a project through a coding agent. The SkillOps skill orchestrates CLI automation and opens the desktop UI when a workflow needs visual review, structured selection, editing, or confirmation.
+SkillOps 是面向个人开发者和小团队的项目内 AI agent skill 治理层。
 
-It helps users turn AI agent skills from personal notes or project-local improvements into team-ready assets that are audited, versioned in GitHub, grouped by project, applied into local agent targets, and prepared for private team sharing or public publishing.
+用户默认在项目目录中通过 coding agent 使用 SkillOps。SkillOps skill 编排 CLI 自动化能力，并在工作流需要可视化审阅、结构化选择、编辑或确认时打开桌面 UI。
 
-SkillOps is a pre-publish and team-governance layer. It is meant to sit upstream of GitHub releases, ClawHub/OpenClaw, `skillshare`, `npx skills`, and agent-specific runtimes rather than replace them.
+它帮助用户把 AI agent skills 从个人经验或项目内改进沉淀为团队可用资产：可审计、可通过 GitHub 版本化、可按项目分组、可应用到本地 agent 目标，并且可以用于团队私有共享或公开发布。
 
-## Target Users
+SkillOps 是发布前和团队治理层。它应该位于 GitHub releases、ClawHub/OpenClaw、`skillshare`、`npx skills` 和各类 agent runtime 的上游，而不是替代它们。
 
-- individual developers who maintain multiple AI coding agents
-- small teams that share private skills without running a registry
-- open-source authors who prepare Agent Skills before publishing from GitHub or ClawHub
-- teams that need lightweight review and audit before adoption
+## 目标用户
 
-## Non-Goals
+- 同时使用多个 AI coding agent 的个人开发者
+- 不想搭建 registry、但需要共享私有 skills 的小团队
+- 准备从 GitHub 或 ClawHub 发布 Agent Skills 的开源作者
+- 需要在采用 skill 前做轻量 review 和审计的团队
 
-- hosted marketplace
-- public skill registry
-- full enterprise RBAC
-- cloud sync
-- replacing ClawHub/OpenClaw, `skillshare`, `npx skills`, or agent-specific runtimes
-- generic prompt library management
+## 非目标
 
-## Core Jobs
+- 托管 marketplace
+- 公开 skill registry
+- 完整企业 RBAC
+- 云同步
+- 替代 ClawHub/OpenClaw、`skillshare`、`npx skills` 或 agent 运行时
+- 通用 prompt library 管理
 
-1. I improved a project-local skill and want to audit it before sharing or adopting it elsewhere.
-2. I want to promote a useful project-local skill into a reusable Skill project.
-3. I want to apply the formal Skill project version to another project and verify drift.
-4. I want to share the formal Skill project to a remote GitHub or Git repository.
-5. I want different projects to use different approved skill sets.
-6. I want teammates to use the same reviewed version from GitHub.
-7. I want a clean public release plan without leaking internal context.
-8. I want a CLI for CI checks and agent orchestration.
-9. I want the desktop UI to appear when a skill workflow needs visual review, editing, or batch confirmation.
-10. I opened a skill project from GitHub and want to know whether my local checkout is behind before I update it.
+## 核心任务
 
-## MVP Features
+1. 我在当前项目里优化了一个项目内 skill，想先审计它，再决定是否共享或让其他项目采用。
+2. 我希望把当前项目里有价值的 skill 归并到可复用的 Skill 项目。
+3. 我希望把正式 Skill 项目中的版本应用到另一个项目，并验证是否存在漂移。
+4. 我希望把正式 Skill 项目共享到远程 GitHub 或 Git 仓库。
+5. 我希望不同项目使用不同的已批准 skill 集合。
+6. 我希望队友使用 GitHub 中同一个已 review 的版本。
+7. 我想公开发布，但不想泄露内部上下文。
+8. 我需要 CLI 支持 CI 检查和 agent 编排。
+9. 我希望桌面 UI 在 skill 工作流需要可视化审阅、编辑或批量确认时出现。
+10. 我从 GitHub 打开了 skill 项目，希望先知道本地是否落后上游，再决定是否更新。
 
-- scan a Git workspace for `SKILL.md` skills
-- provide an agent-facing SkillOps skill that orchestrates CLI and desktop workflows from the current project
-- audit skill quality and security risks
-- browse and edit the workspace `skills/` tree with profile-based filtering
-- apply named profiles to target folders
-- report drift between profile source and target folder
-- check and fast-forward update GitHub-sourced skill projects through CLI-first commands
-- generate private/public publish plans
-- provide JSON CLI output for automation
-- open the desktop UI to specific workflow contexts when visual review or confirmation is needed
+## MVP 功能
 
-## Differentiation
+- 扫描 Git workspace 中的 `SKILL.md`
+- 提供面向 agent 的 SkillOps skill，从当前项目编排 CLI 和桌面工作流
+- 审计 skill 的质量和安全风险
+- 以文件树方式查看和编辑工作区 `skills/`，并支持按配置组过滤
+- 将命名 profile 应用到目标目录
+- 报告 profile 源目录与目标目录之间的漂移
+- 通过 CLI 优先命令检查并快进更新 GitHub 来源的 skill 项目
+- 生成私有/公开发布计划
+- 提供 JSON CLI 输出，方便自动化
+- 在需要可视化审阅或确认时，把桌面 UI 打开到具体工作流上下文
 
-Most existing products focus on public discovery, installation, registry hosting, or runtime integration. SkillOps focuses on the private lifecycle before a skill is adopted by a project or published to a public channel:
+## 差异化
+
+大多数已有产品关注公开发现、安装、registry 托管或 runtime 集成。SkillOps 关注的是 skill 被项目采用或发布到公开渠道之前的私有生命周期：
 
 ```text
-draft -> audit -> profile -> share -> publish -> maintain
+草稿 -> 审计 -> 配置组 -> 共享 -> 发布 -> 维护
 ```
 
-The product is intentionally GitHub-first because small teams already use GitHub for review, releases, issues, and access control.
+产品坚持 GitHub 优先，因为小团队已经用 GitHub 处理 review、release、issue 和权限。
 
-The closest adjacent systems should be treated as distribution targets or install adapters:
+相邻系统应该被视为分发目标或安装适配器：
 
-- ClawHub/OpenClaw: public registry and ecosystem distribution.
-- GitHub releases: source-of-truth versioning and team review.
-- `skillshare` and `npx skills`: installation and sync paths.
-- Agent runtimes: execution behavior and local skill loading.
+- ClawHub/OpenClaw：公开 registry 和生态分发。
+- GitHub releases：source of truth、版本和团队 review。
+- `skillshare` 和 `npx skills`：安装与同步路径。
+- Agent runtimes：执行行为和本地 skill 加载。

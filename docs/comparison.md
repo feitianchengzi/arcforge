@@ -1,122 +1,124 @@
-# Comparison
+# 对比说明
 
-SkillOps is not a registry, marketplace, package manager, installer, MCP registry, or agent runtime.
+[English](en/comparison.md)
 
-It is a local-first governance layer for `SKILL.md` repositories:
+SkillOps 不是 registry、marketplace、包管理器、installer、MCP registry，也不是 agent runtime。
+
+它是面向 `SKILL.md` 仓库的本地优先治理层：
 
 ```text
-source skills -> audit -> profiles -> apply targets -> drift checks -> release prep
+源 skills -> 审计 -> profiles -> 应用到目标 -> drift 检查 -> 发布准备
 ```
 
-## Quick Map
+## 快速地图
 
-| Neighbor | Primary job | Why it can look similar | SkillOps boundary |
+| 相邻产品 | 核心任务 | 为什么容易混淆 | SkillOps 的边界 |
 |---|---|---|---|
-| [skillshare](https://github.com/runkids/skillshare) | Sync skills, agents, rules, commands, and related files across many AI CLI tools. | It also works with multiple agents and supports team sharing/security checks. | SkillOps should stay upstream: approved profiles, review gates, drift reports, and release prep. Delegate installation/sync where possible. |
-| [npx skills](https://github.com/vercel-labs/skills) / [Vercel Agent Skills](https://vercel.com/docs/agent-resources/skills) | Add packaged skills to many agent environments. | It also uses skill packages and install commands. | SkillOps generates governance and publish-readiness around skill repositories; `npx skills` is an install path. |
-| [ClawHub/OpenClaw](https://github.com/openclaw/clawhub) | Public registry for publishing, versioning, searching, installing, and moderating OpenClaw skills/packages. | It owns a broad skill ecosystem and has audit/moderation workflows. | SkillOps should prepare skills before publishing to ClawHub, not duplicate registry/search/marketplace features. |
-| [Claude Code plugins](https://code.claude.com/docs/en/plugins) and [Claude skills](https://code.claude.com/docs/en/skills) | Runtime-specific packaging and loading for Claude Code capabilities. | Plugins can contain skills and marketplaces can distribute them. | SkillOps manages source skill sets before they become Claude-specific plugins or local skill folders. |
-| Cursor rules / `AGENTS.md` / `CLAUDE.md` | Project-local instruction surfaces for one agent or codebase. | They can contain guidance that resembles a skill. | SkillOps manages reusable skill assets and profiles across projects; project instruction files remain target outputs or local policy files. |
-| [Smithery](https://smithery.ai/) / [MCP registry](https://github.com/modelcontextprotocol/registry) | Discover and install MCP servers. | MCP servers and skills both extend agents. | SkillOps governs text/file-based skills, not tool-server distribution. |
-| GitHub repository alone | Store, review, release, and permission source files. | SkillOps intentionally uses GitHub as source of truth. | SkillOps adds skill-aware scanning, audit, profiles, drift reports, and release checklists on top of Git. |
+| [skillshare](https://github.com/runkids/skillshare) | 在多个 AI CLI 工具之间同步 skills、agents、rules、commands 等文件资源。 | 它也支持多 agent、团队共享和安全检查。 | SkillOps 应该位于上游：批准 profiles、review gate、drift report 和发布准备。安装/同步尽量委托。 |
+| [npx skills](https://github.com/vercel-labs/skills) / [Vercel Agent Skills](https://vercel.com/docs/agent-resources/skills) | 将打包好的 skills 添加到多个 agent 环境。 | 它也处理 skill package 和安装命令。 | SkillOps 围绕 skill 仓库做治理和发布就绪检查；`npx skills` 是安装路径。 |
+| [ClawHub/OpenClaw](https://github.com/openclaw/clawhub) | 公开 registry，负责 OpenClaw skills/packages 的发布、版本、搜索、安装和 moderation。 | 它拥有较完整的 skill 生态和审计/moderation 流程。 | SkillOps 应该在发布到 ClawHub 前做准备，不重复 registry/search/marketplace。 |
+| [Claude Code plugins](https://code.claude.com/docs/en/plugins) 和 [Claude skills](https://code.claude.com/docs/en/skills) | Claude Code 能力的 runtime packaging 和加载机制。 | Plugins 可以包含 skills，也能通过 marketplace 分发。 | SkillOps 管理源 skill 集合，然后再进入 Claude 专属 plugin 或本地 skill 目录。 |
+| Cursor rules / `AGENTS.md` / `CLAUDE.md` | 某个项目或 agent 的本地指令文件。 | 里面的内容可能很像 skill。 | SkillOps 管理跨项目、跨 agent 复用的 skill 资产和 profiles；项目指令文件是目标输出或本地策略文件。 |
+| [Smithery](https://smithery.ai/) / [MCP registry](https://github.com/modelcontextprotocol/registry) | 发现和安装 MCP servers。 | MCP servers 和 skills 都能扩展 agent。 | SkillOps 治理文本/文件型 skills，不做 tool-server 分发。 |
+| GitHub 仓库本身 | 存储、review、release 和权限管理。 | SkillOps 本来就把 GitHub 当 source of truth。 | SkillOps 在 Git 之上增加 skill-aware 扫描、审计、profiles、drift report 和发布 checklist。 |
 
 ## SkillOps vs skillshare
 
-`skillshare` is the closest overlap and the easiest product to confuse with SkillOps.
+`skillshare` 是最接近、也最容易混淆的产品。
 
-Based on its README, `skillshare` focuses on "one source of truth" for AI CLI skills, agents, rules, commands, and other file-based resources. It can sync to Claude, Cursor, Codex, OpenClaw, OpenCode, and many more targets, install from Git hosts, run security audit, support project skills, and expose a web UI.
+从它的 README 看，`skillshare` 关注的是 AI CLI skills、agents、rules、commands 和其他文件型资源的 "one source of truth"。它可以同步到 Claude、Cursor、Codex、OpenClaw、OpenCode 等大量目标，从 Git hosts 安装，做安全审计，支持项目 skills，并提供 Web UI。
 
-SkillOps should not try to out-sync `skillshare`. Its useful role is earlier in the lifecycle:
+SkillOps 不应该和 `skillshare` 比谁更会同步。它更有价值的位置在生命周期上游：
 
-| Question | skillshare | SkillOps |
+| 问题 | skillshare | SkillOps |
 |---|---|---|
-| How do I sync files into 60+ agent targets? | Core feature. | Defer or integrate. |
-| How do I install/update skills from Git hosts? | Core feature. | Generate install guidance and publish plans. |
-| How do I manage agents, rules, commands, prompts, and extras? | Core feature. | Out of scope unless needed as target metadata. |
-| Which skills are approved for this project profile? | Possible through config/filtering, but not the main product frame. | Core feature. |
-| Did this project drift from the approved source profile? | Adjacent to sync state. | Core feature. |
-| Is this repo ready for private team sharing or public publishing? | Adjacent. | Core feature. |
-| Should this become a hosted registry? | No. | No. |
+| 如何同步到 60+ agent 目标？ | 核心能力。 | 委托或集成。 |
+| 如何从 Git hosts 安装/更新 skills？ | 核心能力。 | 生成安装建议和发布计划。 |
+| 如何管理 agents、rules、commands、prompts 和 extras？ | 核心能力。 | 除非作为目标 metadata，否则不做。 |
+| 哪些 skills 是这个项目 profile 批准使用的？ | 可以通过配置/过滤实现，但不是主要产品叙事。 | 核心能力。 |
+| 某个项目是否偏离了批准过的源 profile？ | 接近 sync state。 | 核心能力。 |
+| 这个仓库是否适合团队共享或公开发布？ | 相邻能力。 | 核心能力。 |
+| 是否要做托管 registry？ | 不做。 | 不做。 |
 
-Practical stance: SkillOps can generate `skillshare`-friendly source layouts and commands. `skillshare` can be the installer/sync backend when SkillOps users want broad target coverage.
+实际立场：SkillOps 可以生成适合 `skillshare` 的源目录和命令。用户需要广泛 target 覆盖时，`skillshare` 可以成为安装/同步后端。
 
 ## SkillOps vs npx skills
 
-`npx skills` is an open skill installer path associated with Vercel Agent Skills. Vercel's docs describe skills as packaged capabilities that can be added to many AI agents, and the GitHub project positions itself as "the open agent skills tool."
+`npx skills` 是 Vercel Agent Skills 相关的开放安装路径。Vercel 文档把 skills 描述为可添加到多个 AI agents 的打包能力，GitHub 项目也把自己定位成 "the open agent skills tool"。
 
-SkillOps should not compete on simple one-command install.
+SkillOps 不应该竞争“一条命令安装”。
 
-| Question | npx skills | SkillOps |
+| 问题 | npx skills | SkillOps |
 |---|---|---|
-| How do I add a public skill package to an agent? | Core feature. | Not the main job. |
-| How do I keep a team repo reviewable before installation? | Not the main job. | Core feature. |
-| How do I group skills by project/team/release profile? | Not the main job. | Core feature. |
-| How do I check drift between a target folder and source repo? | Not the main job. | Core feature. |
-| How do I prepare a GitHub release checklist? | Not the main job. | Core feature. |
+| 如何把一个公开 skill package 添加到 agent？ | 核心能力。 | 不是主要任务。 |
+| 如何让团队仓库在安装前可 review？ | 不是主要任务。 | 核心能力。 |
+| 如何按项目/团队/release profile 分组 skills？ | 不是主要任务。 | 核心能力。 |
+| 如何检查目标目录和源仓库之间的 drift？ | 不是主要任务。 | 核心能力。 |
+| 如何准备 GitHub release checklist？ | 不是主要任务。 | 核心能力。 |
 
-Practical stance: SkillOps should emit `npx skills add ...` commands in publish plans, not replace the installer.
+实际立场：SkillOps 应该在发布计划里输出 `npx skills add ...` 命令，而不是替代 installer。
 
 ## SkillOps vs ClawHub/OpenClaw
 
-ClawHub is a public skill registry for OpenClaw. Its README describes publishing, versioning, searching, comments/stars, moderation hooks, vector search, local installs, pinning, updates, and package publishing.
+ClawHub 是 OpenClaw 的公开 skill registry。它的 README 描述了发布、版本、搜索、评论/星标、moderation hooks、vector search、本地安装、pin/update 和 package publishing 等能力。
 
-SkillOps should not rebuild that surface.
+SkillOps 不应该重建这些能力。
 
-| Question | ClawHub/OpenClaw | SkillOps |
+| 问题 | ClawHub/OpenClaw | SkillOps |
 |---|---|---|
-| Where do users discover public skills? | ClawHub. | Out of scope. |
-| Where are public versions, stars, comments, and moderation handled? | ClawHub. | Out of scope. |
-| How do I publish/install OpenClaw skills/packages? | ClawHub/OpenClaw CLI. | Generate readiness checklist and command hints. |
-| How do I review a private team skill repo before publishing? | Adjacent. | Core feature. |
-| How do I maintain per-project approved skill profiles? | Not the registry's primary job. | Core feature. |
+| 用户去哪里发现公开 skills？ | ClawHub。 | 不做。 |
+| 公开版本、星标、评论和 moderation 在哪里处理？ | ClawHub。 | 不做。 |
+| 如何发布/安装 OpenClaw skills/packages？ | ClawHub/OpenClaw CLI。 | 生成就绪 checklist 和命令提示。 |
+| 如何在公开发布前 review 私有团队 skill 仓库？ | 相邻能力。 | 核心能力。 |
+| 如何维护每个项目批准使用的 skill profiles？ | 不是 registry 的主要任务。 | 核心能力。 |
 
-Practical stance: SkillOps should become a ClawHub preflight tool, not a ClawHub competitor.
+实际立场：SkillOps 应该成为 ClawHub preflight 工具，而不是 ClawHub 竞品。
 
-## SkillOps vs Claude Code Plugins and Skills
+## SkillOps vs Claude Code Plugins 和 Skills
 
-Claude Code plugins can package custom commands, agents, hooks, skills, and MCP servers. Claude Code skills are loaded from skill directories and can also come from plugins.
+Claude Code plugins 可以打包 custom commands、agents、hooks、skills 和 MCP servers。Claude Code skills 从 skill 目录加载，也可以来自 plugins。
 
-That makes Claude Code an important target, but not the same product layer.
+这说明 Claude Code 是重要目标，但不是同一产品层。
 
-| Question | Claude Code plugin/skill system | SkillOps |
+| 问题 | Claude Code plugin/skill system | SkillOps |
 |---|---|---|
-| How does Claude Code load or activate a skill? | Runtime-owned. | Out of scope. |
-| How do I package a Claude-specific plugin marketplace? | Claude plugin system. | Out of scope unless generating release guidance. |
-| Which reusable skills should this team approve before packaging? | Not the main job. | Core feature. |
-| How do I apply only a selected profile into `~/.claude/skills` or a plugin source folder? | Target-specific operation. | Core target workflow. |
+| Claude Code 如何加载或激活 skill？ | Runtime 负责。 | 不做。 |
+| 如何打包 Claude 专属 plugin marketplace？ | Claude plugin system。 | 除非生成发布建议，否则不做。 |
+| 团队应该先批准哪些可复用 skills？ | 不是主要任务。 | 核心能力。 |
+| 如何只把某个 profile 应用到 `~/.claude/skills` 或 plugin 源目录？ | 目标相关操作。 | 核心目标工作流。 |
 
-Practical stance: Claude Code is a target runtime and packaging surface. SkillOps manages source readiness before the files land there.
+实际立场：Claude Code 是目标 runtime 和 packaging surface。SkillOps 管理文件进入那里之前的源仓库就绪状态。
 
-## SkillOps vs Cursor Rules, AGENTS.md, and CLAUDE.md
+## SkillOps vs Cursor Rules、AGENTS.md、CLAUDE.md
 
-Cursor rules, `AGENTS.md`, `CLAUDE.md`, and similar files are project-local instruction surfaces. They are extremely useful, but they are not a reusable skill lifecycle system by themselves.
+Cursor rules、`AGENTS.md`、`CLAUDE.md` 等文件是项目本地指令面。它们非常有用，但本身不是可复用 skill 生命周期系统。
 
-| Question | Project instruction files | SkillOps |
+| 问题 | 项目指令文件 | SkillOps |
 |---|---|---|
-| How should this specific repository guide an agent? | Core job. | Can generate or apply target files, but does not replace local policy. |
-| How do I reuse the same capability across many projects? | Manual copying or templates. | Profiles and apply workflows. |
-| How do I audit/publish a portable `SKILL.md` asset? | Not the main job. | Core feature. |
-| How do I detect that one project has stale copied instructions? | Manual. | Drift report. |
+| 这个具体仓库应该如何指导 agent？ | 核心任务。 | 可以生成或应用目标文件，但不替代本地策略。 |
+| 如何在多个项目复用同一个能力？ | 手动复制或模板。 | Profiles 和 apply 工作流。 |
+| 如何审计/发布一个可移植的 `SKILL.md` 资产？ | 不是主要任务。 | 核心能力。 |
+| 如何发现某个项目里的拷贝已经过期？ | 手动。 | Drift report。 |
 
-Practical stance: project instruction files are targets or companions. SkillOps is the source-side manager.
+实际立场：项目指令文件是目标或配套文件。SkillOps 是源侧管理器。
 
 ## SkillOps vs MCP Registries
 
-MCP registries such as Smithery or the community MCP registry help users find and install MCP servers. MCP servers expose tools and resources; skills are text/file packages that guide agent behavior.
+Smithery 或社区 MCP registry 等工具帮助用户发现和安装 MCP servers。MCP servers 暴露 tools/resources；skills 是指导 agent 行为的文本/文件包。
 
-| Question | MCP registry | SkillOps |
+| 问题 | MCP registry | SkillOps |
 |---|---|---|
-| How do I discover/install an MCP server? | Core feature. | Out of scope. |
-| How do I govern reusable `SKILL.md` assets? | Out of scope. | Core feature. |
-| How do I decide which skills are safe to share publicly? | Out of scope. | Core feature. |
-| How do I combine a skill with MCP setup docs? | Possible in docs. | Can audit and package the skill-side guidance. |
+| 如何发现/安装 MCP server？ | 核心能力。 | 不做。 |
+| 如何治理可复用的 `SKILL.md` 资产？ | 不做。 | 核心能力。 |
+| 如何判断哪些 skills 适合公开共享？ | 不做。 | 核心能力。 |
+| 如何把 skill 和 MCP setup 文档组合起来？ | 可以写在文档里。 | 可以审计和打包 skill 侧说明。 |
 
-Practical stance: MCP registries manage tools. SkillOps manages skill instructions and supporting files.
+实际立场：MCP registry 管理 tools。SkillOps 管理 skill instructions 和 supporting files。
 
-## Product Rule
+## 产品规则
 
-When in doubt, keep SkillOps on the upstream side:
+不确定时，把 SkillOps 留在上游：
 
-- Own: scan, audit, profiles, drift, publish-readiness, GitHub release prep.
-- Integrate: installers, registries, agent runtimes, MCP registries.
-- Avoid: hosted marketplace, public search, ratings, comments, broad sync engine, agent runtime behavior.
+- 自己做：scan、audit、profiles、drift、publish-readiness、GitHub release prep。
+- 集成：installers、registries、agent runtimes、MCP registries。
+- 避免：托管 marketplace、公开搜索、评分、评论、大而全 sync engine、agent runtime 行为。

@@ -1,6 +1,6 @@
 ---
 name: skillops
-description: 当用户在项目目录中想审计项目本地 SKILL.md、搭建或完善本地 skill 治理能力、沉淀正式 Skill 项目、同步到其他项目或 agent 目标、检查漂移、准备 GitHub/远程分享，或判断 SkillOps 工作流应走 CLI 还是 Desktop 时使用。
+description: 当用户自然语言提到 agent skills/技能的本地管理或治理时使用，包括扫描、审计或优化 SKILL.md/技能描述，整理 .codex/.claude/.cursor skills，沉淀正式 Skill 项目，维护团队或项目 profile，团队复用/共享，应用、安装或同步到本地 agent 或项目目标，检查来源与已安装副本漂移，准备 GitHub/ClawHub/OpenClaw 发布前清单，或判断相关工作流应走 CLI 还是 Desktop。
 ---
 
 # SkillOps

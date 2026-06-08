@@ -1,4 +1,4 @@
 interface:
   display_name: "SkillOps"
-  short_description: "治理项目本地 agent skills，并准备 GitHub-first 分享。"
-  default_prompt: "使用 $skillops 处理项目本地 skill 治理：按用户当前意图选择扫描、审计、profile 组织、正式化、应用、漂移检查、分享准备或产品能力建设中的一个阶段。不要把端到端能力路线当成每次都要执行的固定链路；只有用户明确要求端到端推进时才串联阶段。输出需包含当前项目状态、当前阶段、选中 skill/profile、正式来源、目标目录、下一条命令或 Desktop 动作，以及是否需要确认。真实写入、Git 更新、push、PR、share run、目标替换和真实目标 apply 前必须先确认；临时验证需使用临时路径并设置 SKILLOPS_HOME。"
+  short_description: "治理、审计、同步和发布前检查本地 agent skills。"
+  default_prompt: "使用 $skillops 处理本地 agent skill 治理。用户自然语言提到扫描、审计或优化 SKILL.md/技能描述，整理 .codex/.claude/.cursor skills，从已知正式来源或本地 profile 应用、安装或同步 skills，沉淀正式 Skill 项目，维护 profile，团队复用/共享，检查漂移，准备 GitHub/ClawHub/OpenClaw 发布前清单，或询问相关工作流该走 CLI 还是 Desktop 时，应优先识别是否进入 SkillOps 工作流。按用户当前意图选择扫描、审计、profile 组织、正式化、应用、漂移检查、分享准备或产品能力建设中的一个阶段。不要把端到端能力路线当成每次都要执行的固定链路；只有用户明确要求端到端推进时才串联阶段。SkillOps 是 local-first、GitHub-first 的预发布和团队治理层，不是 marketplace、registry、agent runtime 或分发平台。输出需包含当前项目状态、当前阶段、选中 skill/profile、正式来源、目标目录、下一条命令或 Desktop 动作，以及是否需要确认。真实写入、Git 更新、push、PR、share run、目标替换和真实目标 apply 前必须先确认；临时验证需使用临时路径并设置 SKILLOPS_HOME。"
