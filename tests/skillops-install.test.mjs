@@ -1,0 +1,74 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { test } from "node:test";
+
+test("skillops install skill defines source install boundaries", async () => {
+  const skill = await readFile(new URL("../skills/skillops-install/SKILL.md", import.meta.url), "utf8");
+  const agentYaml = await readFile(new URL("../skills/skillops-install/agents/openai.yaml", import.meta.url), "utf8");
+  const script = await readFile(new URL("../skills/skillops-install/scripts/install-from-repo.mjs", import.meta.url), "utf8");
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const zhReadme = await readFile(new URL("../docs/zh-CN/README.md", import.meta.url), "utf8");
+  const skillopsDesktopRouting = await readFile(new URL("../skills/skillops/references/desktop-routing.md", import.meta.url), "utf8");
+  const skillopsCliOrchestration = await readFile(new URL("../skills/skillops/references/cli-orchestration.md", import.meta.url), "utf8");
+
+  assert.match(skill, /name: skillops-install/);
+  assert.match(skill, /skills\/skillops/);
+  assert.match(skill, /~\/\.codex\/skills\/skillops/);
+  assert.match(skill, /skillops-desktop/);
+  assert.match(skill, /--desktop install/);
+  assert.match(skill, /--desktop build/);
+  assert.match(skill, /--desktop package/);
+  assert.match(skill, /--update-path/);
+  assert.match(skill, /--home/);
+  assert.match(skill, /--shim-dir/);
+  assert.match(skill, /--dry-run/);
+  assert.match(skill, /--verify/);
+  assert.match(skill, /--npm-cache/);
+  assert.match(skill, /真实 `~\/\.npm`/);
+  assert.match(skill, /Headless 验证/);
+  assert.match(skill, /--skip-npm-install/);
+  assert.match(skill, /npm run build:cli/);
+  assert.match(skill, /写入当前仓库的 `dist\/`/);
+  assert.match(skill, /写入 `dist-ui\/`/);
+  assert.match(skill, /不要把这个安装流程描述成 marketplace/);
+  assert.match(agentYaml, /\$skillops-install/);
+  assert.match(agentYaml, /--home\/--shim-dir/);
+  assert.match(agentYaml, /--npm-cache/);
+  assert.match(agentYaml, /--verify/);
+  assert.match(agentYaml, /skillops-desktop launcher/);
+  assert.match(agentYaml, /不要使用 --update-path/);
+
+  assert.match(script, /skills", "skillops"/);
+  assert.match(script, /"build:cli"/);
+  assert.match(script, /"run", "build"/);
+  assert.match(script, /"run", "package"/);
+  assert.match(script, /installDesktopLauncher/);
+  assert.match(script, /verifyInstall/);
+  assert.match(script, /printVerifySummary/);
+  assert.match(script, /npmCacheDir/);
+  assert.match(script, /env\.npm_config_cache/);
+  assert.match(script, /env\.HOME = installHome/);
+  assert.match(script, /Electron launcher exists/);
+  assert.match(script, /skillops-desktop/);
+  assert.match(script, /Desktop launcher/);
+  assert.match(script, /"\.codex", "skills", "skillops"/);
+  assert.match(script, /installHome/);
+  assert.match(script, /explicitShimDir/);
+  assert.match(script, /dryRun/);
+  assert.match(script, /handleFatalError/);
+  assert.match(script, /Stage: \$\{currentStage\}/);
+  assert.match(script, /path\.join\(installHome/);
+  assert.match(script, /updatePersistentPath/);
+  assert.doesNotMatch(script, /git push|gh pr|release upload/);
+
+  assert.match(readme, /Install From This Repository/);
+  assert.match(readme, /skills\/skillops-install/);
+  assert.match(readme, /skillops-desktop/);
+  assert.match(zhReadme, /从当前仓库安装/);
+  assert.match(zhReadme, /skills\/skillops-install/);
+  assert.match(zhReadme, /skillops-desktop/);
+
+  assert.match(skillopsDesktopRouting, /skillops-desktop/);
+  assert.match(skillopsDesktopRouting, /不能保证直接打开指定页面/);
+  assert.match(skillopsCliOrchestration, /skillops-desktop/);
+});

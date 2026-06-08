@@ -13,6 +13,7 @@ import { scanWorkspace } from "./workspace.js";
 
 export interface MergeOptions {
   root: string;
+  sourceDir?: string;
   to: string;
   targetPath: string;
   profile?: string;
@@ -57,7 +58,7 @@ export async function resolveSkillProjectRoot(input: string, cacheDir: string): 
 export async function createMergePlan(options: MergeOptions): Promise<MergePlan> {
   const root = path.resolve(options.root);
   const targetProjectRoot = await resolveSkillProjectRoot(options.to, requiredCacheDir(options.cacheDir));
-  const current = await scanWorkspace(root);
+  const current = await scanWorkspace(root, { sourceDir: options.sourceDir });
   const targetSnapshot = await scanWorkspace(targetProjectRoot);
   const profile = options.profile?.trim() || "default";
   const targetPath = cleanRelativePath(options.targetPath);
@@ -360,7 +361,9 @@ function assertInside(target: string, root: string, action: string): void {
 }
 
 function mergeNames(left: string[], right: string[]): string[] {
-  return [...new Set([...left, ...right].filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const names = [...new Set([...left, ...right].filter(Boolean))];
+  if (names.includes("*")) return ["*"];
+  return names.sort((a, b) => a.localeCompare(b));
 }
 
 function compareAppliedRecord(left: AppliedSourceRecord, right: AppliedSourceRecord): number {

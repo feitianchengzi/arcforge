@@ -43,6 +43,7 @@ Commands:
 
 Common options:
   --root <dir>      SkillOps workspace root. Defaults to current directory.
+  --source-dir <dir> Skill source directory inside --root. Defaults to configured sourceDir.
   --profile <name>  Profile name. Defaults to default where supported.
 
 Examples:
@@ -51,6 +52,7 @@ Examples:
   skillops source status --root .
   skillops source update --root . --confirm
   skillops merge plan --root . --to ../team-skills --skills review --target-path skills/project-a
+  skillops merge plan --root . --source-dir .codex/skills --to ../team-skills --skills project-demo-video --target-path skills
   skillops merge run --root . --to github.com/acme/team-skills --skills review --target-path skills/project-a --confirm
   skillops applied drift --root .
   skillops apply --from ../team-skills --profile default --target ~/.codex/skills
@@ -69,14 +71,14 @@ const commandHelpText: Record<string, string> = {
 Scan skills, shared assets, and audit status. Outputs JSON.
 
 Usage:
-  skillops scan [--root <dir>]
+  skillops scan [--root <dir>] [--source-dir <dir>]
 `,
   audit: `SkillOps CLI - audit
 
 Print the audit report as JSON. Exits 2 when critical findings exist.
 
 Usage:
-  skillops audit [--root <dir>]
+  skillops audit [--root <dir>] [--source-dir <dir>]
 `,
   source: `SkillOps CLI - source
 
@@ -96,10 +98,11 @@ Usage:
 
 Options:
   --root <dir>         Current project root. Defaults to current directory.
+  --source-dir <dir>   Skill source directory inside --root. Use .codex/skills for project-local Codex skills.
   --to <path-or-url>   Target Skill project path, GitHub shorthand or Git URL.
   --skills <a,b>       Skills to merge. Defaults to the selected profile.
   --profile <name>     Profile to update in the target project. Defaults to default.
-  --target-path <dir>  Directory in the target project where skills are written.
+  --target-path <dir>  Parent directory in the target project. Skill names are appended under it.
   --target <dir>       Applied target directory recorded for the current project. Defaults to .skillops/skills.
 `,
   applied: `SkillOps CLI - applied
@@ -161,11 +164,11 @@ export async function runSkillOpsCommand(args: string[], runtime: CommandRuntime
   }
 
   if (command === "scan") {
-    return { exitCode: 0, value: await scanWorkspace(arg(args, "--root") ?? runtime.cwd) };
+    return { exitCode: 0, value: await scanWorkspace(arg(args, "--root") ?? runtime.cwd, { sourceDir: arg(args, "--source-dir") }) };
   }
 
   if (command === "audit") {
-    const snapshot = await scanWorkspace(arg(args, "--root") ?? runtime.cwd);
+    const snapshot = await scanWorkspace(arg(args, "--root") ?? runtime.cwd, { sourceDir: arg(args, "--source-dir") });
     return { exitCode: snapshot.audit.findings.some((item) => item.severity === "critical") ? 2 : 0, value: snapshot.audit };
   }
 
@@ -238,6 +241,7 @@ async function runMergeCommand(args: string[], runtime: CommandRuntime): Promise
   const action = args[1] === "run" ? "run" : "plan";
   const options = {
     root: arg(args, "--root") ?? runtime.cwd,
+    sourceDir: arg(args, "--source-dir"),
     to: requiredArg(args, "--to"),
     targetPath: requiredArg(args, "--target-path"),
     profile: arg(args, "--profile") ?? "default",

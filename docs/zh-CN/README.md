@@ -109,6 +109,16 @@ SkillOps 会把日常本地项目设置保存到 `~/.skillops/projects`，因此
 }
 ```
 
+### 从当前仓库安装
+
+clone 当前仓库后，在支持加载本地 skill 的 agent 中打开项目，并运行 `skills/skillops-install`。这个安装 skill 会把仓库里的 `skills/skillops` 复制到用户级 agent skill 目录，构建本地 `skillops` CLI shim，并安装可调起源码桌面端的 `skillops-desktop` launcher：
+
+```bash
+node skills/skillops-install/scripts/install-from-repo.mjs --agent codex --desktop install
+```
+
+需要生成本地桌面端安装包时使用 `--desktop package`，输出在 `release/`；脚本仍会保留源码 launcher。只有明确希望脚本修改 shell profile 以加入 CLI 和 Desktop launcher 时，才使用 `--update-path`。
+
 ### 桌面端
 
 使用演示：

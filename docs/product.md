@@ -2,9 +2,11 @@
 
 ## Positioning
 
-SkillOps is a GitHub-first SkillOps workspace for indie developers and small teams.
+SkillOps is a project-local governance layer for AI agent skills, designed for indie developers and small teams who work through coding agents.
 
-It helps users turn AI agent skills from personal notes into team-ready assets that are audited, versioned, grouped by project, and prepared for private team sharing or public publishing.
+Users primarily use SkillOps from inside a project through a coding agent. The SkillOps skill orchestrates CLI automation and opens the desktop UI when a workflow needs visual review, structured selection, editing, or confirmation.
+
+It helps users turn AI agent skills from personal notes or project-local improvements into team-ready assets that are audited, versioned in GitHub, grouped by project, applied into local agent targets, and prepared for private team sharing or public publishing.
 
 SkillOps is a pre-publish and team-governance layer. It is meant to sit upstream of GitHub releases, ClawHub/OpenClaw, `skillshare`, `npx skills`, and agent-specific runtimes rather than replace them.
 
@@ -26,17 +28,21 @@ SkillOps is a pre-publish and team-governance layer. It is meant to sit upstream
 
 ## Core Jobs
 
-1. I wrote a skill and want to know whether it is safe to share.
-2. I want different projects to use different skill sets.
-3. I want teammates to use the same approved version.
-4. I want a clean public release plan without leaking internal context.
-5. I want a CLI for CI checks.
-6. I want to inspect and edit skills in place before applying or sharing them.
-7. I opened a skill project from GitHub and want to know whether my local checkout is behind before I update it.
+1. I improved a project-local skill and want to audit it before sharing or adopting it elsewhere.
+2. I want to promote a useful project-local skill into a reusable Skill project.
+3. I want to apply the formal Skill project version to another project and verify drift.
+4. I want to share the formal Skill project to a remote GitHub or Git repository.
+5. I want different projects to use different approved skill sets.
+6. I want teammates to use the same reviewed version from GitHub.
+7. I want a clean public release plan without leaking internal context.
+8. I want a CLI for CI checks and agent orchestration.
+9. I want the desktop UI to appear when a skill workflow needs visual review, editing, or batch confirmation.
+10. I opened a skill project from GitHub and want to know whether my local checkout is behind before I update it.
 
 ## MVP Features
 
 - scan a Git workspace for `SKILL.md` skills
+- provide an agent-facing SkillOps skill that orchestrates CLI and desktop workflows from the current project
 - audit skill quality and security risks
 - browse and edit the workspace `skills/` tree with profile-based filtering
 - apply named profiles to target folders
@@ -44,6 +50,7 @@ SkillOps is a pre-publish and team-governance layer. It is meant to sit upstream
 - check and fast-forward update GitHub-sourced skill projects through CLI-first commands
 - generate private/public publish plans
 - provide JSON CLI output for automation
+- open the desktop UI to specific workflow contexts when visual review or confirmation is needed
 
 ## Differentiation
 

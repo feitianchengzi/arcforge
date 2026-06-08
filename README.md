@@ -109,6 +109,16 @@ Local state config shape:
 }
 ```
 
+### Install From This Repository
+
+After cloning this repository, open the project in an agent that can load local skills and run `skills/skillops-install`. The install skill copies the repository's `skills/skillops` into your user-level agent skill directory, builds a local `skillops` CLI shim, and installs a `skillops-desktop` launcher for the source-built Desktop app:
+
+```bash
+node skills/skillops-install/scripts/install-from-repo.mjs --agent codex --desktop install
+```
+
+Use `--desktop package` when you want a local Desktop installer under `release/`; the script still keeps the source launcher available. Use `--update-path` only when you want the script to update your shell profile for the CLI and Desktop launchers.
+
 ### Desktop App
 
 Usage demo:

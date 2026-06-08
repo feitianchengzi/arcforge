@@ -79,6 +79,20 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
   assert.doesNotMatch(preload, /initWorkspace/);
 });
 
+test("cli can scan project-local agent skill directories from the project root", async () => {
+  const commands = await readFile(new URL("../src/commands/index.ts", import.meta.url), "utf8");
+  const workspace = await readFile(new URL("../src/core/workspace.ts", import.meta.url), "utf8");
+  const sources = await readFile(new URL("../src/core/sources.ts", import.meta.url), "utf8");
+
+  assert.match(commands, /--source-dir <dir>/);
+  assert.match(commands, /scanWorkspace\(arg\(args, "--root"\) \?\? runtime\.cwd, \{ sourceDir: arg\(args, "--source-dir"\) \}\)/);
+  assert.match(commands, /sourceDir: arg\(args, "--source-dir"\)/);
+  assert.match(workspace, /ScanWorkspaceOptions/);
+  assert.match(workspace, /--source-dir must be a relative path inside the workspace root/);
+  assert.match(sources, /scanWorkspace\(root, \{ sourceDir: options\.sourceDir \}\)/);
+  assert.match(sources, /if \(names\.includes\("\*"\)\) return \["\*"\]/);
+});
+
 test("workspace config is stored outside source checkouts", async () => {
   const configCore = await readFile(new URL("../src/core/config.ts", import.meta.url), "utf8");
   const projectStore = await readFile(new URL("../src/core/project-store.ts", import.meta.url), "utf8");
