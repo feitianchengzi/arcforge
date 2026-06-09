@@ -1,27 +1,74 @@
 # 能力框架
 
-用户要以产品建设视角搭建或完善 SkillOps 时读取本文件。这里描述的是能力框架和阶段化建设顺序，不是每次使用 `$skillops` 都要完整跑完的固定流程。
+用户要理解 SkillOps 的完整产品概念、阶段化治理或端到端路径时读取本文件。本文件描述产品模型和流程组合方式，不是每次使用 `$skillops` 都要完整跑完的固定流程。
 
-## 核心模型
+## 产品定位
 
-使用四个对象组织产品能力：
+SkillOps 是 local-first、GitHub-first 的 agent skill 治理工作台。它位于分发之前，帮助用户把项目内自然产生的 skill 变成可审计、可 review、可版本化、可按 profile 应用、可检查 drift、可准备发布的团队资产。
 
-- 当前项目：skill 被创建、编辑或安装的位置。
-- 正式 Skill 项目：可复用的 source of truth。
-- 目标项目：消费正式 Skill 项目的另一个项目或 agent 目标。
-- 远程仓库：用于团队 review、版本管理、分享和发布准备的 GitHub 或 Git 仓库。
+SkillOps 不做：
 
-围绕这些对象逐步补齐能力：
+- 托管 marketplace。
+- 公共 registry。
+- 搜索、评分或付费分发。
+- agent runtime。
+- 通用 prompt library。
 
-- 发现：扫描当前项目、项目本地 agent skills、正式 Skill 项目和已应用来源。
-- 审计：在团队共享或公开发布前发现结构、安全和元数据风险。
-- 组织：用 profile 表达项目、团队或场景需要的 skill 集合。
-- 正式化：把值得复用的项目本地 skill 合并到正式 Skill 项目。
-- 应用：把正式来源中的 profile 安装到本地 agent 或项目目标。
-- 漂移：比较正式来源和已安装副本，发现缺失、变更和多余文件。
-- 分享准备：生成 GitHub-first 的发布、PR、恢复和 registry 命令提示。
+相邻系统关系：
 
-这些能力可以独立使用，也可以在用户明确要求端到端推进时串联使用。
+- GitHub：source of truth、review、release、权限控制和 PR 合作。
+- ClawHub/OpenClaw：公开 registry 和生态分发目标。
+- `skillshare`、`npx skills`：安装与同步路径。
+- Codex、Claude、Cursor 等 agent：消费本地 skills 的运行环境。
+
+## 核心对象
+
+用四个对象理解所有 workflow：
+
+- 当前项目：用户正在工作的项目，可能包含项目本地 agent skills 或普通 `skills/` 目录。
+- 正式 Skill 项目：可复用 skill 的 source of truth，通常是一个 GitHub-first 仓库 checkout。
+- 目标项目或目标 agent 目录：消费正式 Skill 项目 profile 的安装位置。
+- 远程仓库：团队 review、版本、共享和发布准备的 Git 或 GitHub 目标。
+
+另外有两个重要状态：
+
+- Profile：Skill 项目中命名的 skill 集合和 agent 目标偏好。
+- Applied source record：当前项目保存的“从哪个来源 profile 应用到哪个目标目录”的关系。
+
+无显式配置时，`skills/*/SKILL.md` 会形成最小 Skill 项目，默认 `default` profile 选择全部发现的 skills。项目本地 agent skills 则通常位于 `.codex/skills/*/SKILL.md`、`.claude/skills/*/SKILL.md` 或 `.cursor/skills/*/SKILL.md`，治理 root 仍是项目根。
+
+## 原子能力
+
+这些能力可以独立使用，也可以在用户明确要求时组合：
+
+- 发现：扫描 root、sourceDir、skills、共享资产、profile、audit 摘要和 Git 来源信息。
+- 审计：检查 secrets、危险指令、危险 shell 模式、frontmatter 和描述质量。
+- 配置组：创建、编辑、删除 profile，选择全部或部分 skills，记录目标 agent。
+- 正式化：把当前项目 skill 归并到正式 Skill 项目，并更新正式项目 profile。
+- 应用：从当前或外部 Skill 项目把 profile 复制到 agent 或项目目标。
+- 应用关系：保存、列出、删除、检查和重新应用来源关系。
+- 漂移：比较来源 profile 与目标目录，报告 missing、changed、extra。
+- 来源维护：检查 Git checkout ahead、behind、dirty 和 fast-forward 更新能力；status 检查可能 fetch 并写 Git 元数据。
+- 发布准备：生成发布 checklist、文件清单和安装命令提示。
+- 共享：把 Skill 项目同步到 GitHub/Git 仓库，支持 PR、fork PR、direct push 或 local branch。
+- Desktop handoff：把需要视觉选择、编辑、diff 或确认的步骤交给桌面端。
+- 环境诊断：检查 Git、CLI shim、`skillshare`、`npx`、`clawhub` 等工具状态。
+
+## 意图路由
+
+先判断用户当前要处理哪个阶段：
+
+- “看看这个项目有什么 skills”：发现。
+- “适不适合共享/发布”：审计，必要时发布准备。
+- “整理一组给前端/团队使用”：配置组。
+- “把这个项目里的 skill 沉淀出去”：正式化。
+- “安装/同步到 Codex/Claude/Cursor/另一个项目”：应用。
+- “已经安装的和来源是否一致”：漂移或应用关系漂移。
+- “以后从同一个来源更新”：应用关系。
+- “这个 GitHub skill 项目是否落后”：来源维护；如果当前任务禁止写源码，只在临时 Git fixture 或用户确认后检查。
+- “准备发 GitHub/ClawHub/OpenClaw”：发布准备和共享计划。
+- “需要看 diff、选多个目标、编辑文件”：Desktop handoff。
+- “CLI/Desktop 还缺什么”：缺口报告。
 
 ## 阶段化治理
 
@@ -29,18 +76,19 @@
 
 - 扫描现状：运行 scan，报告本地 skills、shared assets、audit 摘要和 Git 状态。
 - 审计 skill：运行 audit，解释 findings、风险和修复建议。
-- 整理 profile：检查或规划 profile，不自动写入目标。
+- 整理 profile：读取或编辑 profile，不自动写入目标。
 - 正式化 skill：先生成 merge plan；只有用户确认后才执行 merge run。
 - 应用到目标：先说明 root、from、profile、target 和覆盖风险；只有用户确认后才运行 apply。
 - 检查漂移：运行 drift 或 applied drift，报告 missing、changed、extra。
-- 准备分享：从正式 Skill 项目运行 publish/share plan；只有用户确认后才运行 share run。
+- 准备分享：先运行 publish/share plan；无 GitHub 登录或无写权限时保留 plan 并解释 fallback delivery，只有用户确认后才运行 share run。
+- 维护来源：先说明 `source status` 可能写 Git 元数据；允许后运行 status，只有用户确认后才运行 source update。
 
 ## 端到端推进
 
 只有用户明确要求“从项目本地 skill 一路正式化、同步并准备分享”这类端到端目标时，才把阶段串起来：
 
 1. 扫描当前项目。
-2. 识别要处理的项目本地 skill。
+2. 识别要处理的项目本地 skill 和真实 sourceDir。
 3. 审计选中的 skill。
 4. 检查 applied source record 是否已经指向正式 Skill 项目。
 5. 如果没有正式来源，询问或推断正式 Skill 项目路径或远程。
@@ -54,21 +102,6 @@
 13. 如用户要远程分享，再从正式 Skill 项目生成 publish/share plan。
 
 不要默认项目到项目直接复制。只有用户明确要求临时一次性复制，并理解这不会建立 durable source relationship 时，才可以直接复制。
-
-如果选中的 skill 位于 `.codex/skills`、`.claude/skills`、`.cursor/skills` 等项目本地 agent 目录，当前项目仍是 root，agent skill 目录作为 `--source-dir`。正式来源关系属于项目，不属于隐藏 agent 子目录。
-
-## 远程分享前提
-
-远程分享应从正式 Skill 项目执行，而不是从原始项目本地草稿执行。
-
-真实远程分享前：
-
-1. 确认 skill 已合并到正式 Skill 项目。
-2. 确认正式 Skill 项目位于 Git 仓库中；`source status` 在非 Git 目录会失败。
-3. 从正式 Skill 项目运行 audit、publish plan 和 share plan。
-4. 报告 blocking risks、warnings、文件列表摘要和推荐 delivery mode。
-5. 远程写入前确认 repository、profile、branch、delivery mode、commit message 和覆盖风险。
-6. 用户确认后才运行 share run。
 
 ## 停止条件
 
