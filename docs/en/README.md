@@ -2,72 +2,127 @@
 
 [简体中文](../../README.md)
 
-Local-first, GitHub-first governance for AI agent skills.
+SkillOps is a local-first, GitHub-first skill governance workspace designed to be used by coding agents.
 
-SkillOps helps individuals and small teams turn `SKILL.md` files into reviewed, grouped, shareable assets before they are installed into agents or published to GitHub/ClawHub.
+It helps individuals and small teams scan, audit, group, apply, drift-check, and prepare skills before they are copied into agents, shared with a team, or published publicly. The CLI and Desktop app are tools the agent can call; they are not the primary interface users should have to memorize.
 
 ![SkillOps governance concept](../assets/skillops-overview.svg)
 
+## Quick Start
+
+The recommended way to install SkillOps is to hand this repository to a coding agent, not to start by manually running CLI commands.
+
+1. Clone or open this repository.
+2. Open the current project in Codex, Claude Code, Cursor, or another coding agent.
+3. Send this prompt to the agent:
+
+```text
+执行 skills/skillops-install
+```
+
+The install skill uses the current source checkout to:
+
+- Install `skills/skillops/` into the current agent's user-level skill directory.
+- Build the local `skillops` CLI shim.
+- Install a `skillops-desktop` launcher that the agent can open when needed.
+- Run headless verification when GUI launch is unavailable.
+
+After installation, open any project in your coding agent and ask the agent to use SkillOps in natural language:
+
+```text
+Use skillops to scan the current project's skills.
+Use skillops to audit these skills for team sharing.
+Use skillops to apply the frontend profile to Codex.
+Use skillops to check drift between installed copies and the source repository.
+Use skillops to prepare a GitHub and ClawHub/OpenClaw release checklist.
+```
+
+If the agent cannot resolve the install skill, ask it to run this fallback command:
+
+```bash
+node skills/skillops-install/scripts/install-from-repo.mjs --agent codex --desktop install
+```
+
+Only add `--update-path` when you explicitly want the script to modify your shell profile. Use `--desktop package` when you need a local Desktop installer.
+
 ## Why This Exists
 
-SkillOps started as a personal itch: I want a small, local-first way to manage AI agent skills before they are copied into agents or shared with other people. **I am not sure yet whether this direction is broadly useful**, and I do not want to overbuild it before there is a clear signal.
+SkillOps started from a specific local workflow need: I wanted a lightweight governance layer before skills are copied into agents, shared with a team, or prepared for public release.
 
-If **you also have skill management needs** and cannot find a tool that fits how you work, please star this project, open an issue, or send a PR. That tells me **I am not the only one running into this problem**.
+That layer should not replace agents, become a marketplace, or bypass GitHub. It should help agents and users inspect source skills locally, fix them, group them, record provenance, and then hand them to existing agents, installers, GitHub, or ClawHub/OpenClaw.
 
-**Stars are the strongest signal** for how much energy I should keep putting into SkillOps. The more real interest there is, the more I can justify turning this from a personal workflow tool into something maintained more seriously.
+If you run into the same skill management problem, please star the project, open an issue, or send a PR. Real usage signals help decide how much energy this should receive beyond a personal workflow tool.
 
 ## Positioning
 
-SkillOps is not a skill marketplace, public registry, package manager, or agent runtime.
+SkillOps is not a skill marketplace, public registry, search engine, ratings system, paid distribution platform, package manager, or agent runtime.
 
-It is the workflow layer before distribution:
+SkillOps owns the work before distribution:
 
 ```text
-write skill -> audit -> profile -> apply -> drift check -> release prep
+discover source skills -> audit -> profile -> apply -> drift check -> release prep
 ```
 
-Use SkillOps to answer operational questions that registries and installers usually do not own:
+It answers questions like:
 
 - Which skills are approved for this project or team?
-- Can we inspect and fix the source skill before applying it?
-- Is this skill safe enough to share or publish?
-- Did an installed copy drift from the source repository?
-- Which install commands and release checklist should we give users?
+- Can the source skills be inspected and fixed before applying them to an agent?
+- Is a project-born skill worth moving into a formal Skill project?
+- Did an installed copy drift from the GitHub or local source of truth?
+- What is still missing before team sharing or public release?
+- Which GitHub, ClawHub/OpenClaw, or installer command hints should users receive?
 
-## How It Differs
-
-| Product type | Representative products | They optimize for | SkillOps does instead |
-|---|---|---|---|
-| Public skill registries | [ClawHub/OpenClaw](https://github.com/openclaw/clawhub), skills.sh | discovery, public publishing, search, marketplace UX | prepare skills before publishing; keep GitHub as source of truth |
-| Cross-agent installers | [skillshare](https://github.com/runkids/skillshare), [npx skills](https://github.com/vercel-labs/skills) | install and sync skills into many agents | review and edit source skills, then generate profile sets, audit gates, drift reports, and release plans around those tools |
-| Agent-native systems | [Claude Code plugins](https://code.claude.com/docs/en/plugins), [Claude skills](https://code.claude.com/docs/en/skills), Cursor rules | runtime loading, activation, agent-specific behavior | manage source skills before they are copied into runtime-specific locations |
-| Project instruction files | `AGENTS.md`, `CLAUDE.md`, `.cursor/rules` | tell one project or agent how to behave | manage reusable `SKILL.md` assets across projects and agents |
-| MCP registries | [Smithery](https://smithery.ai/), MCP catalogs | discover and install MCP servers | stay focused on skill governance, not tool-server distribution |
-
-The short version: use registries to find and distribute skills, use installers to copy them into agents, and use SkillOps to decide what should be trusted, grouped, applied, and released.
+Short version: registries are for discovery and distribution, installers copy skills into agents, and SkillOps decides what should be trusted, grouped, applied, and released.
 
 For detailed product-by-product comparisons, see [comparison.md](comparison.md).
 
+## How It Works
+
+The new usage model is agent-first:
+
+| Part | Role |
+|---|---|
+| `skills/skillops-install` | Lets a user clone this repository and complete local installation through a coding agent. |
+| `skillops` skill | The natural-language workflow entry point in any later project. |
+| CLI | The reproducible execution layer the agent calls for scan, audit, apply, drift, share, and JSON results. |
+| Desktop | The local workspace the agent opens for visual review, file editing, batch selection, conflict review, or full drift diffs. |
+| GitHub | The source of truth for skill review, versioning, releases, and access control. |
+| ClawHub/OpenClaw and similar registries | Public publishing targets or release-readiness check targets, not systems SkillOps tries to replace. |
+
+Typical flow:
+
+```text
+ask the agent to execute skills/skillops-install inside the SkillOps repo
+-> open the target project in a coding agent
+-> ask the agent to use skillops to scan or audit local skills
+-> merge reusable project-born skills into a formal Skill project
+-> apply an approved profile into an agent or project target
+-> check drift between the formal source and installed copies
+-> prepare GitHub-first sharing or public release notes
+```
+
+Users do not need to understand every CLI subcommand first. CLI subcommands are the lower-level interface for agents, CI, and debugging.
+
 ## When To Use It
 
-Use SkillOps when you need a local governance step before skills are copied into agents or prepared for release.
+Use SkillOps when you need a local governance step before skills are copied into agents, shared with a team, or published publicly.
 
-| Scenario | Use SkillOps for | Main path |
-|---|---|---|
-| Private team skill repo | keep skill changes reviewed in Git without running a registry | scan, audit, profiles, GitHub share |
-| Per-project agent setup | install only the approved skills a project should use | apply, drift, applied |
-| Project-born skill maintenance | merge useful project skills into another Skill project and keep the current project as an applied target | merge, applied |
-| GitHub-sourced skill project maintenance | see whether the current Git checkout is behind upstream before choosing to update | source status, source update |
-| Pre-publication review | catch secrets, risky instructions, weak metadata, and internal references | audit, publish-plan |
-| Multi-agent drift control | compare installed copies with the source Skill project | drift, applied |
-| Local skill editing | inspect and edit `SKILL.md`, references, and scripts without leaving the workspace | desktop skill file editor |
-| CI guardrail | produce JSON checks before sharing or publishing | CLI commands |
+| Scenario | What SkillOps does |
+|---|---|
+| Private team skill repo | Keeps skill changes reviewed in Git without running a registry. |
+| Per-project agent setup | Installs only the approved skills a project should use. |
+| Project-born skill maintenance | Moves reusable skills from a business project into a formal Skill project. |
+| GitHub-sourced skill project maintenance | Shows whether the current Git checkout is behind upstream before you choose to update. |
+| Pre-publication review | Checks secrets, risky instructions, weak metadata, and internal references. |
+| Multi-agent drift control | Compares installed copies with the source Skill project. |
+| Local skill editing | Opens `SKILL.md`, references, and scripts in Desktop for review and edits. |
+| CI guardrail | Produces machine-readable checks before sharing or publishing. |
 
-Do not use SkillOps if you only need to browse public skills or install a one-off skill into one agent.
+If you only want to browse public skills or install one public skill into one agent, SkillOps is not the shortest path. Prefer a registry or installer for that.
 
-## How To Use
+## Skill Project Shape
 
-Expected workspace shape:
+Keep reusable skills in a formal Skill project and let GitHub be the source of truth:
 
 ```text
 my-skills/
@@ -77,9 +132,10 @@ my-skills/
       references/
     release-writer/
       SKILL.md
+      scripts/
 ```
 
-A single skill folder is also valid for local and GitHub sources:
+A single skill folder is also valid as a local or GitHub source:
 
 ```text
 code-review/
@@ -87,11 +143,11 @@ code-review/
   references/
 ```
 
-Local project settings:
+When skills live in project-local agent directories such as `.codex/skills`, `.claude/skills`, or `.cursor/skills`, keep the project root as the governance root. SkillOps passes the agent skill directory as `--source-dir` to the CLI so local project state, Git state, applied-source records, and drift reports stay attached to the real project instead of the hidden agent directory.
 
-SkillOps stores local project settings under `~/.skillops/projects` so GitHub source checkouts do not become dirty just because profiles or targets changed. If a project root still contains `skillops.config.json`, SkillOps migrates it into the user-level project state when no local state exists, or deletes it when local state already exists.
+SkillOps stores local project settings under `~/.skillops/projects` so GitHub source checkouts do not become dirty just because profiles or targets changed. Legacy `skillops.config.json` files in project roots are migrated into user-level project state when needed.
 
-Local state config shape:
+Example config shape:
 
 ```json
 {
@@ -109,40 +165,18 @@ Local state config shape:
 }
 ```
 
-### Install SkillOps From This Repository
-
-After cloning this repository, install SkillOps once from the source checkout:
-
-```bash
-node skills/skillops-install/scripts/install-from-repo.mjs --agent codex --desktop install
-```
-
-This installs the repository's `skills/skillops` into your user-level agent skill directory, builds a local `skillops` CLI shim, and installs a `skillops-desktop` launcher for the source-built Desktop app.
-
-Use `--desktop package` when you want a local Desktop installer under `release/`; the script still keeps the source launcher available. Use `--update-path` only when you want the script to update your shell profile for the CLI and Desktop launchers.
-
-After installation, open any project in your coding agent and use `skillops` as the workflow entry point. SkillOps treats the current directory as the project root, uses the CLI for reproducible JSON-backed actions, and opens the Desktop app only when a workflow needs visual review, editing, batch selection, conflict review, or a full drift diff.
-
-Typical project-local flow:
-
-```text
-open project in agent
--> use skillops to scan or audit local skills
--> merge reusable project skills into a formal Skill project
--> apply an approved profile into an agent or project target
--> check drift between the formal source and installed copy
--> prepare GitHub-first sharing or release notes
-```
-
-When skills live in a project-local agent directory such as `.codex/skills`, keep the project root as `--root` and let SkillOps pass that directory as `--source-dir`. That keeps local project state, Git status, applied-source records, and drift reports attached to the real project instead of the hidden agent directory.
-
-### Desktop App
+## Desktop
 
 Usage demo:
 
 ![SkillOps desktop demo](../assets/skillops-desktop-demo.gif)
 
-Install from a release by downloading the latest macOS `.dmg`, Windows `.exe`, or Linux `.AppImage` from GitHub Releases.
+Desktop is the local governance workspace, not the first thing users must open. The agent usually opens it when:
+
+- Audit findings need direct edits to `SKILL.md`, references, or scripts.
+- Profiles need visual review, batch selection, or apply decisions.
+- Apply, merge, or share conflicts need review.
+- Installed copies and sources need a full drift diff.
 
 Run from source for development:
 
@@ -157,35 +191,13 @@ Build a local desktop package:
 npm run package
 ```
 
-Use the desktop app as the local governance workspace for skills before they are copied into agents or prepared for GitHub-first sharing.
+Release builds include the same CLI engine. After the app starts, it installs a user-level `skillops` shim and reports whether the shim is available on PATH.
 
-| Desktop capability | Why it matters |
-|---|---|
-| Built-in skill editor | Turns audit findings into local fixes for `SKILL.md`, references, and scripts without leaving the governed workspace. |
-| Profile-aware workspace views | Keeps project, team, or release skill sets visible as first-class working contexts instead of making profiles only a config field. |
-| Multi-target apply groups | Applies an approved profile to agent, project, and custom local targets in one controlled workflow. |
-| Multi-target sharing groups | Prepares the same governed skill set for different GitHub sharing or release paths. |
-| Drift and CLI repair feedback | Keeps installed copies and the local CLI setup accountable instead of leaving users to guess what changed or failed. |
+## CLI
 
-Desktop release builds include the same CLI engine. After the app starts, it installs a user-level `skillops` shim and the environment banner reports whether the shim is on PATH. Use **Repair CLI** when the shim directory needs to be added to your shell profile.
-
-### CLI
+The CLI is SkillOps' reproducible execution layer for agents, CI, and debugging.
 
 Usage video: [SkillOps CLI demo](../assets/skillops-cli-demo.mp4)
-
-Install the CLI from the latest GitHub release:
-
-Requires Node.js 20 or newer on PATH.
-
-```bash
-curl -fsSL https://github.com/feitianchengzi/skillops/releases/latest/download/install.sh | sh
-```
-
-On Windows PowerShell:
-
-```powershell
-irm https://github.com/feitianchengzi/skillops/releases/latest/download/install.ps1 | iex
-```
 
 Build and run the CLI locally:
 
@@ -195,7 +207,7 @@ npm run build:cli
 node dist/cli/index.js help
 ```
 
-Common commands:
+Common low-level commands:
 
 ```bash
 skillops scan --root .
@@ -218,7 +230,7 @@ Remote Skill projects passed to `merge`, `apply`, or `drift` are downloaded to a
 
 ## Project Status
 
-Early MVP. APIs and config shape may change before `1.0`.
+Early MVP. APIs, config shape, and Desktop UX may change before `1.0`.
 
 Further docs:
 

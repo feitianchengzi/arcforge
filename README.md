@@ -2,72 +2,127 @@
 
 [English](docs/en/README.md)
 
-SkillOps 是面向 AI agent skills 的本地优先、GitHub 优先治理工作台。
+SkillOps 是给 coding agent 使用的本地优先、GitHub 优先 skill 治理工作台。
 
-SkillOps 帮助个人开发者和小团队把 `SKILL.md` 文件变成经过审计、分组、可共享的资产，然后再安装到 agent，或发布到 GitHub/ClawHub。
+它帮助个人开发者和小团队在 skills 被复制到 agent、团队共享或公开发布之前，先完成扫描、审计、分组、应用、漂移检查和发布准备。CLI 和 Desktop 都是 agent 可以调度的工具，不是让用户背命令的主入口。
 
 ![SkillOps 治理理念图](docs/assets/skillops-overview.svg)
 
-## 为什么会有这个项目
+## 快速开始
 
-SkillOps 最开始是我自己的一个需求：我希望有一个小而本地优先的工具，用来在 skills 被复制到 agent 或分享给别人之前，先把它们管理起来。**我现在也不确定这个方向是否真的值得长期投入**，所以不想在没有明确反馈前把它做得过重。
+安装 SkillOps 的推荐方式不是先手动运行 CLI，而是把当前仓库交给 coding agent。
 
-如果**你也有 skill 管理需求**，并且在现有工具里找不到符合自己工作方式的方案，欢迎给这个项目一个 star、提 issue，或者直接发 PR。这能让我知道**不是只有我一个人遇到这类问题**。
-
-**大家的 star 是我判断是否继续投入 SkillOps 的最直接信号**。真实需求越多，我就越有理由把它从个人工作流工具，继续维护成一个更认真可用的项目。
-
-## 定位
-
-SkillOps 不是 skill marketplace、公开 registry、包管理器，也不是 agent runtime。
-
-它负责分发之前的工作流：
+1. Clone 或打开这个仓库。
+2. 用 Codex、Claude Code、Cursor 等 coding agent 打开当前项目。
+3. 给 agent 发送：
 
 ```text
-编写 skill -> 审计 -> 组成 profile -> 应用到目标 -> 检查 drift -> 发布准备
+执行 skills/skillops-install
 ```
 
-SkillOps 主要回答这些运营问题：
+安装 skill 会从当前源码 checkout 完成这些动作：
 
-- 哪些 skills 是这个项目或团队批准使用的？
-- 能否在应用前直接查看和修复源 skill？
-- 这个 skill 是否适合共享或公开发布？
-- 已安装副本是否偏离了源仓库？
-- 应该给用户什么安装命令和发布 checklist？
+- 把 `skills/skillops/` 安装到当前 agent 的用户级 skill 目录。
+- 构建本地 `skillops` CLI shim。
+- 安装可由 agent 调起的 `skillops-desktop` launcher。
+- 在不能启动 GUI 的环境中，用 headless 校验确认安装结果。
 
-## 和同类产品的差异
+安装完成后，在任意项目中打开 coding agent，然后直接用自然语言让 agent 使用 SkillOps：
 
-| 产品类型 | 代表产品 | 它们主要解决 | SkillOps 解决 |
-|---|---|---|---|
-| 公开 skill registry | [ClawHub/OpenClaw](https://github.com/openclaw/clawhub)、skills.sh | 发现、公开发布、搜索、marketplace 体验 | 发布前准备；继续让 GitHub 做 source of truth |
-| 跨 agent 安装工具 | [skillshare](https://github.com/runkids/skillshare)、[npx skills](https://github.com/vercel-labs/skills) | 把 skills 安装和同步到多个 agent | 先审阅和编辑源 skills，再围绕这些工具生成 profiles、审计门禁、drift report 和发布计划 |
-| Agent 原生系统 | [Claude Code plugins](https://code.claude.com/docs/en/plugins)、[Claude skills](https://code.claude.com/docs/en/skills)、Cursor rules | runtime 加载、激活、agent 专属行为 | 在复制到 runtime 目录前管理源 skills |
-| 项目指令文件 | `AGENTS.md`、`CLAUDE.md`、`.cursor/rules` | 告诉某个项目或 agent 如何工作 | 跨项目、跨 agent 管理可复用的 `SKILL.md` 资产 |
-| MCP registry | [Smithery](https://smithery.ai/) 等 MCP 目录 | 发现和安装 MCP servers | 专注 skill 治理，不做 tool-server 分发 |
+```text
+使用 skillops 扫描当前项目的 skills
+使用 skillops 审计这些 skills 是否适合团队共享
+使用 skillops 把 frontend profile 应用到 Codex
+使用 skillops 检查已安装副本和来源仓库之间的 drift
+使用 skillops 准备 GitHub 和 ClawHub/OpenClaw 发布 checklist
+```
+
+如果 agent 无法识别安装 skill，可以让它执行这个兜底命令：
+
+```bash
+node skills/skillops-install/scripts/install-from-repo.mjs --agent codex --desktop install
+```
+
+只有明确希望修改 shell profile 以加入 PATH 时，才追加 `--update-path`。需要生成本地桌面端安装包时，使用 `--desktop package`。
+
+## 为什么会有这个项目
+
+SkillOps 最开始是一个很具体的本地工作流需求：我希望在 skills 被复制到 agent、分享给团队或准备公开发布之前，先有一个轻量的治理层。
+
+这个治理层不应该取代 agent，不应该变成 marketplace，也不应该绕过 GitHub。它应该帮助 agent 和用户在本地把源 skill 看清楚、改干净、分好组、记录来源，然后再交给现有 agent、安装工具、GitHub 或 ClawHub/OpenClaw。
+
+如果你也遇到类似的 skill 管理问题，欢迎 star、提 issue 或发 PR。真实需求越多，越值得把 SkillOps 从个人工作流工具继续维护成更认真可用的项目。
+
+## 产品定位
+
+SkillOps 不是 skill marketplace、公开 registry、搜索引擎、评分系统、付费分发平台、包管理器，也不是 agent runtime。
+
+SkillOps 负责分发之前的工作：
+
+```text
+发现源 skills -> 审计 -> 组成 profile -> 应用到目标 -> 检查 drift -> 准备发布
+```
+
+它主要回答这些问题：
+
+- 当前项目或团队批准使用哪些 skills？
+- 这些源 skills 在应用到 agent 前是否可以被审阅和修复？
+- 一个项目内自然产生的 skill 是否值得沉淀到正式 Skill 项目？
+- 已安装副本是否偏离了 GitHub 或本地正式来源？
+- 团队共享或公开发布前，还缺哪些 checklist？
+- 用户应该收到哪些 GitHub、ClawHub/OpenClaw 或 installer 命令提示？
 
 一句话：registry 用来发现和分发，installer 用来复制到 agent，SkillOps 用来判断哪些 skill 值得信任、如何分组、如何应用、如何发布。
 
 更详细的逐项对比见 [对比说明](docs/comparison.md)。
 
+## 工作方式
+
+SkillOps 的新使用理念是 agent-first：
+
+| 组成部分 | 角色 |
+|---|---|
+| `skills/skillops-install` | 让用户 clone 仓库后，通过 coding agent 完成本地安装。 |
+| `skillops` skill | 后续在任意项目里的自然语言工作流入口。 |
+| CLI | agent 调用的可复现执行层，负责 scan、audit、apply、drift、share 等 JSON 结果。 |
+| Desktop | agent 在需要视觉审阅、文件编辑、批量选择、冲突复核或完整 drift diff 时调起的本地工作台。 |
+| GitHub | skill source of truth、review、版本、release 和访问控制来源。 |
+| ClawHub/OpenClaw 等 registry | 公开发布目标或发布准备检查对象，不是 SkillOps 要替代的系统。 |
+
+典型流程：
+
+```text
+在 SkillOps 仓库中让 agent 执行 skills/skillops-install
+-> 在目标项目中打开 coding agent
+-> 让 agent 使用 skillops 扫描或审计本地 skills
+-> 把可复用的项目内 skill 归并到正式 Skill 项目
+-> 把批准过的 profile 应用到 agent 或项目目标
+-> 检查正式来源和已安装副本之间的 drift
+-> 准备 GitHub 优先的共享或公开发布说明
+```
+
+用户不需要先理解所有 CLI 子命令。CLI 子命令是 agent、CI 或调试场景的底层接口。
+
 ## 什么时候用
 
-当你需要在 skills 被复制到 agent 或准备发布之前，先做一层本地治理时，适合使用 SkillOps。
+当你需要在 skills 被复制到 agent、团队共享或公开发布之前，先做一层本地治理时，适合使用 SkillOps。
 
-| 场景 | 用 SkillOps 做什么 | 主要能力 |
-|---|---|---|
-| 团队私有 skill 仓库 | 不搭 registry，也能让 skill 变更经过 Git review | scan、audit、profiles、GitHub share |
-| 按项目配置 agent | 每个项目只安装它应该使用的已批准 skills | apply、drift、applied |
-| 项目内自然产生的 skill 正式维护 | 把业务项目中的可复用 skill 归并到另一个 Skill 项目，并让当前项目成为应用目标 | merge、applied |
-| 维护 GitHub 来源项目 | 先查看当前 Git checkout 落后上游多少 commit，再自主决定是否更新 | source status、source update |
-| 公开发布前检查 | 检查 secrets、风险指令、薄弱 metadata 和内部引用 | audit、publish-plan |
-| 多 agent 漂移控制 | 比较已安装副本和来源 Skill 项目是否一致 | drift、applied |
-| 本地编辑 skill | 不离开工作台即可查看和编辑 `SKILL.md`、references 与 scripts | 桌面端技能文件编辑器 |
-| CI 守门 | 在共享或发布前输出 JSON 检查结果 | CLI commands |
+| 场景 | SkillOps 做什么 |
+|---|---|
+| 团队私有 skill 仓库 | 不搭 registry，也能让 skill 变更经过 Git review。 |
+| 按项目配置 agent | 每个项目只安装它应该使用的已批准 skills。 |
+| 项目内自然产生的 skill 正式维护 | 把业务项目中的可复用 skill 归并到正式 Skill 项目。 |
+| 维护 GitHub 来源项目 | 先查看当前 Git checkout 落后上游多少 commit，再自主决定是否更新。 |
+| 公开发布前检查 | 检查 secrets、风险指令、薄弱 metadata 和内部引用。 |
+| 多 agent 漂移控制 | 比较已安装副本和来源 Skill 项目是否一致。 |
+| 本地编辑 skill | 在 Desktop 中查看和编辑 `SKILL.md`、references 与 scripts。 |
+| CI 守门 | 在共享或发布前输出可机器读取的检查结果。 |
 
-如果你只是想浏览公开 skills，或一次性给某个 agent 安装一个 skill，SkillOps 不是最短路径。
+如果你只是想浏览公开 skills，或一次性给某个 agent 安装一个公开 skill，SkillOps 不是最短路径。那类需求应该优先使用 registry 或 installer。
 
-## 怎么用
+## Skill 项目结构
 
-推荐工作区结构：
+推荐把可复用 skills 放在正式 Skill 项目里，并让 GitHub 做 source of truth：
 
 ```text
 my-skills/
@@ -77,6 +132,7 @@ my-skills/
       references/
     release-writer/
       SKILL.md
+      scripts/
 ```
 
 本地来源和 GitHub 来源也可以直接指向单个 skill 文件夹：
@@ -87,11 +143,11 @@ code-review/
   references/
 ```
 
-本地项目设置：
+当 skills 位于 `.codex/skills`、`.claude/skills`、`.cursor/skills` 这类项目内 agent 目录时，项目根目录仍然是治理根目录。SkillOps 会把 agent skill 目录作为 `--source-dir` 传给 CLI，让本地项目状态、Git 状态、应用来源记录和漂移报告都归属于真实项目，而不是隐藏的 agent 目录。
 
-SkillOps 会把日常本地项目设置保存到 `~/.skillops/projects`，因此 GitHub 来源 checkout 不会只因为配置组或目标变化而变脏。如果项目根目录仍存在 `skillops.config.json`，当用户级项目状态不存在时系统会先迁移进去；当用户级项目状态已存在时系统只删除项目根目录下的该文件。
+SkillOps 会把日常本地项目设置保存到 `~/.skillops/projects`，避免 GitHub source checkout 因 profile 或 target 变化而变脏。项目根目录下遗留的 `skillops.config.json` 会在需要时迁移到用户级项目状态。
 
-本地状态中的配置结构：
+配置结构示例：
 
 ```json
 {
@@ -109,42 +165,20 @@ SkillOps 会把日常本地项目设置保存到 `~/.skillops/projects`，因此
 }
 ```
 
-### 从当前仓库安装 SkillOps
-
-clone 当前仓库后，从源码 checkout 执行一次 SkillOps 安装：
-
-```bash
-node skills/skillops-install/scripts/install-from-repo.mjs --agent codex --desktop install
-```
-
-这个命令会把仓库里的 `skills/skillops` 安装到用户级 agent skill 目录，构建本地 `skillops` CLI shim，并安装可调起源码桌面端的 `skillops-desktop` launcher。
-
-需要生成本地桌面端安装包时使用 `--desktop package`，输出在 `release/`；脚本仍会保留源码 launcher。只有明确希望脚本修改 shell profile 以加入 CLI 和 Desktop launcher 时，才使用 `--update-path`。
-
-安装完成后，在任意项目中打开 coding agent，并把 `skillops` 作为工作流入口。SkillOps 默认把当前目录当作项目根目录，使用 CLI 执行可复现、带 JSON 结果的动作；只有当工作流需要可视化审阅、编辑、批量选择、冲突复核或完整漂移差异时，才打开桌面端。
-
-典型项目内流程：
-
-```text
-在 agent 中打开项目
--> 使用 skillops 扫描或审计本地 skills
--> 把可复用的项目内 skill 归并到正式 Skill 项目
--> 把已批准的 profile 应用到 agent 或项目目标
--> 检查正式来源和已安装副本之间的漂移
--> 准备 GitHub 优先的共享或发布说明
-```
-
-当 skills 位于 `.codex/skills` 这类项目内 agent 目录时，项目根目录仍然作为 `--root`，由 SkillOps 把该目录作为 `--source-dir` 传给 CLI。这样本地项目状态、Git 状态、应用来源记录和漂移报告都归属于真实项目，而不是隐藏的 agent 目录。
-
-### 桌面端
+## Desktop
 
 使用演示：
 
 ![SkillOps 桌面端演示](docs/assets/skillops-desktop-demo.gif)
 
-从 GitHub Releases 下载最新版 macOS `.dmg`、Windows `.exe` 或 Linux `.AppImage` 即可安装桌面端。
+Desktop 是本地治理工作台，不是必须先打开的主入口。通常由 agent 在这些场景调起：
 
-开发时从源码启动：
+- 审计发现问题后，需要直接编辑 `SKILL.md`、references 或 scripts。
+- 需要按 profile 批量查看、选择和应用 skills。
+- 需要复核 apply、merge、share 的冲突或差异。
+- 需要查看已安装副本和来源之间的完整 drift diff。
+
+从源码开发启动：
 
 ```bash
 npm install
@@ -157,35 +191,13 @@ npm run dev
 npm run package
 ```
 
-桌面端是 skills 被复制到 agent 或准备 GitHub 优先共享之前的本地治理工作台。
+发布包内置同一套 CLI 引擎。应用启动后会安装用户级 `skillops` shim，并提示 shim 是否已经在 PATH 中可用。
 
-| 桌面端亮点 | 为什么重要 |
-|---|---|
-| 内置 skill 文档编辑器 | 让审计发现的问题可以直接回到本地 `SKILL.md`、references 和 scripts 修复，形成治理闭环。 |
-| 配置组感知的工作区视图 | 让项目、团队、发布用的 skill 集合成为实际操作上下文，而不只是配置字段。 |
-| 多应用目标组合 | 把批准过的 profile 一次性、可控地应用到 agent、项目和自定义本地目录。 |
-| 多共享目标组合 | 将同一套治理后的 skill 集合准备到不同 GitHub 共享或发布路径。 |
-| Drift 与 CLI 修复反馈 | 让已安装副本和本地 CLI 环境都有明确状态，不靠用户猜测哪里变化或失败。 |
+## CLI
 
-桌面端 release 包内置同一套 CLI 引擎。应用启动后会安装用户级 `skillops` shim，环境提示会显示 shim 是否已经在 PATH 中可用。当 shim 目录需要写入 shell profile 时，可以在桌面端环境提示中使用 **修复 CLI**。
-
-### CLI
+CLI 是 SkillOps 的可复现执行层，主要给 agent、CI 和调试场景使用。
 
 使用视频：[SkillOps CLI 演示](docs/assets/skillops-cli-demo.mp4)
-
-从最新 GitHub Release 安装 CLI：
-
-需要 PATH 中已有 Node.js 20 或更高版本。
-
-```bash
-curl -fsSL https://github.com/feitianchengzi/skillops/releases/latest/download/install.sh | sh
-```
-
-Windows PowerShell：
-
-```powershell
-irm https://github.com/feitianchengzi/skillops/releases/latest/download/install.ps1 | iex
-```
 
 本地构建并运行 CLI：
 
@@ -195,7 +207,7 @@ npm run build:cli
 node dist/cli/index.js help
 ```
 
-常用命令：
+常用底层命令：
 
 ```bash
 skillops scan --root .
@@ -218,7 +230,7 @@ skillops doctor
 
 ## 项目状态
 
-早期 MVP。`1.0` 之前 API 和配置结构可能会变化。
+早期 MVP。`1.0` 之前 API、配置结构和 Desktop 体验都可能变化。
 
 更多文档：
 
