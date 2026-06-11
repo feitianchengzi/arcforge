@@ -38,7 +38,14 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(skill, /持久 PATH/);
   assert.match(skill, /agent 注入的临时 PATH/);
   assert.match(skill, /command -v arcforge-desktop/);
-  assert.match(skill, /PATH warning/);
+  assert.match(skill, /<CLI shim path> doctor/);
+  assert.match(skill, /<CLI shim path> scan --root \./);
+  assert.match(skill, /当前会话 PATH 噪声/);
+  assert.match(skill, /PATH shadow/);
+  assert.match(skill, /必须修复可修复的 PATH shadow/);
+  assert.match(skill, /首个非临时 `arcforge`/);
+  assert.match(skill, /实际执行 `doctor`/);
+  assert.match(skill, /不能被当成成功/);
   assert.match(skill, /arcforge audit --root \./);
   assert.match(agentYaml, /\$arcforge-install/);
   assert.match(agentYaml, /arcforge-skill-first/);
@@ -49,7 +56,12 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(agentYaml, /不要使用 --update-path/);
   assert.match(agentYaml, /普通新终端可用/);
   assert.match(agentYaml, /node_modules vendor/);
-  assert.match(agentYaml, /PATH warning/);
+  assert.match(agentYaml, /CLI shim 绝对路径验证 doctor 和 scan/);
+  assert.match(agentYaml, /transient PATH warning/);
+  assert.match(agentYaml, /PATH 命中是否指向当前安装/);
+  assert.match(agentYaml, /实际执行 doctor/);
+  assert.match(agentYaml, /自动覆盖修复/);
+  assert.match(agentYaml, /安装必须失败/);
 
   assert.match(script, /skills\/arcforge-skill-first\/SKILL\.md/);
   assert.match(script, /installedSkillNames = \["arcforge", "arcforge-skill-first"\]/);
@@ -73,6 +85,15 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(script, /Stage: \$\{currentStage\}/);
   assert.match(script, /path\.join\(installHome/);
   assert.match(script, /updatePersistentPath/);
+  assert.match(script, /repairPathCommandShadows/);
+  assert.match(script, /addTransientShadowCheck/);
+  assert.match(script, /firstDurableCommandPath/);
+  assert.match(script, /first non-transient arcforge command resolves to this install/);
+  assert.match(script, /first non-transient arcforge command runs doctor/);
+  assert.match(script, /commandExitsSuccessfully/);
+  assert.match(script, /first non-transient arcforge-desktop command resolves to this install/);
+  assert.match(script, /Current agent shell may still resolve this first/);
+  assert.match(script, /Cannot repair PATH shadowing command/);
   assert.match(script, /isTransientAgentShimDir/);
   assert.match(script, /codex-path/);
   assert.match(script, /\.local", "bin"/);
@@ -98,6 +119,7 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(zhReadme, /arcforge-desktop/);
 
   assert.match(arcforgeDesktopRouting, /arcforge-desktop/);
-  assert.match(arcforgeDesktopRouting, /不能保证直接打开指定页面/);
+  assert.match(arcforgeDesktopRouting, /--root \/path\/to\/project --page destinations/);
+  assert.match(arcforgeDesktopRouting, /页面级 context open/);
   assert.match(arcforgeCliOrchestration, /arcforge-desktop/);
 });

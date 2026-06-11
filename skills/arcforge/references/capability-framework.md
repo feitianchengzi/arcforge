@@ -18,7 +18,7 @@ ArcForge 不做：
 
 - GitHub：source of truth、review、release、权限控制和 PR 合作。
 - ClawHub/OpenClaw：公开 registry 和生态分发目标。
-- `skillshare`、`npx skills`：安装与同步路径。
+- `skillshare`、`npx skills`：相邻生态工具。ArcForge 可以给出兼容性提示，但从 GitHub/Git/本地 Skill 项目安装到本地 agent 或项目目标时，由 ArcForge 自己建模、计划、drift、apply 和记录关系。
 - Codex、Claude、Cursor 等 agent：消费本地 skills 的运行环境。
 
 ## 核心对象
@@ -27,13 +27,15 @@ ArcForge 不做：
 
 - 当前项目：用户正在工作的项目，可能包含项目本地 agent skills 或普通 `skills/` 目录。
 - 正式 Skill 项目：可复用 skill 的 source of truth，通常是一个 GitHub-first 仓库 checkout。
-- 目标项目或目标 agent 目录：消费正式 Skill 项目 profile 的安装位置。
+- 目标项目或目标 agent 目录：消费来源或正式 Skill 项目 profile 的安装位置。
 - 远程仓库：团队 review、版本、共享和发布准备的 Git 或 GitHub 目标。
 
 另外有两个重要状态：
 
 - Profile：Skill 项目中命名的 skill 集合和 agent 目标偏好。
 - Applied source record：当前项目保存的“从哪个来源 profile 应用到哪个目标目录”的关系。
+
+执行安装、同步、导入、迁移、应用、更新、漂移、共享或发布时，用更精确的四端点模型检查：来源/上游源、维护源、应用目标、共享目标。Applied source record 是关系对象，不是端点；profile/skills 是选择维度。
 
 无显式配置时，`skills/*/SKILL.md` 会形成最小 Skill 项目，默认 `default` profile 选择全部发现的 skills。项目本地 agent skills 则通常位于 `.codex/skills/*/SKILL.md`、`.claude/skills/*/SKILL.md` 或 `.cursor/skills/*/SKILL.md`，治理 root 仍是项目根。
 
@@ -42,11 +44,12 @@ ArcForge 不做：
 这些能力可以独立使用，也可以在用户明确要求时组合：
 
 - 发现：扫描 root、sourceDir、skills、共享资产、profile、audit 摘要和 Git 来源信息。
-- Skill First 交接：接收 `arcforge-skill-first` 验证通过的 skill，确认后续治理阶段和确认边界。
+- 创建后治理交接：接收已创建、已验证或已整理完成的 skill，确认后续治理阶段和确认边界。
 - 审计：检查 secrets、危险指令、危险 shell 模式、frontmatter 和描述质量。
 - 配置组：创建、编辑、删除 profile，选择全部或部分 skills，记录目标 agent。
+- 导入：从外部或远程 Skill 项目把选中的 skills 放进当前项目的本地维护源，并更新当前项目 profile。
 - 正式化：把当前项目 skill 归并到正式 Skill 项目，并更新正式项目 profile。
-- 应用：从当前或外部 Skill 项目把 profile 复制到 agent 或项目目标。
+- 安装/应用：从 GitHub/Git/本地 Skill 项目、当前维护源或正式 Skill 项目把 profile/skills 复制到 agent 或项目目标；这不是外部 installer 任务，必须先说明端点并检查 drift。
 - 应用关系：保存、列出、删除、检查和重新应用来源关系。
 - 漂移：比较来源 profile 与目标目录，报告 missing、changed、extra。
 - 来源维护：检查 Git checkout ahead、behind、dirty 和 fast-forward 更新能力；status 检查可能 fetch 并写 Git 元数据。
@@ -60,11 +63,15 @@ ArcForge 不做：
 先判断用户当前要处理哪个阶段：
 
 - “看看这个项目有什么 skills”：发现。
-- “这个工作模式先沉淀成 skill 并验证”：使用 `arcforge-skill-first`；用户确认可用后再回到 `arcforge` 做治理。
+- “这个工作模式已经沉淀成 skill 并需要进入治理”：创建后治理交接；确认它是否要审计、正式化、进入 profile、安装/应用、漂移或发布准备。
 - “适不适合共享/发布”：审计，必要时发布准备。
 - “整理一组给前端/团队使用”：配置组。
+- “从 GitHub/远程仓库安装 skills 到 Codex/Claude/Cursor/项目目标”：安装/应用；必须先明确来源/上游源、应用目标、profile/skills、是否保存关系记录，并在写入前运行 drift。
+- “从 GitHub/远程仓库安装 skills 到当前项目维护”：导入；必须先明确来源/上游源、维护源、目标 profile，以及本轮是否还有应用目标或共享目标。
+- “从本地 Skill 项目安装到 Codex/Claude/Cursor/项目目标”：安装/应用；必须先明确本地来源、应用目标、profile/skills、是否保存关系记录，并在写入前运行 drift。
+- “从本地 Skill 项目导入到当前项目维护”：导入；必须先明确本地来源、当前项目维护目录、目标 profile，以及本轮是否还有应用目标或共享目标。
 - “把这个项目里的 skill 沉淀出去”：正式化。
-- “安装/同步到 Codex/Claude/Cursor/另一个项目”：应用。
+- “安装/同步到 Codex/Claude/Cursor/另一个项目”：安装/应用。
 - “已经安装的和来源是否一致”：漂移或应用关系漂移。
 - “以后从同一个来源更新”：应用关系。
 - “这个 GitHub skill 项目是否落后”：来源维护；如果当前任务禁止写源码，只在临时 Git fixture 或用户确认后检查。
@@ -77,11 +84,12 @@ ArcForge 不做：
 当用户只要求某一阶段时，只处理该阶段：
 
 - 扫描现状：运行 scan，报告本地 skills、shared assets、audit 摘要和 Git 状态。
-- Skill First 交接：确认用户已经认为新 skill 可用，再建议 audit、merge plan、profile、apply、drift 或 publish/share plan；写入阶段仍按 `arcforge` 的确认规则执行。
+- 创建后治理交接：确认用户已经认为新 skill 可用，再建议 audit、merge plan、profile、apply、drift 或 publish/share plan；写入阶段仍按 `arcforge` 的确认规则执行。
 - 审计 skill：运行 audit，解释 findings、风险和修复建议。
 - 整理 profile：读取或编辑 profile，不自动写入目标。
 - 正式化 skill：先生成 merge plan；只有用户确认后才执行 merge run。
-- 应用到目标：先说明 root、from、profile、target 和覆盖风险；只有用户确认后才运行 apply。
+- 导入外部 skill：先生成 import plan；只有用户确认远程同步源、本地维护目录、目标 profile 和冲突状态后才执行 import run。
+- 安装/应用到目标：先说明来源/上游源、维护源是否存在、root、from、profile、skills、target、关系记录和覆盖风险；先运行 drift，只有用户确认后才运行 apply。
 - 检查漂移：运行 drift 或 applied drift，报告 missing、changed、extra。
 - 准备分享：先运行 publish/share plan；无 GitHub 登录或无写权限时保留 plan 并解释 fallback delivery，只有用户确认后才运行 share run。
 - 维护来源：先说明 `source status` 可能写 Git 元数据；允许后运行 status，只有用户确认后才运行 source update。

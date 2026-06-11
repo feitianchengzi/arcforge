@@ -55,6 +55,19 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
   assert.match(commands, /command === "source"/);
   assert.match(commands, /ArcForge CLI - merge/);
   assert.match(commands, /command === "merge"/);
+  assert.match(commands, /ArcForge CLI - import/);
+  assert.match(commands, /command === "import"/);
+  assert.match(commands, /runImportCommand/);
+  assert.match(commands, /createImportSkillsPlan/);
+  assert.match(commands, /importSkillsIntoProject/);
+  assert.match(commands, /--target-dir <dir>/);
+  assert.match(commands, /--target-profile <name>/);
+  assert.match(commands, /The status action may fetch upstream refs/);
+  assert.match(commands, /arcforge apply \[--root <dir>\] \[--from <path-or-url>\] \[--profile <name>\] \[--skills <a,b>\] --target <dir> \[--save\] --confirm/);
+  assert.match(commands, /Apply writes the target directory and requires --confirm/);
+  assert.match(commands, /arcforge drift \[--root <dir>\] \[--from <path-or-url>\] \[--profile <name>\] \[--skills <a,b>\] --target <dir>/);
+  assert.match(commands, /--delivery <target-pr\|fork-pr\|direct-push\|local-branch>/);
+  assert.match(commands, /--same-repository-remote <name>/);
   assert.match(commands, /ArcForge CLI - applied/);
   assert.match(commands, /command === "applied"/);
   assert.match(commands, /ArcForge CLI - apply/);
@@ -114,6 +127,7 @@ test("desktop project list is backed by local project state", async () => {
   const electronMain = await readFile(new URL("../src/electron/main.ts", import.meta.url), "utf8");
   const mainUi = await readFile(new URL("../src/ui/main.tsx", import.meta.url), "utf8");
   const preload = await readFile(new URL("../src/electron/preload.cts", import.meta.url), "utf8");
+  const installer = await readFile(new URL("../skills/arcforge-install/scripts/install-from-repo.mjs", import.meta.url), "utf8");
 
   assert.match(projectStore, /listLocalProjectStates/);
   assert.match(projectStore, /saveLocalProjectListMetadata/);
@@ -127,12 +141,20 @@ test("desktop project list is backed by local project state", async () => {
   assert.match(electronMain, /projectList:remove/);
   assert.match(electronMain, /recentWorkspacesFromProjectStore/);
   assert.match(electronMain, /persistRecentWorkspaceList/);
+  assert.match(electronMain, /desktopContextFromArgs/);
+  assert.match(electronMain, /seedDesktopContext/);
+  assert.match(electronMain, /readArg\(args, "--root"\)/);
+  assert.match(electronMain, /readArg\(args, "--page"\)/);
+  assert.match(electronMain, /activeWorkspace: context\.root/);
+  assert.match(electronMain, /tab: context\.page/);
   assert.match(preload, /rememberProjectWorkspace/);
   assert.match(preload, /reorderProjectWorkspaces/);
   assert.match(preload, /removeProjectWorkspace/);
   assert.match(mainUi, /rememberProjectWorkspace/);
   assert.match(mainUi, /reorderProjectWorkspaces/);
   assert.match(mainUi, /removeProjectWorkspace/);
+  assert.match(installer, /arcforge-desktop/);
+  assert.match(installer, /"\$@"/);
 });
 
 test("share delivery failures keep manual recovery guidance", async () => {
@@ -182,6 +204,7 @@ test("profile deletion is persisted instead of draft-only", async () => {
 
 test("desktop skill merge imports source skills into the current project", async () => {
   const sourcesCore = await readFile(new URL("../src/core/sources.ts", import.meta.url), "utf8");
+  const sharedTypes = await readFile(new URL("../src/shared/types.ts", import.meta.url), "utf8");
   const dashboard = await readFile(new URL("../src/ui/views/dashboard.tsx", import.meta.url), "utf8");
   const i18n = await readFile(new URL("../src/ui/i18n.ts", import.meta.url), "utf8");
   const electronMain = await readFile(new URL("../src/electron/main.ts", import.meta.url), "utf8");
@@ -189,6 +212,10 @@ test("desktop skill merge imports source skills into the current project", async
 
   assert.match(sourcesCore, /createImportSkillsPlan/);
   assert.match(sourcesCore, /importSkillsIntoProject/);
+  assert.match(sharedTypes, /relationKind\?: "profileApply" \| "maintenanceImport"/);
+  assert.match(sourcesCore, /"maintenanceImport"/);
+  assert.match(sourcesCore, /"profileApply"/);
+  assert.match(sourcesCore, /recordRelationKind/);
   assert.match(sourcesCore, /sourceProjectRoot/);
   assert.match(sourcesCore, /mergeSourceProfile\(plan\.root, plan\.targetProfile/);
   assert.match(electronMain, /import:plan/);
@@ -209,6 +236,41 @@ test("desktop skill merge imports source skills into the current project", async
   assert.match(i18n, /从另一个 Skill 项目把技能归并到当前项目/);
   assert.doesNotMatch(dashboard, /createMergePlan/);
   assert.doesNotMatch(dashboard, /mergeIntoProject/);
+});
+
+test("arcforge skill models source maintenance apply and share endpoints", async () => {
+  const skill = await readFile(new URL("../skills/arcforge/SKILL.md", import.meta.url), "utf8");
+  const agentYaml = await readFile(new URL("../skills/arcforge/agents/openai.yaml", import.meta.url), "utf8");
+  const model = await readFile(new URL("../skills/arcforge/references/source-maintenance-target-model.md", import.meta.url), "utf8");
+  const cli = await readFile(new URL("../skills/arcforge/references/cli-orchestration.md", import.meta.url), "utf8");
+  const desktop = await readFile(new URL("../skills/arcforge/references/desktop-routing.md", import.meta.url), "utf8");
+  const missing = await readFile(new URL("../skills/arcforge/references/missing-capabilities.md", import.meta.url), "utf8");
+
+  assert.match(skill, /来源\/上游源、维护源、应用目标、共享目标/);
+  assert.match(skill, /source-maintenance-target-model\.md/);
+  assert.match(skill, /import plan 先于 import run/);
+  assert.match(agentYaml, /四类端点/);
+  assert.match(agentYaml, /关系记录/);
+  assert.match(agentYaml, /Desktop Skills\/Import、Destinations 或 Share/);
+  assert.match(model, /4 个端点对象、1 个关系对象、2 个选择维度/);
+  assert.match(model, /共享目标不是应用目标/);
+  assert.match(model, /应用目标不应该默认变成维护源/);
+  assert.match(model, /关系记录/);
+  assert.match(model, /场景矩阵/);
+  assert.match(model, /从远程 GitHub\/Git Skill 项目导入到当前项目维护/);
+  assert.match(model, /把当前项目内 skill 迁移\/正式化到团队 Skill 项目/);
+  assert.match(model, /准备共享或发布/);
+  assert.match(model, /不要用“默认目录”绕过这个检查/);
+  assert.match(cli, /import --target-dir/);
+  assert.match(cli, /共享目标/);
+  assert.match(desktop, /共享目标确认场景/);
+  assert.match(desktop, /Skills\/Import/);
+  assert.match(desktop, /arcforge-desktop --root \/path\/to\/project --page destinations/);
+  assert.match(desktop, /Destinations/);
+  assert.match(desktop, /Share/);
+  assert.match(missing, /四端点端到端工作流计划/);
+  assert.match(missing, /workflow plan/);
+  assert.match(missing, /Fine-grained Desktop Context/);
 });
 
 test("desktop drift diff uses file-level git status and tolerates unexpected directory entries", async () => {
@@ -235,6 +297,20 @@ test("destructive desktop actions require confirmation", async () => {
   assert.match(destinationsView, /confirmDeleteTargetGroup/);
   assert.match(destinationsView, /confirmRemoveTarget/);
   assert.match(shareView, /confirmDeleteShareTarget/);
+});
+
+test("desktop distinguishes maintenance import and profile apply relations", async () => {
+  const destinationsView = await readFile(new URL("../src/ui/views/destinations.tsx", import.meta.url), "utf8");
+  const i18n = await readFile(new URL("../src/ui/i18n.ts", import.meta.url), "utf8");
+
+  assert.match(destinationsView, /appliedRelationKind\(record\.relationKind\)/);
+  assert.match(destinationsView, /reapplyRelation\(record\.relationKind\)/);
+  assert.match(i18n, /Maintenance import/);
+  assert.match(i18n, /Profile application/);
+  assert.match(i18n, /Re-import/);
+  assert.match(i18n, /维护源导入/);
+  assert.match(i18n, /配置组应用/);
+  assert.match(i18n, /重新导入/);
 });
 
 test("release workflow publishes cli-only install assets", async () => {

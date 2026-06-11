@@ -95,6 +95,7 @@ export interface ArcForgeConfig {
 
 export interface AppliedSourceRecord {
   id: string;
+  relationKind?: "profileApply" | "maintenanceImport";
   sourceRoot: string;
   sourceName?: string;
   sourceRemoteUrl?: string;

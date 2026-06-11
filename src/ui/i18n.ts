@@ -150,6 +150,8 @@ export interface Dictionary {
   noAppliedSources: string;
   reapply: string;
   appliedSourceSummary: (skills: number, profile: string) => string;
+  appliedRelationKind: (kind?: string) => string;
+  reapplyRelation: (kind?: string) => string;
   sharedAssetsTitle: string;
   noDescription: string;
   findingsTitle: string;
@@ -403,6 +405,8 @@ export const dictionaries: Record<Language, Dictionary> = {
     noAppliedSources: "No applied source records yet.",
     reapply: "Reapply",
     appliedSourceSummary: (skills: number, profile: string) => `${skills} skills / ${profile}`,
+    appliedRelationKind: (kind?: string) => kind === "maintenanceImport" ? "Maintenance import" : "Profile application",
+    reapplyRelation: (kind?: string) => kind === "maintenanceImport" ? "Re-import" : "Reapply",
     sharedAssetsTitle: "Shared assets",
     noDescription: "No description",
     findingsTitle: "Findings",
@@ -654,6 +658,8 @@ export const dictionaries: Record<Language, Dictionary> = {
     noAppliedSources: "暂无应用关系记录。",
     reapply: "重新应用",
     appliedSourceSummary: (skills: number, profile: string) => `${skills} 个技能 / ${profile}`,
+    appliedRelationKind: (kind?: string) => kind === "maintenanceImport" ? "维护源导入" : "配置组应用",
+    reapplyRelation: (kind?: string) => kind === "maintenanceImport" ? "重新导入" : "重新应用",
     sharedAssetsTitle: "共享资产",
     noDescription: "暂无描述",
     findingsTitle: "发现项",

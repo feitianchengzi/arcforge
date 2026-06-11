@@ -93,11 +93,11 @@ if (desktopMode === "skip") {
 } else if (desktopMode === "install") {
   await run("npm", ["run", "build"], { cwd: repoRoot, label: "Build ArcForge Desktop runtime" });
   const launcher = await installDesktopLauncher(summary.cli.shimDir);
-  summary.desktop = { mode: desktopMode, status: "installed", launcherPath: launcher.launcherPath, command: launcher.launcherPath };
+  summary.desktop = { mode: desktopMode, status: "installed", launcherPath: launcher.launcherPath, command: launcher.launcherPath, shadowRepair: launcher.shadowRepair };
 } else {
   await run("npm", ["run", "package"], { cwd: repoRoot, label: "Package ArcForge Desktop" });
   const launcher = await installDesktopLauncher(summary.cli.shimDir);
-  summary.desktop = { mode: desktopMode, status: "packaged", outputDir: path.join(repoRoot, "release"), launcherPath: launcher.launcherPath, command: launcher.launcherPath };
+  summary.desktop = { mode: desktopMode, status: "packaged", outputDir: path.join(repoRoot, "release"), launcherPath: launcher.launcherPath, command: launcher.launcherPath, shadowRepair: launcher.shadowRepair };
 }
 
 printSummary(summary);
@@ -177,13 +177,14 @@ async function installCliShim(options) {
   const shimPath = path.join(shimDir, process.platform === "win32" ? "arcforge.cmd" : "arcforge");
   const cliEntry = path.join(repoRoot, "dist", "cli", "index.js");
   await assertExists(cliEntry, "CLI build missing after npm run build:cli.");
+  const shimContent = cliShimContent(cliEntry);
 
-  if (process.platform === "win32") {
-    await writeFile(shimPath, `@echo off\r\nnode "${cliEntry}" %*\r\n`, "utf8");
-  } else {
-    await writeFile(shimPath, `#!/bin/sh\nexec node "${cliEntry}" "$@"\n`, "utf8");
-    await chmod(shimPath, 0o755);
-  }
+  await writeExecutableShim(shimPath, shimContent);
+  const shadowRepair = await repairPathCommandShadows({
+    commandName: process.platform === "win32" ? "arcforge.cmd" : "arcforge",
+    desiredPath: shimPath,
+    shimContent
+  });
 
   const pathContainsShim = pathInPath(shimDir);
   const profilePath = options.updatePath && !pathContainsShim ? await updatePersistentPath(shimDir) : undefined;
@@ -191,7 +192,8 @@ async function installCliShim(options) {
     shimPath,
     shimDir,
     pathContainsShim: pathContainsShim || Boolean(profilePath),
-    profilePath
+    profilePath,
+    shadowRepair
   };
 }
 
@@ -203,14 +205,15 @@ async function installDesktopLauncher(shimDir) {
   await assertExists(electronEntry, "Electron is missing. Run npm install before installing the Desktop launcher.");
   await assertExists(mainEntry, "Desktop build missing after npm run build.");
   await assertExists(uiEntry, "Desktop UI build missing after npm run build.");
+  const shimContent = desktopShimContent(electronEntry);
+  await writeExecutableShim(launcherPath, shimContent);
+  const shadowRepair = await repairPathCommandShadows({
+    commandName: process.platform === "win32" ? "arcforge-desktop.cmd" : "arcforge-desktop",
+    desiredPath: launcherPath,
+    shimContent
+  });
 
-  if (process.platform === "win32") {
-    await writeFile(launcherPath, `@echo off\r\ncd /d "${repoRoot}"\r\nnode "${electronEntry}" . %*\r\n`, "utf8");
-  } else {
-    await writeFile(launcherPath, `#!/bin/sh\ncd "${repoRoot}"\nexec node "${electronEntry}" . "$@"\n`, "utf8");
-    await chmod(launcherPath, 0o755);
-  }
-  return { launcherPath };
+  return { launcherPath, shadowRepair };
 }
 
 function desktopShimPath(shimDir) {
@@ -220,16 +223,35 @@ function desktopShimPath(shimDir) {
 async function verifyInstall(options) {
   currentStage = "Verify ArcForge install";
   const checks = [];
+  const cliEntry = path.join(repoRoot, "dist", "cli", "index.js");
   await addPathCheck(checks, "CLI shim exists", options.cli.shimPath);
   if (process.platform !== "win32") await addExecutableCheck(checks, "CLI shim executable", options.cli.shimPath);
   checks.push({ label: "CLI command directory on PATH", path: options.cli.shimDir, ok: pathInPath(options.cli.shimDir), optional: true });
-  await addPathCheck(checks, "CLI entry exists", path.join(repoRoot, "dist", "cli", "index.js"));
+  await addPathCheck(checks, "CLI entry exists", cliEntry);
+  await addTransientShadowCheck(checks, process.platform === "win32" ? "arcforge.cmd" : "arcforge");
+  await addResolvedCommandCheck(checks, {
+    label: "first non-transient arcforge command resolves to this install",
+    commandName: process.platform === "win32" ? "arcforge.cmd" : "arcforge",
+    expectedSnippet: cliEntry
+  });
+  await addResolvedCommandRunCheck(checks, {
+    label: "first non-transient arcforge command runs doctor",
+    commandName: process.platform === "win32" ? "arcforge.cmd" : "arcforge",
+    commandArgs: ["doctor"]
+  });
 
   if (options.desktopRequired) {
+    const electronEntry = path.join(repoRoot, "node_modules", "electron", "cli.js");
     await addPathCheck(checks, "Desktop launcher exists", options.desktop.launcherPath);
     if (process.platform !== "win32") await addExecutableCheck(checks, "Desktop launcher executable", options.desktop.launcherPath);
     checks.push({ label: "Desktop command directory on PATH", path: options.cli.shimDir, ok: pathInPath(options.cli.shimDir), optional: true });
-    await addPathCheck(checks, "Electron launcher exists", path.join(repoRoot, "node_modules", "electron", "cli.js"));
+    await addTransientShadowCheck(checks, process.platform === "win32" ? "arcforge-desktop.cmd" : "arcforge-desktop");
+    await addResolvedCommandCheck(checks, {
+      label: "first non-transient arcforge-desktop command resolves to this install",
+      commandName: process.platform === "win32" ? "arcforge-desktop.cmd" : "arcforge-desktop",
+      expectedSnippet: electronEntry
+    });
+    await addPathCheck(checks, "Electron launcher exists", electronEntry);
     await addPathCheck(checks, "Desktop main build exists", path.join(repoRoot, "dist", "electron", "main.js"));
     await addPathCheck(checks, "Desktop UI build exists", path.join(repoRoot, "dist-ui", "index.html"));
   }
@@ -251,6 +273,155 @@ async function addExecutableCheck(checks, label, filePath) {
   } catch {
     checks.push({ label, path: filePath, ok: false });
   }
+}
+
+async function addResolvedCommandCheck(checks, options) {
+  const resolved = await firstDurableCommandPath(options.commandName);
+  if (!resolved) {
+    checks.push({ label: options.label, path: options.commandName, ok: false });
+    return;
+  }
+  const content = await readTextIfFile(resolved);
+  checks.push({
+    label: options.label,
+    path: resolved,
+    ok: content.includes(options.expectedSnippet)
+  });
+}
+
+async function addTransientShadowCheck(checks, commandName) {
+  const resolved = await firstCommandPath(commandName);
+  if (!resolved || !isTransientAgentShimDir(path.dirname(resolved))) return;
+  checks.push({
+    label: `${commandName} is shadowed by transient agent PATH in this shell`,
+    path: resolved,
+    ok: false,
+    optional: true
+  });
+}
+
+async function addResolvedCommandRunCheck(checks, options) {
+  const resolved = await firstDurableCommandPath(options.commandName);
+  if (!resolved) {
+    checks.push({ label: options.label, path: options.commandName, ok: false });
+    return;
+  }
+  checks.push({
+    label: options.label,
+    path: resolved,
+    ok: await commandExitsSuccessfully(resolved, options.commandArgs)
+  });
+}
+
+function cliShimContent(cliEntry) {
+  if (process.platform === "win32") return `@echo off\r\nnode "${cliEntry}" %*\r\n`;
+  return `#!/bin/sh\nexec node "${cliEntry}" "$@"\n`;
+}
+
+function desktopShimContent(electronEntry) {
+  if (process.platform === "win32") return `@echo off\r\ncd /d "${repoRoot}"\r\nnode "${electronEntry}" . %*\r\n`;
+  return `#!/bin/sh\ncd "${repoRoot}"\nexec node "${electronEntry}" . "$@"\n`;
+}
+
+async function writeExecutableShim(filePath, content) {
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, content, "utf8");
+  if (process.platform !== "win32") await chmod(filePath, 0o755);
+}
+
+async function repairPathCommandShadows(options) {
+  const repaired = [];
+  const ignoredTransient = [];
+  const unresolved = [];
+  const candidates = commandCandidates(options.commandName);
+  for (const candidate of candidates) {
+    if (samePath(candidate, options.desiredPath)) break;
+    if (!(await pathExists(candidate))) continue;
+    const dirPath = path.dirname(candidate);
+    if (isTransientAgentShimDir(dirPath)) {
+      ignoredTransient.push(candidate);
+      continue;
+    }
+    if (!isInsideHome(candidate)) {
+      unresolved.push({ path: candidate, reason: "outside user home" });
+      continue;
+    }
+    if (!(await isWritableFileOrDirectory(candidate))) {
+      unresolved.push({ path: candidate, reason: "not writable" });
+      continue;
+    }
+    await writeExecutableShim(candidate, options.shimContent);
+    repaired.push(candidate);
+  }
+  if (unresolved.length > 0) {
+    fail(`Cannot repair PATH shadowing command(s): ${unresolved.map((item) => `${item.path} (${item.reason})`).join(", ")}`);
+  }
+  return { repaired, ignoredTransient };
+}
+
+async function firstDurableCommandPath(commandName) {
+  for (const candidate of commandCandidates(commandName)) {
+    if (!(await pathExists(candidate))) continue;
+    if (isTransientAgentShimDir(path.dirname(candidate))) continue;
+    return candidate;
+  }
+  return undefined;
+}
+
+async function firstCommandPath(commandName) {
+  for (const candidate of commandCandidates(commandName)) {
+    if (await pathExists(candidate)) return candidate;
+  }
+  return undefined;
+}
+
+function commandCandidates(commandName) {
+  return (process.env.PATH ?? "")
+    .split(path.delimiter)
+    .filter(Boolean)
+    .map((entry) => path.join(path.resolve(entry), commandName));
+}
+
+function samePath(left, right) {
+  return normalizePath(left) === normalizePath(right);
+}
+
+function isInsideHome(filePath) {
+  const relative = path.relative(installHome, filePath);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+async function isWritableFileOrDirectory(filePath) {
+  if (await pathExists(filePath)) {
+    try {
+      await access(filePath, fsConstants.W_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return isWritableDirectory(path.dirname(filePath));
+}
+
+async function readTextIfFile(filePath) {
+  try {
+    return await readFile(filePath, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+async function commandExitsSuccessfully(command, commandArgs) {
+  return new Promise((resolve) => {
+    const child = spawn(command, commandArgs, {
+      cwd: repoRoot,
+      env: process.env,
+      stdio: "ignore",
+      shell: process.platform === "win32"
+    });
+    child.on("error", () => resolve(false));
+    child.on("exit", (code) => resolve(code === 0));
+  });
 }
 
 async function chooseShimDir() {
@@ -360,13 +531,26 @@ function printSummary(value) {
   console.log(`CLI shim: ${value.cli.shimPath}`);
   console.log(`CLI shim directory on PATH: ${value.cli.pathContainsShim ? "yes" : "no"}`);
   if (value.cli.profilePath) console.log(`PATH profile updated: ${value.cli.profilePath}`);
+  printShadowRepairSummary("CLI command shadow repaired", value.cli.shadowRepair);
   console.log(`Desktop: ${value.desktop.status} (${value.desktop.mode})`);
   if (value.desktop.command) console.log(`Desktop command: ${value.desktop.command}`);
   if (value.desktop.launcherPath) console.log(`Desktop launcher: ${value.desktop.launcherPath}`);
+  printShadowRepairSummary("Desktop command shadow repaired", value.desktop.shadowRepair);
   if (value.desktop.outputDir) console.log(`Desktop package output: ${value.desktop.outputDir}`);
   if (!value.cli.pathContainsShim) {
     console.log(`Run CLI directly now: ${value.cli.shimPath} doctor`);
     console.log(`Add this directory to PATH if needed: ${value.cli.shimDir}`);
+  }
+}
+
+function printShadowRepairSummary(label, value) {
+  if (!value) return;
+  for (const item of value.repaired) {
+    console.log(`${label}: ${item}`);
+  }
+  for (const item of value.ignoredTransient) {
+    console.log(`Ignored transient agent PATH shadow: ${item}`);
+    console.log("  Current agent shell may still resolve this first; verification uses the first non-transient command.");
   }
 }
 

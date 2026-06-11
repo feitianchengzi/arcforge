@@ -37,6 +37,7 @@ arcforge-desktop
 - `arcforge scan [--root <dir>] [--source-dir <dir>]`
 - `arcforge audit [--root <dir>] [--source-dir <dir>]`
 - `arcforge source status [--root <dir>]`：会 fetch upstream refs，可能写 `.git/FETCH_HEAD` 等 Git 元数据；不要在禁止写源码的真实 checkout 中运行。
+- `arcforge import plan --root <dir> --from <path-or-url> [--profile <name>] [--skills <a,b>] [--target-dir <dir>] [--target-profile <name>]`
 - `arcforge merge plan --root <dir> [--source-dir <dir>] --to <path-or-url> --target-path <dir> [--skills <a,b>] [--profile <name>] [--target <dir>]`
 - `arcforge applied list [--root <dir>]`
 - `arcforge applied drift [--root <dir>] [--id <record-id>]`
@@ -49,15 +50,14 @@ arcforge-desktop
 写入或状态性命令：
 
 - `arcforge source update [--root <dir>] --confirm`
+- `arcforge import run --root <dir> --from <path-or-url> [--profile <name>] [--skills <a,b>] [--target-dir <dir>] [--target-profile <name>] --confirm`
 - `arcforge merge run --root <dir> [--source-dir <dir>] --to <path-or-url> --target-path <dir> [--skills <a,b>] [--profile <name>] [--target <dir>] --confirm`
 - `arcforge applied add --root <dir> --from <path-or-url> --profile <name> --target <dir> [--skills <a,b>]`
 - `arcforge applied remove <record-id> [--root <dir>]`
 - `arcforge applied run [--root <dir>] [--id <record-id>] --confirm`
-- `arcforge apply [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir> [--skills <a,b>] [--save]`
+- `arcforge apply [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir> [--skills <a,b>] [--save] --confirm`
 - `arcforge share run --root <dir> --repo <repo> [--profile <name>] [--skills <a,b>] --confirm`
 - `arcforge share run --root <dir> --same-repository [--same-repository-remote <name>] [--profile <name>] [--skills <a,b>] --confirm`
-
-当前 CLI 没有公开 `import` 命令；从外部 Skill 项目导入到当前项目的 import plan/run 目前是 Desktop IPC 能力。
 
 ## 最小项目结构和默认配置
 
@@ -97,10 +97,11 @@ business-project/
 | 审计 | `audit` | 不写项目文件 | 需要定位 findings 并编辑文件 |
 | Git 来源状态 | `source status` | 可能写 Git 元数据 | 需要用户理解 ahead/behind/dirty 后决定更新 |
 | Git 来源更新 | `source update --confirm` | 写 Git checkout | 需要用户先确认更新风险 |
+| 导入外部 skills | `import plan/run --confirm` | plan 不写；run 写当前项目维护源和应用关系 | 需要从远程源选择 skills、profile、目标目录或复核冲突 |
 | 正式化计划 | `merge plan` | 不写目标 | 有冲突或需要视觉复核 |
 | 正式化执行 | `merge run --confirm` | 写正式 Skill 项目和应用关系 | 有冲突时不要执行，转 Desktop 或手动 review |
 | 应用关系 | `applied list/add/remove/drift/run` | add/remove/run 会写状态或目标 | 需要查看多条关系或完整 diff |
-| 一次性应用 | `apply` | 写目标目录，`--save` 写应用关系 | 需要选择多个目标或确认覆盖 |
+| 一次性应用 | `apply --confirm` | 写目标目录，`--save` 写应用关系 | 需要选择多个目标或确认覆盖 |
 | 漂移 | `drift` | 不写目标 | 需要完整文件级 diff |
 | 发布准备 | `publish-plan` | 不写远端 | 需要审查 checklist 和文件清单 |
 | Git 共享 | `share plan/run` | run 可能写 Git、push、PR | 需要确认交付方式、权限或 PR 计划 |
@@ -113,11 +114,14 @@ business-project/
 - 项目本地 agent skills 位于 `.codex/skills`、`.claude/skills`、`.cursor/skills` 时，`--root` 仍然是项目根目录，`--source-dir` 传 agent skill 目录。
 - `--profile` 是来源或目标 Skill 项目中的 profile 名，默认通常是 `default`。
 - `--skills <a,b>` 用逗号选择部分 skill。
-- `--from` 是应用或漂移的来源 Skill 项目，可以是本地目录或远程 Git/GitHub 输入。
+- `--from` 是安装、应用或漂移的来源 Skill 项目，可以是本地目录或远程 Git/GitHub 输入。
 - `--to` 是归并目标 Skill 项目，可以是本地目录或远程 Git/GitHub 输入。
+- `import --target-dir` 是当前项目内的本地维护目录，默认使用当前项目配置的 `sourceDir`；它不是 Codex/Claude/Cursor 的消费目标。
+- `import --target-profile` 是当前项目中要更新的 profile，默认使用当前项目第一个 profile。
 - `merge --target-path` 是正式 Skill 项目内的父目录。CLI 会在其下追加 skill 名。
 - `merge --target` 是记录到当前项目 applied source 中的目标目录，不是归并输出目录。
 - `apply --target` 是真实写入目标。指定 `--from` 时按 `--root` 解析为目标项目内相对路径；未指定 `--from` 时可以是直接目标路径。
+- `share --repo`、`share --same-repository`、`--delivery` 和 `--branch` 描述共享目标，不是应用目标。
 - `apply --save` 会把来源、profile、目标目录和技能选择保存为 applied source record。
 - applied source state 保存在 `ARCFORGE_HOME/projects` 下的用户级项目状态中；不写入来源 checkout。临时验证时设置 `ARCFORGE_HOME=/private/tmp/<run>/.arcforge-home`。
 
@@ -138,6 +142,18 @@ arcforge scan --root . --source-dir .codex/skills
 arcforge audit --root . --source-dir .codex/skills
 ```
 
+从远程或外部 Skill 项目导入到当前项目维护源：
+
+```bash
+arcforge import plan --root <current-project> --from <skill-project-path-or-url> --profile default --skills <skill-name> --target-dir skills --target-profile default
+```
+
+确认计划无冲突且用户确认写入后：
+
+```bash
+arcforge import run --root <current-project> --from <skill-project-path-or-url> --profile default --skills <skill-name> --target-dir skills --target-profile default --confirm
+```
+
 正式化前计划：
 
 ```bash
@@ -150,10 +166,24 @@ arcforge merge plan --root . --source-dir <source-dir-if-needed> --to <formal-sk
 arcforge merge run --root . --source-dir <source-dir-if-needed> --to <formal-skill-project> --skills <skill-name> --target-path <parent-dir-inside-formal-project> --profile default --target <target-record-path> --confirm
 ```
 
-确认后应用到目标：
+从 GitHub/Git/本地 Skill 项目直接安装到 Codex/Claude/Cursor 或项目 agent 目录：
 
 ```bash
-arcforge apply --root <target-project> --from <formal-skill-project> --profile default --target <target-agent-skill-dir> --save
+arcforge drift --root <target-project> --from <github-or-git-or-local-skill-project> --profile default --target <target-agent-skill-dir> --skills <skill-name>
+```
+
+确认 drift 和覆盖风险后：
+
+```bash
+arcforge apply --root <target-project> --from <github-or-git-or-local-skill-project> --profile default --target <target-agent-skill-dir> --skills <skill-name> --save --confirm
+```
+
+如果用户明确要先把远程来源纳入当前项目维护，再安装到 agent 目标，先执行 `import plan/run`，再从维护源 `drift/apply` 到应用目标。
+
+确认后从正式 Skill 项目应用到目标：
+
+```bash
+arcforge apply --root <target-project> --from <formal-skill-project> --profile default --target <target-agent-skill-dir> --save --confirm
 ```
 
 检查目标漂移：
@@ -192,6 +222,7 @@ arcforge share plan --root <formal-skill-project> --same-repository --profile de
 真实项目中运行以下命令前必须得到用户明确确认：
 
 - `source update`
+- `import run`
 - `merge run`
 - `applied add`
 - `applied remove`
@@ -199,7 +230,7 @@ arcforge share plan --root <formal-skill-project> --same-repository --profile de
 - `apply`，只要目标不是临时目录
 - `share run`
 
-确认前说明 root、source/from/to、profile、skills、target、repository、branch、delivery method 和覆盖风险。
+确认前说明 root、source/from/to、profile、skills、targetDir/target、repository、branch、delivery method 和覆盖风险。安装、同步、迁移、应用、漂移和共享场景必须把来源/上游源、维护源、应用目标、共享目标分开说明；本轮没有的端点也要明确写“本轮无”。从 GitHub/Git/本地 Skill 项目安装到 agent 或项目目标时，ArcForge 使用 `drift` 和 `apply --save --confirm` 自己完成，不转交通用 skill installer。
 
 ## 临时验证规则
 
@@ -209,4 +240,4 @@ arcforge share plan --root <formal-skill-project> --same-repository --profile de
 ARCFORGE_HOME=/private/tmp/<run>/.arcforge-home arcforge <command>
 ```
 
-临时验证允许在临时 root、临时正式 Skill 项目和临时 target 中执行 `merge run --confirm`、`apply --save`、`applied add/remove`、`applied run --confirm`、`drift` 和 `share plan`。不要在真实用户项目或真实 agent 目录上无确认执行写入。
+临时验证允许在临时 root、临时正式 Skill 项目和临时 target 中执行 `import run --confirm`、`merge run --confirm`、`apply --save`、`applied add/remove`、`applied run --confirm`、`drift` 和 `share plan`。不要在真实用户项目或真实 agent 目录上无确认执行写入。

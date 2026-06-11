@@ -5,7 +5,7 @@ import { createSharePlan, shareProject, type ShareProjectOptions } from "../core
 import { shareDriftReport, type ShareDriftOptions } from "../core/share-drift.js";
 import { getEnvironmentStatus } from "../core/environment.js";
 import { arcForgeHome } from "../core/project-store.js";
-import { addAppliedSource, applyFromSource, createMergePlan, driftAppliedSources, driftFromSource, listAppliedSources, mergeIntoProject, removeAppliedSource, runAppliedSources } from "../core/sources.js";
+import { addAppliedSource, applyFromSource, createImportSkillsPlan, createMergePlan, driftAppliedSources, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, removeAppliedSource, runAppliedSources } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
 import type { CliShimOptions } from "../core/cli-install.js";
 import type { ShareDeliveryMethod, ShareTargetMode } from "../shared/types.js";
@@ -34,6 +34,7 @@ Commands:
   audit            Print audit report; exits 2 on critical findings
   source           Check or update the current Git checkout
   merge            Merge project skills into another Skill project
+  import           Import skills from another Skill project into this project
   applied          Manage applied source records for the current project
   apply            Copy a profile into an agent or project target
   drift            Compare a profile against an installed target
@@ -54,6 +55,7 @@ Examples:
   arcforge merge plan --root . --to ../team-skills --skills review --target-path skills/project-a
   arcforge merge plan --root . --source-dir .codex/skills --to ../team-skills --skills project-showcase-video --target-path skills
   arcforge merge run --root . --to github.com/acme/team-skills --skills review --target-path skills/project-a --confirm
+  arcforge import plan --root . --from github.com/acme/team-skills --skills review --target-dir skills
   arcforge applied drift --root .
   arcforge apply --from ../team-skills --profile default --target ~/.codex/skills
   arcforge share plan --root . --repo github.com/acme/team-skills --profile frontend
@@ -83,10 +85,15 @@ Usage:
   source: `ArcForge CLI - source
 
 Check or update any Git checkout. This is independent from Skill project merge or apply relationships.
+The status action may fetch upstream refs and write Git metadata such as FETCH_HEAD.
 
 Usage:
   arcforge source status [--root <dir>]
   arcforge source update [--root <dir>] --confirm
+
+Options:
+  --root <dir>  Git checkout or workspace root. Defaults to current directory.
+  --confirm     Required for update. Updates are fast-forward only.
 `,
   merge: `ArcForge CLI - merge
 
@@ -105,6 +112,22 @@ Options:
   --target-path <dir>  Parent directory in the target project. Skill names are appended under it.
   --target <dir>       Applied target directory recorded for the current project. Defaults to .arcforge/skills.
 `,
+  import: `ArcForge CLI - import
+
+Import selected skills from another Skill project into the current project. The plan action is read-only; run writes into the current project after review.
+
+Usage:
+  arcforge import plan --from <path-or-url> [options]
+  arcforge import run --from <path-or-url> [options] --confirm
+
+Options:
+  --root <dir>            Current project root. Defaults to current directory.
+  --from <path-or-url>    Source Skill project path, GitHub shorthand or Git URL.
+  --profile <name>        Source profile name. Defaults to default.
+  --skills <a,b>          Skills to import. Defaults to the selected source profile.
+  --target-dir <dir>      Directory inside the current project to write skills. Defaults to configured sourceDir.
+  --target-profile <name> Current-project profile to update. Defaults to the first configured profile.
+`,
   applied: `ArcForge CLI - applied
 
 Manage the current project's applied source records.
@@ -119,16 +142,33 @@ Usage:
   apply: `ArcForge CLI - apply
 
 Copy a profile from another Skill project or the current workspace into a target directory. Outputs JSON.
+This writes the application target directory; review drift and confirm the target before running on real projects.
 
 Usage:
-  arcforge apply [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir> [--save]
+  arcforge apply [--root <dir>] [--from <path-or-url>] [--profile <name>] [--skills <a,b>] --target <dir> [--save] --confirm
+
+Options:
+  --root <dir>          Target project root when --from is set. Defaults to current directory.
+  --from <path-or-url>  Source Skill project path, GitHub shorthand or Git URL. Omit to apply from current workspace.
+  --profile <name>      Source profile name. Defaults to default.
+  --skills <a,b>        Skills to apply. Defaults to the selected source profile.
+  --target <dir>        Application target directory. With --from, this is resolved inside --root.
+  --save                Save an applied source relation for later drift/reapply.
+  --confirm             Required. Confirms writing the application target directory.
 `,
   drift: `ArcForge CLI - drift
 
 Compare a profile from another Skill project or the current workspace against an installed target directory. Outputs JSON.
 
 Usage:
-  arcforge drift [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir>
+  arcforge drift [--root <dir>] [--from <path-or-url>] [--profile <name>] [--skills <a,b>] --target <dir>
+
+Options:
+  --root <dir>          Target project root when --from is set. Defaults to current directory.
+  --from <path-or-url>  Source Skill project path, GitHub shorthand or Git URL. Omit to compare from current workspace.
+  --profile <name>      Source profile name. Defaults to default.
+  --skills <a,b>        Skills to compare. Defaults to the selected source profile.
+  --target <dir>        Application target directory. With --from, this is resolved inside --root.
 `,
   "publish-plan": `ArcForge CLI - publish-plan
 
@@ -140,12 +180,28 @@ Usage:
   share: `ArcForge CLI - share
 
 Plan or execute sharing from a local workspace to a Git repository. Outputs JSON.
+The plan action is read-only. The run action can write Git branches, push, or create PRs depending on delivery.
 
 Usage:
   arcforge share plan --repo <repo> [options]
   arcforge share run --repo <repo> [options] --confirm
   arcforge share plan --same-repository [options]
   arcforge share run --same-repository [options] --confirm
+
+Options:
+  --root <dir>                      Maintenance source root. Defaults to current directory.
+  --repo <repo>                     GitHub/Git repository sharing target.
+  --same-repository                 Share into the current repository remote instead of a separate repo.
+  --same-repository-remote <name>   Remote name for same-repository sharing.
+  --profile <name>                  Profile to share. Defaults to default.
+  --skills <a,b>                    Skills to share. Defaults to the selected profile.
+  --visibility <private|public>     Publish-plan visibility. Defaults to private.
+  --target-mode <direct|namedProject> How files are placed in the sharing target.
+  --project-name <name>             Named project folder when target-mode is namedProject.
+  --delivery <target-pr|fork-pr|direct-push|local-branch> Preferred GitHub delivery method.
+  --branch <name>                   Share branch name.
+  --message <text>                  Commit or PR message.
+  --confirm                         Required for run.
 `,
   doctor: `ArcForge CLI - doctor
 
@@ -174,11 +230,15 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
 
   if (command === "source") return runSourceCommand(args, runtime);
   if (command === "merge") return runMergeCommand(args, runtime);
+  if (command === "import") return runImportCommand(args, runtime);
   if (command === "applied") return runAppliedCommand(args, runtime);
 
   if (command === "apply") {
     const root = arg(args, "--root") ?? runtime.cwd;
     const profile = arg(args, "--profile") ?? "default";
+    if (!hasFlag(args, "--confirm")) {
+      return { exitCode: 1, value: { error: "Apply writes the target directory and requires --confirm after reviewing drift.", requiresConfirm: true } };
+    }
     return {
       exitCode: 0,
       value: await applyFromSource(root, arg(args, "--from"), profile, requiredArg(args, "--target"), hasFlag(args, "--save"), parseSkills(arg(args, "--skills")), runtime.cacheDir ?? defaultCacheDir())
@@ -251,6 +311,21 @@ async function runMergeCommand(args: string[], runtime: CommandRuntime): Promise
     cacheDir: arg(args, "--cache-dir") ?? runtime.cacheDir ?? defaultCacheDir()
   };
   return { exitCode: 0, value: action === "run" ? await mergeIntoProject(options) : await createMergePlan(options) };
+}
+
+async function runImportCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
+  const action = args[1] === "run" ? "run" : "plan";
+  const options = {
+    root: arg(args, "--root") ?? runtime.cwd,
+    from: requiredArg(args, "--from"),
+    profile: arg(args, "--profile") ?? "default",
+    skills: parseSkills(arg(args, "--skills")),
+    targetDir: arg(args, "--target-dir"),
+    targetProfile: arg(args, "--target-profile"),
+    confirm: hasFlag(args, "--confirm"),
+    cacheDir: arg(args, "--cache-dir") ?? runtime.cacheDir ?? defaultCacheDir()
+  };
+  return { exitCode: 0, value: action === "run" ? await importSkillsIntoProject(options) : await createImportSkillsPlan(options) };
 }
 
 async function runAppliedCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {

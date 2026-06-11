@@ -20,6 +20,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cliMarkerIndex = process.argv.indexOf("--cli");
 let appStateWriteQueue: Promise<unknown> = Promise.resolve();
 const execFileAsync = promisify(execFile);
+type DesktopContext = {
+  root: string;
+  page?: ProjectUiState["tab"];
+};
 
 app.setName("ArcForge");
 
@@ -33,6 +37,9 @@ if (cliMarkerIndex !== -1) {
 } else {
   app.whenReady().then(async () => {
     await installCliShim(cliShimOptions()).catch((error) => {
+      console.warn(error instanceof Error ? error.message : String(error));
+    });
+    await seedDesktopContext(desktopContextFromArgs(process.argv)).catch((error) => {
       console.warn(error instanceof Error ? error.message : String(error));
     });
     await createWindow();
@@ -88,6 +95,49 @@ async function createWindow(): Promise<void> {
   } else {
     await win.loadFile(path.join(__dirname, "../../dist-ui/index.html"));
   }
+}
+
+function desktopContextFromArgs(args: string[]): DesktopContext | undefined {
+  const root = readArg(args, "--root");
+  if (!root) return undefined;
+  const page = readArg(args, "--page");
+  return {
+    root: path.resolve(root),
+    page: isProjectTab(page) ? page : undefined
+  };
+}
+
+function readArg(args: string[], name: string): string | undefined {
+  for (let index = 0; index < args.length; index += 1) {
+    const value = args[index];
+    if (value === name) return cleanString(args[index + 1]);
+    if (value.startsWith(`${name}=`)) return cleanString(value.slice(name.length + 1));
+  }
+  return undefined;
+}
+
+async function seedDesktopContext(context: DesktopContext | undefined): Promise<void> {
+  if (!context?.root) return;
+  const now = new Date().toISOString();
+  await saveLocalProjectListMetadata(context.root, {
+    order: 0,
+    lastOpenedAt: now,
+    hidden: false,
+    sourceKind: "local",
+    localSourcePath: context.root
+  });
+  const current = await loadAppState();
+  const currentProjectState = current.projectState[context.root] ?? {};
+  await saveAppStatePatch({
+    activeWorkspace: context.root,
+    projectState: {
+      ...current.projectState,
+      [context.root]: {
+        ...currentProjectState,
+        tab: context.page ?? currentProjectState.tab ?? "overview"
+      }
+    }
+  });
 }
 
 ipcMain.handle("workspace:choose", async (event) => {

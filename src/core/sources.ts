@@ -79,7 +79,7 @@ export async function createMergePlan(options: MergeOptions): Promise<MergePlan>
       files: comparison.files
     };
   }));
-  const appliedRecord = await appliedRecordFor(root, targetProjectRoot, path.basename(targetProjectRoot), profile, targetDir, selected.map((skill) => skill.name));
+  const appliedRecord = await appliedRecordFor(root, targetProjectRoot, path.basename(targetProjectRoot), profile, targetDir, selected.map((skill) => skill.name), "profileApply");
   return {
     root,
     targetProjectRoot,
@@ -141,7 +141,7 @@ export async function createImportSkillsPlan(options: ImportSkillsOptions): Prom
       files: comparison.files
     };
   }));
-  const appliedRecord = await appliedRecordFor(root, sourceProjectRoot, path.basename(sourceProjectRoot), sourceProfile, targetDir, selected.map((skill) => skill.name));
+  const appliedRecord = await appliedRecordFor(root, sourceProjectRoot, path.basename(sourceProjectRoot), sourceProfile, targetDir, selected.map((skill) => skill.name), "maintenanceImport");
   return {
     root,
     sourceProjectRoot,
@@ -176,7 +176,7 @@ export async function importSkillsIntoProject(options: ImportSkillsOptions): Pro
     copied,
     skipped,
     appliedRecord,
-    messages: [`Imported ${copied.length} skills from ${plan.sourceProjectName}.`, `Updated applied source ${appliedRecord.id}.`]
+    messages: [`Imported ${copied.length} skills from ${plan.sourceProjectName}.`, `Updated maintenance import relation ${appliedRecord.id}.`]
   };
 }
 
@@ -191,7 +191,7 @@ export async function addAppliedSource(options: AppliedSourceOptions): Promise<A
   const sourceRoot = await resolveSkillProjectRoot(options.from, requiredCacheDir(options.cacheDir));
   const snapshot = await scanWorkspace(sourceRoot);
   const skills = selectedSkills(snapshot.skills, snapshot.config, options.profile, options.skills).map((skill) => skill.name);
-  const record = await appliedRecordFor(options.root, sourceRoot, path.basename(snapshot.root), options.profile, options.targetDir, skills);
+  const record = await appliedRecordFor(options.root, sourceRoot, path.basename(snapshot.root), options.profile, options.targetDir, skills, "profileApply");
   return upsertAppliedSource(options.root, record);
 }
 
@@ -239,7 +239,7 @@ export async function applyFromSource(root: string, from: string | undefined, pr
   const snapshot = await scanWorkspace(sourceRoot);
   const config = skills?.length ? configWithSkillSelection(snapshot.config, profile, skills) : snapshot.config;
   const result = await applyProfile(sourceRoot, config, snapshot.skills, snapshot.assets, profile, resolvedTargetDir);
-  const record = save && from ? await upsertAppliedSource(root, await appliedRecordFor(root, sourceRoot, path.basename(sourceRoot), profile, targetDir, result.copied)) : undefined;
+  const record = save && from ? await upsertAppliedSource(root, await appliedRecordFor(root, sourceRoot, path.basename(sourceRoot), profile, targetDir, result.copied, "profileApply")) : undefined;
   return { result, record };
 }
 
@@ -263,12 +263,15 @@ function selectedSkills(skills: SkillSummary[], config: ArcForgeConfig, profileN
   return selectProfileSkills(skills, profile.skills);
 }
 
-async function appliedRecordFor(root: string, sourceRoot: string, sourceName: string | undefined, profile: string, targetDir: string, skills: string[]): Promise<AppliedSourceRecord> {
+type AppliedRelationKind = NonNullable<AppliedSourceRecord["relationKind"]>;
+
+async function appliedRecordFor(root: string, sourceRoot: string, sourceName: string | undefined, profile: string, targetDir: string, skills: string[], relationKind: AppliedRelationKind): Promise<AppliedSourceRecord> {
   const now = new Date().toISOString();
   const normalizedSourceRoot = path.resolve(sourceRoot);
-  const existing = (await listAppliedSources(root)).find((item) => path.resolve(item.sourceRoot) === normalizedSourceRoot && item.profile === profile && item.targetDir === targetDir);
+  const existing = (await listAppliedSources(root)).find((item) => path.resolve(item.sourceRoot) === normalizedSourceRoot && item.profile === profile && item.targetDir === targetDir && recordRelationKind(item) === relationKind);
   return {
-    id: existing?.id || `${slug(sourceName || path.basename(normalizedSourceRoot) || "source")}-${slug(profile)}-${crypto.createHash("sha256").update(`${normalizedSourceRoot}:${targetDir}`).digest("hex").slice(0, 8)}`,
+    id: existing?.id || `${slug(sourceName || path.basename(normalizedSourceRoot) || "source")}-${slug(profile)}-${crypto.createHash("sha256").update(`${relationKind}:${normalizedSourceRoot}:${targetDir}`).digest("hex").slice(0, 8)}`,
+    relationKind,
     sourceRoot: normalizedSourceRoot,
     sourceName,
     profile,
@@ -278,6 +281,10 @@ async function appliedRecordFor(root: string, sourceRoot: string, sourceName: st
     appliedAt: existing?.appliedAt,
     updatedAt: now
   };
+}
+
+function recordRelationKind(record: AppliedSourceRecord): AppliedRelationKind {
+  return record.relationKind === "maintenanceImport" ? "maintenanceImport" : "profileApply";
 }
 
 async function upsertAppliedSource(root: string, record: AppliedSourceRecord): Promise<AppliedSourceRecord> {

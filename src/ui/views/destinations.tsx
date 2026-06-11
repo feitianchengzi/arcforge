@@ -108,12 +108,13 @@ export function ApplySkills(props: {
               <article key={record.id} className="row stacked">
                 <div>
                   <strong>{record.sourceName ?? record.sourceRoot}</strong>
+                  <span className="badge">{t.appliedRelationKind(record.relationKind)}</span>
                   <p>{t.appliedSourceSummary(record.skills.length, record.profile)}</p>
                   <span>{record.targetDir}</span>
                 </div>
                 <div className="actions">
                   <button onClick={() => props.checkAppliedSourceDrift(record.id)} disabled={props.isCheckingDrift}>{props.isCheckingDrift ? t.checkingDrift : t.checkDrift}</button>
-                  <button onClick={() => props.runAppliedSource(record.id)}>{t.reapply}</button>
+                  <button onClick={() => props.runAppliedSource(record.id)}>{t.reapplyRelation(record.relationKind)}</button>
                 </div>
               </article>
             ))}
