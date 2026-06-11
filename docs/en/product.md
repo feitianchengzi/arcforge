@@ -4,13 +4,13 @@
 
 ## Positioning
 
-SkillOps is a project-local lifecycle governance layer for AI agent skills, designed for indie developers and small teams who work through coding agents.
+ArcForge is a project-local lifecycle governance layer for AI agent skills, designed for indie developers and small teams who work through coding agents.
 
-Users primarily use SkillOps from inside a project through a coding agent. The SkillOps skill orchestrates CLI automation and opens the desktop UI when a workflow needs visual review, structured selection, editing, or confirmation.
+Users primarily use ArcForge from inside a project through a coding agent. The ArcForge skill orchestrates CLI automation and opens the desktop UI when a workflow needs visual review, structured selection, editing, or confirmation.
 
 It helps users turn AI agent skills from personal notes or project-local improvements into team-ready assets that are authored, validated, audited, versioned in GitHub, grouped by project, applied into local agent targets, and prepared for private team sharing or public publishing.
 
-SkillOps is a skill lifecycle governance layer and pre-publish preparation layer. It is meant to sit upstream of GitHub releases, ClawHub/OpenClaw, `skillshare`, `npx skills`, and agent-specific runtimes rather than replace them.
+ArcForge is a skill lifecycle governance layer and pre-publish preparation layer. It is meant to sit upstream of GitHub releases, ClawHub/OpenClaw, `skillshare`, `npx skills`, and agent-specific runtimes rather than replace them.
 
 ## Target Users
 
@@ -45,8 +45,8 @@ SkillOps is a skill lifecycle governance layer and pre-publish preparation layer
 ## MVP Features
 
 - scan a Git workspace for `SKILL.md` skills
-- provide `skillops-skill-first` to capture working patterns as skills and validate them with sub-agent preflight/retest loops
-- provide an agent-facing SkillOps skill that orchestrates CLI and desktop workflows from the current project
+- provide `arcforge-skill-first` to capture working patterns as skills and validate them with sub-agent preflight/retest loops
+- provide an agent-facing ArcForge skill that orchestrates CLI and desktop workflows from the current project
 - audit skill quality and security risks
 - browse and edit the workspace `skills/` tree with profile-based filtering
 - apply named profiles to target folders
@@ -58,7 +58,7 @@ SkillOps is a skill lifecycle governance layer and pre-publish preparation layer
 
 ## Differentiation
 
-Most existing products focus on public discovery, installation, registry hosting, or runtime integration. SkillOps focuses on the private lifecycle before a skill is adopted by a project or published to a public channel:
+Most existing products focus on public discovery, installation, registry hosting, or runtime integration. ArcForge focuses on the private lifecycle before a skill is adopted by a project or published to a public channel:
 
 ```text
 author/iterate -> validate -> audit -> profile -> share -> publish -> maintain

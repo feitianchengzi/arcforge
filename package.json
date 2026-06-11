@@ -1,11 +1,11 @@
 {
-  "name": "skillops",
+  "name": "arcforge",
   "version": "0.1.0",
-  "description": "GitHub-first SkillOps workspace for indie developers and small teams.",
+  "description": "GitHub-first ArcForge workspace for indie developers and small teams.",
   "type": "module",
   "main": "dist/electron/main.js",
   "bin": {
-    "skillops": "dist/cli/index.js"
+    "arcforge": "dist/cli/index.js"
   },
   "scripts": {
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"tsc -p tsconfig.node.json --watch --preserveWatchOutput\" \"wait-on http://127.0.0.1:5173 dist/electron/main.js && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
@@ -26,7 +26,7 @@
   },
   "keywords": [
     "agent-skills",
-    "skillops",
+    "arcforge",
     "electron",
     "react",
     "github-first",

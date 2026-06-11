@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import process from "node:process";
-import { runSkillOpsCommand } from "../commands/index.js";
+import { runArcForgeCommand } from "../commands/index.js";
 
 try {
-  const result = await runSkillOpsCommand(process.argv.slice(2), {
+  const result = await runArcForgeCommand(process.argv.slice(2), {
     cwd: process.cwd()
   });
   if (result.text) {

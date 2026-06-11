@@ -2,7 +2,7 @@ metadata:
   path: tech/_shared/models/LocalProjectState.yaml
   domain: shared
   entity_name: LocalProjectState
-  storage: ~/.skillops/projects/<project-key>.json
+  storage: ~/.arcforge/projects/<project-key>.json
   owner: core/project-store
   version: 1
   created: 2026-05-25
@@ -57,7 +57,7 @@ properties:
         nullable: true
         description: Canonical remote key used to identify Git projects.
   config:
-    $ref: "./SkillOpsConfig.yaml"
+    $ref: "./ArcForgeConfig.yaml"
     nullable: true
     description: User-level project configuration stored outside the source checkout.
   appliedSources:
@@ -69,4 +69,4 @@ properties:
   updatedAt:
     type: string
     format: date-time
-    description: Last time SkillOps wrote this local project state.
+    description: Last time ArcForge wrote this local project state.

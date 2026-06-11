@@ -1,11 +1,11 @@
 {
-  "appId": "com.feitianchengzi.skillops",
-  "packageName": "skillops",
-  "productName": "SkillOps",
-  "executableName": "skillops",
+  "appId": "com.feitianchengzi.arcforge",
+  "packageName": "arcforge",
+  "productName": "ArcForge",
+  "executableName": "arcforge",
   "version": "0.1.0",
-  "description": "GitHub-first SkillOps workspace for indie developers and small teams.",
-  "copyright": "Copyright © 2026 SkillOps contributors",
+  "description": "GitHub-first ArcForge workspace for indie developers and small teams.",
+  "copyright": "Copyright © 2026 ArcForge contributors",
   "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
   "bundle": {
     "outputDir": "release",
@@ -24,7 +24,7 @@
   },
   "linux": {
     "category": "Development",
-    "maintainer": "SkillOps Maintainers <hi@feitianchengzi.com>",
+    "maintainer": "ArcForge Maintainers <hi@feitianchengzi.com>",
     "targets": [
       "AppImage"
     ]

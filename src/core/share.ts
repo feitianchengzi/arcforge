@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { GitHubAccessResult, LocalGitRemote, LocalGitSource, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillOpsConfig, SkillSummary, WorkspaceSnapshot } from "../shared/types.js";
+import type { GitHubAccessResult, LocalGitRemote, LocalGitSource, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, ArcForgeConfig, SkillSummary, WorkspaceSnapshot } from "../shared/types.js";
 import { saveConfig } from "./config.js";
 import { pathExists } from "./fs.js";
 import { checkoutShareBranch, createPullRequest, currentCommit, ensureForkRemote, inspectGitHubAccess, parseGitHubRepo, prepareShareCheckout, pushBranch, resolveRemoteSourceRef, runGit, withShareLock } from "./share-git.js";
@@ -232,7 +232,7 @@ async function stageShareTarget(root: string, targetSubdir: string, sourceDir: s
   await runGit(root, targetSubdir ? ["add", targetSubdir] : ["add", sourceDir, "README.md"], messages);
 }
 
-function publishedShareProfile(profile: SkillOpsConfig["profiles"][number], selectedSkills: SkillSummary[]): SkillOpsConfig["profiles"][number] {
+function publishedShareProfile(profile: ArcForgeConfig["profiles"][number], selectedSkills: SkillSummary[]): ArcForgeConfig["profiles"][number] {
   if (profile.skills.includes("*")) return profile;
   return {
     ...profile,
@@ -318,7 +318,7 @@ async function commitPathIfChanged(root: string, targetPath: string, message: st
     messages.push("No staged file changes in the skill project path.");
     return false;
   }
-  await runGit(root, ["commit", "-m", message?.trim() || "Share SkillOps project", "--", targetPath], messages);
+  await runGit(root, ["commit", "-m", message?.trim() || "Share ArcForge project", "--", targetPath], messages);
   return true;
 }
 
@@ -326,7 +326,7 @@ async function commitIfChanged(root: string, message: string | undefined, messag
   const status = await runGit(root, ["status", "--porcelain"], messages);
   const committed = status.trim().length > 0;
   if (committed) {
-    await runGit(root, ["commit", "-m", message?.trim() || "Share SkillOps project"], messages);
+    await runGit(root, ["commit", "-m", message?.trim() || "Share ArcForge project"], messages);
   } else {
     messages.push("No file changes to commit.");
   }
@@ -335,7 +335,7 @@ async function commitIfChanged(root: string, message: string | undefined, messag
 
 function resolveSameRepository(snapshot: WorkspaceSnapshot, remoteName?: string): { localGit: LocalGitSource; remote: LocalGitRemote } {
   const localGit = snapshot.localGit;
-  if (!localGit) throw new Error("Current SkillOps project is not inside a Git repository.");
+  if (!localGit) throw new Error("Current ArcForge project is not inside a Git repository.");
   if (localGit.remotes.length === 0) throw new Error("Current Git repository has no remotes configured.");
   const requested = remoteName?.trim();
   const remote = requested
@@ -380,7 +380,7 @@ function slug(value: string): string {
 }
 
 function defaultShareBranch(projectName: string): string {
-  return `skillops/share/${slug(projectName)}`;
+  return `arcforge/share/${slug(projectName)}`;
 }
 
 function normalizeDelivery(value: ShareDeliveryMethod | undefined, recommended: ShareDeliveryMethod, available: ShareDeliveryMethod[]): ShareDeliveryMethod {
@@ -404,7 +404,7 @@ function shareCommands(options: {
   confirm: boolean;
 }): string[] {
   const base = [
-    "skillops",
+    "arcforge",
     "share",
     "run",
     "--root",
@@ -445,7 +445,7 @@ function manualShareCommands(delivery: ShareDeliveryMethod, branch: string, base
 }
 
 function sameRepositoryCommands(root: string, remoteName: string, branch: string, targetPath: string, message?: string): string[] {
-  const commitMessage = message?.trim() || "Share SkillOps project";
+  const commitMessage = message?.trim() || "Share ArcForge project";
   return [
     `git -C ${shellArg(root)} add -- ${shellArg(targetPath)}`,
     `git -C ${shellArg(root)} commit -m ${shellArg(commitMessage)} -- ${shellArg(targetPath)}`,
@@ -454,19 +454,19 @@ function sameRepositoryCommands(root: string, remoteName: string, branch: string
 }
 
 function prTitle(projectName: string): string {
-  return `Share SkillOps project ${projectName}`;
+  return `Share ArcForge project ${projectName}`;
 }
 
 function prBody(projectName: string, visibility: "private" | "public", targetPath: string, skillCount: number, profiles: string[]): string {
   return [
-    `Shares the SkillOps project \`${projectName}\`.`,
+    `Shares the ArcForge project \`${projectName}\`.`,
     "",
     `- Visibility: \`${visibility}\``,
     `- Target path: \`${targetPath}\``,
     `- Skills: ${skillCount}`,
     `- Profiles: ${profiles.map((item) => `\`${item}\``).join(", ") || "none"}`,
     "",
-    "Review the generated README SkillOps section and audit checklist before merging."
+    "Review the generated README ArcForge section and audit checklist before merging."
   ].join("\n");
 }
 

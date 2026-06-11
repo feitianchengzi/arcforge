@@ -1,6 +1,6 @@
 # Security Policy
 
-SkillOps works with AI agent skills, which can influence agent behavior. Treat skills as executable workflow instructions.
+ArcForge works with AI agent skills, which can influence agent behavior. Treat skills as executable workflow instructions.
 
 ## Reporting
 
@@ -21,4 +21,4 @@ Audit results are best-effort and do not guarantee that a skill is safe.
 - review third-party skills before installing
 - do not publish private company paths, URLs, or process details
 - require human review before syncing skills across a team
-- run `skillops audit` in CI before merging skill changes
+- run `arcforge audit` in CI before merging skill changes

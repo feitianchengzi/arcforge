@@ -22,10 +22,10 @@ export async function readSkillFile(root: string, filePath: string): Promise<Ski
   const safeFilePath = assertWorkspacePath(root, filePath);
   const stats = await fs.stat(safeFilePath);
   if (!stats.isFile()) throw new Error("Selected path is not a file.");
-  if (stats.size > MAX_EDITABLE_FILE_BYTES) throw new Error("File is too large to edit in SkillOps.");
+  if (stats.size > MAX_EDITABLE_FILE_BYTES) throw new Error("File is too large to edit in ArcForge.");
 
   const buffer = await fs.readFile(safeFilePath);
-  if (buffer.includes(0)) throw new Error("Binary files cannot be edited in SkillOps.");
+  if (buffer.includes(0)) throw new Error("Binary files cannot be edited in ArcForge.");
 
   return {
     path: safeFilePath,

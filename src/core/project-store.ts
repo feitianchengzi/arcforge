@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import type { AppliedSourceRecord, SkillOpsConfig } from "../shared/types.js";
+import type { AppliedSourceRecord, ArcForgeConfig } from "../shared/types.js";
 import { pathExists, writeJson } from "./fs.js";
 import { detectLocalGitSource } from "./local-git.js";
 
@@ -11,7 +11,7 @@ export interface LocalProjectState {
   projectKey: string;
   root: string;
   identity: ProjectIdentity;
-  config?: SkillOpsConfig;
+  config?: ArcForgeConfig;
   appliedSources?: AppliedSourceRecord[];
   updatedAt: string;
 }
@@ -25,12 +25,12 @@ export interface ProjectIdentity {
   remote?: string;
 }
 
-export function skillOpsHome(): string {
-  return process.env.SKILLOPS_HOME?.trim() || path.join(os.homedir(), ".skillops");
+export function arcForgeHome(): string {
+  return process.env.ARCFORGE_HOME?.trim() || path.join(os.homedir(), ".arcforge");
 }
 
 export function projectStoreDir(): string {
-  return path.join(skillOpsHome(), "projects");
+  return path.join(arcForgeHome(), "projects");
 }
 
 export async function loadLocalProjectState(root: string): Promise<LocalProjectState | undefined> {
@@ -40,7 +40,7 @@ export async function loadLocalProjectState(root: string): Promise<LocalProjectS
   return JSON.parse(raw) as LocalProjectState;
 }
 
-export async function saveLocalProjectConfig(root: string, config: SkillOpsConfig): Promise<LocalProjectState> {
+export async function saveLocalProjectConfig(root: string, config: ArcForgeConfig): Promise<LocalProjectState> {
   const current = await loadLocalProjectState(root);
   return saveLocalProjectState(root, {
     config,

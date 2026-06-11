@@ -11,13 +11,13 @@
 
 ## Background
 
-SkillOps already supports viewing and editing skills. The open product question is how to add Agent assistance without turning SkillOps into a general agent runtime or hosted marketplace.
+ArcForge already supports viewing and editing skills. The open product question is how to add Agent assistance without turning ArcForge into a general agent runtime or hosted marketplace.
 
-The discussion started from a possible terminal or iTerm2-like Codex CLI surface, then narrowed toward a more SkillOps-shaped approach: use Codex as an execution engine inside a governance workflow.
+The discussion started from a possible terminal or iTerm2-like Codex CLI surface, then narrowed toward a more ArcForge-shaped approach: use Codex as an execution engine inside a governance workflow.
 
 ## Pending Item
 
-Introduce an Agent Workbench around skill maintenance. The workbench helps users review, improve, and patch skills from within the current SkillOps workspace.
+Introduce an Agent Workbench around skill maintenance. The workbench helps users review, improve, and patch skills from within the current ArcForge workspace.
 
 Candidate maintenance tasks include:
 
@@ -31,14 +31,14 @@ The preferred execution model is controlled Codex CLI invocation such as `codex 
 
 ## Current Judgment
 
-The direction fits SkillOps when framed as skill governance and maintenance assistance. It becomes risky if positioned as a replacement for Codex App, Terminal, or a general-purpose agent runtime.
+The direction fits ArcForge when framed as skill governance and maintenance assistance. It becomes risky if positioned as a replacement for Codex App, Terminal, or a general-purpose agent runtime.
 
 A lightweight command panel or task runner appears more aligned than a full terminal as the initial product surface. A full xterm/node-pty terminal can remain an advanced debugging option if users repeatedly need interactive Codex sessions.
 
 ## Revisit When
 
 - Users repeatedly edit `SKILL.md` manually and need structured Agent review.
-- SkillOps adds a first-class skill detail/editing workflow.
+- ArcForge adds a first-class skill detail/editing workflow.
 - The team decides how generated patches are previewed, accepted, and reverted.
 - Codex CLI availability and authentication detection are reliable enough for desktop use.
 
@@ -55,6 +55,6 @@ A lightweight command panel or task runner appears more aligned than a full term
 
 - The Agent should operate through the Electron main process or command layer, not directly from the React renderer.
 - The renderer should receive streamed output, status, exit code, and diff metadata through a narrow IPC contract.
-- The initial scope should preserve SkillOps as a local-first, GitHub-first skill lifecycle governance layer, not a general agent runtime.
+- The initial scope should preserve ArcForge as a local-first, GitHub-first skill lifecycle governance layer, not a general agent runtime.
 
 ## Outcome

@@ -4,7 +4,7 @@ import { createPublishPlan } from "../core/publish.js";
 import { createSharePlan, shareProject, type ShareProjectOptions } from "../core/share.js";
 import { shareDriftReport, type ShareDriftOptions } from "../core/share-drift.js";
 import { getEnvironmentStatus } from "../core/environment.js";
-import { skillOpsHome } from "../core/project-store.js";
+import { arcForgeHome } from "../core/project-store.js";
 import { addAppliedSource, applyFromSource, createMergePlan, driftAppliedSources, driftFromSource, listAppliedSources, mergeIntoProject, removeAppliedSource, runAppliedSources } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
 import type { CliShimOptions } from "../core/cli-install.js";
@@ -22,12 +22,12 @@ export interface CommandExecution {
   text?: string;
 }
 
-export const helpText = `SkillOps CLI
+export const helpText = `ArcForge CLI
 
 Local-first, GitHub-first governance for AI agent skills.
 
 Usage:
-  skillops <command> [options]
+  arcforge <command> [options]
 
 Commands:
   scan             Scan skills, shared assets, and audit status
@@ -42,59 +42,59 @@ Commands:
   doctor           Check Git, CLI install, and optional tools
 
 Common options:
-  --root <dir>      SkillOps workspace root. Defaults to current directory.
+  --root <dir>      ArcForge workspace root. Defaults to current directory.
   --source-dir <dir> Skill source directory inside --root. Defaults to configured sourceDir.
   --profile <name>  Profile name. Defaults to default where supported.
 
 Examples:
-  skillops scan --root .
-  skillops audit --root .
-  skillops source status --root .
-  skillops source update --root . --confirm
-  skillops merge plan --root . --to ../team-skills --skills review --target-path skills/project-a
-  skillops merge plan --root . --source-dir .codex/skills --to ../team-skills --skills project-demo-video --target-path skills
-  skillops merge run --root . --to github.com/acme/team-skills --skills review --target-path skills/project-a --confirm
-  skillops applied drift --root .
-  skillops apply --from ../team-skills --profile default --target ~/.codex/skills
-  skillops share plan --root . --repo github.com/acme/team-skills --profile frontend
-  skillops share run --root . --repo github.com/acme/team-skills --profile frontend --confirm
-  skillops doctor
+  arcforge scan --root .
+  arcforge audit --root .
+  arcforge source status --root .
+  arcforge source update --root . --confirm
+  arcforge merge plan --root . --to ../team-skills --skills review --target-path skills/project-a
+  arcforge merge plan --root . --source-dir .codex/skills --to ../team-skills --skills project-demo-video --target-path skills
+  arcforge merge run --root . --to github.com/acme/team-skills --skills review --target-path skills/project-a --confirm
+  arcforge applied drift --root .
+  arcforge apply --from ../team-skills --profile default --target ~/.codex/skills
+  arcforge share plan --root . --repo github.com/acme/team-skills --profile frontend
+  arcforge share run --root . --repo github.com/acme/team-skills --profile frontend --confirm
+  arcforge doctor
 
 Help:
-  skillops help <command>
-  skillops <command> --help
+  arcforge help <command>
+  arcforge <command> --help
 `;
 
 const commandHelpText: Record<string, string> = {
-  scan: `SkillOps CLI - scan
+  scan: `ArcForge CLI - scan
 
 Scan skills, shared assets, and audit status. Outputs JSON.
 
 Usage:
-  skillops scan [--root <dir>] [--source-dir <dir>]
+  arcforge scan [--root <dir>] [--source-dir <dir>]
 `,
-  audit: `SkillOps CLI - audit
+  audit: `ArcForge CLI - audit
 
 Print the audit report as JSON. Exits 2 when critical findings exist.
 
 Usage:
-  skillops audit [--root <dir>] [--source-dir <dir>]
+  arcforge audit [--root <dir>] [--source-dir <dir>]
 `,
-  source: `SkillOps CLI - source
+  source: `ArcForge CLI - source
 
 Check or update any Git checkout. This is independent from Skill project merge or apply relationships.
 
 Usage:
-  skillops source status [--root <dir>]
-  skillops source update [--root <dir>] --confirm
+  arcforge source status [--root <dir>]
+  arcforge source update [--root <dir>] --confirm
 `,
-  merge: `SkillOps CLI - merge
+  merge: `ArcForge CLI - merge
 
 Merge current project skills into another Skill project and record that project as the applied source.
 
 Usage:
-  skillops merge plan --to <path-or-url> --target-path <dir> [options]
-  skillops merge run --to <path-or-url> --target-path <dir> [options] --confirm
+  arcforge merge plan --to <path-or-url> --target-path <dir> [options]
+  arcforge merge run --to <path-or-url> --target-path <dir> [options] --confirm
 
 Options:
   --root <dir>         Current project root. Defaults to current directory.
@@ -103,60 +103,60 @@ Options:
   --skills <a,b>       Skills to merge. Defaults to the selected profile.
   --profile <name>     Profile to update in the target project. Defaults to default.
   --target-path <dir>  Parent directory in the target project. Skill names are appended under it.
-  --target <dir>       Applied target directory recorded for the current project. Defaults to .skillops/skills.
+  --target <dir>       Applied target directory recorded for the current project. Defaults to .arcforge/skills.
 `,
-  applied: `SkillOps CLI - applied
+  applied: `ArcForge CLI - applied
 
 Manage the current project's applied source records.
 
 Usage:
-  skillops applied list [--root <dir>]
-  skillops applied add --from <path-or-url> --profile <name> --target <dir> [--skills <a,b>]
-  skillops applied remove <id> [--root <dir>]
-  skillops applied drift [--root <dir>] [--id <record-id>]
-  skillops applied run [--root <dir>] [--id <record-id>] --confirm
+  arcforge applied list [--root <dir>]
+  arcforge applied add --from <path-or-url> --profile <name> --target <dir> [--skills <a,b>]
+  arcforge applied remove <id> [--root <dir>]
+  arcforge applied drift [--root <dir>] [--id <record-id>]
+  arcforge applied run [--root <dir>] [--id <record-id>] --confirm
 `,
-  apply: `SkillOps CLI - apply
+  apply: `ArcForge CLI - apply
 
 Copy a profile from another Skill project or the current workspace into a target directory. Outputs JSON.
 
 Usage:
-  skillops apply [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir> [--save]
+  arcforge apply [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir> [--save]
 `,
-  drift: `SkillOps CLI - drift
+  drift: `ArcForge CLI - drift
 
 Compare a profile from another Skill project or the current workspace against an installed target directory. Outputs JSON.
 
 Usage:
-  skillops drift [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir>
+  arcforge drift [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir>
 `,
-  "publish-plan": `SkillOps CLI - publish-plan
+  "publish-plan": `ArcForge CLI - publish-plan
 
 Generate a GitHub-first release checklist and install command hints. This command does not push to a remote repository.
 
 Usage:
-  skillops publish-plan [--root <dir>] [--visibility private|public]
+  arcforge publish-plan [--root <dir>] [--visibility private|public]
 `,
-  share: `SkillOps CLI - share
+  share: `ArcForge CLI - share
 
 Plan or execute sharing from a local workspace to a Git repository. Outputs JSON.
 
 Usage:
-  skillops share plan --repo <repo> [options]
-  skillops share run --repo <repo> [options] --confirm
-  skillops share plan --same-repository [options]
-  skillops share run --same-repository [options] --confirm
+  arcforge share plan --repo <repo> [options]
+  arcforge share run --repo <repo> [options] --confirm
+  arcforge share plan --same-repository [options]
+  arcforge share run --same-repository [options] --confirm
 `,
-  doctor: `SkillOps CLI - doctor
+  doctor: `ArcForge CLI - doctor
 
 Check local runtime dependencies and optional integrations. Outputs JSON.
 
 Usage:
-  skillops doctor
+  arcforge doctor
 `
 };
 
-export async function runSkillOpsCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
+export async function runArcForgeCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
   const command = args[0] ?? "help";
   if (command === "help") return { exitCode: 0, text: helpFor(args[1]) };
   if (command === "--help" || command === "-h" || args.includes("--help") || args.includes("-h")) {
@@ -246,7 +246,7 @@ async function runMergeCommand(args: string[], runtime: CommandRuntime): Promise
     targetPath: requiredArg(args, "--target-path"),
     profile: arg(args, "--profile") ?? "default",
     skills: parseSkills(arg(args, "--skills")),
-    targetDir: arg(args, "--target") ?? ".skillops/skills",
+    targetDir: arg(args, "--target") ?? ".arcforge/skills",
     confirm: hasFlag(args, "--confirm"),
     cacheDir: arg(args, "--cache-dir") ?? runtime.cacheDir ?? defaultCacheDir()
   };
@@ -341,5 +341,5 @@ function parseDelivery(value?: string): ShareDeliveryMethod | undefined {
 }
 
 function defaultCacheDir(): string {
-  return path.join(skillOpsHome(), "cache");
+  return path.join(arcForgeHome(), "cache");
 }

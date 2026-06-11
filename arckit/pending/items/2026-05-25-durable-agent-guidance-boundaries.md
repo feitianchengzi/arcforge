@@ -17,7 +17,7 @@ This is being recorded as unresolved project context only. It should not change 
 
 ## Pending Item
 
-Decide whether SkillOps needs a post-task agent workflow that identifies durable project guidance from conversation context and proposes updates to `AGENTS.md` or comparable durable docs.
+Decide whether ArcForge needs a post-task agent workflow that identifies durable project guidance from conversation context and proposes updates to `AGENTS.md` or comparable durable docs.
 
 Open questions:
 
@@ -26,7 +26,7 @@ Open questions:
 
 ## Current Judgment
 
-The topic fits SkillOps as agent governance context, especially if it helps teams preserve durable collaboration rules and review expectations. It is not ready for execution because the risk of over-capturing temporary decisions, user preferences, or task-specific facts is high.
+The topic fits ArcForge as agent governance context, especially if it helps teams preserve durable collaboration rules and review expectations. It is not ready for execution because the risk of over-capturing temporary decisions, user preferences, or task-specific facts is high.
 
 A future workflow should likely produce proposed guidance as a reviewable decision record or patch, rather than silently writing to `AGENTS.md`. It should also make clear what evidence makes an insight durable enough to persist.
 
@@ -34,7 +34,7 @@ A future workflow should likely produce proposed guidance as a reviewable decisi
 
 - Agent sessions repeatedly surface project-level guidance that should survive beyond a single task.
 - The project defines criteria for durable guidance versus transient task context.
-- SkillOps adds or revises workflows around agent memory, project instructions, or post-task review.
+- ArcForge adds or revises workflows around agent memory, project instructions, or post-task review.
 - The team wants a named skill or command for extracting durable guidance from completed conversations.
 
 ## Related Areas
@@ -67,7 +67,7 @@ A future workflow should likely produce proposed guidance as a reviewable decisi
     - Repository: `https://github.com/meteor/meteor`
     - Current judgment: useful as a method reference but not the final generic recommendation, because the repository stars reflect Meteor rather than the skill itself.
     - Useful practices: root `AGENTS.md` as minimal always-on context, bridge files such as `CLAUDE.md`, topic skills for detailed on-demand context, and subdirectory `AGENTS.md` for local rules.
-- A SkillOps version should probably combine Sentry's concise `AGENTS.md` guidance, ContextDocs lifecycle checks, and OpenHands-style user confirmation.
+- A ArcForge version should probably combine Sentry's concise `AGENTS.md` guidance, ContextDocs lifecycle checks, and OpenHands-style user confirmation.
 - Do not silently write durable context. Prefer a proposed patch that the user can review.
 
 ## Outcome

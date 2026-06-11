@@ -48,7 +48,7 @@ const builderConfig = {
     "dist/**/*",
     "dist-ui/**/*",
     "app.manifest.json",
-    "skillops.config.example.json",
+    "arcforge.config.example.json",
     "README.md",
     "LICENSE"
   ],

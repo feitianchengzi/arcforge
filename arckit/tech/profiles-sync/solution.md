@@ -8,7 +8,7 @@
 
 ## 配置组选取
 
-系统通过配置组名称查找 `SkillOpsConfig.profiles`。
+系统通过配置组名称查找 `ArcForgeConfig.profiles`。
 
 配置组不存在时，系统抛出 `Profile not found` 错误。
 
@@ -24,7 +24,7 @@
 
 目标目录使用工作区根目录和调用方传入的目标路径解析为绝对路径。
 
-CLI 调用方负责传入目标路径。归并生成的应用关系默认目标路径为 `.skillops/skills`。
+CLI 调用方负责传入目标路径。归并生成的应用关系默认目标路径为 `.arcforge/skills`。
 
 桌面端可以传入 agent 默认目录、用户选择的项目目录或自定义路径。
 

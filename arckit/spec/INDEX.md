@@ -3,7 +3,7 @@
 🟢 已实现 | 🟡 开发中 | ⚪ 计划中 | 🔴 已废弃
 
 - workspace/ 工作区管理：本地或 GitHub Skill 项目接入、配置初始化、技能与共享资产发现。🟢
-  - discovery.md 工作区发现：读取 SkillOps 配置、扫描技能目录、生成工作区快照和 GitHub 来源更新状态。🟢 (77行)
+  - discovery.md 工作区发现：读取 ArcForge 配置、扫描技能目录、生成工作区快照和 GitHub 来源更新状态。🟢 (77行)
 - sources/ Skill 项目来源：直接使用本地或远程 Skill 项目，支持归并技能、应用关系和独立 Git 更新检查。🟢
   - skill-project-merge.md Skill 项目归并与应用关系：归并当前项目技能到另一个 Skill 项目，生成应用关系，并独立检查当前 Git checkout 更新。🟢 (115行)
 - audit/ 审计：对技能内容执行本地规则检查、风险分级与评分。🟢

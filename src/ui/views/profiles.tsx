@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
-import type { SkillOpsConfig, SkillOpsProfile, WorkspaceSnapshot } from "../../shared/types";
+import type { ArcForgeConfig, ArcForgeProfile, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import { emptyProfile } from "../utils";
 
@@ -9,11 +9,11 @@ export function Profiles(props: {
   snapshot: WorkspaceSnapshot;
   profile: string;
   setProfile: (value: string) => void;
-  saveProfiles: (config: SkillOpsConfig, nextProfile: string) => void | Promise<void>;
+  saveProfiles: (config: ArcForgeConfig, nextProfile: string) => void | Promise<void>;
 }) {
   const { t } = props;
   const sourceProfiles = props.snapshot.config.profiles.length > 0 ? props.snapshot.config.profiles : [emptyProfile("default")];
-  const [draftProfiles, setDraftProfiles] = useState<SkillOpsProfile[]>(sourceProfiles);
+  const [draftProfiles, setDraftProfiles] = useState<ArcForgeProfile[]>(sourceProfiles);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export function Profiles(props: {
 
   const activeProfile = draftProfiles[activeIndex] ?? draftProfiles[0] ?? emptyProfile("default");
 
-  function updateActiveProfile(patch: Partial<SkillOpsProfile>) {
+  function updateActiveProfile(patch: Partial<ArcForgeProfile>) {
     setDraftProfiles((current) => current.map((item, index) => index === activeIndex ? { ...item, ...patch } : item));
   }
 
@@ -145,7 +145,7 @@ export function Profiles(props: {
   );
 }
 
-function retargetProfileReferences(config: SkillOpsConfig, deletedProfileName: string | undefined, nextProfileName: string): SkillOpsConfig {
+function retargetProfileReferences(config: ArcForgeConfig, deletedProfileName: string | undefined, nextProfileName: string): ArcForgeConfig {
   if (!deletedProfileName) return config;
   return {
     ...config,

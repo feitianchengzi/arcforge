@@ -19,7 +19,7 @@ properties:
     type: string
     description: Absolute workspace root path.
   config:
-    $ref: "./SkillOpsConfig.yaml"
+    $ref: "./ArcForgeConfig.yaml"
   skills:
     type: array
     items:

@@ -2,7 +2,7 @@
 
 ## 方案概述
 
-SkillOps 采用本地优先的桌面与 CLI 双入口架构。Electron 提供桌面应用壳，React + TypeScript 提供渲染层，TypeScript core 模块承载可复用领域逻辑，Node.js 文件系统和 Git 命令负责本地工作区操作。
+ArcForge 采用本地优先的桌面与 CLI 双入口架构。Electron 提供桌面应用壳，React + TypeScript 提供渲染层，TypeScript core 模块承载可复用领域逻辑，Node.js 文件系统和 Git 命令负责本地工作区操作。
 
 系统不包含后端服务。工作区目录、用户级项目状态、技能目录、目标目录、缓存工作树和 Git 仓库是主要数据边界。
 
@@ -10,11 +10,11 @@ SkillOps 采用本地优先的桌面与 CLI 双入口架构。Electron 提供桌
 
 `src/shared/` 定义跨进程和跨入口复用的数据类型。该层只包含类型和枚举。
 
-`src/core/` 定义 SkillOps 领域逻辑，包括配置加载、技能发现、共享资产发现、审计、Skill 项目解析、归并、应用关系、配置组应用、漂移检查和发布计划生成。
+`src/core/` 定义 ArcForge 领域逻辑，包括配置加载、技能发现、共享资产发现、审计、Skill 项目解析、归并、应用关系、配置组应用、漂移检查和发布计划生成。
 
 `src/electron/` 定义桌面主进程、窗口生命周期、IPC handler、Git 来源下载、共享执行和漂移差异窗口。
 
-`src/ui/` 定义 React 桌面界面。渲染层不直接访问 Node.js API，只通过 preload 暴露的 `window.skillops` 方法调用主进程。
+`src/ui/` 定义 React 桌面界面。渲染层不直接访问 Node.js API，只通过 preload 暴露的 `window.arcforge` 方法调用主进程。
 
 `src/cli/` 定义命令行入口。CLI 直接复用 core 模块，并输出 JSON。
 
@@ -40,11 +40,11 @@ CLI 在每个命令中按需扫描工作区，并输出对应结果模型。
 
 ## 持久化边界
 
-项目配置和应用关系持久化到用户级项目状态 `~/.skillops/projects`。项目根目录下的 `skillops.config.json` 只作为一次性迁移输入；迁移后系统删除该文件。
+项目配置和应用关系持久化到用户级项目状态 `~/.arcforge/projects`。项目根目录下的 `arcforge.config.json` 只作为一次性迁移输入；迁移后系统删除该文件。
 
 桌面端最近项目、当前项目、目标历史、语言和项目 UI 状态保存在 Electron `userData/state.json` 中；历史浏览器 localStorage 仅用于迁移。
 
-GitHub 来源缓存和共享工作树缓存保存在 Electron 应用数据目录中，CLI 默认使用 `~/.skillops/cache`。
+GitHub 来源缓存和共享工作树缓存保存在 Electron 应用数据目录中，CLI 默认使用 `~/.arcforge/cache`。
 
 目标应用写入用户选择的 agent、项目或自定义目录。
 
@@ -58,7 +58,7 @@ GitHub 来源缓存和共享工作树缓存保存在 Electron 应用数据目录
 
 ## 关联模型
 
-该方案使用 `WorkspaceSnapshot`、`SkillOpsConfig`、`AppliedSourceRecord`、`AuditReport`、`DriftReport`、`PublishPlan`、`SharePlanResult`、`ShareResult`、`EnvironmentStatus` 和 `ApplyProfileResult`。
+该方案使用 `WorkspaceSnapshot`、`ArcForgeConfig`、`AppliedSourceRecord`、`AuditReport`、`DriftReport`、`PublishPlan`、`SharePlanResult`、`ShareResult`、`EnvironmentStatus` 和 `ApplyProfileResult`。
 
 ## 关联契约
 

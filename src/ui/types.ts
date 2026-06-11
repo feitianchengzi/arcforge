@@ -1,4 +1,4 @@
-import type { AppState, AppliedSourceRecord, ApplyProfileResult, CliInstallStatus, DriftReport, EnvironmentStatus, ImportSkillsPlan, ImportSkillsResult, MergePlan, MergeResult, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillEditorWindowContext, SkillFileDocument, SkillFileEntry, SkillOpsConfig, SourceUpdateResult, SourceUpdateStatus, WorkspaceSnapshot } from "../shared/types";
+import type { AppState, AppliedSourceRecord, ApplyProfileResult, CliInstallStatus, DriftReport, EnvironmentStatus, ImportSkillsPlan, ImportSkillsResult, MergePlan, MergeResult, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillEditorWindowContext, SkillFileDocument, SkillFileEntry, ArcForgeConfig, SourceUpdateResult, SourceUpdateStatus, WorkspaceSnapshot } from "../shared/types";
 
 export type Tab = "overview" | "skills" | "profiles" | "destinations" | "share" | "audit";
 
@@ -30,11 +30,11 @@ export interface DirectorySelectionResult {
 
 declare global {
   interface Window {
-    skillops: {
+    arcforge: {
       chooseWorkspace: () => Promise<string | undefined>;
       chooseDirectory?: (defaultPath?: string, parentPath?: string) => Promise<string | DirectorySelectionResult | undefined>;
       scanWorkspace: (root: string) => Promise<WorkspaceSnapshot>;
-      saveConfig: (root: string, config: SkillOpsConfig) => Promise<WorkspaceSnapshot>;
+      saveConfig: (root: string, config: ArcForgeConfig) => Promise<WorkspaceSnapshot>;
       openWorkspaceFolder: (root: string) => Promise<void>;
       getDefaultTargets: () => Promise<DefaultTarget[]>;
       getEnvironmentStatus: () => Promise<EnvironmentStatus>;

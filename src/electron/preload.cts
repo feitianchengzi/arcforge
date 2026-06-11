@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 
-contextBridge.exposeInMainWorld("skillops", {
+contextBridge.exposeInMainWorld("arcforge", {
   chooseWorkspace: () => ipcRenderer.invoke("workspace:choose"),
   chooseDirectory: (defaultPath?: string, parentPath?: string) => ipcRenderer.invoke("workspace:chooseDirectory", defaultPath, parentPath),
   scanWorkspace: (root: string) => ipcRenderer.invoke("workspace:scan", root),

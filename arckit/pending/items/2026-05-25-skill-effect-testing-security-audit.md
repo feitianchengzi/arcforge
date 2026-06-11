@@ -13,7 +13,7 @@
 
 The user wants to use an Agent not only for maintaining skills, but also for testing whether skills work as intended and whether they are safe before team sharing or public publishing.
 
-This aligns with SkillOps as a local governance workspace if the feature is framed as validation, audit, and pre-publish readiness rather than a public registry or runtime.
+This aligns with ArcForge as a local governance workspace if the feature is framed as validation, audit, and pre-publish readiness rather than a public registry or runtime.
 
 ## Pending Item
 

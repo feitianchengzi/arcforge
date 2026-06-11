@@ -1,10 +1,10 @@
 <svg width="1200" height="680" viewBox="0 0 1200 680" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">SkillOps governance concept</title>
-  <desc id="desc">A conceptual map showing SkillOps as a local governance layer between local skill sources, audit and profile decisions, local agent targets, and GitHub release preparation.</desc>
+  <title id="title">ArcForge governance concept</title>
+  <desc id="desc">A conceptual map showing ArcForge as a local governance layer between local skill sources, audit and profile decisions, local agent targets, and GitHub release preparation.</desc>
   <rect width="1200" height="680" rx="28" fill="#F6F8FB"/>
   <rect x="58" y="54" width="1084" height="572" rx="22" fill="#FFFFFF" stroke="#D9DEE8"/>
 
-  <text x="96" y="116" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="760">SkillOps concept map</text>
+  <text x="96" y="116" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="760">ArcForge concept map</text>
   <text x="96" y="150" fill="#5B6575" font-family="Inter, Arial, sans-serif" font-size="17">Local-first governance before skills reach agents, releases, or registries.</text>
 
   <g font-family="Inter, Arial, sans-serif">
@@ -15,7 +15,7 @@
     <text x="122" y="354" fill="#44546A" font-size="14">shared assets</text>
 
     <rect x="362" y="206" width="252" height="190" rx="18" fill="#111827"/>
-    <text x="402" y="258" fill="#FFFFFF" font-size="24" font-weight="760">SkillOps</text>
+    <text x="402" y="258" fill="#FFFFFF" font-size="24" font-weight="760">ArcForge</text>
     <text x="402" y="294" fill="#B8C2D0" font-size="15">scan, audit, profile</text>
     <text x="402" y="322" fill="#B8C2D0" font-size="15">apply, drift check</text>
     <text x="402" y="350" fill="#B8C2D0" font-size="15">publish readiness</text>

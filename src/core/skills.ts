@@ -3,12 +3,12 @@ import { promises as fs } from "node:fs";
 import type { SharedAssetSummary, SkillSummary } from "../shared/types.js";
 import { parseFrontmatter } from "./frontmatter.js";
 import { pathExists, readText } from "./fs.js";
-import type { SkillOpsConfig } from "../shared/types.js";
+import type { ArcForgeConfig } from "../shared/types.js";
 import { findSkillMarkdownFile, hasSkillMarkdownFile } from "./skill-markdown.js";
 
 const IGNORED_SCAN_DIRS = new Set([".git", "node_modules", "dist"]);
 
-export async function discoverSkills(root: string, config: SkillOpsConfig): Promise<SkillSummary[]> {
+export async function discoverSkills(root: string, config: ArcForgeConfig): Promise<SkillSummary[]> {
   const sourceRoot = path.resolve(root, config.sourceDir);
   if (!(await pathExists(sourceRoot))) return [];
 
@@ -37,7 +37,7 @@ export async function discoverSkills(root: string, config: SkillOpsConfig): Prom
   return skills.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function discoverSharedAssets(root: string, config: SkillOpsConfig): Promise<SharedAssetSummary[]> {
+export async function discoverSharedAssets(root: string, config: ArcForgeConfig): Promise<SharedAssetSummary[]> {
   const sourceRoot = path.resolve(root, config.sourceDir);
   if (!(await pathExists(sourceRoot))) return [];
   if (await hasSkillMarkdownFile(sourceRoot)) return [];

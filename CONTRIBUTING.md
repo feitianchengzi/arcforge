@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve SkillOps.
+Thanks for helping improve ArcForge.
 
 ## Development
 
@@ -26,4 +26,4 @@ npm test
 
 ## Project Direction
 
-SkillOps should stay local-first and GitHub-first until the MVP proves demand. Prefer orchestration of existing tools over reimplementing agent-specific sync behavior.
+ArcForge should stay local-first and GitHub-first until the MVP proves demand. Prefer orchestration of existing tools over reimplementing agent-specific sync behavior.

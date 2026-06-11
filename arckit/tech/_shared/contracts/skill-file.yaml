@@ -71,9 +71,9 @@ responses:
     - code: NOT_A_DIRECTORY
       message: Selected path is not a directory.
     - code: FILE_TOO_LARGE
-      message: File is too large to edit in SkillOps.
+      message: File is too large to edit in ArcForge.
     - code: BINARY_FILE
-      message: Binary files cannot be edited in SkillOps.
+      message: Binary files cannot be edited in ArcForge.
 business_logic:
   flow:
     - Resolve all requested paths against the current workspace root.

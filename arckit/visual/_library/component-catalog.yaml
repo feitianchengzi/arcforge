@@ -1,6 +1,6 @@
 metadata:
-  project: SkillOps
-  source: docs/assets/skillops-overview.svg
+  project: ArcForge
+  source: docs/assets/arcforge-overview.svg
   tokens: ./design-tokens.yaml
 
 catalog:

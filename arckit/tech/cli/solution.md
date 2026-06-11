@@ -42,17 +42,17 @@ CLI 不提供初始化命令，不提供来源登记命令，也不保留 `apply
 
 ## 缓存与确认
 
-远程 Skill 项目解析需要缓存目录。CLI 默认使用用户级 `.skillops/cache`，桌面端调用同一命令时可以注入应用数据目录作为缓存根。
+远程 Skill 项目解析需要缓存目录。CLI 默认使用用户级 `.arcforge/cache`，桌面端调用同一命令时可以注入应用数据目录作为缓存根。
 
 `merge run`、`applied run`、`source update` 和远程共享写入都要求 `--confirm`。
 
 `merge`、`applied`、`apply`、`drift`、`publish-plan` 和 `share` 的默认配置组为 `default`。
 
-`merge` 记录的默认应用目标目录为 `.skillops/skills`。
+`merge` 记录的默认应用目标目录为 `.arcforge/skills`。
 
 ## 状态与持久化
 
-本地项目状态目录为 `~/.skillops/projects`。
+本地项目状态目录为 `~/.arcforge/projects`。
 
 CLI 不写入全局来源清单。远程来源只下载到缓存并在应用关系中记录解析后的本地根目录和可选远程 URL。
 

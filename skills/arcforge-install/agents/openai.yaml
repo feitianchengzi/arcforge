@@ -1,0 +1,4 @@
+interface:
+  display_name: "ArcForge 安装"
+  short_description: "安装 ArcForge skills、CLI 与 Desktop launcher。"
+  default_prompt: "使用 $arcforge-install 从当前 ArcForge 仓库执行本地安装：先确认仓库根目录和真实写入目标，再安装用户级 arcforge 与 arcforge-skill-first skills、构建 CLI shim，并用默认 --desktop install 写入可真实调起的 arcforge-desktop launcher；只有用户明确要求时才改用 --desktop package 或 --desktop skip。临时预检必须使用 --home/--shim-dir 或 --dry-run，必要时加 --npm-cache，避免写入真实用户目录和真实 npm cache；不能启动 GUI 时用 --verify 做 headless 检查。真实首次安装不要默认跳过 npm install。输出必须包含用户级 skill 目标、CLI shim 路径、PATH 状态、Desktop launcher 路径、验证命令结果和剩余手动动作；除非用户明确允许，不要使用 --update-path、不要做远程发布或 Git 写入。"

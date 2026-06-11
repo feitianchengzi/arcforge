@@ -2,7 +2,7 @@ metadata:
   path: tech/_shared/models/AppliedSourceRecord.yaml
   domain: shared
   entity_name: AppliedSourceRecord
-  storage: ~/.skillops/projects/<project-key>.json
+  storage: ~/.arcforge/projects/<project-key>.json
   owner: core/project-store
   version: 1
   created: 2026-06-01

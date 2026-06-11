@@ -13,7 +13,7 @@
 - 没有添加 README、changelog 或无关文档。
 - `agents/openai.yaml` 的 default prompt 提到 `$skill-name`。
 - `agents/openai.yaml` 的 default prompt 同步了关键输出格式、边界规则和语言要求。
-- `agents/openai.yaml` 的 default prompt 使用 `$skillops-skill-first`，并说明验证通过后只引导进入 `skillops` 治理流程。
+- `agents/openai.yaml` 的 default prompt 使用 `$arcforge-skill-first`，并说明验证通过后只引导进入 `arcforge` 治理流程。
 - 如果目标来自正式 skill，已记录原始路径，并且只修改当前项目根 `skills/<skill-name>/` 工作副本。
 - 当前 agent 对应的用户级目录和项目级目录已检查；不存在的目录已跳过而不是硬失败。
 
@@ -39,13 +39,13 @@
 - 在 shell 命令中检查 `$skill-name` 时使用单引号或转义，避免 `$` 被 shell 展开。
 - 没有 revert 用户已有修改。
 
-## SkillOps 交接
+## ArcForge 交接
 
-- 用户确认目标 skill 可用后，已说明建议进入哪个 SkillOps 治理阶段。
-- 建议的下一步没有绕过 `skillops` skill 的规则。
+- 用户确认目标 skill 可用后，已说明建议进入哪个 ArcForge 治理阶段。
+- 建议的下一步没有绕过 `arcforge` skill 的规则。
 - 没有在 Skill First 流程里自动执行真实项目写入、目标目录替换、Git 更新、push、PR、远程分享或 registry 写入。
-- 对 apply、merge run、source update、share run 等写入动作，已明确需要交给 `skillops` 并等待用户确认。
-- 如果用户没有要求继续治理，只把 SkillOps 后续作为可选下一步报告。
+- 对 apply、merge run、source update、share run 等写入动作，已明确需要交给 `arcforge` 并等待用户确认。
+- 如果用户没有要求继续治理，只把 ArcForge 后续作为可选下一步报告。
 
 ## 最终回复
 
@@ -58,5 +58,5 @@
 - 做了什么修复
 - 复测结果如何
 - 用户是否确认目标 skill 可用
-- 建议的 SkillOps 下一步和确认要求
+- 建议的 ArcForge 下一步和确认要求
 - 运行了哪些校验，或为什么不能运行

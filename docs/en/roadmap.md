@@ -2,13 +2,13 @@
 
 [简体中文](../roadmap.md)
 
-SkillOps is developed as a demand-driven project. The `0.x` line should stay small and only cover the work needed to make the current local-first workflow dependable. Larger workflows move forward when there is enough real usage, stars, issues, or PRs to justify the maintenance cost.
+ArcForge is developed as a demand-driven project. The `0.x` line should stay small and only cover the work needed to make the current local-first workflow dependable. Larger workflows move forward when there is enough real usage, stars, issues, or PRs to justify the maintenance cost.
 
 There are no fixed dates. Stars, concrete issues, and useful PRs are the main signals for what should be built next.
 
 ## Direction
 
-SkillOps should remain a lifecycle governance layer for AI agent skills, covering the local flow from authoring and validation through release preparation:
+ArcForge should remain a lifecycle governance layer for AI agent skills, covering the local flow from authoring and validation through release preparation:
 
 ```text
 write/iterate skill -> sub-agent validation -> audit -> profile -> apply -> drift check -> release prep
@@ -16,14 +16,14 @@ write/iterate skill -> sub-agent validation -> audit -> profile -> apply -> drif
 
 It should stay local-first and GitHub-first. Git remains the source of truth for review, history, releases, and team sharing.
 
-SkillOps should not become a hosted marketplace, public registry, public search engine, ratings system, paid distribution platform, or agent runtime. Registries and installers already own discovery, distribution, and runtime loading. SkillOps owns the work before that point.
+ArcForge should not become a hosted marketplace, public registry, public search engine, ratings system, paid distribution platform, or agent runtime. Registries and installers already own discovery, distribution, and runtime loading. ArcForge owns the work before that point.
 
 ## 0.x - Essential Local Workflow
 
 Goal: make the current product useful without expanding scope.
 
 - keep workspace scan reliable for the documented `skills/` project shape
-- keep `skillops-skill-first` able to capture working patterns as skills and hand validated skills into SkillOps governance
+- keep `arcforge-skill-first` able to capture working patterns as skills and hand validated skills into ArcForge governance
 - keep audit output understandable enough for pre-share review
 - keep profile apply and drift report usable for local agent folders
 - keep publish plan useful as a GitHub/ClawHub release checklist
@@ -42,7 +42,7 @@ Possible `0.x` additions, only if needed:
 
 ## 1.x - Stable Personal And Small-Team Use
 
-Goal: make SkillOps stable enough that a developer or small team can rely on it without expecting breaking config changes.
+Goal: make ArcForge stable enough that a developer or small team can rely on it without expecting breaking config changes.
 
 - stabilize the user-level project state schema and migration behavior
 - stabilize the core CLI commands and JSON output shape
@@ -51,7 +51,7 @@ Goal: make SkillOps stable enough that a developer or small team can rely on it 
 - improve private GitHub sharing and release preparation
 - document recommended GitHub review workflows for team skill repositories
 - provide clearer integration guidance for `skillshare`, `npx skills`, ClawHub/OpenClaw, and agent-native skill folders
-- keep all workflows usable without a hosted SkillOps service
+- keep all workflows usable without a hosted ArcForge service
 
 ## 2.x - Demand-Driven Expansion
 
@@ -63,10 +63,10 @@ Candidate areas:
 - configurable audit rules, suppressions, and CI annotations
 - profile ownership, review status, and lightweight team metadata backed by GitHub
 - stronger drift dashboards across multiple local targets
-- publish-readiness helpers for public registries while keeping registry logic out of core SkillOps
+- publish-readiness helpers for public registries while keeping registry logic out of core ArcForge
 - adapter-style integration with installers instead of replacing them
 
-These should remain optional layers. They should not turn SkillOps into a marketplace, registry, or runtime.
+These should remain optional layers. They should not turn ArcForge into a marketplace, registry, or runtime.
 
 ## Not Planned Unless Strong Demand Appears
 
@@ -87,4 +87,4 @@ The project will prioritize work based on:
 - PRs that improve the local-first, GitHub-first workflow without broadening scope
 - examples of teams managing skills in Git and hitting gaps in the current tool
 
-If those signals stay small, SkillOps should stay small too.
+If those signals stay small, ArcForge should stay small too.

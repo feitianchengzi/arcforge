@@ -48,12 +48,12 @@ export function Overview(props: {
   }, [props.autoCheckReady, canCheckSource, props.sourceUpdateCheck?.checkedAt, snapshot.root]);
 
   async function checkSourceUpdates(options: { silent?: boolean } = {}) {
-    if (!window.skillops) return;
+    if (!window.arcforge) return;
     setIsCheckingSource(true);
     setSourceError("");
     if (!options.silent) props.setStatus(t.checkingSourceUpdates);
     try {
-      const nextStatus = await window.skillops.sourceUpdateStatus(snapshot.root);
+      const nextStatus = await window.arcforge.sourceUpdateStatus(snapshot.root);
       setSourceStatus(nextStatus);
       props.saveSourceUpdateCheck({ checkedAt: nextStatus.checkedAt, status: nextStatus });
       if (!options.silent) props.setStatus(sourceStatusMessage(t, nextStatus));
@@ -68,13 +68,13 @@ export function Overview(props: {
   }
 
   async function updateSource() {
-    if (!window.skillops || !sourceStatus?.canUpdate) return;
+    if (!window.arcforge || !sourceStatus?.canUpdate) return;
     if (!window.confirm(t.confirmSourceUpdate(sourceStatus.behind))) return;
     setIsUpdatingSource(true);
     setSourceError("");
     props.setStatus(t.updatingSource);
     try {
-      const result = await window.skillops.updateSource(snapshot.root, true);
+      const result = await window.arcforge.updateSource(snapshot.root, true);
       setSourceStatus(result.after);
       await props.onSourceUpdated();
       props.setStatus(t.sourceUpdated);
@@ -207,10 +207,10 @@ export function SkillsList({ t, snapshot, profile, setProfile, onMerged }: {
   const isDirty = Boolean(document && draft !== document.content);
 
   useEffect(() => {
-    if (!window.skillops) return;
+    if (!window.arcforge) return;
     setIsBusy(true);
     setStatus(t.selectSkillFile);
-    void window.skillops.listWorkspaceFiles(snapshot.root, snapshot.config.sourceDir)
+    void window.arcforge.listWorkspaceFiles(snapshot.root, snapshot.config.sourceDir)
       .then((entries) => {
         setFiles(entries);
       })
@@ -237,13 +237,13 @@ export function SkillsList({ t, snapshot, profile, setProfile, onMerged }: {
   }, [filteredFiles, t]);
 
   useEffect(() => {
-    if (!activeFilePath || !window.skillops) {
+    if (!activeFilePath || !window.arcforge) {
       setDocument(undefined);
       setDraft("");
       return;
     }
     setIsBusy(true);
-    void window.skillops.readSkillFile(snapshot.root, activeFilePath)
+    void window.arcforge.readSkillFile(snapshot.root, activeFilePath)
       .then((nextDocument) => {
         setDocument(nextDocument);
         setDraft(nextDocument.content);
@@ -258,10 +258,10 @@ export function SkillsList({ t, snapshot, profile, setProfile, onMerged }: {
   }, [activeFilePath, snapshot.root, t]);
 
   async function saveActiveFile() {
-    if (!document || !window.skillops) return;
+    if (!document || !window.arcforge) return;
     setIsBusy(true);
     try {
-      const nextDocument = await window.skillops.writeSkillFile(snapshot.root, document.path, draft);
+      const nextDocument = await window.arcforge.writeSkillFile(snapshot.root, document.path, draft);
       setDocument(nextDocument);
       setDraft(nextDocument.content);
       setStatus(t.fileSaved);
@@ -273,10 +273,10 @@ export function SkillsList({ t, snapshot, profile, setProfile, onMerged }: {
   }
 
   async function reloadActiveFile() {
-    if (!activeFilePath || !window.skillops) return;
+    if (!activeFilePath || !window.arcforge) return;
     setIsBusy(true);
     try {
-      const nextDocument = await window.skillops.readSkillFile(snapshot.root, activeFilePath);
+      const nextDocument = await window.arcforge.readSkillFile(snapshot.root, activeFilePath);
       setDocument(nextDocument);
       setDraft(nextDocument.content);
       setStatus(t.fileLoaded);
@@ -288,7 +288,7 @@ export function SkillsList({ t, snapshot, profile, setProfile, onMerged }: {
   }
 
   async function openDetachedWindow(filePath?: string) {
-    if (!window.skillops) return;
+    if (!window.arcforge) return;
     const context = {
       sourceDir: snapshot.config.sourceDir,
       profileName: activeProfile?.name,
@@ -313,7 +313,7 @@ export function SkillsList({ t, snapshot, profile, setProfile, onMerged }: {
       }
     };
     try {
-      await window.skillops.openWorkspaceFileWindow(snapshot.root, sourceRootPath, (filePath ?? activeFilePath) || undefined, context);
+      await window.arcforge.openWorkspaceFileWindow(snapshot.root, sourceRootPath, (filePath ?? activeFilePath) || undefined, context);
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     }
@@ -433,11 +433,11 @@ function MergeSkillsDialog(props: {
   const exampleTargetPath = joinLocalPath(fullTargetPath, exampleSkillName);
 
   async function loadSourceProject(input: string, remote = false) {
-    if (!window.skillops || !input.trim()) return;
+    if (!window.arcforge || !input.trim()) return;
     setIsBusy(true);
     try {
-      const root = remote ? await window.skillops.addRemoteWorkspace(input.trim()) : input.trim();
-      const nextSnapshot = await window.skillops.scanWorkspace(root);
+      const root = remote ? await window.arcforge.addRemoteWorkspace(input.trim()) : input.trim();
+      const nextSnapshot = await window.arcforge.scanWorkspace(root);
       setSourceSnapshot(nextSnapshot);
       setSourceProjectRoot(nextSnapshot.root);
       setPlan(undefined);
@@ -454,12 +454,12 @@ function MergeSkillsDialog(props: {
   }
 
   async function chooseLocalSourceProject() {
-    if (!window.skillops) return;
-    const selected = await window.skillops.chooseWorkspace();
+    if (!window.arcforge) return;
+    const selected = await window.arcforge.chooseWorkspace();
     if (!selected) return;
     setIsBusy(true);
     try {
-      const nextSnapshot = await window.skillops.scanWorkspace(selected);
+      const nextSnapshot = await window.arcforge.scanWorkspace(selected);
       setSourceSnapshot(nextSnapshot);
       setSourceProjectRoot(nextSnapshot.root);
       setPlan(undefined);
@@ -480,15 +480,15 @@ function MergeSkillsDialog(props: {
   }
 
   async function chooseWriteDirectory() {
-    if (!window.skillops) return;
+    if (!window.arcforge) return;
     try {
       let selected: string | { path: string; relativePath: string; isInside: boolean } | undefined;
       try {
-        selected = window.skillops.chooseDirectory
-          ? await window.skillops.chooseDirectory(snapshot.root, snapshot.root)
-          : await window.skillops.chooseWorkspace();
+        selected = window.arcforge.chooseDirectory
+          ? await window.arcforge.chooseDirectory(snapshot.root, snapshot.root)
+          : await window.arcforge.chooseWorkspace();
       } catch {
-        selected = await window.skillops.chooseWorkspace();
+        selected = await window.arcforge.chooseWorkspace();
       }
       if (!selected) return;
       const selectedPath = typeof selected === "string" ? selected : selected.path;
@@ -507,14 +507,14 @@ function MergeSkillsDialog(props: {
   }
 
   async function createPlan() {
-    if (!window.skillops || !sourceProjectRoot) return;
+    if (!window.arcforge || !sourceProjectRoot) return;
     if (!isSameOrDescendantLocalPath(fullTargetPath, snapshot.root)) {
       setStatus(t.importTargetOutsideProject);
       return;
     }
     setIsBusy(true);
     try {
-      const nextPlan = await window.skillops.createImportSkillsPlan({
+      const nextPlan = await window.arcforge.createImportSkillsPlan({
         root: snapshot.root,
         from: sourceProjectRoot,
         profile: sourceProfile,
@@ -532,10 +532,10 @@ function MergeSkillsDialog(props: {
   }
 
   async function runMerge() {
-    if (!window.skillops || !plan || plan.hasConflicts) return;
+    if (!window.arcforge || !plan || plan.hasConflicts) return;
     setIsBusy(true);
     try {
-      const result = await window.skillops.importSkillsIntoProject({
+      const result = await window.arcforge.importSkillsIntoProject({
         root: snapshot.root,
         from: sourceProjectRoot,
         profile: sourceProfile,

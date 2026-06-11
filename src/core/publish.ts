@@ -1,10 +1,10 @@
 import path from "node:path";
-import type { PublishPlan, SkillOpsConfig, SkillSummary } from "../shared/types.js";
+import type { PublishPlan, ArcForgeConfig, SkillSummary } from "../shared/types.js";
 import { listFiles } from "./fs.js";
 
 export async function createPublishPlan(
   root: string,
-  config: SkillOpsConfig,
+  config: ArcForgeConfig,
   skills: SkillSummary[],
   visibility: "private" | "public" = "private"
 ): Promise<PublishPlan> {

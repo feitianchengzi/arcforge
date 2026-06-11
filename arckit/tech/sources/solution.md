@@ -68,7 +68,7 @@ Git 更新检查由 `src/core/source-update.ts` 承载，是独立 Git helper。
 
 `updateSource` 要求显式确认。更新流程重新检查状态，只在本地落后上游、没有本地领先提交、没有未提交变更且能够解析远端分支时执行 `git pull --ff-only`。
 
-桌面端把该能力放在总览页；CLI 通过 `source status` 和 `source update` 暴露。该命令名表示 Git source checkout，不表示 SkillOps 的持久来源实体。
+桌面端把该能力放在总览页；CLI 通过 `source status` 和 `source update` 暴露。该命令名表示 Git source checkout，不表示 ArcForge 的持久来源实体。
 
 ## 关键边界
 
@@ -82,4 +82,4 @@ Git 更新检查由 `src/core/source-update.ts` 承载，是独立 Git helper。
 
 ## 使用的数据结构
 
-该方案使用 `AppliedSourceRecord`、`WorkspaceSnapshot`、`SkillOpsConfig`、`DriftReport`、`ApplyProfileResult`、`SourceUpdateStatus` 和 `SourceUpdateResult`。
+该方案使用 `AppliedSourceRecord`、`WorkspaceSnapshot`、`ArcForgeConfig`、`DriftReport`、`ApplyProfileResult`、`SourceUpdateStatus` 和 `SourceUpdateResult`。

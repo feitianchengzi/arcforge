@@ -13,7 +13,7 @@
 ## Packages
 
 ```text
-src/core/       shared SkillOps domain logic
+src/core/       shared ArcForge domain logic
 src/commands/   shared command orchestration for CLI and desktop
 src/electron/   Electron main process and preload bridge
 src/ui/         React desktop UI
@@ -23,7 +23,7 @@ src/shared/     shared TypeScript types
 
 ## Data Model
 
-SkillOps separates source content from local user state. Normal project settings are stored in user-level project state under `~/.skillops/projects`. When `skillops.config.json` is found in a project root, SkillOps migrates it into user-level project state if needed and then removes it from the source checkout.
+ArcForge separates source content from local user state. Normal project settings are stored in user-level project state under `~/.arcforge/projects`. When `arcforge.config.json` is found in a project root, ArcForge migrates it into user-level project state if needed and then removes it from the source checkout.
 
 ```json
 {
@@ -59,7 +59,7 @@ The packaged Electron executable also supports `--cli`. In that mode it does not
 
 GitHub-sourced projects are maintained through CLI-first source commands. The status command fetches upstream refs and reports ahead/behind commit counts; the update command requires explicit confirmation and performs only a fast-forward pull, so desktop UI can present the same decision point without owning separate Git logic.
 
-On desktop startup, the main process installs or repairs a user-level `skillops` shim that points back to the packaged executable with `--cli`. The environment check reports shim path, PATH visibility, Git availability, and optional integration tools.
+On desktop startup, the main process installs or repairs a user-level `arcforge` shim that points back to the packaged executable with `--cli`. The environment check reports shim path, PATH visibility, Git availability, and optional integration tools.
 
 Skill file editing is still local-first and main-process mediated. The renderer requests a workspace-scoped directory tree and individual text files through IPC. The main process rejects paths outside the current workspace, large files, and binary files. Detached editor windows receive the same file context, profile filter, collapsed folder state, language labels, and scroll positions as the embedded editor.
 
@@ -74,7 +74,7 @@ Future versions can add pluggable audit rules and CI annotations.
 
 ## Integration Strategy
 
-SkillOps should orchestrate existing tools instead of replacing them.
+ArcForge should orchestrate existing tools instead of replacing them.
 
 Planned integration points:
 

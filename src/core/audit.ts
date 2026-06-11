@@ -26,7 +26,7 @@ const RISKY_INSTRUCTIONS = [
   { code: "risk.permission_bypass", pattern: /\b(bypass|disable|turn off)\b.{0,32}\b(approval|permission|sandbox|policy|guardrail)\b/i }
 ];
 
-export const AUDIT_DISCLAIMER = `SkillOps audit is a local rule-based scan. It currently checks known secret patterns, selected risky instruction phrases, high-risk shell command patterns, and basic SKILL.md metadata/structure. It is not a complete security review and can miss issues or report false positives. Treat results as guidance, review skills manually before sharing or publishing, and file an issue on GitHub if you need stronger audit coverage: ${GITHUB_ISSUE_URL}`;
+export const AUDIT_DISCLAIMER = `ArcForge audit is a local rule-based scan. It currently checks known secret patterns, selected risky instruction phrases, high-risk shell command patterns, and basic SKILL.md metadata/structure. It is not a complete security review and can miss issues or report false positives. Treat results as guidance, review skills manually before sharing or publishing, and file an issue on GitHub if you need stronger audit coverage: ${GITHUB_ISSUE_URL}`;
 
 export async function auditWorkspace(root: string, skills: SkillSummary[]): Promise<AuditReport> {
   const findings: AuditFinding[] = [];

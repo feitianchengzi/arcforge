@@ -13,4 +13,4 @@
 
 - arckit/interaction/ 维护结构和交互线框，arckit/visual/ 维护色彩、字体、间距、状态和组件视觉规格。
 - arckit/spec/interface/desktop-app.md 描述桌面应用功能范围，arckit/visual/_library/component-catalog.yaml 描述其视觉组件规格。
-- docs/assets/skillops-overview.svg 是本次视觉规范抽取的源样本，后续真实 UI 应逐步向 arckit/visual/ 投影靠拢。
+- docs/assets/arcforge-overview.svg 是本次视觉规范抽取的源样本，后续真实 UI 应逐步向 arckit/visual/ 投影靠拢。

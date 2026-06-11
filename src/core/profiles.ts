@@ -1,12 +1,12 @@
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
-import type { ApplyProfileResult, DriftFileDiff, DriftReport, SharedAssetSummary, SkillOpsConfig, SkillSummary } from "../shared/types.js";
+import type { ApplyProfileResult, DriftFileDiff, DriftReport, SharedAssetSummary, ArcForgeConfig, SkillSummary } from "../shared/types.js";
 import { copyDirectory, listFiles, pathExists } from "./fs.js";
 
 export async function applyProfile(
   root: string,
-  config: SkillOpsConfig,
+  config: ArcForgeConfig,
   skills: SkillSummary[],
   assets: SharedAssetSummary[],
   profileName: string,
@@ -64,7 +64,7 @@ async function replaceDirectory(source: string, target: string): Promise<void> {
 
 export async function driftReport(
   root: string,
-  config: SkillOpsConfig,
+  config: ArcForgeConfig,
   skills: SkillSummary[],
   assets: SharedAssetSummary[],
   profileName: string,

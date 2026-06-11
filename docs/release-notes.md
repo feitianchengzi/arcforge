@@ -2,15 +2,15 @@
 
 [English](en/release-notes.md)
 
-本文记录 SkillOps 各版本面向用户的变化。SkillOps 仍处于 `1.0` 之前，因此版本记录重点关注工作流能力、打包行为和文档变化，不承诺稳定的公开 API。
+本文记录 ArcForge 各版本面向用户的变化。ArcForge 仍处于 `1.0` 之前，因此版本记录重点关注工作流能力、打包行为和文档变化，不承诺稳定的公开 API。
 
 ## 未发布
 
 ### 新增
 
 - 新增面向 GitHub/Git 来源 skill 项目的 CLI 优先来源维护能力：
-  - `skillops source status` 报告相对上游的 ahead/behind commit 数。
-  - `skillops source update --confirm` 在明确确认后执行 fast-forward-only 更新。
+  - `arcforge source status` 报告相对上游的 ahead/behind commit 数。
+  - `arcforge source update --confirm` 在明确确认后执行 fast-forward-only 更新。
 - 来源状态包含上一次 fetch 的时间，以及距离该 fetch 已经过的时间。
 - 新增来源更新状态和更新结果的共享模型与桌面 IPC hook，方便桌面端展示同一个检查后再更新的决策点。
 
@@ -22,7 +22,7 @@
 
 ### 概要
 
-本版本把共享流程扩展为更完整的 GitHub 审阅工作流，同时保持 SkillOps
+本版本把共享流程扩展为更完整的 GitHub 审阅工作流，同时保持 ArcForge
 作为本地优先、GitHub 优先的 Skill 治理层定位。它新增 Pull Request
 交付、同仓库共享、单技能项目源识别、共享目标漂移检查，以及更清晰的审计反馈。
 
@@ -37,8 +37,8 @@
 
 - 新增 GitHub Pull Request 共享能力，用于把 Skill 项目提交到 GitHub 审阅流程。
 - 新增 CLI 共享计划与执行拆分：
-  - `skillops share plan` 预览发布计划、GitHub 权限、推荐交付方式、分支、目标路径和后续命令。
-  - `skillops share run --confirm` 执行远端写入。
+  - `arcforge share plan` 预览发布计划、GitHub 权限、推荐交付方式、分支、目标路径和后续命令。
+  - `arcforge share run --confirm` 执行远端写入。
 - 新增基于 GitHub CLI 的权限检测，覆盖登录状态、仓库权限、推荐交付方式和降级选项。
 - 新增目标仓库 Pull Request、fork Pull Request、直接推送分支和本地分支四种交付方式。
 - 新增桌面端共享确认流程，在写入 GitHub 前要求确认。
@@ -72,7 +72,7 @@
 
 ### 升级指引
 
-无需特殊迁移。现有 SkillOps 工作区可以继续使用当前配置；使用 GitHub
+无需特殊迁移。现有 ArcForge 工作区可以继续使用当前配置；使用 GitHub
 共享的团队应在执行确认写入前先查看新的计划步骤。
 
 ### 依赖更新
@@ -96,7 +96,7 @@ release tag 尚未创建。
 - 新增 profile 感知的 dashboard、destinations、profiles 和 share 视图模块。
 - 新增可复用的 UI shell 组件和 app-state 持久化工具。
 - 新增独立的共享 core 模块，分别处理 Git 操作、远端解析和共享目标同步。
-- `SkillOpsConfig` 新增保存共享目标组的能力。
+- `ArcForgeConfig` 新增保存共享目标组的能力。
 - 新增 `skill-file` IPC 契约，并扩展共享 IPC 文档。
 
 ### 变更
@@ -143,7 +143,7 @@ release tag 尚未创建。
 ### 变更
 
 - 将视觉系统应用到桌面 app shell 样式。
-- 重写中英文 README、comparison、product 和 roadmap 中的 SkillOps 定位说明。
+- 重写中英文 README、comparison、product 和 roadmap 中的 ArcForge 定位说明。
 - 更新共享规格和技术说明，补充 same-source sharing 行为。
 
 ## v0.1.2 - 2026-05-21
@@ -180,8 +180,8 @@ release tag 尚未创建。
 
 ### 新增
 
-- 新增初始 SkillOps MVP。
-- 新增本地 Skill 项目扫描、默认配置加载和示例 `skillops.config` 结构。
+- 新增初始 ArcForge MVP。
+- 新增本地 Skill 项目扫描、默认配置加载和示例 `arcforge.config` 结构。
 - 新增 `SKILL.md` 发现能力，支持 frontmatter 解析、版本元数据、references 和 scripts 检测。
 - 新增规则化审计，检查密钥、危险指令和缺失元数据。
 - 新增 profile 技能分组、profile 应用和已安装目标漂移比较。

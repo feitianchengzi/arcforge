@@ -1,16 +1,16 @@
 # CLI 编排
 
-需要通过 SkillOps CLI 执行治理阶段、理解 CLI 原子能力、确认参数语义或做临时验证时读取本文件。
+需要通过 ArcForge CLI 执行治理阶段、理解 CLI 原子能力、确认参数语义或做临时验证时读取本文件。
 
 ## CLI 入口
 
 已安装后优先使用：
 
 ```bash
-skillops <command>
+arcforge <command>
 ```
 
-在 SkillOps 仓库开发环境中，如果还没有安装全局 shim，可使用：
+在 ArcForge 仓库开发环境中，如果还没有安装全局 shim，可使用：
 
 ```bash
 node dist/cli/index.js <command>
@@ -25,43 +25,43 @@ npm run build:cli
 Desktop launcher 安装后优先使用：
 
 ```bash
-skillops-desktop
+arcforge-desktop
 ```
 
-如果 `skillops-desktop` 不在 PATH，使用安装脚本输出的 launcher 绝对路径；不要把它说成已经可直接调用。
+如果 `arcforge-desktop` 不在 PATH，使用安装脚本输出的 launcher 绝对路径；不要把它说成已经可直接调用。
 
 ## 原子命令表
 
 查询、计划或诊断命令：
 
-- `skillops scan [--root <dir>] [--source-dir <dir>]`
-- `skillops audit [--root <dir>] [--source-dir <dir>]`
-- `skillops source status [--root <dir>]`：会 fetch upstream refs，可能写 `.git/FETCH_HEAD` 等 Git 元数据；不要在禁止写源码的真实 checkout 中运行。
-- `skillops merge plan --root <dir> [--source-dir <dir>] --to <path-or-url> --target-path <dir> [--skills <a,b>] [--profile <name>] [--target <dir>]`
-- `skillops applied list [--root <dir>]`
-- `skillops applied drift [--root <dir>] [--id <record-id>]`
-- `skillops drift [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir> [--skills <a,b>]`
-- `skillops publish-plan [--root <dir>] [--visibility private|public]`
-- `skillops share plan --root <dir> --repo <repo> [--profile <name>] [--skills <a,b>] [--visibility private|public] [--target-mode direct|namedProject] [--project-name <name>] [--delivery target-pr|fork-pr|direct-push|local-branch] [--branch <name>]`
-- `skillops share plan --root <dir> --same-repository [--same-repository-remote <name>] [--profile <name>] [--skills <a,b>]`
-- `skillops doctor`
+- `arcforge scan [--root <dir>] [--source-dir <dir>]`
+- `arcforge audit [--root <dir>] [--source-dir <dir>]`
+- `arcforge source status [--root <dir>]`：会 fetch upstream refs，可能写 `.git/FETCH_HEAD` 等 Git 元数据；不要在禁止写源码的真实 checkout 中运行。
+- `arcforge merge plan --root <dir> [--source-dir <dir>] --to <path-or-url> --target-path <dir> [--skills <a,b>] [--profile <name>] [--target <dir>]`
+- `arcforge applied list [--root <dir>]`
+- `arcforge applied drift [--root <dir>] [--id <record-id>]`
+- `arcforge drift [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir> [--skills <a,b>]`
+- `arcforge publish-plan [--root <dir>] [--visibility private|public]`
+- `arcforge share plan --root <dir> --repo <repo> [--profile <name>] [--skills <a,b>] [--visibility private|public] [--target-mode direct|namedProject] [--project-name <name>] [--delivery target-pr|fork-pr|direct-push|local-branch] [--branch <name>]`
+- `arcforge share plan --root <dir> --same-repository [--same-repository-remote <name>] [--profile <name>] [--skills <a,b>]`
+- `arcforge doctor`
 
 写入或状态性命令：
 
-- `skillops source update [--root <dir>] --confirm`
-- `skillops merge run --root <dir> [--source-dir <dir>] --to <path-or-url> --target-path <dir> [--skills <a,b>] [--profile <name>] [--target <dir>] --confirm`
-- `skillops applied add --root <dir> --from <path-or-url> --profile <name> --target <dir> [--skills <a,b>]`
-- `skillops applied remove <record-id> [--root <dir>]`
-- `skillops applied run [--root <dir>] [--id <record-id>] --confirm`
-- `skillops apply [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir> [--skills <a,b>] [--save]`
-- `skillops share run --root <dir> --repo <repo> [--profile <name>] [--skills <a,b>] --confirm`
-- `skillops share run --root <dir> --same-repository [--same-repository-remote <name>] [--profile <name>] [--skills <a,b>] --confirm`
+- `arcforge source update [--root <dir>] --confirm`
+- `arcforge merge run --root <dir> [--source-dir <dir>] --to <path-or-url> --target-path <dir> [--skills <a,b>] [--profile <name>] [--target <dir>] --confirm`
+- `arcforge applied add --root <dir> --from <path-or-url> --profile <name> --target <dir> [--skills <a,b>]`
+- `arcforge applied remove <record-id> [--root <dir>]`
+- `arcforge applied run [--root <dir>] [--id <record-id>] --confirm`
+- `arcforge apply [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir> [--skills <a,b>] [--save]`
+- `arcforge share run --root <dir> --repo <repo> [--profile <name>] [--skills <a,b>] --confirm`
+- `arcforge share run --root <dir> --same-repository [--same-repository-remote <name>] [--profile <name>] [--skills <a,b>] --confirm`
 
 当前 CLI 没有公开 `import` 命令；从外部 Skill 项目导入到当前项目的 import plan/run 目前是 Desktop IPC 能力。
 
 ## 最小项目结构和默认配置
 
-SkillOps 可以在没有显式配置文件的目录中工作。最小正式 Skill 项目结构：
+ArcForge 可以在没有显式配置文件的目录中工作。最小正式 Skill 项目结构：
 
 ```text
 formal-skills/
@@ -108,7 +108,7 @@ business-project/
 
 ## 参数语义
 
-- `--root` 是 SkillOps 工作区根目录，默认当前目录。
+- `--root` 是 ArcForge 工作区根目录，默认当前目录。
 - `--source-dir` 是 `--root` 内的相对 skill 来源目录，只覆盖本次扫描、审计或归并。
 - 项目本地 agent skills 位于 `.codex/skills`、`.claude/skills`、`.cursor/skills` 时，`--root` 仍然是项目根目录，`--source-dir` 传 agent skill 目录。
 - `--profile` 是来源或目标 Skill 项目中的 profile 名，默认通常是 `default`。
@@ -119,12 +119,12 @@ business-project/
 - `merge --target` 是记录到当前项目 applied source 中的目标目录，不是归并输出目录。
 - `apply --target` 是真实写入目标。指定 `--from` 时按 `--root` 解析为目标项目内相对路径；未指定 `--from` 时可以是直接目标路径。
 - `apply --save` 会把来源、profile、目标目录和技能选择保存为 applied source record。
-- applied source state 保存在 `SKILLOPS_HOME/projects` 下的用户级项目状态中；不写入来源 checkout。临时验证时设置 `SKILLOPS_HOME=/private/tmp/<run>/.skillops-home`。
+- applied source state 保存在 `ARCFORGE_HOME/projects` 下的用户级项目状态中；不写入来源 checkout。临时验证时设置 `ARCFORGE_HOME=/private/tmp/<run>/.arcforge-home`。
 
 示例：归并 `project-demo-video` 到标准技能目录时应使用：
 
 ```bash
-skillops merge plan --root . --source-dir .codex/skills --to ../team-skills --skills project-demo-video --target-path skills --profile default --target .codex/skills
+arcforge merge plan --root . --source-dir .codex/skills --to ../team-skills --skills project-demo-video --target-path skills --profile default --target .codex/skills
 ```
 
 不要使用 `--target-path skills/project-demo-video`，否则会生成 `skills/project-demo-video/project-demo-video`。
@@ -134,55 +134,55 @@ skillops merge plan --root . --source-dir .codex/skills --to ../team-skills --sk
 扫描项目本地 agent skills：
 
 ```bash
-skillops scan --root . --source-dir .codex/skills
-skillops audit --root . --source-dir .codex/skills
+arcforge scan --root . --source-dir .codex/skills
+arcforge audit --root . --source-dir .codex/skills
 ```
 
 正式化前计划：
 
 ```bash
-skillops merge plan --root . --source-dir <source-dir-if-needed> --to <formal-skill-project> --skills <skill-name> --target-path <parent-dir-inside-formal-project> --profile default --target <target-record-path>
+arcforge merge plan --root . --source-dir <source-dir-if-needed> --to <formal-skill-project> --skills <skill-name> --target-path <parent-dir-inside-formal-project> --profile default --target <target-record-path>
 ```
 
 确认后正式化：
 
 ```bash
-skillops merge run --root . --source-dir <source-dir-if-needed> --to <formal-skill-project> --skills <skill-name> --target-path <parent-dir-inside-formal-project> --profile default --target <target-record-path> --confirm
+arcforge merge run --root . --source-dir <source-dir-if-needed> --to <formal-skill-project> --skills <skill-name> --target-path <parent-dir-inside-formal-project> --profile default --target <target-record-path> --confirm
 ```
 
 确认后应用到目标：
 
 ```bash
-skillops apply --root <target-project> --from <formal-skill-project> --profile default --target <target-agent-skill-dir> --save
+arcforge apply --root <target-project> --from <formal-skill-project> --profile default --target <target-agent-skill-dir> --save
 ```
 
 检查目标漂移：
 
 ```bash
-skillops drift --root <target-project> --from <formal-skill-project> --profile default --target <target-agent-skill-dir>
+arcforge drift --root <target-project> --from <formal-skill-project> --profile default --target <target-agent-skill-dir>
 ```
 
 基于已保存应用关系检查和重新应用：
 
 ```bash
-skillops applied list --root <project>
-skillops applied drift --root <project> --id <record-id>
-skillops applied run --root <project> --id <record-id> --confirm
+arcforge applied list --root <project>
+arcforge applied drift --root <project> --id <record-id>
+arcforge applied run --root <project> --id <record-id> --confirm
 ```
 
 维护 Git 来源：
 
 ```bash
-skillops source status --root <formal-skill-project>
-skillops source update --root <formal-skill-project> --confirm
+arcforge source status --root <formal-skill-project>
+arcforge source update --root <formal-skill-project> --confirm
 ```
 
 发布和共享准备：
 
 ```bash
-skillops publish-plan --root <formal-skill-project> --visibility private
-skillops share plan --root <formal-skill-project> --repo <github-or-git-repo> --profile default
-skillops share plan --root <formal-skill-project> --same-repository --profile default
+arcforge publish-plan --root <formal-skill-project> --visibility private
+arcforge share plan --root <formal-skill-project> --repo <github-or-git-repo> --profile default
+arcforge share plan --root <formal-skill-project> --same-repository --profile default
 ```
 
 `publish-plan` 不要求项目是 Git 仓库，会输出文件清单、安装命令提示和 checklist。`share plan --same-repository` 要求当前 Skill 项目位于带 remote 的 Git 仓库中；如果不是 Git 仓库，会失败并应提示用户先确认正式 Skill 项目的 Git 位置。当前同仓库共享主要基于本地 remote 推断，不等价于已验证远端写权限；真实执行前仍要让用户确认 remote、branch、delivery 和 push 风险。`share plan --repo github.com/<owner>/<repo>` 在 GitHub CLI 未登录或无写权限时仍可生成计划，通常会把推荐交付方式降级为 `localBranch`，并在 `access.unavailableReasons` 中说明原因。
@@ -206,7 +206,7 @@ skillops share plan --root <formal-skill-project> --same-repository --profile de
 在测试、子代理模拟或一次性 fixture 中运行写入命令时设置临时状态目录：
 
 ```bash
-SKILLOPS_HOME=/private/tmp/<run>/.skillops-home skillops <command>
+ARCFORGE_HOME=/private/tmp/<run>/.arcforge-home arcforge <command>
 ```
 
 临时验证允许在临时 root、临时正式 Skill 项目和临时 target 中执行 `merge run --confirm`、`apply --save`、`applied add/remove`、`applied run --confirm`、`drift` 和 `share plan`。不要在真实用户项目或真实 agent 目录上无确认执行写入。

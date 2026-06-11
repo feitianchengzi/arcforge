@@ -142,7 +142,7 @@ function summarizeDiff(files: DriftFileDiff[]): { missing: number; changed: numb
 
 function resolveSameRepository(snapshot: WorkspaceSnapshot, remoteName?: string): { localGit: LocalGitSource; remote: LocalGitRemote } {
   const localGit = snapshot.localGit;
-  if (!localGit) throw new Error("Current SkillOps project is not inside a Git repository.");
+  if (!localGit) throw new Error("Current ArcForge project is not inside a Git repository.");
   if (localGit.remotes.length === 0) throw new Error("Current Git repository has no remotes configured.");
   const requested = remoteName?.trim();
   const remote = requested

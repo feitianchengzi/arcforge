@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { Download, Edit3, FolderOpen, GitBranch, GripVertical, HardDrive, ListOrdered, PackageCheck, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
-import type { AppState, AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, ShareDriftCheckRecord, SharePlanResult, ShareResult, ShareTargetGroup, SkillOpsConfig, SourceUpdateCheckRecord, TargetRecord, WorkspaceSnapshot } from "../shared/types";
+import type { AppState, AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, ShareDriftCheckRecord, SharePlanResult, ShareResult, ShareTargetGroup, ArcForgeConfig, SourceUpdateCheckRecord, TargetRecord, WorkspaceSnapshot } from "../shared/types";
 import { GITHUB_ISSUE_URL } from "../shared/links";
 import { MAX_RECENT_WORKSPACES, readLegacyAppState } from "./app-state";
 import { AddProjectDialog, CliRepairDialog, EmptyState, EnvironmentNotice, PendingProject, ProjectHeader, SettingsDialog } from "./components/shell";
@@ -99,9 +99,9 @@ function App() {
   const activeWorkspaceCanBeRemoved = Boolean(root && activeProject);
 
   useEffect(() => {
-    if (!window.skillops) return;
+    if (!window.arcforge) return;
     void hydrateAppState();
-    void window.skillops.getDefaultTargets().then((targets) => {
+    void window.arcforge.getDefaultTargets().then((targets) => {
       setDefaultTargets(targets);
     }).catch((error) => setStatus(t.errorStatus(errorMessage(error))))
       .finally(() => setDefaultTargetsLoaded(true));
@@ -148,9 +148,9 @@ function App() {
   }
 
   async function hydrateAppState() {
-    if (!window.skillops) return;
+    if (!window.arcforge) return;
     try {
-      const state = await window.skillops.migrateAppState(readLegacyAppState(), window.location.origin || "file://");
+      const state = await window.arcforge.migrateAppState(readLegacyAppState(), window.location.origin || "file://");
       applyAppState(state);
       if (state.activeWorkspace) {
         await openWorkspace(state.activeWorkspace, { restore: true, moveToTop: false, projectStates: state.projectState });
@@ -173,18 +173,18 @@ function App() {
   }
 
   async function saveAppState(patch: Partial<AppState>) {
-    if (!window.skillops) return;
+    if (!window.arcforge) return;
     try {
-      await window.skillops.saveAppState(patch);
+      await window.arcforge.saveAppState(patch);
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     }
   }
 
   async function refreshEnvironment() {
-    if (!window.skillops) return;
+    if (!window.arcforge) return;
     try {
-      setEnvironment(await window.skillops.getEnvironmentStatus());
+      setEnvironment(await window.arcforge.getEnvironmentStatus());
     } catch {
       setEnvironment({
         platform: "unknown",
@@ -198,12 +198,12 @@ function App() {
   }
 
   async function repairCliInstall() {
-    if (!window.skillops) return;
+    if (!window.arcforge) return;
     setIsCliRepairing(true);
     setStatus(t.cliRepairing);
     try {
-      const cli = await window.skillops.installCli();
-      const next = await window.skillops.getEnvironmentStatus();
+      const cli = await window.arcforge.installCli();
+      const next = await window.arcforge.getEnvironmentStatus();
       setEnvironment({ ...next, cli });
       if (cli.available) {
         setStatus(t.cliRepairAvailable);
@@ -244,8 +244,8 @@ function App() {
   async function openFeedbackIssue(url: unknown = GITHUB_ISSUE_URL) {
     const feedbackUrl = typeof url === "string" ? url : GITHUB_ISSUE_URL;
     try {
-      if (window.skillops) {
-        await window.skillops.openExternal(feedbackUrl);
+      if (window.arcforge) {
+        await window.arcforge.openExternal(feedbackUrl);
         return;
       }
       window.open(feedbackUrl, "_blank", "noopener,noreferrer");
@@ -300,12 +300,12 @@ function App() {
 
   async function chooseWorkspace() {
     try {
-      if (!window.skillops) {
+      if (!window.arcforge) {
         setStatus(t.desktopRequired);
         return;
       }
       setStatus(t.choosingWorkspace);
-      const selected = await window.skillops.chooseWorkspace();
+      const selected = await window.arcforge.chooseWorkspace();
       if (!selected) {
         setStatus(t.chooseCanceled);
         return;
@@ -346,12 +346,12 @@ function App() {
     setShowEditProjectSource(false);
     void saveAppState({ activeWorkspace: pendingId });
     try {
-      if (!window.skillops) {
+      if (!window.arcforge) {
         setStatus(t.desktopRequired);
         return;
       }
       setStatus(t.downloadingSource);
-      const sourceRoot = await window.skillops.addRemoteWorkspace(sourceUrl);
+      const sourceRoot = await window.arcforge.addRemoteWorkspace(sourceUrl);
       setSharedSourceUrl("");
       setRecentWorkspaces((current) => {
         const next = current.filter((item) => item.path !== pendingId);
@@ -379,12 +379,12 @@ function App() {
     if (!nextRoot) return;
     const requestId = ++workspaceRequestRef.current;
     try {
-      if (!window.skillops) {
+      if (!window.arcforge) {
         setStatus(t.desktopRequired);
         return;
       }
       setStatus(t.scanning);
-      const result = await window.skillops.scanWorkspace(nextRoot);
+      const result = await window.arcforge.scanWorkspace(nextRoot);
       if (requestId !== workspaceRequestRef.current) return;
       applySnapshot(result);
       setStatus(t.foundStatus(result.skills.length, result.audit.score));
@@ -398,25 +398,25 @@ function App() {
   async function openProjectFolder() {
     if (!root) return;
     try {
-      if (!window.skillops) {
+      if (!window.arcforge) {
         setStatus(t.desktopRequired);
         return;
       }
-      await window.skillops.openWorkspaceFolder(root);
+      await window.arcforge.openWorkspaceFolder(root);
       setStatus(t.projectFolderOpened);
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     }
   }
 
-  async function saveProfiles(config: SkillOpsConfig, nextProfile: string) {
+  async function saveProfiles(config: ArcForgeConfig, nextProfile: string) {
     if (!root) return;
     try {
-      if (!window.skillops) {
+      if (!window.arcforge) {
         setStatus(t.desktopRequired);
         return;
       }
-      const result = await window.skillops.saveConfig(root, config);
+      const result = await window.arcforge.saveConfig(root, config);
       applySnapshot(result, nextProfile);
       rememberWorkspace(result, { moveToTop: !recentWorkspaces.some((item) => item.path === result.root) });
       setStatus(t.configSaved);
@@ -444,14 +444,14 @@ function App() {
     setSharePlan(undefined);
     setShareProgress(t.sharing);
     try {
-      if (!window.skillops) {
+      if (!window.arcforge) {
         setStatus(t.desktopRequired);
         setShareProgress(t.desktopRequired);
         return;
       }
       if (snapshot) {
         const remoteUrl = shareRemoteUrlForGroup(snapshot, group);
-        const saved = await window.skillops.saveConfig(root, {
+        const saved = await window.arcforge.saveConfig(root, {
           ...snapshot.config,
           teamRepo: remoteUrl || undefined,
           shareTargetMode: group.sameRepository ? "direct" : group.targetMode,
@@ -460,7 +460,7 @@ function App() {
         applySnapshot(saved, group.profile);
       }
       setStatus(t.sharing);
-      const plan = await window.skillops.createSharePlan(root, shareRemoteUrlForGroup(snapshot, group), "private", group.targetMode, group.projectName ?? "", group.profile, message, undefined, undefined, group.sameRepository, group.sameRepositoryRemote);
+      const plan = await window.arcforge.createSharePlan(root, shareRemoteUrlForGroup(snapshot, group), "private", group.targetMode, group.projectName ?? "", group.profile, message, undefined, undefined, group.sameRepository, group.sameRepositoryRemote);
       setSharePlan(plan);
       const nextStatus = plan.requiresConfirm ? t.shareReady(plan.branch) : t.shareReadyLocal(plan.branch);
       setShareProgress(nextStatus);
@@ -479,11 +479,11 @@ function App() {
     setIsCheckingShareDrift(true);
     setShareDriftReport(undefined);
     try {
-      if (!window.skillops) {
+      if (!window.arcforge) {
         setStatus(t.desktopRequired);
         return;
       }
-      const report = await window.skillops.shareDriftReport(root, shareRemoteUrlForGroup(snapshot, group), group.targetMode, group.projectName ?? "", group.profile, group.sameRepository, group.sameRepositoryRemote);
+      const report = await window.arcforge.shareDriftReport(root, shareRemoteUrlForGroup(snapshot, group), group.targetMode, group.projectName ?? "", group.profile, group.sameRepository, group.sameRepositoryRemote);
       setShareDriftReport(report);
       rememberShareDriftCheck(group.id, { checkedAt: new Date().toISOString(), signature: shareDriftSignature(snapshot, group), report });
       const changed = report.items.filter((item) => item.status !== "same").length;
@@ -502,12 +502,12 @@ function App() {
     setIsSharing(true);
     setShareProgress(t.sharing);
     try {
-      if (!window.skillops) {
+      if (!window.arcforge) {
         setStatus(t.desktopRequired);
         setShareProgress(t.desktopRequired);
         return;
       }
-      const result = await window.skillops.shareProject(root, shareRemoteUrlForGroup(snapshot, group), "private", message, group.targetMode, group.projectName ?? "", group.profile, plan.delivery, plan.branch, true, group.sameRepository, group.sameRepositoryRemote);
+      const result = await window.arcforge.shareProject(root, shareRemoteUrlForGroup(snapshot, group), "private", message, group.targetMode, group.projectName ?? "", group.profile, plan.delivery, plan.branch, true, group.sameRepository, group.sameRepositoryRemote);
       setShareResult(result);
       setSharePlan(undefined);
       const complete = result.pullRequestUrl ? t.sharePrComplete(result.pullRequestUrl) : t.shareComplete(result.branch);
@@ -524,7 +524,7 @@ function App() {
   }
 
   async function openWorkspace(nextRoot: string, options: { restore?: boolean; moveToTop?: boolean; projectStates?: Record<string, ProjectUiState>; source?: ProjectSourceMetadata } = {}) {
-    if (!window.skillops) {
+    if (!window.arcforge) {
       setStatus(t.desktopRequired);
       return;
     }
@@ -540,7 +540,7 @@ function App() {
     setStatus(t.scanning);
     void saveAppState({ activeWorkspace: nextRoot });
     try {
-      const result = await window.skillops.scanWorkspace(nextRoot);
+      const result = await window.arcforge.scanWorkspace(nextRoot);
       if (requestId !== workspaceRequestRef.current) return;
       applySnapshot(result, undefined, options.projectStates);
       rememberWorkspace(result, { moveToTop: options.moveToTop ?? true, source: options.source });
@@ -555,11 +555,11 @@ function App() {
   }
 
   async function chooseProjectTarget(): Promise<string | undefined> {
-    if (!window.skillops) {
+    if (!window.arcforge) {
       setStatus(t.desktopRequired);
       return undefined;
     }
-    const selected = await window.skillops.chooseWorkspace();
+    const selected = await window.arcforge.chooseWorkspace();
     return selected;
   }
 
@@ -571,16 +571,16 @@ function App() {
       return;
     }
     try {
-      if (!window.skillops) {
+      if (!window.arcforge) {
         setStatus(t.desktopRequired);
         return;
       }
       const results: ApplyProfileResult[] = [];
       const reports: DriftReport[] = [];
       for (const target of targets) {
-        const result = await window.skillops.applyFromSource(root, undefined, group.profile, target.path, false);
+        const result = await window.arcforge.applyFromSource(root, undefined, group.profile, target.path, false);
         results.push(result.result);
-        reports.push(await window.skillops.driftFromSource(root, undefined, group.profile, target.path));
+        reports.push(await window.arcforge.driftFromSource(root, undefined, group.profile, target.path));
         rememberTarget(target.path, `${group.name} / ${target.name}`, group.profile);
       }
       setApplyResults(results);
@@ -605,13 +605,13 @@ function App() {
     }
     setIsCheckingApplyDrift(true);
     try {
-      if (!window.skillops) {
+      if (!window.arcforge) {
         setStatus(t.desktopRequired);
         return;
       }
       const reports: DriftReport[] = [];
       for (const target of targets) {
-        reports.push(await window.skillops.driftFromSource(root, undefined, group.profile, target.path));
+        reports.push(await window.arcforge.driftFromSource(root, undefined, group.profile, target.path));
       }
       setDriftReports(reports);
       rememberApplyDriftCheck(group.id, { checkedAt: new Date().toISOString(), signature: applyDriftSignature(group, defaultTargets), reports });
@@ -629,11 +629,11 @@ function App() {
 
   async function openDriftDiff(report: DriftReport) {
     try {
-      if (!window.skillops) {
+      if (!window.arcforge) {
         setStatus(t.desktopRequired);
         return;
       }
-      await window.skillops.openDriftDiff(report);
+      await window.arcforge.openDriftDiff(report);
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     }
@@ -692,19 +692,19 @@ function App() {
   }
 
   async function refreshAppliedSources(projectRoot = root) {
-    if (!window.skillops || !projectRoot) return;
+    if (!window.arcforge || !projectRoot) return;
     try {
-      setAppliedSources(await window.skillops.listAppliedSources(projectRoot));
+      setAppliedSources(await window.arcforge.listAppliedSources(projectRoot));
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     }
   }
 
   async function checkAppliedSourceDrift(id?: string) {
-    if (!root || !window.skillops) return;
+    if (!root || !window.arcforge) return;
     setIsCheckingApplyDrift(true);
     try {
-      const reports = await window.skillops.driftAppliedSources(root, id);
+      const reports = await window.arcforge.driftAppliedSources(root, id);
       setAppliedSourceDriftReports(reports);
       const changed = reports.reduce((sum, report) => sum + report.items.filter((item) => item.status !== "same").length, 0);
       const checked = reports.reduce((sum, report) => sum + report.items.length, 0);
@@ -717,9 +717,9 @@ function App() {
   }
 
   async function runAppliedSource(id?: string) {
-    if (!root || !window.skillops) return;
+    if (!root || !window.arcforge) return;
     try {
-      const results = await window.skillops.runAppliedSources(root, id);
+      const results = await window.arcforge.runAppliedSources(root, id);
       await refreshAppliedSources(root);
       setApplyResults(results.map((item) => item.result));
       setStatus(t.copiedSkipped(
@@ -868,7 +868,7 @@ function App() {
           <div className="brand">
             <div className="logo">SO</div>
             <div>
-              <h1>SkillOps</h1>
+              <h1>ArcForge</h1>
               <p>{t.appSubtitle}</p>
             </div>
           </div>

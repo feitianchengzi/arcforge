@@ -1,8 +1,8 @@
 metadata:
-  path: tech/_shared/models/SkillOpsConfig.yaml
+  path: tech/_shared/models/ArcForgeConfig.yaml
   domain: shared
-  entity_name: SkillOpsConfig
-  storage: ~/.skillops/projects/<project-key>.json
+  entity_name: ArcForgeConfig
+  storage: ~/.arcforge/projects/<project-key>.json
   owner: core/config
   version: 1
   created: 2026-05-21

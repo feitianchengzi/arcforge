@@ -4,13 +4,13 @@
 
 ## 定位
 
-SkillOps 是面向个人开发者和小团队的项目内 AI agent skill 生命周期治理层。
+ArcForge 是面向个人开发者和小团队的项目内 AI agent skill 生命周期治理层。
 
-用户默认在项目目录中通过 coding agent 使用 SkillOps。SkillOps skill 编排 CLI 自动化能力，并在工作流需要可视化审阅、结构化选择、编辑或确认时打开桌面 UI。
+用户默认在项目目录中通过 coding agent 使用 ArcForge。ArcForge skill 编排 CLI 自动化能力，并在工作流需要可视化审阅、结构化选择、编辑或确认时打开桌面 UI。
 
 它帮助用户把 AI agent skills 从个人经验或项目内改进沉淀为团队可用资产：可创建和验证、可审计、可通过 GitHub 版本化、可按项目分组、可应用到本地 agent 目标，并且可以用于团队私有共享或公开发布。
 
-SkillOps 是 skill 生命周期治理层和发布前准备层。它应该位于 GitHub releases、ClawHub/OpenClaw、`skillshare`、`npx skills` 和各类 agent runtime 的上游，而不是替代它们。
+ArcForge 是 skill 生命周期治理层和发布前准备层。它应该位于 GitHub releases、ClawHub/OpenClaw、`skillshare`、`npx skills` 和各类 agent runtime 的上游，而不是替代它们。
 
 ## 目标用户
 
@@ -45,8 +45,8 @@ SkillOps 是 skill 生命周期治理层和发布前准备层。它应该位于 
 ## MVP 功能
 
 - 扫描 Git workspace 中的 `SKILL.md`
-- 提供 `skillops-skill-first`，把工作模式沉淀成 skill，并通过子代理前测和复测验证
-- 提供面向 agent 的 SkillOps skill，从当前项目编排 CLI 和桌面工作流
+- 提供 `arcforge-skill-first`，把工作模式沉淀成 skill，并通过子代理前测和复测验证
+- 提供面向 agent 的 ArcForge skill，从当前项目编排 CLI 和桌面工作流
 - 审计 skill 的质量和安全风险
 - 以文件树方式查看和编辑工作区 `skills/`，并支持按配置组过滤
 - 将命名 profile 应用到目标目录
@@ -58,7 +58,7 @@ SkillOps 是 skill 生命周期治理层和发布前准备层。它应该位于 
 
 ## 差异化
 
-大多数已有产品关注公开发现、安装、registry 托管或 runtime 集成。SkillOps 关注的是 skill 被项目采用或发布到公开渠道之前的私有生命周期：
+大多数已有产品关注公开发现、安装、registry 托管或 runtime 集成。ArcForge 关注的是 skill 被项目采用或发布到公开渠道之前的私有生命周期：
 
 ```text
 创建/迭代 -> 验证 -> 审计 -> 配置组 -> 共享 -> 发布 -> 维护

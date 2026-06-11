@@ -14,7 +14,7 @@
 - 缺少 reference：细节需要复用，但不适合塞进 `SKILL.md`。
 - 缺少工具能力：skill 需要 CLI、脚本、Desktop 或 API 支持，但当前不存在。
 - 不安全流程：skill 允许破坏性、远程、凭证相关或状态性操作，但确认不足。
-- SkillOps 交接问题：验证通过后没有引导到 SkillOps，或绕过 `skillops` 的确认规则直接执行治理写入。
+- ArcForge 交接问题：验证通过后没有引导到 ArcForge，或绕过 `arcforge` 的确认规则直接执行治理写入。
 - 测试环境问题：模拟失败来自沙箱、依赖缺失、认证缺失或临时路径设置。
 - 产品决策问题：需要用户决定策略、范围或产品方向。
 
@@ -28,8 +28,8 @@
 - 如果细节可复用但过长，新增或更新 reference。
 - 如果新增或更新 reference，确认主 `SKILL.md` 中有清楚的读取条件，否则新 agent 可能无法发现它。
 - 只有当现有指令无法让流程可靠时，才补小型工具或 CLI 能力。
-- 如果验证通过后缺少后续治理路径，补充 SkillOps 交接说明，优先建议 scan、audit、merge plan、publish plan 或 share plan 这类低风险阶段。
-- 如果流程试图直接执行 apply、merge run、source update、share run、push、PR、目标目录覆盖或 registry 相关写入，把它改为交给 `skillops` workflow，并要求按 SkillOps 的确认规则执行。
+- 如果验证通过后缺少后续治理路径，补充 ArcForge 交接说明，优先建议 scan、audit、merge plan、publish plan 或 share plan 这类低风险阶段。
+- 如果流程试图直接执行 apply、merge run、source update、share run、push、PR、目标目录覆盖或 registry 相关写入，把它改为交给 `arcforge` workflow，并要求按 ArcForge 的确认规则执行。
 - 明确记录产品缺口，不要用隐性 workaround 掩盖。
 - 修复保持范围小，不重写无关部分。
 
@@ -43,7 +43,7 @@
 - 修改了子代理启动条件或降级模拟条件。
 - 修改了目标 skill 的语言规则或语言一致性要求。
 - 修改了 `agents/openai.yaml` 的触发、默认 prompt 或关键行为约束。
-- 修改了 SkillOps 交接规则、确认边界或最终输出中的下一步建议。
+- 修改了 ArcForge 交接规则、确认边界或最终输出中的下一步建议。
 - 新增了子代理必须能发现的 reference。
 - 新增或修改了 skill 会使用的工具能力。
 - 首轮只能做降级模拟，但你补充了真实子代理或降级模拟规则。
@@ -66,7 +66,7 @@
 - 每个 reference 都能从 `SKILL.md` 的读取条件中被发现。
 - 常见路径约定明确。
 - 正式 skill 的来源、复制位置和禁止直接修改原始路径的规则明确。
-- 用户确认目标 skill 可用后，流程能说明建议进入的 SkillOps 治理阶段。
-- SkillOps 交接不绕过 `skillops` 的确认规则，不直接执行真实写入、apply、远程分享或目标目录替换。
+- 用户确认目标 skill 可用后，流程能说明建议进入的 ArcForge 治理阶段。
+- ArcForge 交接不绕过 `arcforge` 的确认规则，不直接执行真实写入、apply、远程分享或目标目录替换。
 - 失败状态说明下一步怎么做。
 - 最终输出说明发生了什么、改了什么、还不确定什么。

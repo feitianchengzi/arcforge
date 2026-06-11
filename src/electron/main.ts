@@ -5,7 +5,7 @@ import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
-import { runSkillOpsCommand, shareProjectCommand, createSharePlanCommand, shareDriftReportCommand } from "../commands/index.js";
+import { runArcForgeCommand, shareProjectCommand, createSharePlanCommand, shareDriftReportCommand } from "../commands/index.js";
 import { scanWorkspace } from "../core/workspace.js";
 import { saveConfig } from "../core/config.js";
 import { getEnvironmentStatus } from "../core/environment.js";
@@ -13,14 +13,14 @@ import { installCliShim } from "../core/cli-install.js";
 import { defaultSkillFile, listSkillFiles, listWorkspaceFiles, readSkillFile, writeSkillFile } from "../core/skill-files.js";
 import { applyFromSource, createImportSkillsPlan, createMergePlan, driftAppliedSources, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, resolveSkillProjectRoot, runAppliedSources, type ImportSkillsOptions, type MergeOptions } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
-import type { AppState, ApplyDriftCheckRecord, DriftFileDiff, DriftReport, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, ShareDriftCheckRecord, ShareTargetMode, SkillEditorWindowContext, SkillOpsConfig, TargetRecord } from "../shared/types.js";
+import type { AppState, ApplyDriftCheckRecord, DriftFileDiff, DriftReport, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, ShareDriftCheckRecord, ShareTargetMode, SkillEditorWindowContext, ArcForgeConfig, TargetRecord } from "../shared/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cliMarkerIndex = process.argv.indexOf("--cli");
 let appStateWriteQueue: Promise<unknown> = Promise.resolve();
 const execFileAsync = promisify(execFile);
 
-app.setName("SkillOps");
+app.setName("ArcForge");
 
 if (cliMarkerIndex !== -1) {
   app.whenReady()
@@ -46,7 +46,7 @@ if (cliMarkerIndex !== -1) {
 
 async function runElectronCli(args: string[]): Promise<void> {
   try {
-    const result = await runSkillOpsCommand(args, {
+    const result = await runArcForgeCommand(args, {
       cwd: process.cwd(),
       cacheDir: cacheRoot(),
       cliShim: cliShimOptions()
@@ -69,7 +69,7 @@ async function createWindow(): Promise<void> {
     height: 760,
     minWidth: 980,
     minHeight: 640,
-    title: "SkillOps",
+    title: "ArcForge",
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 24, y: 22 },
     backgroundColor: "#F3F5F8",
@@ -115,7 +115,7 @@ ipcMain.handle("workspace:chooseDirectory", async (event, defaultPath?: string, 
 });
 
 ipcMain.handle("workspace:scan", (_event, root: string) => scanWorkspace(root));
-ipcMain.handle("workspace:saveConfig", (_event, root: string, config: SkillOpsConfig) => saveWorkspaceConfig(root, config));
+ipcMain.handle("workspace:saveConfig", (_event, root: string, config: ArcForgeConfig) => saveWorkspaceConfig(root, config));
 ipcMain.handle("workspace:openFolder", (_event, root: string) => openWorkspaceFolder(root));
 ipcMain.handle("system:defaultTargets", () => defaultTargets());
 ipcMain.handle("system:environment", () => getElectronEnvironmentStatus());
@@ -183,14 +183,14 @@ ipcMain.handle("skillFile:write", (_event, root: string, filePath: string, conte
 ipcMain.handle("skillFile:openWindow", (event, root: string, skillPath: string, filePath?: string, context?: SkillEditorWindowContext) => openSkillFileWindow(root, skillPath, filePath, context, BrowserWindow.fromWebContents(event.sender)));
 ipcMain.handle("skillFile:openWorkspaceWindow", (event, root: string, directoryPath: string, filePath?: string, context?: SkillEditorWindowContext) => openWorkspaceFileWindow(root, directoryPath, filePath, context, BrowserWindow.fromWebContents(event.sender)));
 
-async function saveWorkspaceConfig(root: string, config: SkillOpsConfig) {
+async function saveWorkspaceConfig(root: string, config: ArcForgeConfig) {
   await saveConfig(root, normalizeConfig(config));
   return scanWorkspace(root);
 }
 
 async function openExternalUrl(url: string): Promise<void> {
   const parsed = new URL(url);
-  if (parsed.protocol !== "https:" || parsed.hostname !== "github.com" || !parsed.pathname.startsWith("/feitianchengzi/skillops/issues")) {
+  if (parsed.protocol !== "https:" || parsed.hostname !== "github.com" || !parsed.pathname.startsWith("/feitianchengzi/arcforge/issues")) {
     throw new Error("External URL is not allowed.");
   }
   await shell.openExternal(parsed.toString());
@@ -454,7 +454,7 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error;
 }
 
-function normalizeConfig(config: SkillOpsConfig): SkillOpsConfig {
+function normalizeConfig(config: ArcForgeConfig): ArcForgeConfig {
   return {
     version: 1,
     sourceDir: config.sourceDir || "skills",
@@ -525,7 +525,7 @@ async function openWorkspaceFileWindow(root: string, directoryPath: string, file
     height: 760,
     minWidth: 860,
     minHeight: 560,
-    title: `SkillOps - ${path.basename(directoryPath)}`,
+    title: `ArcForge - ${path.basename(directoryPath)}`,
     parent: parent ?? undefined,
     backgroundColor: "#F3F5F8",
     webPreferences: {
@@ -570,7 +570,7 @@ function renderSkillEditorHtml(root: string, directoryPath: string, filePath: st
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>SkillOps - ${escapeHtml(path.basename(directoryPath))}</title>
+  <title>ArcForge - ${escapeHtml(path.basename(directoryPath))}</title>
   <style>
     :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #202124; background: #f3f5f8; }
     * { box-sizing: border-box; }
@@ -754,7 +754,7 @@ function renderSkillEditorHtml(root: string, directoryPath: string, filePath: st
     }
 
     async function loadTree() {
-      files = await window.skillops.listWorkspaceFiles(rootPath, directoryPath);
+      files = await window.arcforge.listWorkspaceFiles(rootPath, directoryPath);
       filteredFiles = filterFilesByProfile(files);
       if (!currentFilePath) {
         const first = flatten(filteredFiles)[0];
@@ -771,7 +771,7 @@ function renderSkillEditorHtml(root: string, directoryPath: string, filePath: st
       editor.disabled = true;
       setStatus(labels.loading || "Loading file...");
       try {
-        const document = await window.skillops.readSkillFile(rootPath, filePath);
+        const document = await window.arcforge.readSkillFile(rootPath, filePath);
         lastSavedContent = document.content;
         editor.value = document.content;
         editor.disabled = false;
@@ -794,7 +794,7 @@ function renderSkillEditorHtml(root: string, directoryPath: string, filePath: st
       saveButton.disabled = true;
       setStatus(labels.saving || "Saving file...");
       try {
-        const document = await window.skillops.writeSkillFile(rootPath, currentFilePath, editor.value);
+        const document = await window.arcforge.writeSkillFile(rootPath, currentFilePath, editor.value);
         lastSavedContent = document.content;
         setStatus(labels.saved || "File saved.");
       } catch (error) {
@@ -883,7 +883,7 @@ async function openDriftDiffWindow(report: DriftReport, parent?: BrowserWindow |
   const files = await driftDiffFiles(report);
   const changedItems = report.items.filter((item) => item.status !== "same");
   await openDiffDocumentWindow({
-    title: "SkillOps Drift Diff",
+    title: "ArcForge Drift Diff",
     subtitle: `Profile: ${report.profile} · Target: ${report.targetDir}`,
     summary: `${changedItems.length} changed / ${report.items.length} checked`,
     leftLabel: report.sameRepository ? "HEAD" : "target",

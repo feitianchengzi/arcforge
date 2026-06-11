@@ -1,10 +1,10 @@
 import type { AppState, ProjectUiState, RecentWorkspace, TargetRecord } from "../shared/types";
 import type { Language } from "./i18n";
 
-const RECENT_WORKSPACES_KEY = "skillops.recentWorkspaces";
-const ACTIVE_WORKSPACE_KEY = "skillops.activeWorkspace";
-const TARGET_HISTORY_KEY = "skillops.targetHistory";
-const PROJECT_STATE_KEY = "skillops.projectState";
+const RECENT_WORKSPACES_KEY = "arcforge.recentWorkspaces";
+const ACTIVE_WORKSPACE_KEY = "arcforge.activeWorkspace";
+const TARGET_HISTORY_KEY = "arcforge.targetHistory";
+const PROJECT_STATE_KEY = "arcforge.projectState";
 
 export const MAX_RECENT_WORKSPACES = 8;
 
@@ -20,7 +20,7 @@ export function readLegacyAppState(): Partial<AppState> {
 }
 
 function readLegacyLanguage(): Language | undefined {
-  const stored = window.localStorage.getItem("skillops.language");
+  const stored = window.localStorage.getItem("arcforge.language");
   return stored === "en" || stored === "zh-CN" ? stored : undefined;
 }
 

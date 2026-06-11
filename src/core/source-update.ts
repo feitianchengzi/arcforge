@@ -18,7 +18,7 @@ export async function checkSourceUpdate(options: SourceUpdateOptions): Promise<S
   const root = path.resolve(options.root);
   await migrateRepositoryConfig(root);
   const localGit = await detectLocalGitSource(root);
-  if (!localGit) throw new Error("Current SkillOps project is not inside a Git repository.");
+  if (!localGit) throw new Error("Current ArcForge project is not inside a Git repository.");
   if (!localGit.currentBranch) throw new Error("Source update checks require the local repository to be on a branch, not a detached HEAD.");
 
   const messages: string[] = [];

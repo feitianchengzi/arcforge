@@ -9,7 +9,7 @@ endpoint:
   transport: electron-ipc
   channel: workspace:scan
   method_name: scanWorkspace
-  summary: Scan a SkillOps workspace.
+  summary: Scan a ArcForge workspace.
   auth_required: false
 request:
   args:

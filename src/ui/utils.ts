@@ -1,4 +1,4 @@
-import type { ApplyProfileResult, ApplyTargetGroup, CliInstallStatus, ShareTargetGroup, SkillOpsProfile, WorkspaceSnapshot } from "../shared/types";
+import type { ApplyProfileResult, ApplyTargetGroup, CliInstallStatus, ShareTargetGroup, ArcForgeProfile, WorkspaceSnapshot } from "../shared/types";
 import type { Dictionary, Language } from "./i18n";
 import type { DefaultTarget, ResolvedApplyTarget } from "./types";
 
@@ -18,14 +18,14 @@ export function buildCliRepairNotice(t: Dictionary, platform: string, cli: CliIn
       : `export PATH="${cli.shimDir.replace(/"/g, '\\"')}:$PATH"`
     : "";
   const details = [
-    "SkillOps CLI repair",
+    "ArcForge CLI repair",
     `Status: ${cli.message ?? t.cliNeedsRepair}`,
     cli.shimPath ? `Shim path: ${cli.shimPath}` : undefined,
     cli.shimDir ? `Shim directory: ${cli.shimDir}` : undefined,
     cli.executablePath ? `Desktop executable: ${cli.executablePath}` : undefined,
     cli.shellProfilePath ? `Shell profile: ${cli.shellProfilePath}` : undefined,
     cli.shimDirInPath ? undefined : pathCommand ? `Temporary PATH command:\n${pathCommand}` : undefined,
-    "Check command:\nskillops doctor"
+    "Check command:\narcforge doctor"
   ].filter(Boolean).join("\n\n");
   return {
     title: t.cliRepairManualTitle,
@@ -92,7 +92,7 @@ export function formatTimeAgo(value: string, nowMs = Date.now()): string {
   return formatDuration(nowMs - time);
 }
 
-export function emptyProfile(name: string): SkillOpsProfile {
+export function emptyProfile(name: string): ArcForgeProfile {
   return {
     name,
     description: "",

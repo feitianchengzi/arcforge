@@ -7,11 +7,11 @@ const appManifest = JSON.parse(await readFile(new URL("../app.manifest.json", im
 
 test("package exposes desktop and cli entrypoints", () => {
   assert.equal(pkg.main, "dist/electron/main.js");
-  assert.equal(pkg.bin.skillops, "dist/cli/index.js");
+  assert.equal(pkg.bin.arcforge, "dist/cli/index.js");
 });
 
-test("project is positioned as github-first skillops", () => {
-  assert.match(pkg.description, /GitHub-first SkillOps/);
+test("project is positioned as github-first arcforge", () => {
+  assert.match(pkg.description, /GitHub-first ArcForge/);
 });
 
 test("audit reports disclose rule-based coverage limits", async () => {
@@ -28,7 +28,7 @@ test("audit reports disclose rule-based coverage limits", async () => {
   assert.match(auditCore, /secret\.aws_access_key/);
   assert.match(auditCore, /risk\.destructive_shell/);
   assert.match(auditCore, /risk\.remote_script/);
-  assert.match(links, /github\.com\/feitianchengzi\/skillops\/issues\/new/);
+  assert.match(links, /github\.com\/feitianchengzi\/arcforge\/issues\/new/);
   assert.match(main, /system:openExternal/);
   assert.match(dashboard, /auditTransparencyTitle/);
   assert.match(dashboard, /auditOpenIssue/);
@@ -39,7 +39,7 @@ test("installer metadata is managed from the app manifest", () => {
   assert.equal(appManifest.packageName, pkg.name);
   assert.equal(appManifest.version, pkg.version);
   assert.equal(appManifest.description, pkg.description);
-  assert.equal(appManifest.productName, "SkillOps");
+  assert.equal(appManifest.productName, "ArcForge");
   assert.match(appManifest.appId, /^com\./);
 });
 
@@ -49,26 +49,26 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
   const electronMain = await readFile(new URL("../src/electron/main.ts", import.meta.url), "utf8");
   const preload = await readFile(new URL("../src/electron/preload.cts", import.meta.url), "utf8");
 
-  assert.match(commands, /skillops share plan --root \. --repo/);
-  assert.match(commands, /skillops source status --root \./);
-  assert.match(commands, /SkillOps CLI - source/);
+  assert.match(commands, /arcforge share plan --root \. --repo/);
+  assert.match(commands, /arcforge source status --root \./);
+  assert.match(commands, /ArcForge CLI - source/);
   assert.match(commands, /command === "source"/);
-  assert.match(commands, /SkillOps CLI - merge/);
+  assert.match(commands, /ArcForge CLI - merge/);
   assert.match(commands, /command === "merge"/);
-  assert.match(commands, /SkillOps CLI - applied/);
+  assert.match(commands, /ArcForge CLI - applied/);
   assert.match(commands, /command === "applied"/);
-  assert.match(commands, /SkillOps CLI - apply/);
+  assert.match(commands, /ArcForge CLI - apply/);
   assert.doesNotMatch(commands, /command === "init"/);
   assert.doesNotMatch(commands, /command === "sources"/);
-  assert.doesNotMatch(commands, /SkillOps CLI - apply-profile/);
+  assert.doesNotMatch(commands, /ArcForge CLI - apply-profile/);
   assert.match(commands, /Local-first, GitHub-first governance/);
-  assert.match(commands, /skillops <command> --help/);
-  assert.match(commands, /SkillOps CLI - share/);
+  assert.match(commands, /arcforge <command> --help/);
+  assert.match(commands, /ArcForge CLI - share/);
   assert.match(commands, /--same-repository/);
   assert.match(commands, /command === "share"/);
   assert.match(commands, /command === "doctor"/);
   assert.match(commands, /requiresConfirm/);
-  assert.match(cli, /runSkillOpsCommand/);
+  assert.match(cli, /runArcForgeCommand/);
   assert.match(electronMain, /"--cli"/);
   assert.match(electronMain, /installCliShim/);
   assert.match(electronMain, /system:installCli/);
@@ -101,12 +101,12 @@ test("workspace config is stored outside source checkouts", async () => {
   assert.match(configCore, /saveLocalProjectConfig/);
   assert.match(configCore, /migrateRepositoryConfig/);
   assert.match(configCore, /fs.unlink/);
-  assert.match(projectStore, /~\/.skillops|"projects"/);
-  assert.match(projectStore, /SKILLOPS_HOME/);
+  assert.match(projectStore, /~\/.arcforge|"projects"/);
+  assert.match(projectStore, /ARCFORGE_HOME/);
   assert.match(projectStore, /canonicalKey/);
-  assert.match(configCore, /skillops.config.json/);
-  assert.match(commands, /SkillOps CLI - source/);
-  assert.doesNotMatch(commands, /Create skillops.config.json in a workspace/);
+  assert.match(configCore, /arcforge.config.json/);
+  assert.match(commands, /ArcForge CLI - source/);
+  assert.doesNotMatch(commands, /Create arcforge.config.json in a workspace/);
 });
 
 test("share delivery failures keep manual recovery guidance", async () => {
@@ -139,8 +139,8 @@ test("share sync does not create project-local bookkeeping files", async () => {
   const shareSync = await readFile(new URL("../src/core/share-sync.ts", import.meta.url), "utf8");
   const shareDrift = await readFile(new URL("../src/core/share-drift.ts", import.meta.url), "utf8");
 
-  assert.doesNotMatch(shareCore, /SHARE_MANIFEST_FILE|\.skillops-share-manifest\.json/);
-  assert.doesNotMatch(shareSync, /SHARE_MANIFEST_FILE|\.skillops-share-manifest\.json|readShareManifest|writeShareManifest|staleShareManifestEntries/);
+  assert.doesNotMatch(shareCore, /SHARE_MANIFEST_FILE|\.arcforge-share-manifest\.json/);
+  assert.doesNotMatch(shareSync, /SHARE_MANIFEST_FILE|\.arcforge-share-manifest\.json|readShareManifest|writeShareManifest|staleShareManifestEntries/);
   assert.doesNotMatch(shareDrift, /readShareManifest|staleShareManifestEntries|deletedEntryFiles/);
 });
 
@@ -219,8 +219,8 @@ test("release workflow publishes cli-only install assets", async () => {
   assert.match(pkgText, /"build:cli"/);
   assert.match(workflow, /CLI package/);
   assert.match(workflow, /darwin-x64 darwin-arm64 linux-x64/);
-  assert.match(workflow, /skillops-cli-\$\{target\}\.tar\.gz/);
-  assert.match(workflow, /skillops-cli-win-x64\.zip/);
+  assert.match(workflow, /arcforge-cli-\$\{target\}\.tar\.gz/);
+  assert.match(workflow, /arcforge-cli-win-x64\.zip/);
   assert.match(workflow, /checksums\.txt/);
   assert.match(buildScript, /install\.sh/);
   assert.match(buildScript, /install\.ps1/);
@@ -229,7 +229,7 @@ test("release workflow publishes cli-only install assets", async () => {
   assert.match(buildScript, /\[ "\$node_major" -lt "\$required_node_major" \]/);
   assert.match(buildScript, /rm -f "\$shim"/);
   assert.match(buildScript, /cat > "\$shim"/);
-  assert.doesNotMatch(buildScript, /ln -sf "\$cli_dir\/bin\/skillops" "\$bin_dir\/skillops"/);
+  assert.doesNotMatch(buildScript, /ln -sf "\$cli_dir\/bin\/arcforge" "\$bin_dir\/arcforge"/);
   assert.match(buildScript, /Get-Command node/);
   assert.match(buildScript, /\$CliEntry = Join-Path \$CliDir "dist\\\\cli\\\\index\.js"/);
   assert.match(buildScript, /Remove-Item -LiteralPath \$Shim -Force/);

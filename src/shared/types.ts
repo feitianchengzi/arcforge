@@ -36,7 +36,7 @@ export interface SkillFileDocument {
 export interface SkillEditorWindowContext {
   sourceDir: string;
   profileName?: string;
-  profiles: SkillOpsProfile[];
+  profiles: ArcForgeProfile[];
   skills: SkillSummary[];
   assets: SharedAssetSummary[];
   collapsedFolders?: string[];
@@ -75,14 +75,14 @@ export interface AuditReport {
   feedbackUrl: string;
 }
 
-export interface SkillOpsProfile {
+export interface ArcForgeProfile {
   name: string;
   description?: string;
   skills: string[];
   targets: string[];
 }
 
-export interface SkillOpsConfig {
+export interface ArcForgeConfig {
   version: 1;
   sourceDir: string;
   teamRepo?: string;
@@ -90,7 +90,7 @@ export interface SkillOpsConfig {
   shareProjectName?: string;
   applyTargets?: ApplyTargetGroup[];
   shareTargets?: ShareTargetGroup[];
-  profiles: SkillOpsProfile[];
+  profiles: ArcForgeProfile[];
 }
 
 export interface AppliedSourceRecord {
@@ -329,7 +329,7 @@ export type ShareTargetMode = "direct" | "namedProject";
 
 export interface WorkspaceSnapshot {
   root: string;
-  config: SkillOpsConfig;
+  config: ArcForgeConfig;
   skills: SkillSummary[];
   assets: SharedAssetSummary[];
   audit: AuditReport;

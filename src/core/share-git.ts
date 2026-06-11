@@ -147,12 +147,12 @@ export async function ensureForkRemote(root: string, repository: string, message
   const repo = repository.split("/")[1];
   const pushUrl = `https://github.com/${owner}/${repo}.git`;
   const remotes = await runGit(root, ["remote"], messages);
-  if (!remotes.split(/\r?\n/).includes("skillops-fork")) {
-    await runGit(root, ["remote", "add", "skillops-fork", pushUrl], messages);
+  if (!remotes.split(/\r?\n/).includes("arcforge-fork")) {
+    await runGit(root, ["remote", "add", "arcforge-fork", pushUrl], messages);
   } else {
-    await runGit(root, ["remote", "set-url", "skillops-fork", pushUrl], messages);
+    await runGit(root, ["remote", "set-url", "arcforge-fork", pushUrl], messages);
   }
-  return { remoteName: "skillops-fork", owner, pushUrl };
+  return { remoteName: "arcforge-fork", owner, pushUrl };
 }
 
 export async function resolveRemoteSourceRef(source: ParsedRemoteSource, checkoutRoot: string, messages: string[]): Promise<ParsedRemoteSource> {

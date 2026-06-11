@@ -1,7 +1,7 @@
 import crypto, { randomUUID } from "node:crypto";
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import type { AppliedSourceRecord, DriftReport, ImportSkillsPlan, ImportSkillsResult, MergePlan, MergeResult, SkillOpsConfig, SkillSummary } from "../shared/types.js";
+import type { AppliedSourceRecord, DriftReport, ImportSkillsPlan, ImportSkillsResult, MergePlan, MergeResult, ArcForgeConfig, SkillSummary } from "../shared/types.js";
 import { defaultConfigForRoot, loadConfig, saveConfig } from "./config.js";
 import { copyDirectory, pathExists } from "./fs.js";
 import { applyProfile, compareDirectory, driftReport } from "./profiles.js";
@@ -63,7 +63,7 @@ export async function createMergePlan(options: MergeOptions): Promise<MergePlan>
   const profile = options.profile?.trim() || "default";
   const targetPath = cleanRelativePath(options.targetPath);
   if (!targetPath) throw new Error("Merge target path is required.");
-  const targetDir = options.targetDir?.trim() || ".skillops/skills";
+  const targetDir = options.targetDir?.trim() || ".arcforge/skills";
   const selected = selectedSkills(current.skills, current.config, profile, options.skills);
   if (selected.length === 0) throw new Error("No skills selected for merge.");
   const targetRoot = path.resolve(targetProjectRoot, targetPath);
@@ -256,7 +256,7 @@ function requiredCacheDir(cacheDir?: string): string {
   return cacheDir;
 }
 
-function selectedSkills(skills: SkillSummary[], config: SkillOpsConfig, profileName: string, skillNames?: string[]): SkillSummary[] {
+function selectedSkills(skills: SkillSummary[], config: ArcForgeConfig, profileName: string, skillNames?: string[]): SkillSummary[] {
   if (skillNames?.length) return selectProfileSkills(skills, skillNames, true);
   const profile = config.profiles.find((item) => item.name === profileName);
   if (!profile) throw new Error(`Profile not found: ${profileName}`);
@@ -299,12 +299,12 @@ async function mergeSourceProfile(root: string, profileName: string, skills: str
   await saveConfig(root, { ...config, profiles });
 }
 
-function configForAppliedRecord(config: SkillOpsConfig, record: AppliedSourceRecord): SkillOpsConfig {
+function configForAppliedRecord(config: ArcForgeConfig, record: AppliedSourceRecord): ArcForgeConfig {
   if (record.skills.length === 0) return config;
   return configWithSkillSelection(config, record.profile, record.skills);
 }
 
-function configWithSkillSelection(config: SkillOpsConfig, profileName: string, skills: string[]): SkillOpsConfig {
+function configWithSkillSelection(config: ArcForgeConfig, profileName: string, skills: string[]): ArcForgeConfig {
   return {
     ...config,
     profiles: config.profiles.some((item) => item.name === profileName)

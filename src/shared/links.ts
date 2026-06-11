@@ -1,1 +1,1 @@
-export const GITHUB_ISSUE_URL = "https://github.com/feitianchengzi/skillops/issues/new";
+export const GITHUB_ISSUE_URL = "https://github.com/feitianchengzi/arcforge/issues/new";

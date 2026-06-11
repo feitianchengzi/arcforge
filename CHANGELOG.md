@@ -10,7 +10,7 @@ while it remains in the `0.x` pre-1.0 release line.
 
 ### Added
 
-- Added CLI-first source maintenance commands: `skillops source status` reports upstream ahead/behind commit counts and previous fetch age, and `skillops source update --confirm` performs a fast-forward-only update.
+- Added CLI-first source maintenance commands: `arcforge source status` reports upstream ahead/behind commit counts and previous fetch age, and `arcforge source update --confirm` performs a fast-forward-only update.
 - Added shared source update models and desktop IPC hooks so the desktop app can present the same check-before-update decision point without owning separate Git logic.
 
 ### Changed
@@ -23,7 +23,7 @@ while it remains in the `0.x` pre-1.0 release line.
 
 - Added GitHub Pull Request sharing for Skill projects, including plan-first CLI commands, desktop confirmation, permission detection through GitHub CLI, and delivery support for target-repository PRs, fork PRs, direct branch pushes, and local branches.
 - Added same-repository sharing so compatible local project and target workflows can reuse the current checkout instead of creating unnecessary copied worktrees.
-- Added single-skill project source support, allowing SkillOps to scan and govern repositories or folders that contain one standalone `SKILL.md`.
+- Added single-skill project source support, allowing ArcForge to scan and govern repositories or folders that contain one standalone `SKILL.md`.
 - Added share target drift checks across CLI, desktop, IPC, contracts, and the share view so teams can see whether shared targets still match source skills.
 - Added audit report help links, richer audit findings, and UI affordances that connect audit output to remediation guidance.
 - Added pending ArcKit notes for future agent workbench maintenance, skill effect testing, and security audit follow-up.
@@ -49,7 +49,7 @@ while it remains in the `0.x` pre-1.0 release line.
 - Added profile-aware dashboard, destinations, profiles, and share view modules.
 - Added reusable UI shell components and app-state persistence helpers.
 - Added dedicated share core modules for Git operations, remote parsing, and share-target synchronization.
-- Added SkillOps config support for saved share target groups.
+- Added ArcForge config support for saved share target groups.
 - Added the `skill-file` IPC contract and expanded sharing IPC documentation.
 
 ### Changed
@@ -96,7 +96,7 @@ while it remains in the `0.x` pre-1.0 release line.
 ### Changed
 
 - Applied the visual system to the desktop app shell styling.
-- Reworked README, comparison, product, and roadmap docs in English and Chinese around SkillOps positioning.
+- Reworked README, comparison, product, and roadmap docs in English and Chinese around ArcForge positioning.
 - Updated sharing specs and technical notes for same-source sharing behavior.
 
 ## [0.1.2] - 2026-05-21
@@ -133,8 +133,8 @@ while it remains in the `0.x` pre-1.0 release line.
 
 ### Added
 
-- Added the initial SkillOps MVP.
-- Added local Skill project scanning, default config loading, and example `skillops.config` shape.
+- Added the initial ArcForge MVP.
+- Added local Skill project scanning, default config loading, and example `arcforge.config` shape.
 - Added `SKILL.md` discovery with frontmatter parsing, version metadata, references, and scripts detection.
 - Added rule-based audit checks for secrets, dangerous instructions, and missing metadata.
 - Added profile-based skill grouping, profile application, and drift comparison against installed targets.
@@ -153,10 +153,10 @@ while it remains in the `0.x` pre-1.0 release line.
 - Checked out the repository before creating releases.
 - Uploaded only packaged release assets.
 
-[0.1.6]: https://github.com/feitianchengzi/skillops/compare/v0.1.5...HEAD
-[0.1.5]: https://github.com/feitianchengzi/skillops/compare/v0.1.4...v0.1.5
-[0.1.4]: https://github.com/feitianchengzi/skillops/compare/v0.1.3...v0.1.4
-[0.1.3]: https://github.com/feitianchengzi/skillops/compare/v0.1.2...v0.1.3
-[0.1.2]: https://github.com/feitianchengzi/skillops/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/feitianchengzi/skillops/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/feitianchengzi/skillops/releases/tag/v0.1.0
+[0.1.6]: https://github.com/feitianchengzi/arcforge/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/feitianchengzi/arcforge/compare/v0.1.4...v0.1.5
+[0.1.4]: https://github.com/feitianchengzi/arcforge/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/feitianchengzi/arcforge/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/feitianchengzi/arcforge/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/feitianchengzi/arcforge/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/feitianchengzi/arcforge/releases/tag/v0.1.0

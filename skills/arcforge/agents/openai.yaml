@@ -1,0 +1,4 @@
+interface:
+  display_name: "ArcForge"
+  short_description: "治理本地 agent skills 的创建后交接、来源、安装、同步、共享和发布准备。"
+  default_prompt: "使用 $arcforge 治理本地 agent skills。先判断用户当前阶段，再从 Skill First 交接、扫描、审计、profile、正式化、应用、应用关系、drift、Git 来源维护、发布准备、Git 共享、环境诊断和 Desktop UI 中组合流程；不要默认跑完整链路。ArcForge 是 local-first、GitHub-first 的 skill 生命周期治理层，不是 marketplace、registry 或 agent runtime；创建、迭代和子代理验证由 $arcforge-skill-first 负责，验证通过后由 $arcforge 接手治理。真实写入、Git 更新、push/PR/share run、目标替换和真实目标 apply 前必须确认；临时验证设置 ARCFORGE_HOME。详细命令、产品概念、Desktop 路由和缺口判断按 SKILL.md 渐进加载。"

@@ -23,7 +23,7 @@ const npmCacheDir = args["npm-cache"]
   : installHome !== os.homedir()
     ? path.join(installHome, ".npm")
     : undefined;
-const installedSkillNames = ["skillops", "skillops-skill-first"];
+const installedSkillNames = ["arcforge", "arcforge-skill-first"];
 let currentStage = "initialization";
 
 process.on("uncaughtException", handleFatalError);
@@ -39,7 +39,7 @@ await assertNodeMajor(20);
 if (verifyOnly) {
   const shimDir = await chooseShimDir();
   const cli = {
-    shimPath: path.join(shimDir, process.platform === "win32" ? "skillops.cmd" : "skillops"),
+    shimPath: path.join(shimDir, process.platform === "win32" ? "arcforge.cmd" : "arcforge"),
     shimDir,
     pathContainsShim: pathInPath(shimDir)
   };
@@ -82,20 +82,20 @@ for (const agent of agents) {
   }
 }
 
-await run("npm", ["run", "build:cli"], { cwd: repoRoot, label: "Build SkillOps CLI" });
+await run("npm", ["run", "build:cli"], { cwd: repoRoot, label: "Build ArcForge CLI" });
 summary.cli = await installCliShim({ updatePath });
 
 if (desktopMode === "skip") {
   summary.desktop = { mode: desktopMode, status: "skipped" };
 } else if (desktopMode === "build") {
-  await run("npm", ["run", "build"], { cwd: repoRoot, label: "Build SkillOps Desktop runtime" });
+  await run("npm", ["run", "build"], { cwd: repoRoot, label: "Build ArcForge Desktop runtime" });
   summary.desktop = { mode: desktopMode, status: "built", command: "npm run dev" };
 } else if (desktopMode === "install") {
-  await run("npm", ["run", "build"], { cwd: repoRoot, label: "Build SkillOps Desktop runtime" });
+  await run("npm", ["run", "build"], { cwd: repoRoot, label: "Build ArcForge Desktop runtime" });
   const launcher = await installDesktopLauncher(summary.cli.shimDir);
   summary.desktop = { mode: desktopMode, status: "installed", launcherPath: launcher.launcherPath, command: launcher.launcherPath };
 } else {
-  await run("npm", ["run", "package"], { cwd: repoRoot, label: "Package SkillOps Desktop" });
+  await run("npm", ["run", "package"], { cwd: repoRoot, label: "Package ArcForge Desktop" });
   const launcher = await installDesktopLauncher(summary.cli.shimDir);
   summary.desktop = { mode: desktopMode, status: "packaged", outputDir: path.join(repoRoot, "release"), launcherPath: launcher.launcherPath, command: launcher.launcherPath };
 }
@@ -136,13 +136,13 @@ function parseAgents(value) {
 async function assertRepoRoot(root) {
   const requiredFiles = [
     "package.json",
-    "skills/skillops/SKILL.md",
-    "skills/skillops-skill-first/SKILL.md",
+    "skills/arcforge/SKILL.md",
+    "skills/arcforge-skill-first/SKILL.md",
     "src/cli/index.ts",
     "src/electron/main.ts"
   ];
   for (const relativePath of requiredFiles) {
-    await assertExists(path.join(root, relativePath), `SkillOps repository file missing: ${relativePath}`);
+    await assertExists(path.join(root, relativePath), `ArcForge repository file missing: ${relativePath}`);
   }
 }
 
@@ -174,7 +174,7 @@ function userSkillTarget(agent, skillName) {
 async function installCliShim(options) {
   const shimDir = await chooseShimDir();
   await mkdir(shimDir, { recursive: true });
-  const shimPath = path.join(shimDir, process.platform === "win32" ? "skillops.cmd" : "skillops");
+  const shimPath = path.join(shimDir, process.platform === "win32" ? "arcforge.cmd" : "arcforge");
   const cliEntry = path.join(repoRoot, "dist", "cli", "index.js");
   await assertExists(cliEntry, "CLI build missing after npm run build:cli.");
 
@@ -214,11 +214,11 @@ async function installDesktopLauncher(shimDir) {
 }
 
 function desktopShimPath(shimDir) {
-  return path.join(shimDir, process.platform === "win32" ? "skillops-desktop.cmd" : "skillops-desktop");
+  return path.join(shimDir, process.platform === "win32" ? "arcforge-desktop.cmd" : "arcforge-desktop");
 }
 
 async function verifyInstall(options) {
-  currentStage = "Verify SkillOps install";
+  currentStage = "Verify ArcForge install";
   const checks = [];
   await addPathCheck(checks, "CLI shim exists", options.cli.shimPath);
   if (process.platform !== "win32") await addExecutableCheck(checks, "CLI shim executable", options.cli.shimPath);
@@ -254,7 +254,7 @@ async function addExecutableCheck(checks, label, filePath) {
 async function chooseShimDir() {
   if (explicitShimDir) return explicitShimDir;
   if (installHome !== os.homedir()) return path.join(installHome, ".local", "bin");
-  if (process.platform === "win32") return path.join(installHome, ".skillops", "bin");
+  if (process.platform === "win32") return path.join(installHome, ".arcforge", "bin");
   const pathEntries = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
   for (const entry of pathEntries) {
     const resolved = path.resolve(entry);
@@ -275,7 +275,7 @@ async function updatePersistentPath(shimDir) {
   const exportLine = `export PATH="${shimDir}:$PATH"`;
   const existing = await pathExists(profilePath) ? await readFile(profilePath, "utf8") : "";
   if (!existing.includes(exportLine)) {
-    await writeFile(profilePath, `${existing.trimEnd()}\n\n# SkillOps CLI\n${exportLine}\n`, "utf8");
+    await writeFile(profilePath, `${existing.trimEnd()}\n\n# ArcForge CLI\n${exportLine}\n`, "utf8");
   }
   return profilePath;
 }
@@ -338,7 +338,7 @@ async function isWritableDirectory(dirPath) {
 }
 
 function printSummary(value) {
-  console.log("\nSkillOps install summary");
+  console.log("\nArcForge install summary");
   console.log(`Repository: ${value.repoRoot}`);
   for (const item of value.installedSkills) {
     console.log(`Skill (${item.agent}/${item.skillName}): ${item.target}`);
@@ -357,14 +357,14 @@ function printSummary(value) {
 }
 
 function printVerifySummary(value) {
-  console.log("\nSkillOps install verification");
+  console.log("\nArcForge install verification");
   for (const check of value.checks) {
     console.log(`${check.ok ? "ok" : "missing"} - ${check.label}: ${check.path}`);
   }
 }
 
 function printPlan(value) {
-  console.log("SkillOps install dry run");
+  console.log("ArcForge install dry run");
   console.log(`Repository: ${value.repoRoot}`);
   for (const item of value.agents) {
     for (const target of item.targets) {
@@ -387,7 +387,7 @@ function fail(message) {
 
 function handleFatalError(error) {
   const message = error instanceof Error ? error.message : String(error);
-  console.error("\nSkillOps install failed");
+  console.error("\nArcForge install failed");
   console.error(`Stage: ${currentStage}`);
   console.error(`Reason: ${message}`);
   console.error("Next steps:");

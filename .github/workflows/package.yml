@@ -59,19 +59,19 @@ jobs:
           - name: macOS Intel
             os: macos-15-intel
             script: package:mac:x64
-            artifact: skillops-macos-x64
+            artifact: arcforge-macos-x64
           - name: macOS Apple Silicon
             os: macos-14
             script: package:mac:arm64
-            artifact: skillops-macos-arm64
+            artifact: arcforge-macos-arm64
           - name: Windows x64
             os: windows-latest
             script: package:win:x64
-            artifact: skillops-windows-x64
+            artifact: arcforge-windows-x64
           - name: Linux x64
             os: ubuntu-latest
             script: package:linux:x64
-            artifact: skillops-linux-x64
+            artifact: arcforge-linux-x64
 
     steps:
       - uses: actions/checkout@v4
@@ -122,15 +122,15 @@ jobs:
           set -euo pipefail
           mkdir -p release/cli-release
           for target in darwin-x64 darwin-arm64 linux-x64; do
-            tar -C release/cli-work -czf "release/cli-release/skillops-cli-${target}.tar.gz" skillops-cli
+            tar -C release/cli-work -czf "release/cli-release/arcforge-cli-${target}.tar.gz" arcforge-cli
           done
-          (cd release/cli-work && zip -qr ../cli-release/skillops-cli-win-x64.zip skillops-cli)
+          (cd release/cli-work && zip -qr ../cli-release/arcforge-cli-win-x64.zip arcforge-cli)
           cp release/cli-assets/install.sh release/cli-assets/install.ps1 release/cli-release/
           (cd release/cli-release && shasum -a 256 * > checksums.txt)
 
       - uses: actions/upload-artifact@v4
         with:
-          name: skillops-cli-${{ needs.version.outputs.version }}
+          name: arcforge-cli-${{ needs.version.outputs.version }}
           path: release/cli-release/*
           if-no-files-found: error
 
@@ -163,5 +163,5 @@ jobs:
 
           gh release create "$TAG" "${files[@]}" \
             --target "$GITHUB_SHA" \
-            --title "SkillOps ${VERSION}" \
+            --title "ArcForge ${VERSION}" \
             --generate-notes

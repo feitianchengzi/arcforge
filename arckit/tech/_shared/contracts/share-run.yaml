@@ -9,7 +9,7 @@ endpoint:
   transport: electron-ipc
   channel: share:run
   method_name: shareProject
-  summary: Confirm and execute SkillOps sharing with branch, push and optional Pull Request creation.
+  summary: Confirm and execute ArcForge sharing with branch, push and optional Pull Request creation.
   auth_required: false
 request:
   args:

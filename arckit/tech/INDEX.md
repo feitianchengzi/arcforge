@@ -17,7 +17,7 @@
 - cli/ 命令行技术：JSON 输出、命令参数、退出码、source/merge/applied/apply/drift/share/doctor 命令和桌面 --cli 模式。✅
   - solution.md CLI 方案：scan、audit、source、merge、applied、apply、drift、publish-plan、share、doctor 命令和确认边界。✅ (73行)
 - _shared/models/ 数据模型：跨领域 TypeScript DTO 与持久化配置结构。✅
-  - SkillOpsConfig.yaml 工作区配置模型：来源目录、团队仓库、共享模式、配置组和目标组合列表。✅ (143行)
+  - ArcForgeConfig.yaml 工作区配置模型：来源目录、团队仓库、共享模式、配置组和目标组合列表。✅ (143行)
   - LocalProjectState.yaml 本地项目状态模型：项目身份、用户级配置覆盖、应用关系和更新时间。✅ (72行)
   - AppliedSourceRecord.yaml 应用关系记录模型：来源 Skill 项目根目录、配置组、目标目录、技能列表和应用时间。✅ (55行)
   - WorkspaceSnapshot.yaml 工作区快照模型：配置、技能、共享资产、审计报告和本地 Git 来源信息聚合。✅ (105行)

@@ -2,15 +2,15 @@
 
 [简体中文](../release-notes.md)
 
-This document records the user-facing changes for SkillOps releases. SkillOps is still pre-1.0, so versioned notes focus on workflow capability, packaging behavior, and documentation changes rather than a stable public API guarantee.
+This document records the user-facing changes for ArcForge releases. ArcForge is still pre-1.0, so versioned notes focus on workflow capability, packaging behavior, and documentation changes rather than a stable public API guarantee.
 
 ## Unreleased
 
 ### Added
 
 - Added CLI-first source maintenance for GitHub/Git-backed skill projects:
-  - `skillops source status` reports upstream ahead/behind commit counts.
-  - `skillops source update --confirm` performs a fast-forward-only update after explicit confirmation.
+  - `arcforge source status` reports upstream ahead/behind commit counts.
+  - `arcforge source update --confirm` performs a fast-forward-only update after explicit confirmation.
 - Source status includes the previous fetch timestamp and elapsed time since that fetch.
 - Added desktop IPC hooks and shared models for source update status and update results.
 
@@ -23,7 +23,7 @@ This document records the user-facing changes for SkillOps releases. SkillOps is
 ### Summary
 
 This release turns sharing into a fuller GitHub review workflow while keeping
-SkillOps focused on local-first skill governance before distribution. It adds
+ArcForge focused on local-first skill governance before distribution. It adds
 Pull Request delivery, same-repository sharing, single-skill source discovery,
 share target drift checks, and clearer audit feedback.
 
@@ -41,8 +41,8 @@ share target drift checks, and clearer audit feedback.
 
 - Added GitHub Pull Request sharing for Skill projects.
 - Added CLI share planning and execution split:
-  - `skillops share plan` previews the release plan, GitHub access, recommended delivery method, branch, target path, and follow-up command.
-  - `skillops share run --confirm` performs the remote write.
+  - `arcforge share plan` previews the release plan, GitHub access, recommended delivery method, branch, target path, and follow-up command.
+  - `arcforge share run --confirm` performs the remote write.
 - Added GitHub permission detection through GitHub CLI, including authenticated state, repository permission, recommended delivery method, and fallback options.
 - Added delivery modes for target repository Pull Request, fork Pull Request, direct branch push, and local branch.
 - Added desktop share confirmation flow before GitHub writes.
@@ -76,7 +76,7 @@ None.
 
 ### Upgrade Guide
 
-No special migration is required. Existing SkillOps workspaces can continue using
+No special migration is required. Existing ArcForge workspaces can continue using
 their current config; teams using GitHub sharing should review the new plan step
 before running confirmed writes.
 
@@ -101,7 +101,7 @@ release tag has not been created yet.
 - Added profile-aware dashboard, destinations, profiles, and share view modules.
 - Added reusable UI shell components and app-state persistence helpers.
 - Added dedicated share core modules for Git operations, remote parsing, and share-target synchronization.
-- Added SkillOps config support for saved share target groups.
+- Added ArcForge config support for saved share target groups.
 - Added the `skill-file` IPC contract and expanded sharing IPC documentation.
 
 ### Changed
@@ -148,7 +148,7 @@ release tag has not been created yet.
 ### Changed
 
 - Applied the visual system to the desktop app shell styling.
-- Reworked README, comparison, product, and roadmap docs in English and Chinese around SkillOps positioning.
+- Reworked README, comparison, product, and roadmap docs in English and Chinese around ArcForge positioning.
 - Updated sharing specs and technical notes for same-source sharing behavior.
 
 ## v0.1.2 - 2026-05-21
@@ -185,8 +185,8 @@ release tag has not been created yet.
 
 ### Added
 
-- Added the initial SkillOps MVP.
-- Added local Skill project scanning, default config loading, and example `skillops.config` shape.
+- Added the initial ArcForge MVP.
+- Added local Skill project scanning, default config loading, and example `arcforge.config` shape.
 - Added `SKILL.md` discovery with frontmatter parsing, version metadata, references, and scripts detection.
 - Added rule-based audit checks for secrets, dangerous instructions, and missing metadata.
 - Added profile-based skill grouping, profile application, and drift comparison against installed targets.

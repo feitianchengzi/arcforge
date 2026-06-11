@@ -51,7 +51,7 @@ properties:
       shimPath:
         type: string
         nullable: true
-        description: Expected user-level skillops shim path.
+        description: Expected user-level arcforge shim path.
       shimDir:
         type: string
         nullable: true

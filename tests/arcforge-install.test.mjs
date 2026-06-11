@@ -2,22 +2,22 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
-test("skillops install skill defines source install boundaries", async () => {
-  const skill = await readFile(new URL("../skills/skillops-install/SKILL.md", import.meta.url), "utf8");
-  const agentYaml = await readFile(new URL("../skills/skillops-install/agents/openai.yaml", import.meta.url), "utf8");
-  const script = await readFile(new URL("../skills/skillops-install/scripts/install-from-repo.mjs", import.meta.url), "utf8");
+test("arcforge install skill defines source install boundaries", async () => {
+  const skill = await readFile(new URL("../skills/arcforge-install/SKILL.md", import.meta.url), "utf8");
+  const agentYaml = await readFile(new URL("../skills/arcforge-install/agents/openai.yaml", import.meta.url), "utf8");
+  const script = await readFile(new URL("../skills/arcforge-install/scripts/install-from-repo.mjs", import.meta.url), "utf8");
   const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
   const enReadme = await readFile(new URL("../docs/en/README.md", import.meta.url), "utf8");
   const zhReadme = await readFile(new URL("../docs/zh-CN/README.md", import.meta.url), "utf8");
-  const skillopsDesktopRouting = await readFile(new URL("../skills/skillops/references/desktop-routing.md", import.meta.url), "utf8");
-  const skillopsCliOrchestration = await readFile(new URL("../skills/skillops/references/cli-orchestration.md", import.meta.url), "utf8");
+  const arcforgeDesktopRouting = await readFile(new URL("../skills/arcforge/references/desktop-routing.md", import.meta.url), "utf8");
+  const arcforgeCliOrchestration = await readFile(new URL("../skills/arcforge/references/cli-orchestration.md", import.meta.url), "utf8");
 
-  assert.match(skill, /name: skillops-install/);
-  assert.match(skill, /skills\/skillops/);
-  assert.match(skill, /skills\/skillops-skill-first/);
-  assert.match(skill, /~\/\.codex\/skills\/skillops/);
-  assert.match(skill, /~\/\.codex\/skills\/skillops-skill-first/);
-  assert.match(skill, /skillops-desktop/);
+  assert.match(skill, /name: arcforge-install/);
+  assert.match(skill, /skills\/arcforge/);
+  assert.match(skill, /skills\/arcforge-skill-first/);
+  assert.match(skill, /~\/\.codex\/skills\/arcforge/);
+  assert.match(skill, /~\/\.codex\/skills\/arcforge-skill-first/);
+  assert.match(skill, /arcforge-desktop/);
   assert.match(skill, /--desktop install/);
   assert.match(skill, /--desktop build/);
   assert.match(skill, /--desktop package/);
@@ -34,16 +34,16 @@ test("skillops install skill defines source install boundaries", async () => {
   assert.match(skill, /写入当前仓库的 `dist\/`/);
   assert.match(skill, /写入 `dist-ui\/`/);
   assert.match(skill, /不要把这个安装流程描述成 marketplace/);
-  assert.match(agentYaml, /\$skillops-install/);
-  assert.match(agentYaml, /skillops-skill-first/);
+  assert.match(agentYaml, /\$arcforge-install/);
+  assert.match(agentYaml, /arcforge-skill-first/);
   assert.match(agentYaml, /--home\/--shim-dir/);
   assert.match(agentYaml, /--npm-cache/);
   assert.match(agentYaml, /--verify/);
-  assert.match(agentYaml, /skillops-desktop launcher/);
+  assert.match(agentYaml, /arcforge-desktop launcher/);
   assert.match(agentYaml, /不要使用 --update-path/);
 
-  assert.match(script, /skills\/skillops-skill-first\/SKILL\.md/);
-  assert.match(script, /installedSkillNames = \["skillops", "skillops-skill-first"\]/);
+  assert.match(script, /skills\/arcforge-skill-first\/SKILL\.md/);
+  assert.match(script, /installedSkillNames = \["arcforge", "arcforge-skill-first"\]/);
   assert.match(script, /"build:cli"/);
   assert.match(script, /"run", "build"/);
   assert.match(script, /"run", "package"/);
@@ -54,7 +54,7 @@ test("skillops install skill defines source install boundaries", async () => {
   assert.match(script, /env\.npm_config_cache/);
   assert.match(script, /env\.HOME = installHome/);
   assert.match(script, /Electron launcher exists/);
-  assert.match(script, /skillops-desktop/);
+  assert.match(script, /arcforge-desktop/);
   assert.match(script, /Desktop launcher/);
   assert.match(script, /"\.codex", "skills", skillName/);
   assert.match(script, /installHome/);
@@ -66,21 +66,21 @@ test("skillops install skill defines source install boundaries", async () => {
   assert.match(script, /updatePersistentPath/);
   assert.doesNotMatch(script, /git push|gh pr|release upload/);
 
-  assert.match(readme, /从当前仓库安装 SkillOps/);
-  assert.match(readme, /skillops-skill-first/);
+  assert.match(readme, /从当前仓库安装 ArcForge/);
+  assert.match(readme, /arcforge-skill-first/);
   assert.match(readme, /\[English\]\(docs\/en\/README\.md\)/);
-  assert.match(readme, /skills\/skillops-install/);
-  assert.match(readme, /skillops-desktop/);
-  assert.match(enReadme, /Install SkillOps From This Repository/);
-  assert.match(enReadme, /skillops-skill-first/);
+  assert.match(readme, /skills\/arcforge-install/);
+  assert.match(readme, /arcforge-desktop/);
+  assert.match(enReadme, /Install ArcForge From This Repository/);
+  assert.match(enReadme, /arcforge-skill-first/);
   assert.match(enReadme, /\[简体中文\]\(\.\.\/\.\.\/README\.md\)/);
-  assert.match(zhReadme, /从当前仓库安装 SkillOps/);
-  assert.match(zhReadme, /skillops-skill-first/);
+  assert.match(zhReadme, /从当前仓库安装 ArcForge/);
+  assert.match(zhReadme, /arcforge-skill-first/);
   assert.match(zhReadme, /\[English\]\(\.\.\/en\/README\.md\)/);
-  assert.match(zhReadme, /skills\/skillops-install/);
-  assert.match(zhReadme, /skillops-desktop/);
+  assert.match(zhReadme, /skills\/arcforge-install/);
+  assert.match(zhReadme, /arcforge-desktop/);
 
-  assert.match(skillopsDesktopRouting, /skillops-desktop/);
-  assert.match(skillopsDesktopRouting, /不能保证直接打开指定页面/);
-  assert.match(skillopsCliOrchestration, /skillops-desktop/);
+  assert.match(arcforgeDesktopRouting, /arcforge-desktop/);
+  assert.match(arcforgeDesktopRouting, /不能保证直接打开指定页面/);
+  assert.match(arcforgeCliOrchestration, /arcforge-desktop/);
 });

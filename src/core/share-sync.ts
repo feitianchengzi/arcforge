@@ -1,10 +1,10 @@
 import path from "node:path";
 import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
-import type { SharedAssetSummary, SkillOpsConfig, SkillSummary } from "../shared/types.js";
+import type { SharedAssetSummary, ArcForgeConfig, SkillSummary } from "../shared/types.js";
 import { copyDirectory, pathExists } from "./fs.js";
 
-export function resolveShareProfile(config: SkillOpsConfig, profileName?: string, skillNames?: string[]): SkillOpsConfig["profiles"][number] {
+export function resolveShareProfile(config: ArcForgeConfig, profileName?: string, skillNames?: string[]): ArcForgeConfig["profiles"][number] {
   const selectedProfile = profileName
     ? config.profiles.find((item) => item.name === profileName)
     : config.profiles[0];
@@ -29,7 +29,7 @@ export function selectProfileSkills(skills: SkillSummary[], names: string[], str
   return selected;
 }
 
-export async function syncProjectToShareTarget(root: string, targetRoot: string, config: SkillOpsConfig, skills: SkillSummary[], assets: SharedAssetSummary[], visibility: "private" | "public", sectionName: string, namespace: string): Promise<void> {
+export async function syncProjectToShareTarget(root: string, targetRoot: string, config: ArcForgeConfig, skills: SkillSummary[], assets: SharedAssetSummary[], visibility: "private" | "public", sectionName: string, namespace: string): Promise<void> {
   await fs.mkdir(targetRoot, { recursive: true });
   const sourceRoot = path.resolve(root, config.sourceDir);
   const targetSourceRoot = path.join(targetRoot, config.sourceDir);
@@ -66,7 +66,7 @@ function relativeSharedEntryPath(sourceRoot: string, entryPath: string, fallback
   return relativePath || fallbackName;
 }
 
-export async function syncProjectMetadata(targetRoot: string, config: SkillOpsConfig, visibility: "private" | "public", sectionName: string): Promise<void> {
+export async function syncProjectMetadata(targetRoot: string, config: ArcForgeConfig, visibility: "private" | "public", sectionName: string): Promise<void> {
   const targetReadme = path.join(targetRoot, "README.md");
   if (!(await pathExists(targetReadme))) {
     await fs.writeFile(targetReadme, `# ${path.basename(targetRoot)}\n`, "utf8");
@@ -74,7 +74,7 @@ export async function syncProjectMetadata(targetRoot: string, config: SkillOpsCo
   await writeSharingReadme(targetRoot, config, visibility, sectionName);
 }
 
-export function namespaceProfiles(config: SkillOpsConfig, namespace: string): SkillOpsConfig {
+export function namespaceProfiles(config: ArcForgeConfig, namespace: string): ArcForgeConfig {
   return {
     ...config,
     profiles: config.profiles.map((profile) => ({
@@ -84,7 +84,7 @@ export function namespaceProfiles(config: SkillOpsConfig, namespace: string): Sk
   };
 }
 
-export function normalizeConfig(config: SkillOpsConfig): SkillOpsConfig {
+export function normalizeConfig(config: ArcForgeConfig): ArcForgeConfig {
   return {
     version: 1,
     sourceDir: config.sourceDir || "skills",
@@ -113,7 +113,7 @@ function normalizeStringList(value: unknown): string[] {
 
 async function assertSharedAssetWritable(target: string, namespace: string): Promise<void> {
   if (!(await pathExists(target))) return;
-  const ownerPath = path.join(target, ".skillops-owner.json");
+  const ownerPath = path.join(target, ".arcforge-owner.json");
   if (!(await pathExists(ownerPath))) return;
   try {
     const owner = JSON.parse(await fs.readFile(ownerPath, "utf8")) as { namespace?: string };
@@ -125,7 +125,7 @@ async function assertSharedAssetWritable(target: string, namespace: string): Pro
 }
 
 async function writeAssetOwner(target: string, namespace: string): Promise<void> {
-  await fs.writeFile(path.join(target, ".skillops-owner.json"), `${JSON.stringify({ namespace }, null, 2)}\n`, "utf8");
+  await fs.writeFile(path.join(target, ".arcforge-owner.json"), `${JSON.stringify({ namespace }, null, 2)}\n`, "utf8");
 }
 
 async function replaceSharedEntry(source: string, target: string, targetRoot: string): Promise<void> {
@@ -168,15 +168,15 @@ async function replaceDirectoryAtomic(source: string, target: string): Promise<v
 }
 
 
-async function writeSharingReadme(root: string, config: SkillOpsConfig, visibility: "private" | "public", sectionName: string): Promise<void> {
+async function writeSharingReadme(root: string, config: ArcForgeConfig, visibility: "private" | "public", sectionName: string): Promise<void> {
   const readmePath = path.join(root, "README.md");
   const existing = await pathExists(readmePath) ? await fs.readFile(readmePath, "utf8") : `# ${path.basename(root)}\n`;
   const sectionId = slug(sectionName || path.basename(root));
   const section = sharingSection(config, visibility, sectionName || path.basename(root), sectionId);
-  const start = `<!-- skillops:share:start:${sectionId} -->`;
-  const end = `<!-- skillops:share:end:${sectionId} -->`;
+  const start = `<!-- arcforge:share:start:${sectionId} -->`;
+  const end = `<!-- arcforge:share:end:${sectionId} -->`;
   const pattern = new RegExp(`${escapeRegExp(start)}[\\s\\S]*?${escapeRegExp(end)}`);
-  const legacyPattern = new RegExp(`${escapeRegExp("<!-- skillops:share:start -->")}[\\s\\S]*?${escapeRegExp("<!-- skillops:share:end -->")}`);
+  const legacyPattern = new RegExp(`${escapeRegExp("<!-- arcforge:share:start -->")}[\\s\\S]*?${escapeRegExp("<!-- arcforge:share:end -->")}`);
   const next = pattern.test(existing)
     ? existing.replace(pattern, section)
     : legacyPattern.test(existing)
@@ -185,17 +185,17 @@ async function writeSharingReadme(root: string, config: SkillOpsConfig, visibili
   await fs.writeFile(readmePath, next, "utf8");
 }
 
-function sharingSection(config: SkillOpsConfig, visibility: "private" | "public", sectionName: string, sectionId: string): string {
+function sharingSection(config: ArcForgeConfig, visibility: "private" | "public", sectionName: string, sectionId: string): string {
   const installRef = config.teamRepo || "github.com/<owner>/<repo>";
   const profiles = config.profiles.map((profile) => `- \`${profile.name || "unnamed"}\`: ${profile.skills.includes("*") ? "all skills" : profile.skills.join(", ") || "no skills selected"}`).join("\n");
-  return `<!-- skillops:share:start:${sectionId} -->
-## SkillOps: ${sectionName}
+  return `<!-- arcforge:share:start:${sectionId} -->
+## ArcForge: ${sectionName}
 
 Visibility: \`${visibility}\`
 
-### Use in SkillOps Desktop
+### Use in ArcForge Desktop
 
-1. Open SkillOps.
+1. Open ArcForge.
 2. Click **Add Skill project**.
 3. Enter \`${installRef}\` as the GitHub source.
 4. Choose a profile and add an application target.
@@ -210,7 +210,7 @@ ${profiles || "- No profiles configured."}
 skillshare install ${installRef} --track --all && skillshare sync
 npx skills add ${installRef}
 \`\`\`
-<!-- skillops:share:end:${sectionId} -->`;
+<!-- arcforge:share:end:${sectionId} -->`;
 }
 
 function slug(value: string): string {

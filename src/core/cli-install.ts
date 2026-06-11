@@ -31,7 +31,7 @@ export async function installCliShim(options: CliShimOptions): Promise<CliInstal
     ...status,
     shellProfilePath,
     shellProfileUpdated: Boolean(shellProfilePath),
-    message: shellProfilePath ? `${status.message} Added ${shimDir} to ${shellProfilePath}; open a new terminal to use skillops.` : status.message
+    message: shellProfilePath ? `${status.message} Added ${shimDir} to ${shellProfilePath}; open a new terminal to use arcforge.` : status.message
   };
 }
 
@@ -52,7 +52,7 @@ export async function cliInstallStatus(options: CliShimOptions & { preferredShim
 }
 
 export async function cliShimDirectory(pathValue = process.env.PATH ?? ""): Promise<string> {
-  if (process.platform === "win32") return path.join(os.homedir(), ".skillops", "bin");
+  if (process.platform === "win32") return path.join(os.homedir(), ".arcforge", "bin");
   const home = os.homedir();
   const pathEntries = pathValue.split(path.delimiter).filter(Boolean);
   for (const entry of pathEntries) {
@@ -69,7 +69,7 @@ export async function cliShimDirectory(pathValue = process.env.PATH ?? ""): Prom
 }
 
 function cliShimPath(shimDir: string): string {
-  return path.join(shimDir, process.platform === "win32" ? "skillops.cmd" : "skillops");
+  return path.join(shimDir, process.platform === "win32" ? "arcforge.cmd" : "arcforge");
 }
 
 function cliShimScript(options: CliShimOptions): string {
@@ -93,7 +93,7 @@ function normalizePath(value: string): string {
 }
 
 function statusMessage(shimExists: boolean, shimDirInPath: boolean, shimPath: string, shimDir: string): string {
-  if (shimExists && shimDirInPath) return `CLI is available as skillops via ${shimPath}.`;
+  if (shimExists && shimDirInPath) return `CLI is available as arcforge via ${shimPath}.`;
   if (shimExists) return `CLI shim exists at ${shimPath}, but ${shimDir} is not on PATH.`;
   if (shimDirInPath) return `CLI shim is missing from ${shimDir}.`;
   return `CLI shim is missing, and ${shimDir} is not on PATH.`;
@@ -102,7 +102,7 @@ function statusMessage(shimExists: boolean, shimDirInPath: boolean, shimPath: st
 async function updateShellProfile(shimDir: string): Promise<string | undefined> {
   const profilePath = shellProfilePath();
   const exportLine = `export PATH="${shimDir}:$PATH"`;
-  const block = `\n# SkillOps CLI\n${exportLine}\n`;
+  const block = `\n# ArcForge CLI\n${exportLine}\n`;
   const existing = await pathExists(profilePath) ? await fs.readFile(profilePath, "utf8") : "";
   if (!existing.includes(exportLine)) {
     await fs.writeFile(profilePath, `${existing.trimEnd()}${block}`, "utf8");

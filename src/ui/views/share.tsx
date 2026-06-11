@@ -30,8 +30,8 @@ export function Publish(props: {
   cancelSharePlan: () => void;
 }) {
   const { t } = props;
-  const [message, setMessage] = useState("Share SkillOps project");
-  const [plannedMessage, setPlannedMessage] = useState("Share SkillOps project");
+  const [message, setMessage] = useState("Share ArcForge project");
+  const [plannedMessage, setPlannedMessage] = useState("Share ArcForge project");
   const [editingGroup, setEditingGroup] = useState<ShareTargetGroup | undefined>();
   const activeGroup = props.activeTargetGroup;
   const selectedSkills = activeGroup ? selectedSkillCount(props.snapshot, activeGroup.profile) : 0;
@@ -108,7 +108,7 @@ export function Publish(props: {
           <button onClick={() => activeGroup && props.checkShareTargetDrift(activeGroup)} disabled={props.isCheckingShareDrift || !activeGroup || !activeReady}>{props.isCheckingShareDrift ? t.checkingDrift : t.checkDrift}</button>
           <button className={canShare ? "primary" : undefined} onClick={() => {
             if (!activeGroup) return;
-            const nextMessage = message.trim() || "Share SkillOps project";
+            const nextMessage = message.trim() || "Share ArcForge project";
             setPlannedMessage(nextMessage);
             props.shareProject(activeGroup, nextMessage);
           }} disabled={!canShare}>{props.isSharing ? t.sharing : t.shareNow}</button>
