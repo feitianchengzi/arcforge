@@ -63,9 +63,10 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
   assert.match(commands, /--target-dir <dir>/);
   assert.match(commands, /--target-profile <name>/);
   assert.match(commands, /The status action may fetch upstream refs/);
-  assert.match(commands, /arcforge apply \[--root <dir>\] \[--from <path-or-url>\] \[--profile <name>\] \[--skills <a,b>\] --target <dir> \[--save\] --confirm/);
+  assert.match(commands, /arcforge apply \[--root <dir>\] \[--from <path-or-url>\] \[--profile <name>\] \[--skills <a,b>\] --target <dir> \[--save\] \[--allow-unrelated-root\] --confirm/);
   assert.match(commands, /Apply writes the target directory and requires --confirm/);
   assert.match(commands, /arcforge drift \[--root <dir>\] \[--from <path-or-url>\] \[--profile <name>\] \[--skills <a,b>\] --target <dir>/);
+  assert.match(commands, /--allow-unrelated-root/);
   assert.match(commands, /--delivery <target-pr\|fork-pr\|direct-push\|local-branch>/);
   assert.match(commands, /--same-repository-remote <name>/);
   assert.match(commands, /ArcForge CLI - applied/);
@@ -247,14 +248,21 @@ test("arcforge skill models source maintenance apply and share endpoints", async
   const missing = await readFile(new URL("../skills/arcforge/references/missing-capabilities.md", import.meta.url), "utf8");
 
   assert.match(skill, /来源\/上游源、维护源、应用目标、共享目标/);
+  assert.match(skill, /临时来源 checkout，不得替代“维护源”/);
+  assert.match(skill, /关系记录归属 root/);
+  assert.match(skill, /当前 cwd 只是执行位置/);
   assert.match(skill, /source-maintenance-target-model\.md/);
   assert.match(skill, /import plan 先于 import run/);
   assert.match(agentYaml, /四类端点/);
   assert.match(agentYaml, /关系记录/);
+  assert.match(agentYaml, /关系记录归属 root/);
   assert.match(agentYaml, /Desktop Skills\/Import、Destinations 或 Share/);
   assert.match(model, /4 个端点对象、1 个关系对象、2 个选择维度/);
   assert.match(model, /共享目标不是应用目标/);
+  assert.match(model, /临时来源 checkout，不是本地维护源/);
   assert.match(model, /应用目标不应该默认变成维护源/);
+  assert.match(model, /不自动成为关系记录归属 root/);
+  assert.match(model, /既不是 `--from` 来源\/维护源，也不是 `--target` 应用目标的父级/);
   assert.match(model, /关系记录/);
   assert.match(model, /场景矩阵/);
   assert.match(model, /从远程 GitHub\/Git Skill 项目导入到当前项目维护/);
@@ -262,6 +270,10 @@ test("arcforge skill models source maintenance apply and share endpoints", async
   assert.match(model, /准备共享或发布/);
   assert.match(model, /不要用“默认目录”绕过这个检查/);
   assert.match(cli, /import --target-dir/);
+  assert.match(cli, /维护源：本轮无持久维护源/);
+  assert.match(cli, /--allow-unrelated-root/);
+  assert.match(cli, /关系记录归属 root/);
+  assert.match(cli, /\.DS_Store/);
   assert.match(cli, /共享目标/);
   assert.match(desktop, /共享目标确认场景/);
   assert.match(desktop, /Skills\/Import/);
@@ -271,6 +283,24 @@ test("arcforge skill models source maintenance apply and share endpoints", async
   assert.match(missing, /四端点端到端工作流计划/);
   assert.match(missing, /workflow plan/);
   assert.match(missing, /Fine-grained Desktop Context/);
+});
+
+test("applied relation guard blocks unrelated roots and ignores system metadata", async () => {
+  const fsCore = await readFile(new URL("../src/core/fs.ts", import.meta.url), "utf8");
+  const sourcesCore = await readFile(new URL("../src/core/sources.ts", import.meta.url), "utf8");
+  const commands = await readFile(new URL("../src/commands/index.ts", import.meta.url), "utf8");
+
+  assert.match(fsCore, /IGNORED_SYSTEM_ENTRIES/);
+  assert.match(fsCore, /\.DS_Store/);
+  assert.match(fsCore, /Thumbs\.db/);
+  assert.match(fsCore, /\.Spotlight-V100/);
+  assert.match(fsCore, /\.Trashes/);
+  assert.match(fsCore, /copyDirectory/);
+  assert.match(fsCore, /listFiles/);
+  assert.match(sourcesCore, /assertAppliedRelationRoot/);
+  assert.match(sourcesCore, /Applied source relation root is unrelated to both source and target/);
+  assert.match(sourcesCore, /allowUnrelatedRoot/);
+  assert.match(commands, /hasFlag\(args, "--allow-unrelated-root"\)/);
 });
 
 test("desktop drift diff uses file-level git status and tolerates unexpected directory entries", async () => {

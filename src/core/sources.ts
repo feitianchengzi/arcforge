@@ -31,6 +31,7 @@ export interface AppliedSourceOptions {
   targetDir?: string;
   skills?: string[];
   cacheDir?: string;
+  allowUnrelatedRoot?: boolean;
 }
 
 export interface ImportSkillsOptions {
@@ -189,6 +190,7 @@ export async function addAppliedSource(options: AppliedSourceOptions): Promise<A
   if (!options.profile) throw new Error("Applied source requires --profile.");
   if (!options.targetDir) throw new Error("Applied source requires --target.");
   const sourceRoot = await resolveSkillProjectRoot(options.from, requiredCacheDir(options.cacheDir));
+  assertAppliedRelationRoot(options.root, sourceRoot, options.targetDir, options.allowUnrelatedRoot);
   const snapshot = await scanWorkspace(sourceRoot);
   const skills = selectedSkills(snapshot.skills, snapshot.config, options.profile, options.skills).map((skill) => skill.name);
   const record = await appliedRecordFor(options.root, sourceRoot, path.basename(snapshot.root), options.profile, options.targetDir, skills, "profileApply");
@@ -233,8 +235,9 @@ export async function runAppliedSources(root: string, id: string | undefined, co
   return results;
 }
 
-export async function applyFromSource(root: string, from: string | undefined, profile: string, targetDir: string, save: boolean, skills?: string[], cacheDir?: string) {
+export async function applyFromSource(root: string, from: string | undefined, profile: string, targetDir: string, save: boolean, skills?: string[], cacheDir?: string, allowUnrelatedRoot = false) {
   const sourceRoot = from ? await resolveSkillProjectRoot(from, requiredCacheDir(cacheDir)) : path.resolve(root);
+  if (save && from) assertAppliedRelationRoot(root, sourceRoot, targetDir, allowUnrelatedRoot);
   const resolvedTargetDir = from ? path.resolve(root, targetDir) : targetDir;
   const snapshot = await scanWorkspace(sourceRoot);
   const config = skills?.length ? configWithSkillSelection(snapshot.config, profile, skills) : snapshot.config;
@@ -254,6 +257,27 @@ export async function driftFromSource(root: string, from: string | undefined, pr
 function requiredCacheDir(cacheDir?: string): string {
   if (!cacheDir) throw new Error("Cache directory is required for remote Skill projects.");
   return cacheDir;
+}
+
+function assertAppliedRelationRoot(root: string, sourceRoot: string, targetDir: string, allowUnrelatedRoot = false): void {
+  const normalizedRoot = path.resolve(root);
+  const normalizedSourceRoot = path.resolve(sourceRoot);
+  const normalizedTargetDir = path.resolve(normalizedRoot, targetDir);
+  if (isSameOrParent(normalizedRoot, normalizedSourceRoot) || isSameOrParent(normalizedRoot, normalizedTargetDir)) return;
+  if (allowUnrelatedRoot) return;
+
+  throw new Error([
+    "Applied source relation root is unrelated to both source and target.",
+    `--root: ${normalizedRoot}`,
+    `--from: ${normalizedSourceRoot}`,
+    `--target: ${normalizedTargetDir}`,
+    "Use the maintenance source root as --root for user-level agent installs, or pass --allow-unrelated-root if this relation intentionally belongs to another workspace."
+  ].join("\n"));
+}
+
+function isSameOrParent(parent: string, child: string): boolean {
+  const relative = path.relative(parent, child);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
 function selectedSkills(skills: SkillSummary[], config: ArcForgeConfig, profileName: string, skillNames?: string[]): SkillSummary[] {

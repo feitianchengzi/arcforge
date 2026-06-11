@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+const IGNORED_SYSTEM_ENTRIES = new Set([".DS_Store", "Thumbs.db", ".Spotlight-V100", ".Trashes"]);
+
 export async function pathExists(filePath: string): Promise<boolean> {
   try {
     await fs.access(filePath);
@@ -23,7 +25,7 @@ export async function copyDirectory(source: string, target: string): Promise<voi
   await fs.mkdir(target, { recursive: true });
   const entries = await fs.readdir(source, { withFileTypes: true });
   for (const entry of entries) {
-    if (entry.name === ".git") continue;
+    if (entry.name === ".git" || IGNORED_SYSTEM_ENTRIES.has(entry.name)) continue;
     const sourcePath = path.join(source, entry.name);
     const targetPath = path.join(target, entry.name);
     if (entry.isDirectory()) {
@@ -40,7 +42,7 @@ export async function listFiles(root: string): Promise<string[]> {
     if (!(await pathExists(dir))) return;
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
-      if (entry.name === ".git" || entry.name === "node_modules" || entry.name === "dist") continue;
+      if (entry.name === ".git" || entry.name === "node_modules" || entry.name === "dist" || IGNORED_SYSTEM_ENTRIES.has(entry.name)) continue;
       const filePath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         await walk(filePath);

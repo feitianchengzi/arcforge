@@ -52,10 +52,10 @@ arcforge-desktop
 - `arcforge source update [--root <dir>] --confirm`
 - `arcforge import run --root <dir> --from <path-or-url> [--profile <name>] [--skills <a,b>] [--target-dir <dir>] [--target-profile <name>] --confirm`
 - `arcforge merge run --root <dir> [--source-dir <dir>] --to <path-or-url> --target-path <dir> [--skills <a,b>] [--profile <name>] [--target <dir>] --confirm`
-- `arcforge applied add --root <dir> --from <path-or-url> --profile <name> --target <dir> [--skills <a,b>]`
+- `arcforge applied add --root <dir> --from <path-or-url> --profile <name> --target <dir> [--skills <a,b>] [--allow-unrelated-root]`
 - `arcforge applied remove <record-id> [--root <dir>]`
 - `arcforge applied run [--root <dir>] [--id <record-id>] --confirm`
-- `arcforge apply [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir> [--skills <a,b>] [--save] --confirm`
+- `arcforge apply [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir> [--skills <a,b>] [--save] [--allow-unrelated-root] --confirm`
 - `arcforge share run --root <dir> --repo <repo> [--profile <name>] [--skills <a,b>] --confirm`
 - `arcforge share run --root <dir> --same-repository [--same-repository-remote <name>] [--profile <name>] [--skills <a,b>] --confirm`
 
@@ -123,7 +123,8 @@ business-project/
 - `apply --target` 是真实写入目标。指定 `--from` 时按 `--root` 解析为目标项目内相对路径；未指定 `--from` 时可以是直接目标路径。
 - `share --repo`、`share --same-repository`、`--delivery` 和 `--branch` 描述共享目标，不是应用目标。
 - `apply --save` 会把来源、profile、目标目录和技能选择保存为 applied source record。
-- applied source state 保存在 `ARCFORGE_HOME/projects` 下的用户级项目状态中；不写入来源 checkout。临时验证时设置 `ARCFORGE_HOME=/private/tmp/<run>/.arcforge-home`。
+- applied source state 保存在 `ARCFORGE_HOME/projects` 下的用户级项目状态中；不写入来源 checkout。保存时的 `--root` 是关系记录归属 root，不只是执行 cwd。临时验证时设置 `ARCFORGE_HOME=/private/tmp/<run>/.arcforge-home`。
+- 用户级 Codex/Claude/Cursor 安装如果保存关系，`--root` 优先使用本地维护源 root。若 `--root` 既不是来源/维护源，也不是目标父级，CLI 会拒绝保存，除非显式传 `--allow-unrelated-root`。
 
 示例：归并 `project-showcase-video` 到标准技能目录时应使用：
 
@@ -230,7 +231,7 @@ arcforge share plan --root <formal-skill-project> --same-repository --profile de
 - `apply`，只要目标不是临时目录
 - `share run`
 
-确认前说明 root、source/from/to、profile、skills、targetDir/target、repository、branch、delivery method 和覆盖风险。安装、同步、迁移、应用、漂移和共享场景必须把来源/上游源、维护源、应用目标、共享目标分开说明；本轮没有的端点也要明确写“本轮无”。从 GitHub/Git/本地 Skill 项目安装到 agent 或项目目标时，ArcForge 使用 `drift` 和 `apply --save --confirm` 自己完成，不转交通用 skill installer。
+确认前说明 root、source/from/to、profile、skills、targetDir/target、repository、branch、delivery method 和覆盖风险。安装、同步、迁移、应用、漂移和共享场景必须把来源/上游源、维护源、应用目标、共享目标分开说明；本轮没有的端点也要明确写“本轮无”。远程来源安装过程中若出现 `/tmp` 或 `/private/tmp` checkout，只能写成“临时来源 checkout”，并明确它不是本地维护源；没有导入或正式化目标时写“维护源：本轮无持久维护源”。保存 applied relation 时，必须单独展示“关系记录归属 root”，并说明它不是应用目标，也不一定是当前 cwd。遇到仅 `.DS_Store`、`Thumbs.db`、`.Spotlight-V100`、`.Trashes` 等系统元数据差异时，不应执行 apply。从 GitHub/Git/本地 Skill 项目安装到 agent 或项目目标时，ArcForge 使用 `drift` 和 `apply --save --confirm` 自己完成，不转交通用 skill installer。
 
 ## 临时验证规则
 

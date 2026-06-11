@@ -134,10 +134,15 @@ Manage the current project's applied source records.
 
 Usage:
   arcforge applied list [--root <dir>]
-  arcforge applied add --from <path-or-url> --profile <name> --target <dir> [--skills <a,b>]
+  arcforge applied add --from <path-or-url> --profile <name> --target <dir> [--skills <a,b>] [--allow-unrelated-root]
   arcforge applied remove <id> [--root <dir>]
   arcforge applied drift [--root <dir>] [--id <record-id>]
   arcforge applied run [--root <dir>] [--id <record-id>] --confirm
+
+Options:
+  --allow-unrelated-root  Save the relation even when --root is not the source root
+                          and does not contain the target. Use only for intentional
+                          cross-workspace ownership.
 `,
   apply: `ArcForge CLI - apply
 
@@ -145,7 +150,7 @@ Copy a profile from another Skill project or the current workspace into a target
 This writes the application target directory; review drift and confirm the target before running on real projects.
 
 Usage:
-  arcforge apply [--root <dir>] [--from <path-or-url>] [--profile <name>] [--skills <a,b>] --target <dir> [--save] --confirm
+  arcforge apply [--root <dir>] [--from <path-or-url>] [--profile <name>] [--skills <a,b>] --target <dir> [--save] [--allow-unrelated-root] --confirm
 
 Options:
   --root <dir>          Target project root when --from is set. Defaults to current directory.
@@ -154,6 +159,8 @@ Options:
   --skills <a,b>        Skills to apply. Defaults to the selected source profile.
   --target <dir>        Application target directory. With --from, this is resolved inside --root.
   --save                Save an applied source relation for later drift/reapply.
+  --allow-unrelated-root Save the relation even when --root is not the source root
+                        and does not contain the target.
   --confirm             Required. Confirms writing the application target directory.
 `,
   drift: `ArcForge CLI - drift
@@ -241,7 +248,7 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
     }
     return {
       exitCode: 0,
-      value: await applyFromSource(root, arg(args, "--from"), profile, requiredArg(args, "--target"), hasFlag(args, "--save"), parseSkills(arg(args, "--skills")), runtime.cacheDir ?? defaultCacheDir())
+      value: await applyFromSource(root, arg(args, "--from"), profile, requiredArg(args, "--target"), hasFlag(args, "--save"), parseSkills(arg(args, "--skills")), runtime.cacheDir ?? defaultCacheDir(), hasFlag(args, "--allow-unrelated-root"))
     };
   }
 
@@ -341,7 +348,8 @@ async function runAppliedCommand(args: string[], runtime: CommandRuntime): Promi
         profile: requiredArg(args, "--profile"),
         targetDir: requiredArg(args, "--target"),
         skills: parseSkills(arg(args, "--skills")),
-        cacheDir: arg(args, "--cache-dir") ?? runtime.cacheDir ?? defaultCacheDir()
+        cacheDir: arg(args, "--cache-dir") ?? runtime.cacheDir ?? defaultCacheDir(),
+        allowUnrelatedRoot: hasFlag(args, "--allow-unrelated-root")
       })
     };
   }
