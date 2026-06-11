@@ -9,6 +9,7 @@
 - profile/destination-sync.md 依赖 profile/profile-management.md 的配置组选择结果，并读取 workspace/discovery.md 发现的共享资产。
 - share/github-sharing.md 依赖 workspace/discovery.md 的工作区快照，并复用 profile/profile-management.md 中的配置组信息生成 README 使用说明。
 - interface/agent-skill.md 通过 coding agent 解释用户意图，并编排 interface/cli.md 的结构化执行结果与 interface/desktop-app.md 的上下文 UI。
+- interface/agent-skill.md 使用 Skill First 模型创建、更新和验证目标 skill；Skill First 验证通过后只建议进入 ArcForge 治理阶段，不自动执行归并、应用、漂移、共享或远程写入。
 - interface/desktop-app.md 通过 Electron 桥接调用 workspace、audit、profile、share 和技能文件编辑功能，并可作为 Agent Skill 调度的本地 UI 层。
 - interface/cli.md 直接调用核心模块中的 workspace、audit、profile、publish-plan、source update、share、归并和应用关系能力，并为 Agent Skill 提供结构化执行层。
 

@@ -59,6 +59,22 @@ ArcForge skill 使用一个主 skill，而不是多个分散 skill。主文件 `
 
 该结构避免用户和 agent 在审计、归并、应用、漂移和共享之间选择多个入口。后续如果某个场景形成独立、稳定且高频的工作流，可以再从 reference 中拆分为独立 skill。
 
+## Skill First 能力模型
+
+Skill First 是 ArcForge 中用于创建、更新和验证 agent skill 的前段工作方式。它不替代 ArcForge 的审计、归并、配置组、应用、漂移和共享治理，也不自动串联执行 ArcForge 工作流。
+
+Skill First 把 skill 视为 agent 面向任务的能力入口，而不是单纯的 Markdown 文档目录。一个目标 skill 可以只包含 `SKILL.md` 和引用文件，也可以通过 CLI、server、UI、MCP、脚本、状态、schema、测试 fixture 和回传机制承载更完整的软件能力。
+
+用户提出一个任务时，Agent Skill 先识别该任务需要哪些 skill 入口。任务需要多个 skill 时，系统说明主 skill、辅助 skill、验证 skill 或治理 skill 的分工，并逐个定位目标 skill 来源。CLI、server、UI、MCP、脚本和内部服务不作为绕过 skill 的并行入口，它们属于某个目标 skill 的实现承载或依赖。
+
+目标 skill 的来源定位优先于实现建模。系统先检查当前 agent 的用户级目录、项目级目录和会话已加载 skill 路径，找到正式 skill 后只读取原始路径，并把完整目录复制到当前项目的 `skills/<skill-name>/` 作为工作副本。系统只修改工作副本，不直接修改正式来源。
+
+工作副本读取完成后，系统判断目标 skill 的最小完整能力形态。判断内容包括交互入口、执行层、状态层、UI handoff、结构化回传、测试方式和治理边界。实现承载可能已经存在于当前项目、其他仓库、CLI、server、Desktop/Web UI、MCP、脚本、内部服务、schema 或 fixture 中。当前 skill 目录没有某项实现时，系统不直接判定实现缺失；上下文不足且存在重复建设风险时，系统向用户索要路径、仓库、服务、命令、UI、MCP 或数据模型入口。
+
+Skill First 可以借鉴通用 `skill-creator` 的命名、frontmatter、目录结构、`scripts/references/assets` 资源组织和基础校验规则，但不会停留在标准 skill 文件夹或资源清单层。Skill First 使用真实任务和子代理反馈验证目标 skill 是否作为能力入口可用，并把发现的问题转化为 skill 文案、reference、实现承载、状态模型、UI handoff、回传机制或流程修复。
+
+Skill First 完成目标 skill 验证后，只说明建议进入的 ArcForge 治理阶段，例如 scan、audit、merge plan、profile、apply、drift 或 publish/share plan。ArcForge 治理动作仍由 ArcForge skill 按确认规则执行。
+
 ## CLI 能力分工
 
 CLI 是 Agent Skill 的结构化执行层。当前闭环复用已有命令：扫描、审计、应用关系、归并计划、归并执行、配置组应用、漂移检查、发布计划、共享计划、共享执行和来源状态检查。

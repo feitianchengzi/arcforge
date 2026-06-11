@@ -8,6 +8,6 @@
 | profile/profile-management.md | 🟢 已实现 | 为项目维护多组技能集合并保存配置 | README、src/shared/types.ts、src/core/profiles.ts、src/ui/main.tsx |
 | profile/destination-sync.md | 🟢 已实现 | 把配置组应用到 Agent、项目内 Agent 或自定义目录并检测漂移 | README、src/core/profiles.ts、src/electron/main.ts、src/ui/main.tsx |
 | share/github-sharing.md | 🟢 已实现 | 下载 GitHub Skill 项目，生成发布计划，检测权限并共享到 Git 仓库或创建 PR | README、docs/comparison.md、src/core/publish.ts、src/electron/main.ts |
-| interface/agent-skill.md | ⚪ 计划中 | 在项目目录中通过 ArcForge skill 把项目内 skill 归并为正式来源、同步到其他项目并共享到远程仓库 | 用户产品方向讨论、skills/arcforge/SKILL.md、interface/cli.md、interface/desktop-app.md |
+| interface/agent-skill.md | ⚪ 计划中 | 在项目目录中通过 ArcForge skill 把项目内 skill 归并为正式来源，并用 Skill First 建模和验证软件能力单元 | 用户产品方向讨论、skills/arcforge/SKILL.md、skills/arcforge-skill-first/SKILL.md、interface/cli.md、interface/desktop-app.md |
 | interface/desktop-app.md | 🟢 已实现 | 作为本地 UI 层完成项目、技能文件编辑、审计、配置组、目标、漂移和共享操作 | src/ui/main.tsx、src/ui/i18n.ts、src/electron/preload.cts |
 | interface/cli.md | 🟢 已实现 | 作为结构化执行层支持终端、CI 和 Agent Skill 编排扫描、审计、归并、共享、漂移和应用 | README、src/cli/index.ts、src/commands/index.ts |

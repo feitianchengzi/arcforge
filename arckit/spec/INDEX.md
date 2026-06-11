@@ -14,6 +14,6 @@
 - share/ 共享发布：生成发布计划、检测 GitHub 权限、同步到 GitHub 仓库并创建 PR。🟢
   - github-sharing.md GitHub 共享：解析来源地址、下载项目、生成发布清单、检查共享漂移、确定交付方式并推送或创建 PR。🟢 (171行)
 - interface/ 使用界面：Agent Skill 编排 CLI 与桌面 UI，暴露扫描、审计、归并、应用、漂移和共享工作流。🟡
-  - agent-skill.md Agent Skill 接口：以项目内 coding agent 为默认入口，编排 CLI 执行与桌面 UI 调度。⚪ (102行)
+  - agent-skill.md Agent Skill 接口：以项目内 coding agent 为默认入口，编排 CLI、桌面 UI 与 Skill First 能力单元建模。⚪ (118行)
   - desktop-app.md 桌面应用：本地 UI 层，支持项目列表、技能编辑、审计、配置组、目标、漂移和共享页面。🟢 (161行)
   - cli.md 命令行接口：结构化执行层，支持扫描、审计、Git 检查、归并、共享、漂移、应用和 agent 编排。🟢 (139行)
