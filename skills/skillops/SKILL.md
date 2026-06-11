@@ -1,6 +1,6 @@
 ---
 name: skillops
-description: 当用户自然语言提到 agent skills/技能的本地管理或治理时使用，包括扫描、审计或优化 SKILL.md/技能描述，整理 .codex/.claude/.cursor skills，沉淀正式 Skill 项目，维护团队或项目 profile，团队复用/共享，应用、安装或同步到本地 agent 或项目目标，检查来源与已安装副本漂移，准备 GitHub/ClawHub/OpenClaw 发布前清单，或判断相关工作流应走 CLI 还是 Desktop。
+description: 当用户明确要管理 agent skills 的来源、安装、同步、共享、发布准备、profile 归类、漂移检查，或做安全/结构审计时使用。适用于扫描本地 skill 仓库，整理 .codex/.claude/.cursor skills，沉淀正式 Skill 项目，维护团队或项目 profile，应用、安装或同步到本地 agent 或项目目标，检查来源与已安装副本漂移，准备 GitHub/ClawHub/OpenClaw 发布清单，或判断相关工作流应走 CLI 还是 Desktop。不要因普通功能开发、bug 修复、业务流程优化、技术栈编码建议、工程实践内容修改，或仅提到 skill、engineering、code、SwiftUI 等词而触发；除非用户关注的是 skill 的来源、安装、同步、共享、发布、安全或治理状态。
 ---
 
 # SkillOps
