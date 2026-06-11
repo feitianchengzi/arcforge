@@ -11,6 +11,7 @@ test("arcforge install skill defines source install boundaries", async () => {
   const zhReadme = await readFile(new URL("../docs/zh-CN/README.md", import.meta.url), "utf8");
   const arcforgeDesktopRouting = await readFile(new URL("../skills/arcforge/references/desktop-routing.md", import.meta.url), "utf8");
   const arcforgeCliOrchestration = await readFile(new URL("../skills/arcforge/references/cli-orchestration.md", import.meta.url), "utf8");
+  const cliInstall = await readFile(new URL("../src/core/cli-install.ts", import.meta.url), "utf8");
 
   assert.match(skill, /name: arcforge-install/);
   assert.match(skill, /skills\/arcforge/);
@@ -34,6 +35,11 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(skill, /写入当前仓库的 `dist\/`/);
   assert.match(skill, /写入 `dist-ui\/`/);
   assert.match(skill, /不要把这个安装流程描述成 marketplace/);
+  assert.match(skill, /持久 PATH/);
+  assert.match(skill, /agent 注入的临时 PATH/);
+  assert.match(skill, /command -v arcforge-desktop/);
+  assert.match(skill, /PATH warning/);
+  assert.match(skill, /arcforge audit --root \./);
   assert.match(agentYaml, /\$arcforge-install/);
   assert.match(agentYaml, /arcforge-skill-first/);
   assert.match(agentYaml, /--home\/--shim-dir/);
@@ -41,6 +47,9 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(agentYaml, /--verify/);
   assert.match(agentYaml, /arcforge-desktop launcher/);
   assert.match(agentYaml, /不要使用 --update-path/);
+  assert.match(agentYaml, /普通新终端可用/);
+  assert.match(agentYaml, /node_modules vendor/);
+  assert.match(agentYaml, /PATH warning/);
 
   assert.match(script, /skills\/arcforge-skill-first\/SKILL\.md/);
   assert.match(script, /installedSkillNames = \["arcforge", "arcforge-skill-first"\]/);
@@ -64,7 +73,15 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(script, /Stage: \$\{currentStage\}/);
   assert.match(script, /path\.join\(installHome/);
   assert.match(script, /updatePersistentPath/);
+  assert.match(script, /isTransientAgentShimDir/);
+  assert.match(script, /codex-path/);
+  assert.match(script, /\.local", "bin"/);
+  assert.match(script, /optional: true/);
+  assert.match(script, /Desktop command directory on PATH/);
   assert.doesNotMatch(script, /git push|gh pr|release upload/);
+  assert.match(cliInstall, /isTransientAgentShimDir/);
+  assert.match(cliInstall, /codex-path/);
+  assert.match(cliInstall, /\.local", "bin"/);
 
   assert.match(readme, /从当前仓库安装 ArcForge/);
   assert.match(readme, /arcforge-skill-first/);

@@ -222,18 +222,20 @@ async function verifyInstall(options) {
   const checks = [];
   await addPathCheck(checks, "CLI shim exists", options.cli.shimPath);
   if (process.platform !== "win32") await addExecutableCheck(checks, "CLI shim executable", options.cli.shimPath);
+  checks.push({ label: "CLI command directory on PATH", path: options.cli.shimDir, ok: pathInPath(options.cli.shimDir), optional: true });
   await addPathCheck(checks, "CLI entry exists", path.join(repoRoot, "dist", "cli", "index.js"));
 
   if (options.desktopRequired) {
     await addPathCheck(checks, "Desktop launcher exists", options.desktop.launcherPath);
     if (process.platform !== "win32") await addExecutableCheck(checks, "Desktop launcher executable", options.desktop.launcherPath);
+    checks.push({ label: "Desktop command directory on PATH", path: options.cli.shimDir, ok: pathInPath(options.cli.shimDir), optional: true });
     await addPathCheck(checks, "Electron launcher exists", path.join(repoRoot, "node_modules", "electron", "cli.js"));
     await addPathCheck(checks, "Desktop main build exists", path.join(repoRoot, "dist", "electron", "main.js"));
     await addPathCheck(checks, "Desktop UI build exists", path.join(repoRoot, "dist-ui", "index.html"));
   }
 
   return {
-    ok: checks.every((check) => check.ok),
+    ok: checks.every((check) => check.ok || check.optional),
     checks
   };
 }
@@ -255,13 +257,25 @@ async function chooseShimDir() {
   if (explicitShimDir) return explicitShimDir;
   if (installHome !== os.homedir()) return path.join(installHome, ".local", "bin");
   if (process.platform === "win32") return path.join(installHome, ".arcforge", "bin");
+  const durableUserDirs = [path.join(installHome, ".local", "bin"), path.join(installHome, "bin")];
+  for (const dirPath of durableUserDirs) {
+    if (pathInPath(dirPath) || await pathExists(dirPath)) return dirPath;
+  }
   const pathEntries = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
   for (const entry of pathEntries) {
     const resolved = path.resolve(entry);
     if (!resolved.startsWith(os.homedir())) continue;
+    if (isTransientAgentShimDir(resolved)) continue;
     if (await isWritableDirectory(resolved)) return resolved;
   }
   return path.join(installHome, ".local", "bin");
+}
+
+function isTransientAgentShimDir(dirPath) {
+  const normalized = normalizePath(dirPath);
+  return normalized.includes(`${path.sep}.codex${path.sep}tmp${path.sep}`)
+    || normalized.includes(`${path.sep}node_modules${path.sep}@openai${path.sep}codex${path.sep}`)
+    || path.basename(normalized) === "codex-path";
 }
 
 async function updatePersistentPath(shimDir) {
@@ -359,7 +373,8 @@ function printSummary(value) {
 function printVerifySummary(value) {
   console.log("\nArcForge install verification");
   for (const check of value.checks) {
-    console.log(`${check.ok ? "ok" : "missing"} - ${check.label}: ${check.path}`);
+    const status = check.ok ? "ok" : check.optional ? "warn" : "missing";
+    console.log(`${status} - ${check.label}: ${check.path}`);
   }
 }
 

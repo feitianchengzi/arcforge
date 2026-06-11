@@ -54,10 +54,15 @@ export async function cliInstallStatus(options: CliShimOptions & { preferredShim
 export async function cliShimDirectory(pathValue = process.env.PATH ?? ""): Promise<string> {
   if (process.platform === "win32") return path.join(os.homedir(), ".arcforge", "bin");
   const home = os.homedir();
+  const durableUserDirs = [path.join(home, ".local", "bin"), path.join(home, "bin")];
+  for (const dirPath of durableUserDirs) {
+    if (pathInPath(dirPath, pathValue) || await pathExists(dirPath)) return dirPath;
+  }
   const pathEntries = pathValue.split(path.delimiter).filter(Boolean);
   for (const entry of pathEntries) {
     const resolvedEntry = path.resolve(entry);
     if (resolvedEntry !== home && !resolvedEntry.startsWith(`${home}${path.sep}`)) continue;
+    if (isTransientAgentShimDir(resolvedEntry)) continue;
     try {
       await fs.access(resolvedEntry, fsConstants.W_OK);
       return resolvedEntry;
@@ -66,6 +71,13 @@ export async function cliShimDirectory(pathValue = process.env.PATH ?? ""): Prom
     }
   }
   return path.join(home, ".local", "bin");
+}
+
+function isTransientAgentShimDir(dirPath: string): boolean {
+  const normalized = normalizePath(dirPath);
+  return normalized.includes(`${path.sep}.codex${path.sep}tmp${path.sep}`)
+    || normalized.includes(`${path.sep}node_modules${path.sep}@openai${path.sep}codex${path.sep}`)
+    || path.basename(normalized) === "codex-path";
 }
 
 function cliShimPath(shimDir: string): string {
