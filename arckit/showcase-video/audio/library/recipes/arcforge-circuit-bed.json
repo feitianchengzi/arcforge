@@ -1,0 +1,36 @@
+{
+  "id": "arcforge-circuit-bed",
+  "title": "ArcForge Circuit Bed",
+  "duration": 37.2,
+  "bpm": 118,
+  "key": "D minor",
+  "structure": [
+    {
+      "start": 0,
+      "label": "intro pulse"
+    },
+    {
+      "start": 6,
+      "label": "main bed with arpeggio"
+    },
+    {
+      "start": 18,
+      "label": "higher motion and release prep lift"
+    },
+    {
+      "start": 30,
+      "label": "outro and resolved handoff"
+    }
+  ],
+  "layers": [
+    "kick",
+    "snare",
+    "hat",
+    "bass",
+    "minor pad",
+    "pluck melody",
+    "transition risers",
+    "impacts"
+  ],
+  "sourceMethod": "Deterministic local JavaScript synthesis, no external samples or services."
+}

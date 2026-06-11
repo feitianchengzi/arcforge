@@ -1,0 +1,91 @@
+{
+  "assets": [
+    {
+      "id": "arcforge-circuit-bed",
+      "title": "ArcForge Circuit Bed",
+      "duration": 37.2,
+      "bpm": 118,
+      "key": "D minor",
+      "moodTags": [
+        "modern",
+        "restrained",
+        "technical",
+        "focused"
+      ],
+      "sourceMethod": "Deterministic local JavaScript synthesis, no external samples or services.",
+      "paths": {
+        "library": "arckit/showcase-video/audio/library/music/arcforge-circuit-bed.wav",
+        "currentOutput": "arckit/showcase-video/audio/output/arcforge-promo-bed.wav",
+        "recipe": "arckit/showcase-video/audio/library/recipes/arcforge-circuit-bed.json"
+      },
+      "license": "Project-local original asset generated for ArcForge.",
+      "reuseRecommendation": "Use as a restrained background bed for ArcForge promo or release videos."
+    },
+    {
+      "id": "arcforge-signal-bed",
+      "title": "ArcForge Signal Bed",
+      "duration": 18.4,
+      "bpm": 104,
+      "key": "F major / D minor",
+      "moodTags": [
+        "calm",
+        "technical",
+        "focused",
+        "polished",
+        "restrained"
+      ],
+      "sourceMethod": "Deterministic local JavaScript synthesis, no external samples or services.",
+      "paths": {
+        "library": "arckit/showcase-video/audio/library/music/arcforge-signal-bed.wav",
+        "currentOutput": "arckit/showcase-video/audio/output/arcforge-promo-signal-bed.wav",
+        "recipe": "arckit/showcase-video/audio/library/recipes/arcforge-signal-bed.json"
+      },
+      "license": "Project-local original asset generated for ArcForge.",
+      "reuseRecommendation": "Use as a calmer background bed for ArcForge promo videos when the visual motion should stay primary."
+    },
+    {
+      "id": "arcforge-neon-drive-bed",
+      "title": "ArcForge Neon Drive Bed",
+      "duration": 18.4,
+      "bpm": 132,
+      "key": "A minor / C major",
+      "moodTags": [
+        "neon",
+        "melodic",
+        "dynamic",
+        "polished",
+        "electronic"
+      ],
+      "sourceMethod": "Deterministic local JavaScript synthesis, composed as a new cue for the ArcForge animation.",
+      "paths": {
+        "library": "arckit/showcase-video/audio/library/music/arcforge-neon-drive-bed.wav",
+        "currentOutput": "arckit/showcase-video/audio/output/arcforge-promo-neon-drive-bed.wav",
+        "recipe": "arckit/showcase-video/audio/library/recipes/arcforge-neon-drive-bed.json"
+      },
+      "license": "Project-local original asset generated for ArcForge.",
+      "reuseRecommendation": "Use when the ArcForge promo needs a melodic, energetic electronic bed that still follows the SKILL.md motion."
+    },
+    {
+      "id": "arcforge-clean-drive-bed",
+      "title": "ArcForge Clean Drive Bed",
+      "duration": 18.4,
+      "bpm": 116,
+      "key": "E minor / G major",
+      "moodTags": [
+        "clean",
+        "focused",
+        "dynamic",
+        "minimal",
+        "polished"
+      ],
+      "sourceMethod": "Deterministic local JavaScript synthesis, composed as a cleaner less busy cue for the ArcForge animation.",
+      "paths": {
+        "library": "arckit/showcase-video/audio/library/music/arcforge-clean-drive-bed.wav",
+        "currentOutput": "arckit/showcase-video/audio/output/arcforge-promo-clean-drive-bed.wav",
+        "recipe": "arckit/showcase-video/audio/library/recipes/arcforge-clean-drive-bed.json"
+      },
+      "license": "Project-local original asset generated for ArcForge.",
+      "reuseRecommendation": "Use when the ArcForge promo needs movement without busy melodic or percussive clutter."
+    }
+  ]
+}

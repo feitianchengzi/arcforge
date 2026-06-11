@@ -1,0 +1,7 @@
+interface:
+  display_name: "Project Showcase Video"
+  short_description: "生成项目展示 GIF、宣传视频和可复用音乐床"
+  default_prompt: "Use $project-showcase-video to understand this repository, confirm a showcase story, pause for visual preview approval, then generate a local software showcase GIF or promo video with background music when useful."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,107 @@
+{
+  "app": {
+    "owner": "Electron",
+    "title": "ArcForge",
+    "statePath": "~/Library/Application Support/ArcForge/state.json",
+    "reloadAfterLocaleChange": true
+  },
+  "gif": {
+    "width": 1280,
+    "height": 800,
+    "frameSeconds": 1,
+    "fps": 10
+  },
+  "readme": {
+    "replaceImageAltContains": "ArcForge"
+  },
+  "window": {
+    "activateDelayMs": 600,
+    "afterClickDelayMs": 700,
+    "reloadDelayMs": 1600
+  },
+  "frames": [
+    {
+      "id": "overview",
+      "click": {
+        "x": 368,
+        "y": 228
+      }
+    },
+    {
+      "id": "skills",
+      "click": {
+        "x": 444,
+        "y": 228
+      }
+    },
+    {
+      "id": "config-groups",
+      "click": {
+        "x": 528,
+        "y": 228
+      }
+    },
+    {
+      "id": "apply-targets",
+      "click": {
+        "x": 625,
+        "y": 228
+      }
+    },
+    {
+      "id": "share",
+      "click": {
+        "x": 715,
+        "y": 228
+      }
+    },
+    {
+      "id": "audit",
+      "click": {
+        "x": 794,
+        "y": 228
+      }
+    }
+  ],
+  "variants": [
+    {
+      "locale": "en",
+      "label": "English",
+      "output": "arckit/showcase-video/output/arcforge-desktop-demo-en.gif",
+      "framesDir": "arckit/showcase-video/frames/desktop-en",
+      "readme": "README.md",
+      "readmeAlt": "ArcForge desktop demo"
+    },
+    {
+      "locale": "zh-CN",
+      "label": "简体中文",
+      "output": "arckit/showcase-video/output/arcforge-desktop-demo-zh-CN.gif",
+      "framesDir": "arckit/showcase-video/frames/desktop-zh-CN",
+      "readme": "docs/zh-CN/README.md",
+      "readmeAlt": "ArcForge 桌面端演示"
+    }
+  ],
+  "backends": {
+    "defaultPromo": "html-animation",
+    "realUiDemo": "screenshot-gif",
+    "advancedReusableVideo": "remotion",
+    "fallback": "svg-png-frames"
+  },
+  "htmlVideo": {
+    "name": "arcforge-promo",
+    "source": "arckit/showcase-video/html/promo/index.html",
+    "captureScript": "arckit/showcase-video/scripts/capture-html-promo.sh",
+    "framesDir": "arckit/showcase-video/frames/html-promo",
+    "silentOutput": "arckit/showcase-video/output/arcforge-promo-silent.mp4",
+    "musicScript": "arckit/showcase-video/scripts/generate-promo-music.cjs",
+    "musicBed": "arckit/showcase-video/audio/output/arcforge-promo-bed.wav",
+    "muxScript": "arckit/showcase-video/scripts/mux-promo-audio.sh",
+    "finalOutput": "arckit/showcase-video/output/arcforge-promo.mp4",
+    "spec": {
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "durationSeconds": 18
+    }
+  }
+}

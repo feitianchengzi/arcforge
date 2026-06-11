@@ -1,0 +1,43 @@
+{
+  "id": "arcforge-neon-drive-bed",
+  "title": "ArcForge Neon Drive Bed",
+  "duration": 18.4,
+  "bpm": 132,
+  "key": "A minor / C major",
+  "syncPoints": [
+    2.2,
+    4.333,
+    6.467,
+    8.6,
+    10.733,
+    12.867,
+    15
+  ],
+  "structure": [
+    {
+      "start": 0,
+      "label": "logo lift"
+    },
+    {
+      "start": 2.2,
+      "label": "main groove enters on Source"
+    },
+    {
+      "start": 8.6,
+      "label": "brighter hook layer on Profile"
+    },
+    {
+      "start": 15,
+      "label": "release outro lock"
+    }
+  ],
+  "layers": [
+    "wide synth chords",
+    "sidechained bass",
+    "punchy drums",
+    "spark hook",
+    "muted rhythmic plucks",
+    "stage lifts"
+  ],
+  "sourceMethod": "Deterministic local JavaScript synthesis, composed as a new cue for the ArcForge animation."
+}

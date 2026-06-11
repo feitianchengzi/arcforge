@@ -1,0 +1,44 @@
+{
+  "id": "arcforge-clean-drive-bed",
+  "title": "ArcForge Clean Drive Bed",
+  "duration": 18.4,
+  "bpm": 116,
+  "key": "E minor / G major",
+  "syncPoints": [
+    2.2,
+    4.333,
+    6.467,
+    8.6,
+    10.733,
+    12.867,
+    15
+  ],
+  "structure": [
+    {
+      "start": 0,
+      "label": "quiet intro pulse"
+    },
+    {
+      "start": 2.2,
+      "label": "clean main groove"
+    },
+    {
+      "start": 8.6,
+      "label": "subtle melodic lift"
+    },
+    {
+      "start": 15,
+      "label": "resolved outro"
+    }
+  ],
+  "layers": [
+    "warm pad",
+    "simple bass",
+    "four-on-floor kick",
+    "soft snare",
+    "light hats",
+    "minimal pluck",
+    "subtle stage marks"
+  ],
+  "sourceMethod": "Deterministic local JavaScript synthesis, composed as a cleaner less busy cue for the ArcForge animation."
+}

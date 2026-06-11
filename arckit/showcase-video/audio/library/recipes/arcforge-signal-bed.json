@@ -1,0 +1,34 @@
+{
+  "id": "arcforge-signal-bed",
+  "title": "ArcForge Signal Bed",
+  "duration": 18.4,
+  "bpm": 104,
+  "key": "F major / D minor",
+  "structure": [
+    {
+      "start": 0,
+      "label": "soft intro"
+    },
+    {
+      "start": 3,
+      "label": "main governance pulse"
+    },
+    {
+      "start": 10,
+      "label": "subtle lift"
+    },
+    {
+      "start": 16,
+      "label": "clean outro"
+    }
+  ],
+  "layers": [
+    "warm pad",
+    "soft bass",
+    "muted kick",
+    "light pulse",
+    "glass motif",
+    "transition breaths"
+  ],
+  "sourceMethod": "Deterministic local JavaScript synthesis, no external samples or services."
+}

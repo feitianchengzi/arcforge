@@ -52,7 +52,7 @@ Examples:
   arcforge source status --root .
   arcforge source update --root . --confirm
   arcforge merge plan --root . --to ../team-skills --skills review --target-path skills/project-a
-  arcforge merge plan --root . --source-dir .codex/skills --to ../team-skills --skills project-demo-video --target-path skills
+  arcforge merge plan --root . --source-dir .codex/skills --to ../team-skills --skills project-showcase-video --target-path skills
   arcforge merge run --root . --to github.com/acme/team-skills --skills review --target-path skills/project-a --confirm
   arcforge applied drift --root .
   arcforge apply --from ../team-skills --profile default --target ~/.codex/skills

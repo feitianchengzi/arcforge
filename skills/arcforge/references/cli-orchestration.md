@@ -121,13 +121,13 @@ business-project/
 - `apply --save` 会把来源、profile、目标目录和技能选择保存为 applied source record。
 - applied source state 保存在 `ARCFORGE_HOME/projects` 下的用户级项目状态中；不写入来源 checkout。临时验证时设置 `ARCFORGE_HOME=/private/tmp/<run>/.arcforge-home`。
 
-示例：归并 `project-demo-video` 到标准技能目录时应使用：
+示例：归并 `project-showcase-video` 到标准技能目录时应使用：
 
 ```bash
-arcforge merge plan --root . --source-dir .codex/skills --to ../team-skills --skills project-demo-video --target-path skills --profile default --target .codex/skills
+arcforge merge plan --root . --source-dir .codex/skills --to ../team-skills --skills project-showcase-video --target-path skills --profile default --target .codex/skills
 ```
 
-不要使用 `--target-path skills/project-demo-video`，否则会生成 `skills/project-demo-video/project-demo-video`。
+不要使用 `--target-path skills/project-showcase-video`，否则会生成 `skills/project-showcase-video/project-showcase-video`。
 
 ## 常用编排
 
