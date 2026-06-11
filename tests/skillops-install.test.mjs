@@ -14,7 +14,9 @@ test("skillops install skill defines source install boundaries", async () => {
 
   assert.match(skill, /name: skillops-install/);
   assert.match(skill, /skills\/skillops/);
+  assert.match(skill, /skills\/skillops-skill-first/);
   assert.match(skill, /~\/\.codex\/skills\/skillops/);
+  assert.match(skill, /~\/\.codex\/skills\/skillops-skill-first/);
   assert.match(skill, /skillops-desktop/);
   assert.match(skill, /--desktop install/);
   assert.match(skill, /--desktop build/);
@@ -33,13 +35,15 @@ test("skillops install skill defines source install boundaries", async () => {
   assert.match(skill, /写入 `dist-ui\/`/);
   assert.match(skill, /不要把这个安装流程描述成 marketplace/);
   assert.match(agentYaml, /\$skillops-install/);
+  assert.match(agentYaml, /skillops-skill-first/);
   assert.match(agentYaml, /--home\/--shim-dir/);
   assert.match(agentYaml, /--npm-cache/);
   assert.match(agentYaml, /--verify/);
   assert.match(agentYaml, /skillops-desktop launcher/);
   assert.match(agentYaml, /不要使用 --update-path/);
 
-  assert.match(script, /skills", "skillops"/);
+  assert.match(script, /skills\/skillops-skill-first\/SKILL\.md/);
+  assert.match(script, /installedSkillNames = \["skillops", "skillops-skill-first"\]/);
   assert.match(script, /"build:cli"/);
   assert.match(script, /"run", "build"/);
   assert.match(script, /"run", "package"/);
@@ -52,7 +56,7 @@ test("skillops install skill defines source install boundaries", async () => {
   assert.match(script, /Electron launcher exists/);
   assert.match(script, /skillops-desktop/);
   assert.match(script, /Desktop launcher/);
-  assert.match(script, /"\.codex", "skills", "skillops"/);
+  assert.match(script, /"\.codex", "skills", skillName/);
   assert.match(script, /installHome/);
   assert.match(script, /explicitShimDir/);
   assert.match(script, /dryRun/);
@@ -63,12 +67,15 @@ test("skillops install skill defines source install boundaries", async () => {
   assert.doesNotMatch(script, /git push|gh pr|release upload/);
 
   assert.match(readme, /从当前仓库安装 SkillOps/);
+  assert.match(readme, /skillops-skill-first/);
   assert.match(readme, /\[English\]\(docs\/en\/README\.md\)/);
   assert.match(readme, /skills\/skillops-install/);
   assert.match(readme, /skillops-desktop/);
   assert.match(enReadme, /Install SkillOps From This Repository/);
+  assert.match(enReadme, /skillops-skill-first/);
   assert.match(enReadme, /\[简体中文\]\(\.\.\/\.\.\/README\.md\)/);
   assert.match(zhReadme, /从当前仓库安装 SkillOps/);
+  assert.match(zhReadme, /skillops-skill-first/);
   assert.match(zhReadme, /\[English\]\(\.\.\/en\/README\.md\)/);
   assert.match(zhReadme, /skills\/skillops-install/);
   assert.match(zhReadme, /skillops-desktop/);

@@ -82,7 +82,7 @@ skillops-desktop
 
 如果 `skillops-desktop` 不在 PATH，先让用户运行安装脚本输出的 Desktop launcher 绝对路径；不要把 Desktop 说成已安装。
 
-当前没有稳定公开的 CLI context routing 命令可以保证直接打开指定项目和页面。产品期望支持类似：
+当前没有稳定公开的 CLI context routing 命令，不能保证直接打开指定页面或指定项目。产品期望支持类似：
 
 ```bash
 skillops desktop --root <project> --page <overview|skills|profiles|destinations|share|audit> \

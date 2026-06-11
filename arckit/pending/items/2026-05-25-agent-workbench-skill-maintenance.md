@@ -55,7 +55,6 @@ A lightweight command panel or task runner appears more aligned than a full term
 
 - The Agent should operate through the Electron main process or command layer, not directly from the React renderer.
 - The renderer should receive streamed output, status, exit code, and diff metadata through a narrow IPC contract.
-- The initial scope should preserve SkillOps as a local-first, GitHub-first pre-publish and team-governance layer.
+- The initial scope should preserve SkillOps as a local-first, GitHub-first skill lifecycle governance layer, not a general agent runtime.
 
 ## Outcome
-

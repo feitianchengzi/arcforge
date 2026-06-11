@@ -2,13 +2,13 @@
 
 [简体中文](../../README.md)
 
-SkillOps is a local-first, GitHub-first skill governance workspace designed to be used by coding agents.
+SkillOps is a local-first, GitHub-first skill lifecycle governance workspace designed to be used by coding agents.
 
-It helps individuals and small teams scan, audit, group, apply, drift-check, and prepare skills before they are copied into agents, shared with a team, or published publicly. The CLI and Desktop app are tools the agent can call; they are not the primary interface users should have to memorize.
+It helps individuals and small teams move skills from authoring and validation through audit, grouping, apply, drift checks, and release preparation before they are shared with a team or published publicly. The CLI and Desktop app are tools the agent can call; they are not the primary interface users should have to memorize.
 
 ![SkillOps governance concept](../assets/skillops-overview.svg)
 
-## Quick Start
+## Install SkillOps From This Repository
 
 The recommended way to install SkillOps is to hand this repository to a coding agent, not to start by manually running CLI commands.
 
@@ -22,7 +22,7 @@ The recommended way to install SkillOps is to hand this repository to a coding a
 
 The install skill uses the current source checkout to:
 
-- Install `skills/skillops/` into the current agent's user-level skill directory.
+- Install `skills/skillops/` and `skills/skillops-skill-first/` into the current agent's user-level skill directory.
 - Build the local `skillops` CLI shim.
 - Install a `skillops-desktop` launcher that the agent can open when needed.
 - Run headless verification when GUI launch is unavailable.
@@ -31,6 +31,7 @@ After installation, open any project in your coding agent and ask the agent to u
 
 ```text
 Use skillops to scan the current project's skills.
+Use skillops-skill-first to turn this workflow into a skill and validate it with a sub-agent.
 Use skillops to audit these skills for team sharing.
 Use skillops to apply the frontend profile to Codex.
 Use skillops to check drift between installed copies and the source repository.
@@ -47,7 +48,7 @@ Only add `--update-path` when you explicitly want the script to modify your shel
 
 ## Why This Exists
 
-SkillOps started from a specific local workflow need: I wanted a lightweight governance layer before skills are copied into agents, shared with a team, or prepared for public release.
+SkillOps started from a specific local workflow need: I wanted a lightweight governance layer before skills are copied into agents, shared with a team, or prepared for public release. With Skill First now part of the core lifecycle, SkillOps also covers how a skill moves from authoring and validation into audit, formalization, and adoption.
 
 That layer should not replace agents, become a marketplace, or bypass GitHub. It should help agents and users inspect source skills locally, fix them, group them, record provenance, and then hand them to existing agents, installers, GitHub, or ClawHub/OpenClaw.
 
@@ -60,12 +61,13 @@ SkillOps is not a skill marketplace, public registry, search engine, ratings sys
 SkillOps owns the work before distribution:
 
 ```text
-discover source skills -> audit -> profile -> apply -> drift check -> release prep
+author/iterate skill -> sub-agent validation -> audit -> profile -> apply -> drift check -> release prep
 ```
 
 It answers questions like:
 
 - Which skills are approved for this project or team?
+- Has a working pattern been captured as a reusable skill and validated on a real task?
 - Can the source skills be inspected and fixed before applying them to an agent?
 - Is a project-born skill worth moving into a formal Skill project?
 - Did an installed copy drift from the GitHub or local source of truth?
@@ -83,7 +85,8 @@ The new usage model is agent-first:
 | Part | Role |
 |---|---|
 | `skills/skillops-install` | Lets a user clone this repository and complete local installation through a coding agent. |
-| `skillops` skill | The natural-language workflow entry point in any later project. |
+| `skillops-skill-first` skill | Captures a working pattern as a skill and validates it with sub-agent preflight/retest loops. |
+| `skillops` skill | The governance workflow entry point for audit, formalization, profiles, apply, drift, and release prep. |
 | CLI | The reproducible execution layer the agent calls for scan, audit, apply, drift, share, and JSON results. |
 | Desktop | The local workspace the agent opens for visual review, file editing, batch selection, conflict review, or full drift diffs. |
 | GitHub | The source of truth for skill review, versioning, releases, and access control. |
@@ -94,6 +97,7 @@ Typical flow:
 ```text
 ask the agent to execute skills/skillops-install inside the SkillOps repo
 -> open the target project in a coding agent
+-> use skillops-skill-first when a skill needs to be authored or improved first
 -> ask the agent to use skillops to scan or audit local skills
 -> merge reusable project-born skills into a formal Skill project
 -> apply an approved profile into an agent or project target

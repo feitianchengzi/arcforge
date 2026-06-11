@@ -22,6 +22,14 @@ node dist/cli/index.js <command>
 npm run build:cli
 ```
 
+Desktop launcher 安装后优先使用：
+
+```bash
+skillops-desktop
+```
+
+如果 `skillops-desktop` 不在 PATH，使用安装脚本输出的 launcher 绝对路径；不要把它说成已经可直接调用。
+
 ## 原子命令表
 
 查询、计划或诊断命令：

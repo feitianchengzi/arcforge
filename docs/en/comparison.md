@@ -7,14 +7,14 @@ SkillOps is not a registry, marketplace, package manager, installer, MCP registr
 It is a local-first governance layer for `SKILL.md` repositories:
 
 ```text
-source skills -> audit -> profiles -> apply targets -> drift checks -> release prep
+author/iterate skills -> sub-agent validation -> audit -> profiles -> apply targets -> drift checks -> release prep
 ```
 
 ## Quick Map
 
 | Neighbor | Primary job | Why it can look similar | SkillOps boundary |
 |---|---|---|---|
-| [skillshare](https://github.com/runkids/skillshare) | Sync skills, agents, rules, commands, and related files across many AI CLI tools. | It also works with multiple agents and supports team sharing/security checks. | SkillOps should stay upstream: approved profiles, review gates, drift reports, and release prep. Delegate installation/sync where possible. |
+| [skillshare](https://github.com/runkids/skillshare) | Sync skills, agents, rules, commands, and related files across many AI CLI tools. | It also works with multiple agents and supports team sharing/security checks. | SkillOps should stay upstream: Skill First validation, approved profiles, review gates, drift reports, and release prep. Delegate installation/sync where possible. |
 | [npx skills](https://github.com/vercel-labs/skills) / [Vercel Agent Skills](https://vercel.com/docs/agent-resources/skills) | Add packaged skills to many agent environments. | It also uses skill packages and install commands. | SkillOps generates governance and publish-readiness around skill repositories; `npx skills` is an install path. |
 | [ClawHub/OpenClaw](https://github.com/openclaw/clawhub) | Public registry for publishing, versioning, searching, installing, and moderating OpenClaw skills/packages. | It owns a broad skill ecosystem and has audit/moderation workflows. | SkillOps should prepare skills before publishing to ClawHub, not duplicate registry/search/marketplace features. |
 | [Claude Code plugins](https://code.claude.com/docs/en/plugins) and [Claude skills](https://code.claude.com/docs/en/skills) | Runtime-specific packaging and loading for Claude Code capabilities. | Plugins can contain skills and marketplaces can distribute them. | SkillOps manages source skill sets before they become Claude-specific plugins or local skill folders. |
@@ -36,6 +36,7 @@ SkillOps should not try to out-sync `skillshare`. Its useful role is earlier in 
 | How do I install/update skills from Git hosts? | Core feature. | Generate install guidance and publish plans. |
 | How do I manage agents, rules, commands, prompts, and extras? | Core feature. | Out of scope unless needed as target metadata. |
 | Which skills are approved for this project profile? | Possible through config/filtering, but not the main product frame. | Core feature. |
+| Has a working pattern been captured as a skill and validated on a real task? | Not the main sync job. | Core feature through `skillops-skill-first`. |
 | Did this project drift from the approved source profile? | Adjacent to sync state. | Core feature. |
 | Is this repo ready for private team sharing or public publishing? | Adjacent. | Core feature. |
 | Should this become a hosted registry? | No. | No. |
@@ -119,6 +120,6 @@ Practical stance: MCP registries manage tools. SkillOps manages skill instructio
 
 When in doubt, keep SkillOps on the upstream side:
 
-- Own: scan, audit, profiles, drift, publish-readiness, GitHub release prep.
+- Own: skill-first authoring/validation, scan, audit, profiles, drift, publish-readiness, GitHub release prep.
 - Integrate: installers, registries, agent runtimes, MCP registries.
-- Avoid: hosted marketplace, public search, ratings, comments, broad sync engine, agent runtime behavior.
+- Avoid: hosted marketplace, public search, ratings, comments, broad sync engine, agent runtime behavior, generic agent evaluation platform.

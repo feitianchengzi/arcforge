@@ -7,14 +7,14 @@ SkillOps 不是 registry、marketplace、包管理器、installer、MCP registry
 它是面向 `SKILL.md` 仓库的本地优先治理层：
 
 ```text
-源 skills -> 审计 -> profiles -> 应用到目标 -> drift 检查 -> 发布准备
+创建/迭代 skills -> 子代理验证 -> 审计 -> profiles -> 应用到目标 -> drift 检查 -> 发布准备
 ```
 
 ## 快速地图
 
 | 相邻产品 | 核心任务 | 为什么容易混淆 | SkillOps 的边界 |
 |---|---|---|---|
-| [skillshare](https://github.com/runkids/skillshare) | 在多个 AI CLI 工具之间同步 skills、agents、rules、commands 等文件资源。 | 它也支持多 agent、团队共享和安全检查。 | SkillOps 应该位于上游：批准 profiles、review gate、drift report 和发布准备。安装/同步尽量委托。 |
+| [skillshare](https://github.com/runkids/skillshare) | 在多个 AI CLI 工具之间同步 skills、agents、rules、commands 等文件资源。 | 它也支持多 agent、团队共享和安全检查。 | SkillOps 应该位于上游：Skill First 验证、批准 profiles、review gate、drift report 和发布准备。安装/同步尽量委托。 |
 | [npx skills](https://github.com/vercel-labs/skills) / [Vercel Agent Skills](https://vercel.com/docs/agent-resources/skills) | 将打包好的 skills 添加到多个 agent 环境。 | 它也处理 skill package 和安装命令。 | SkillOps 围绕 skill 仓库做治理和发布就绪检查；`npx skills` 是安装路径。 |
 | [ClawHub/OpenClaw](https://github.com/openclaw/clawhub) | 公开 registry，负责 OpenClaw skills/packages 的发布、版本、搜索、安装和 moderation。 | 它拥有较完整的 skill 生态和审计/moderation 流程。 | SkillOps 应该在发布到 ClawHub 前做准备，不重复 registry/search/marketplace。 |
 | [Claude Code plugins](https://code.claude.com/docs/en/plugins) 和 [Claude skills](https://code.claude.com/docs/en/skills) | Claude Code 能力的 runtime packaging 和加载机制。 | Plugins 可以包含 skills，也能通过 marketplace 分发。 | SkillOps 管理源 skill 集合，然后再进入 Claude 专属 plugin 或本地 skill 目录。 |
@@ -36,6 +36,7 @@ SkillOps 不应该和 `skillshare` 比谁更会同步。它更有价值的位置
 | 如何从 Git hosts 安装/更新 skills？ | 核心能力。 | 生成安装建议和发布计划。 |
 | 如何管理 agents、rules、commands、prompts 和 extras？ | 核心能力。 | 除非作为目标 metadata，否则不做。 |
 | 哪些 skills 是这个项目 profile 批准使用的？ | 可以通过配置/过滤实现，但不是主要产品叙事。 | 核心能力。 |
+| 一个工作模式是否已经沉淀成 skill，并通过真实任务验证？ | 不是主要同步任务。 | 核心能力，通过 `skillops-skill-first` 完成。 |
 | 某个项目是否偏离了批准过的源 profile？ | 接近 sync state。 | 核心能力。 |
 | 这个仓库是否适合团队共享或公开发布？ | 相邻能力。 | 核心能力。 |
 | 是否要做托管 registry？ | 不做。 | 不做。 |
@@ -120,5 +121,6 @@ Smithery 或社区 MCP registry 等工具帮助用户发现和安装 MCP servers
 不确定时，把 SkillOps 留在上游：
 
 - 自己做：scan、audit、profiles、drift、publish-readiness、GitHub release prep。
+- 自己做：skill-first authoring/validation、scan、audit、profiles、drift、publish-readiness、GitHub release prep。
 - 集成：installers、registries、agent runtimes、MCP registries。
-- 避免：托管 marketplace、公开搜索、评分、评论、大而全 sync engine、agent runtime 行为。
+- 避免：托管 marketplace、公开搜索、评分、评论、大而全 sync engine、agent runtime 行为、通用 agent 评测平台。

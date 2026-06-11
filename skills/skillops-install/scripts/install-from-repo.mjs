@@ -23,6 +23,7 @@ const npmCacheDir = args["npm-cache"]
   : installHome !== os.homedir()
     ? path.join(installHome, ".npm")
     : undefined;
+const installedSkillNames = ["skillops", "skillops-skill-first"];
 let currentStage = "initialization";
 
 process.on("uncaughtException", handleFatalError);
@@ -51,7 +52,7 @@ if (verifyOnly) {
 if (dryRun) {
   printPlan({
     repoRoot,
-    agents: agents.map((agent) => ({ agent, target: userSkillTarget(agent) })),
+    agents: agents.map((agent) => ({ agent, targets: userSkillTargets(agent) })),
     cliShimDir: await chooseShimDir(),
     desktopShimPath: desktopShimPath(await chooseShimDir()),
     desktopMode,
@@ -74,9 +75,11 @@ if (!skipNpmInstall) {
 }
 
 for (const agent of agents) {
-  const target = userSkillTarget(agent);
-  await installSkillopsSkill(target);
-  summary.installedSkills.push({ agent, target });
+  for (const skillName of installedSkillNames) {
+    const target = userSkillTarget(agent, skillName);
+    await installRepoSkill(skillName, target);
+    summary.installedSkills.push({ agent, skillName, target });
+  }
 }
 
 await run("npm", ["run", "build:cli"], { cwd: repoRoot, label: "Build SkillOps CLI" });
@@ -134,6 +137,7 @@ async function assertRepoRoot(root) {
   const requiredFiles = [
     "package.json",
     "skills/skillops/SKILL.md",
+    "skills/skillops-skill-first/SKILL.md",
     "src/cli/index.ts",
     "src/electron/main.ts"
   ];
@@ -149,18 +153,22 @@ async function assertNodeMajor(requiredMajor) {
   }
 }
 
-async function installSkillopsSkill(targetDir) {
-  const sourceDir = path.join(repoRoot, "skills", "skillops");
-  await assertExists(sourceDir, "Source skill missing: skills/skillops");
+async function installRepoSkill(skillName, targetDir) {
+  const sourceDir = path.join(repoRoot, "skills", skillName);
+  await assertExists(sourceDir, `Source skill missing: skills/${skillName}`);
   await mkdir(path.dirname(targetDir), { recursive: true });
   await rm(targetDir, { recursive: true, force: true });
   await cp(sourceDir, targetDir, { recursive: true });
 }
 
-function userSkillTarget(agent) {
-  if (agent === "codex") return path.join(installHome, ".codex", "skills", "skillops");
-  if (agent === "claude") return path.join(installHome, ".claude", "skills", "skillops");
-  return path.join(installHome, ".cursor", "skills", "skillops");
+function userSkillTargets(agent) {
+  return installedSkillNames.map((skillName) => ({ skillName, target: userSkillTarget(agent, skillName) }));
+}
+
+function userSkillTarget(agent, skillName) {
+  if (agent === "codex") return path.join(installHome, ".codex", "skills", skillName);
+  if (agent === "claude") return path.join(installHome, ".claude", "skills", skillName);
+  return path.join(installHome, ".cursor", "skills", skillName);
 }
 
 async function installCliShim(options) {
@@ -333,7 +341,7 @@ function printSummary(value) {
   console.log("\nSkillOps install summary");
   console.log(`Repository: ${value.repoRoot}`);
   for (const item of value.installedSkills) {
-    console.log(`Skill (${item.agent}): ${item.target}`);
+    console.log(`Skill (${item.agent}/${item.skillName}): ${item.target}`);
   }
   console.log(`CLI shim: ${value.cli.shimPath}`);
   console.log(`CLI shim directory on PATH: ${value.cli.pathContainsShim ? "yes" : "no"}`);
@@ -359,7 +367,9 @@ function printPlan(value) {
   console.log("SkillOps install dry run");
   console.log(`Repository: ${value.repoRoot}`);
   for (const item of value.agents) {
-    console.log(`Skill (${item.agent}): ${item.target}`);
+    for (const target of item.targets) {
+      console.log(`Skill (${item.agent}/${target.skillName}): ${target.target}`);
+    }
   }
   console.log(`CLI shim directory: ${value.cliShimDir}`);
   console.log(`Desktop launcher: ${value.desktopShimPath}`);

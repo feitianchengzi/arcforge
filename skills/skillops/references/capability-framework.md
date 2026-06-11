@@ -4,7 +4,7 @@
 
 ## 产品定位
 
-SkillOps 是 local-first、GitHub-first 的 agent skill 治理工作台。它位于分发之前，帮助用户把项目内自然产生的 skill 变成可审计、可 review、可版本化、可按 profile 应用、可检查 drift、可准备发布的团队资产。
+SkillOps 是 local-first、GitHub-first 的 agent skill 生命周期治理工作台。它位于分发之前，帮助用户把项目内自然产生的工作模式沉淀成 skill，并把经过验证的 skill 变成可审计、可 review、可版本化、可按 profile 应用、可检查 drift、可准备发布的团队资产。
 
 SkillOps 不做：
 
@@ -42,6 +42,7 @@ SkillOps 不做：
 这些能力可以独立使用，也可以在用户明确要求时组合：
 
 - 发现：扫描 root、sourceDir、skills、共享资产、profile、audit 摘要和 Git 来源信息。
+- Skill First 交接：接收 `skillops-skill-first` 验证通过的 skill，确认后续治理阶段和确认边界。
 - 审计：检查 secrets、危险指令、危险 shell 模式、frontmatter 和描述质量。
 - 配置组：创建、编辑、删除 profile，选择全部或部分 skills，记录目标 agent。
 - 正式化：把当前项目 skill 归并到正式 Skill 项目，并更新正式项目 profile。
@@ -59,6 +60,7 @@ SkillOps 不做：
 先判断用户当前要处理哪个阶段：
 
 - “看看这个项目有什么 skills”：发现。
+- “这个工作模式先沉淀成 skill 并验证”：使用 `skillops-skill-first`；用户确认可用后再回到 `skillops` 做治理。
 - “适不适合共享/发布”：审计，必要时发布准备。
 - “整理一组给前端/团队使用”：配置组。
 - “把这个项目里的 skill 沉淀出去”：正式化。
@@ -75,6 +77,7 @@ SkillOps 不做：
 当用户只要求某一阶段时，只处理该阶段：
 
 - 扫描现状：运行 scan，报告本地 skills、shared assets、audit 摘要和 Git 状态。
+- Skill First 交接：确认用户已经认为新 skill 可用，再建议 audit、merge plan、profile、apply、drift 或 publish/share plan；写入阶段仍按 `skillops` 的确认规则执行。
 - 审计 skill：运行 audit，解释 findings、风险和修复建议。
 - 整理 profile：读取或编辑 profile，不自动写入目标。
 - 正式化 skill：先生成 merge plan；只有用户确认后才执行 merge run。

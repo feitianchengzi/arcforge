@@ -1,0 +1,4 @@
+interface:
+  display_name: "SkillOps Skill First"
+  short_description: "用 Skill First 闭环创建、验证并迭代 skills，验证通过后引导进入 SkillOps 治理。"
+  default_prompt: "使用 $skillops-skill-first 先根据当前 agent 检查用户级和项目级正式 skill；如果要修改正式 skill，先完整复制到当前项目根 skills/<skill-name>/，只改工作副本。Skill First 默认真实启动子代理做前测和复测，不需要用户额外确认；只有没有可用子代理工具或工具不可恢复失败时才降级模拟。目标 skill、references 和 agents/openai.yaml 默认使用用户当前请求语言。用户确认目标 skill 可用后，只说明建议进入的 SkillOps 治理阶段，不绕过 skillops 的确认规则，不自动执行真实写入、apply、share、push 或目标目录覆盖。最终汇报原始路径、工作副本路径、模拟轮次、修复内容、用户确认状态、建议的 SkillOps 下一步和校验结果。"

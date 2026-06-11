@@ -8,10 +8,10 @@ There are no fixed dates. Stars, concrete issues, and useful PRs are the main si
 
 ## Direction
 
-SkillOps should remain a pre-publish and team-governance layer for AI agent skills:
+SkillOps should remain a lifecycle governance layer for AI agent skills, covering the local flow from authoring and validation through release preparation:
 
 ```text
-write skill -> audit -> profile -> apply -> drift check -> release prep
+write/iterate skill -> sub-agent validation -> audit -> profile -> apply -> drift check -> release prep
 ```
 
 It should stay local-first and GitHub-first. Git remains the source of truth for review, history, releases, and team sharing.
@@ -23,6 +23,7 @@ SkillOps should not become a hosted marketplace, public registry, public search 
 Goal: make the current product useful without expanding scope.
 
 - keep workspace scan reliable for the documented `skills/` project shape
+- keep `skillops-skill-first` able to capture working patterns as skills and hand validated skills into SkillOps governance
 - keep audit output understandable enough for pre-share review
 - keep profile apply and drift report usable for local agent folders
 - keep publish plan useful as a GitHub/ClawHub release checklist
@@ -37,6 +38,7 @@ Possible `0.x` additions, only if needed:
 - better error messages for invalid config, missing skills, failed Git commands, and target write failures
 - minimal import flow for existing local skills
 - small audit rule refinements based on real false positives or misses
+- small Skill First refinements based on real preflight, retest, and handoff friction
 
 ## 1.x - Stable Personal And Small-Team Use
 
@@ -74,6 +76,7 @@ These should remain optional layers. They should not turn SkillOps into a market
 - full enterprise RBAC
 - generic prompt library management
 - agent runtime execution or activation logic
+- generic agent evaluation platform
 
 ## Feedback Signals
 
