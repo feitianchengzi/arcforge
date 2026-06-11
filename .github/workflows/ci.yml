@@ -1,9 +1,9 @@
 name: CI
 
 on:
-  pull_request:
-  push:
-    branches: [main]
+  # Automatic CI is paused while skills/arcforge-install is the primary install path.
+  # Restore pull_request and push triggers here when release automation becomes active again.
+  workflow_dispatch:
 
 jobs:
   check:
