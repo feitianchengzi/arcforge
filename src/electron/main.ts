@@ -10,6 +10,7 @@ import { scanWorkspace } from "../core/workspace.js";
 import { saveConfig } from "../core/config.js";
 import { getEnvironmentStatus } from "../core/environment.js";
 import { installCliShim } from "../core/cli-install.js";
+import { hideLocalProjectInList, listLocalProjectStates, saveLocalProjectListMetadata, saveLocalProjectListOrder, type LocalProjectState } from "../core/project-store.js";
 import { defaultSkillFile, listSkillFiles, listWorkspaceFiles, readSkillFile, writeSkillFile } from "../core/skill-files.js";
 import { applyFromSource, createImportSkillsPlan, createMergePlan, driftAppliedSources, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, resolveSkillProjectRoot, runAppliedSources, type ImportSkillsOptions, type MergeOptions } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
@@ -124,6 +125,9 @@ ipcMain.handle("system:openExternal", (_event, url: string) => openExternalUrl(u
 ipcMain.handle("appState:load", () => loadAppState());
 ipcMain.handle("appState:save", (_event, patch: Partial<AppState>) => saveAppStatePatch(patch));
 ipcMain.handle("appState:migrate", (_event, legacyState: Partial<AppState>, origin: string) => migrateAppState(legacyState, origin));
+ipcMain.handle("projectList:remember", (_event, workspace: RecentWorkspace, orderedPaths?: string[]) => rememberProjectWorkspace(workspace, orderedPaths));
+ipcMain.handle("projectList:reorder", (_event, orderedPaths: string[]) => reorderProjectWorkspaces(orderedPaths));
+ipcMain.handle("projectList:remove", (_event, root: string) => removeProjectWorkspace(root));
 ipcMain.handle("workspace:addRemote", (_event, remoteUrl: string) => resolveSkillProjectRoot(remoteUrl, cacheRoot()));
 ipcMain.handle("source:status", (_event, root: string) => checkSourceUpdate({ root }));
 ipcMain.handle("source:update", (_event, root: string, confirm?: boolean) => updateSource({ root, confirm: Boolean(confirm) }));
@@ -232,9 +236,11 @@ async function realLocalPath(filePath: string): Promise<string> {
 async function loadAppState(): Promise<AppState> {
   try {
     const raw = await fs.readFile(appStatePath(), "utf8");
-    return normalizeAppState(JSON.parse(raw) as Partial<AppState>);
+    const state = normalizeAppState(JSON.parse(raw) as Partial<AppState>);
+    await persistRecentWorkspaceList(state.recentWorkspaces);
+    return withProjectList({ ...state, recentWorkspaces: [] });
   } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT") return defaultAppState();
+    if (isNodeError(error) && error.code === "ENOENT") return withProjectList(defaultAppState());
     throw error;
   }
 }
@@ -242,14 +248,16 @@ async function loadAppState(): Promise<AppState> {
 async function saveAppStatePatch(patch: Partial<AppState>): Promise<AppState> {
   return withAppStateWrite(async () => {
     const current = await loadAppState();
+    if (patch.recentWorkspaces) await persistRecentWorkspaceList(patch.recentWorkspaces);
     const next = normalizeAppState({
       ...current,
       ...patch,
+      recentWorkspaces: [],
       projectState: patch.projectState ?? current.projectState,
       migratedLocalStorageOrigins: patch.migratedLocalStorageOrigins ?? current.migratedLocalStorageOrigins
     });
     await writeAppState(next);
-    return next;
+    return withProjectList(next);
   });
 }
 
@@ -258,11 +266,12 @@ async function migrateAppState(legacyState: Partial<AppState>, origin: string): 
     const current = await loadAppState();
     const migrationOrigin = origin || "unknown";
     if (current.migratedLocalStorageOrigins?.includes(migrationOrigin)) return current;
+    await persistRecentWorkspaceList(mergeRecentWorkspaces(legacyState.recentWorkspaces, current.recentWorkspaces));
     const next = normalizeAppState({
       ...current,
       language: current.language ?? legacyState.language,
       activeWorkspace: current.activeWorkspace ?? legacyState.activeWorkspace,
-      recentWorkspaces: mergeRecentWorkspaces(legacyState.recentWorkspaces, current.recentWorkspaces),
+      recentWorkspaces: [],
       targetHistory: mergeTargetHistory(legacyState.targetHistory, current.targetHistory),
       projectState: {
         ...(legacyState.projectState ?? {}),
@@ -271,7 +280,7 @@ async function migrateAppState(legacyState: Partial<AppState>, origin: string): 
       migratedLocalStorageOrigins: [...(current.migratedLocalStorageOrigins ?? []), migrationOrigin]
     });
     await writeAppState(next);
-    return next;
+    return withProjectList(next);
   });
 }
 
@@ -298,6 +307,125 @@ function defaultAppState(): AppState {
     projectState: {},
     migratedLocalStorageOrigins: []
   };
+}
+
+async function rememberProjectWorkspace(workspace: RecentWorkspace, orderedPaths: string[] = []): Promise<AppState> {
+  const item = normalizeRecentWorkspace(workspace);
+  if (item.path && !isPendingWorkspacePath(item.path)) {
+    await saveLocalProjectListMetadata(item.path, {
+      order: orderedPaths.includes(item.path) ? orderedPaths.indexOf(item.path) : 0,
+      lastOpenedAt: item.lastOpenedAt,
+      hidden: false,
+      sourceKind: item.sourceKind,
+      localSourcePath: item.localSourcePath,
+      githubSourceUrl: item.githubSourceUrl
+    });
+  }
+  await reorderProjectWorkspaces(orderedPaths);
+  return loadAppState();
+}
+
+async function reorderProjectWorkspaces(orderedPaths: string[]): Promise<AppState> {
+  await saveLocalProjectListOrder(orderedPaths.filter((item) => item && !isPendingWorkspacePath(item)));
+  return loadAppState();
+}
+
+async function removeProjectWorkspace(root: string): Promise<AppState> {
+  const value = cleanString(root);
+  if (value && !isPendingWorkspacePath(value)) {
+    await hideLocalProjectInList(value);
+  }
+  return loadAppState();
+}
+
+async function persistRecentWorkspaceList(workspaces: RecentWorkspace[] = []): Promise<void> {
+  const items = normalizeRecentWorkspaces(workspaces).filter((item) => !isPendingWorkspacePath(item.path));
+  for (const [order, item] of items.entries()) {
+    await saveLocalProjectListMetadata(item.path, {
+      order,
+      lastOpenedAt: item.lastOpenedAt,
+      hidden: false,
+      sourceKind: item.sourceKind,
+      localSourcePath: item.localSourcePath,
+      githubSourceUrl: item.githubSourceUrl
+    });
+  }
+}
+
+async function withProjectList(state: AppState): Promise<AppState> {
+  const recentWorkspaces = await recentWorkspacesFromProjectStore();
+  const activeWorkspace = state.activeWorkspace && recentWorkspaces.some((item) => item.path === state.activeWorkspace)
+    ? state.activeWorkspace
+    : recentWorkspaces[0]?.path;
+  return {
+    ...state,
+    activeWorkspace,
+    recentWorkspaces
+  };
+}
+
+async function recentWorkspacesFromProjectStore(): Promise<RecentWorkspace[]> {
+  const states = (await listLocalProjectStates())
+    .filter((state) => !state.list?.hidden)
+    .sort(compareProjectListState);
+  const items: RecentWorkspace[] = [];
+  for (const state of states) {
+    const item = await recentWorkspaceFromProjectState(state);
+    if (item) items.push(item);
+    if (items.length >= 20) break;
+  }
+  return items;
+}
+
+async function recentWorkspaceFromProjectState(state: LocalProjectState): Promise<RecentWorkspace | undefined> {
+  const root = cleanString(state.root);
+  if (!root) return undefined;
+  const list = state.list ?? {};
+  const lastOpenedAt = cleanString(list.lastOpenedAt) ?? state.updatedAt;
+  const sourceKind = list.sourceKind === "github" || list.sourceKind === "local" ? list.sourceKind : "local";
+  try {
+    const snapshot = await scanWorkspace(root);
+    return {
+      path: snapshot.root,
+      name: path.basename(snapshot.root),
+      lastOpenedAt,
+      skillCount: snapshot.skills.length,
+      auditScore: snapshot.audit.score,
+      sourceKind,
+      localSourcePath: sourceKind === "local" ? cleanString(list.localSourcePath) ?? snapshot.root : undefined,
+      githubSourceUrl: sourceKind === "github" ? cleanString(list.githubSourceUrl) : undefined
+    };
+  } catch {
+    return {
+      path: root,
+      name: path.basename(root),
+      lastOpenedAt,
+      skillCount: 0,
+      auditScore: 0,
+      status: "error",
+      sourceKind,
+      localSourcePath: sourceKind === "local" ? cleanString(list.localSourcePath) ?? root : undefined,
+      githubSourceUrl: sourceKind === "github" ? cleanString(list.githubSourceUrl) : undefined,
+      error: "Project state exists, but the workspace could not be scanned."
+    };
+  }
+}
+
+function compareProjectListState(a: LocalProjectState, b: LocalProjectState): number {
+  const aOrder = finiteNumber(a.list?.order);
+  const bOrder = finiteNumber(b.list?.order);
+  if (aOrder !== undefined && bOrder !== undefined) return aOrder - bOrder;
+  if (aOrder !== undefined) return -1;
+  if (bOrder !== undefined) return 1;
+  return Date.parse(cleanString(b.list?.lastOpenedAt) ?? b.updatedAt) - Date.parse(cleanString(a.list?.lastOpenedAt) ?? a.updatedAt);
+}
+
+function finiteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function isPendingWorkspacePath(value: string): boolean {
+  return value.startsWith("pending:");
 }
 
 function normalizeAppState(state: Partial<AppState>): AppState {

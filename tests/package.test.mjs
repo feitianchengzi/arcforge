@@ -109,6 +109,32 @@ test("workspace config is stored outside source checkouts", async () => {
   assert.doesNotMatch(commands, /Create arcforge.config.json in a workspace/);
 });
 
+test("desktop project list is backed by local project state", async () => {
+  const projectStore = await readFile(new URL("../src/core/project-store.ts", import.meta.url), "utf8");
+  const electronMain = await readFile(new URL("../src/electron/main.ts", import.meta.url), "utf8");
+  const mainUi = await readFile(new URL("../src/ui/main.tsx", import.meta.url), "utf8");
+  const preload = await readFile(new URL("../src/electron/preload.cts", import.meta.url), "utf8");
+
+  assert.match(projectStore, /listLocalProjectStates/);
+  assert.match(projectStore, /saveLocalProjectListMetadata/);
+  assert.match(projectStore, /saveLocalProjectListOrder/);
+  assert.match(projectStore, /hideLocalProjectInList/);
+  assert.match(projectStore, /dedupeProjectStates/);
+  assert.match(projectStore, /removeDuplicateProjectStateFiles/);
+  assert.match(projectStore, /canonicalProjectRootKey/);
+  assert.match(electronMain, /projectList:remember/);
+  assert.match(electronMain, /projectList:reorder/);
+  assert.match(electronMain, /projectList:remove/);
+  assert.match(electronMain, /recentWorkspacesFromProjectStore/);
+  assert.match(electronMain, /persistRecentWorkspaceList/);
+  assert.match(preload, /rememberProjectWorkspace/);
+  assert.match(preload, /reorderProjectWorkspaces/);
+  assert.match(preload, /removeProjectWorkspace/);
+  assert.match(mainUi, /rememberProjectWorkspace/);
+  assert.match(mainUi, /reorderProjectWorkspaces/);
+  assert.match(mainUi, /removeProjectWorkspace/);
+});
+
 test("share delivery failures keep manual recovery guidance", async () => {
   const shareCore = await readFile(new URL("../src/core/share.ts", import.meta.url), "utf8");
 

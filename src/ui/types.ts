@@ -1,4 +1,4 @@
-import type { AppState, AppliedSourceRecord, ApplyProfileResult, CliInstallStatus, DriftReport, EnvironmentStatus, ImportSkillsPlan, ImportSkillsResult, MergePlan, MergeResult, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillEditorWindowContext, SkillFileDocument, SkillFileEntry, ArcForgeConfig, SourceUpdateResult, SourceUpdateStatus, WorkspaceSnapshot } from "../shared/types";
+import type { AppState, AppliedSourceRecord, ApplyProfileResult, CliInstallStatus, DriftReport, EnvironmentStatus, ImportSkillsPlan, ImportSkillsResult, MergePlan, MergeResult, RecentWorkspace, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillEditorWindowContext, SkillFileDocument, SkillFileEntry, ArcForgeConfig, SourceUpdateResult, SourceUpdateStatus, WorkspaceSnapshot } from "../shared/types";
 
 export type Tab = "overview" | "skills" | "profiles" | "destinations" | "share" | "audit";
 
@@ -43,6 +43,9 @@ declare global {
       loadAppState: () => Promise<AppState>;
       saveAppState: (patch: Partial<AppState>) => Promise<AppState>;
       migrateAppState: (legacyState: Partial<AppState>, origin: string) => Promise<AppState>;
+      rememberProjectWorkspace: (workspace: RecentWorkspace, orderedPaths?: string[]) => Promise<AppState>;
+      reorderProjectWorkspaces: (orderedPaths: string[]) => Promise<AppState>;
+      removeProjectWorkspace: (root: string) => Promise<AppState>;
       addRemoteWorkspace: (remoteUrl: string) => Promise<string>;
       sourceUpdateStatus: (root: string) => Promise<SourceUpdateStatus>;
       updateSource: (root: string, confirm?: boolean) => Promise<SourceUpdateResult>;

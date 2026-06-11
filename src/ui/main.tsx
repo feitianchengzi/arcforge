@@ -748,7 +748,9 @@ function App() {
       const next = options.moveToTop || !exists
         ? [record, ...current.filter((item) => item.path !== result.root)].slice(0, MAX_RECENT_WORKSPACES)
         : current.map((item) => item.path === result.root ? record : item);
-      void saveAppState({ recentWorkspaces: next });
+      void window.arcforge?.rememberProjectWorkspace(record, next.map((item) => item.path))
+        .then(applyAppState)
+        .catch((error) => setStatus(t.errorStatus(errorMessage(error))));
       return next;
     });
   }
@@ -758,7 +760,9 @@ function App() {
     if (!window.confirm(t.confirmRemoveWorkspace(project?.name || basename(path)))) return;
     const next = recentWorkspaces.filter((item) => item.path !== path);
     setRecentWorkspaces(next);
-    void saveAppState({ recentWorkspaces: next });
+    void window.arcforge?.removeProjectWorkspace(path)
+      .then(applyAppState)
+      .catch((error) => setStatus(t.errorStatus(errorMessage(error))));
     if (root === path) {
       setRoot("");
       setSnapshot(undefined);
@@ -777,7 +781,9 @@ function App() {
       const [moved] = next.splice(fromIndex, 1);
       if (!moved) return current;
       next.splice(toIndex, 0, moved);
-      void saveAppState({ recentWorkspaces: next });
+      void window.arcforge?.reorderProjectWorkspaces(next.map((item) => item.path))
+        .then(applyAppState)
+        .catch((error) => setStatus(t.errorStatus(errorMessage(error))));
       return next;
     });
   }

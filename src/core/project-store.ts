@@ -13,7 +13,17 @@ export interface LocalProjectState {
   identity: ProjectIdentity;
   config?: ArcForgeConfig;
   appliedSources?: AppliedSourceRecord[];
+  list?: ProjectListMetadata;
   updatedAt: string;
+}
+
+export interface ProjectListMetadata {
+  order?: number;
+  lastOpenedAt?: string;
+  hidden?: boolean;
+  sourceKind?: "local" | "github";
+  localSourcePath?: string;
+  githubSourceUrl?: string;
 }
 
 export interface ProjectIdentity {
@@ -40,11 +50,29 @@ export async function loadLocalProjectState(root: string): Promise<LocalProjectS
   return JSON.parse(raw) as LocalProjectState;
 }
 
+export async function listLocalProjectStates(): Promise<LocalProjectState[]> {
+  const entries = await fs.readdir(projectStoreDir(), { withFileTypes: true }).catch(() => []);
+  const states: LocalProjectState[] = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    try {
+      const raw = await fs.readFile(path.join(projectStoreDir(), entry.name), "utf8");
+      const parsed = JSON.parse(raw) as Partial<LocalProjectState>;
+      if (parsed.version !== 1 || !parsed.root || !parsed.projectKey || !parsed.updatedAt) continue;
+      states.push(parsed as LocalProjectState);
+    } catch {
+      continue;
+    }
+  }
+  return (await dedupeProjectStates(states)).sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+}
+
 export async function saveLocalProjectConfig(root: string, config: ArcForgeConfig): Promise<LocalProjectState> {
   const current = await loadLocalProjectState(root);
   return saveLocalProjectState(root, {
     config,
-    appliedSources: current?.appliedSources
+    appliedSources: current?.appliedSources,
+    list: current?.list
   });
 }
 
@@ -52,11 +80,31 @@ export async function saveLocalProjectAppliedSources(root: string, appliedSource
   const current = await loadLocalProjectState(root);
   return saveLocalProjectState(root, {
     config: current?.config,
-    appliedSources
+    appliedSources,
+    list: current?.list
   });
 }
 
-async function saveLocalProjectState(root: string, patch: Pick<LocalProjectState, "config" | "appliedSources">): Promise<LocalProjectState> {
+export async function saveLocalProjectListMetadata(root: string, list: ProjectListMetadata): Promise<LocalProjectState> {
+  const current = await loadLocalProjectState(root);
+  return saveLocalProjectState(root, {
+    config: current?.config,
+    appliedSources: current?.appliedSources,
+    list: { ...(current?.list ?? {}), ...list }
+  });
+}
+
+export async function saveLocalProjectListOrder(roots: string[]): Promise<void> {
+  for (const [order, root] of roots.entries()) {
+    await saveLocalProjectListMetadata(root, { order, hidden: false });
+  }
+}
+
+export async function hideLocalProjectInList(root: string): Promise<void> {
+  await saveLocalProjectListMetadata(root, { hidden: true });
+}
+
+async function saveLocalProjectState(root: string, patch: Partial<Pick<LocalProjectState, "config" | "appliedSources" | "list">>): Promise<LocalProjectState> {
   const identity = await identifyProject(root);
   const projectKey = projectKeyForIdentity(identity);
   const state: LocalProjectState = {
@@ -66,9 +114,12 @@ async function saveLocalProjectState(root: string, patch: Pick<LocalProjectState
     identity,
     config: patch.config,
     appliedSources: patch.appliedSources,
+    list: patch.list,
     updatedAt: new Date().toISOString()
   };
-  await writeJson(path.join(projectStoreDir(), `${projectKey}.json`), state);
+  const filePath = path.join(projectStoreDir(), `${projectKey}.json`);
+  await writeJson(filePath, state);
+  await removeDuplicateProjectStateFiles(state, filePath);
   return state;
 }
 
@@ -101,4 +152,53 @@ export async function identifyProject(root: string): Promise<ProjectIdentity> {
 
 function projectKeyForIdentity(identity: ProjectIdentity): string {
   return crypto.createHash("sha256").update(`${identity.kind}:${identity.key}`).digest("hex").slice(0, 24);
+}
+
+async function dedupeProjectStates(states: LocalProjectState[]): Promise<LocalProjectState[]> {
+  const byRoot = new Map<string, LocalProjectState>();
+  for (const state of states) {
+    const key = await canonicalProjectRootKey(state.root);
+    const current = byRoot.get(key);
+    if (!current || projectStateTimestamp(state) > projectStateTimestamp(current)) {
+      byRoot.set(key, state);
+    }
+  }
+  return Array.from(byRoot.values());
+}
+
+async function removeDuplicateProjectStateFiles(state: LocalProjectState, currentFilePath: string): Promise<void> {
+  const entries = await fs.readdir(projectStoreDir(), { withFileTypes: true }).catch(() => []);
+  const rootKey = await canonicalProjectRootKey(state.root);
+  const current = normalizeLocalPath(currentFilePath);
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+    const filePath = path.join(projectStoreDir(), entry.name);
+    if (normalizeLocalPath(filePath) === current) continue;
+    try {
+      const raw = await fs.readFile(filePath, "utf8");
+      const parsed = JSON.parse(raw) as Partial<LocalProjectState>;
+      if (parsed.version !== 1 || !parsed.root || await canonicalProjectRootKey(parsed.root) !== rootKey) continue;
+      await fs.unlink(filePath);
+    } catch {
+      continue;
+    }
+  }
+}
+
+async function canonicalProjectRootKey(root: string): Promise<string> {
+  const resolved = path.resolve(root);
+  const real = await fs.realpath(resolved).catch(() => resolved);
+  return normalizeLocalPath(real);
+}
+
+function normalizeLocalPath(value: string): string {
+  const resolved = path.resolve(value);
+  return process.platform === "win32" || process.platform === "darwin" ? resolved.toLowerCase() : resolved;
+}
+
+function projectStateTimestamp(state: LocalProjectState): number {
+  const listTime = typeof state.list?.lastOpenedAt === "string" ? Date.parse(state.list.lastOpenedAt) : Number.NaN;
+  if (Number.isFinite(listTime)) return listTime;
+  const updatedTime = Date.parse(state.updatedAt);
+  return Number.isFinite(updatedTime) ? updatedTime : 0;
 }
