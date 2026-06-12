@@ -7,8 +7,13 @@
 - `SKILL.md` 有 YAML frontmatter，并包含 `name` 和 `description`。
 - `description` 同时说明 skill 做什么、什么时候使用。
 - `SKILL.md` 先引导 agent 判断用户任务需要哪些 skill 入口，再逐个定位目标 skill 来源。
-- `SKILL.md` 明确区分创建/更新 skill 和观察已有 skill 执行真实任务两种模式。
-- 用户显式使用 `skill first:` 时，`SKILL.md` 说明 Skill First 是元入口，真实任务所需 skill 是执行入口、辅助入口或治理入口。
+- `SKILL.md` 明确区分创建/更新 skill、新领域任务先建 skill、观察已有 skill 执行真实任务三种模式。
+- 用户显式使用 `skill first:` 时，`SKILL.md` 说明 Skill First 是元入口，真实任务所需 skill 是目标 skill、辅助入口、验证入口或治理入口。
+- `SKILL.md` 明确 `arcforge-skill-first` 是元 skill，不直接完成业务任务；它先判断、创建或维护目标 skill。
+- `SKILL.md` 明确新领域任务缺少足够匹配目标 skill 时，默认先创建目标 skill，而不是直接执行业务任务。
+- `SKILL.md` 有候选目标 skill 的适配阈值，能避免泛化 skill 因“最接近”而抢占目标 skill。
+- 当用户用 `$arcforge-skill-first` 或 `skill first:` 提出新领域任务且没有足够匹配目标 skill 时，流程默认创建新目标 skill 工作副本。
+- `SKILL.md` 说明 `arckit-tech`、`arckit-code`、`arckit-spec` 等宽泛 skill 只能作为辅助入口，除非它们本身就是足够匹配的目标 skill。
 - `SKILL.md` 引导 agent 把目标 skill 理解为软件能力单元，而不是默认只维护 Markdown。
 - `SKILL.md` 或 reference 说明本轮选择了哪些承载：文档、CLI、server、UI、状态、schema、测试或回传机制。
 - 如果本轮暂不需要 CLI、server 或 UI，原因是基于用户意图和风险判断，而不是遗漏。
@@ -32,7 +37,9 @@
 - 子代理没有收到你的预期答案或诊断。
 - 子代理没有收到问题分类、修复思路、架构评估要求或“判断 skill 是否需要优化”的任务。
 - 子代理被要求作为普通使用者执行任务，并记录步骤、命令、路径、错误、确认点和卡点。
-- 主 agent 负责评估任务是否需要一个或多个 skill，并确认元入口、执行入口和本轮目标 skill 是否清楚。
+- 主 agent 负责评估任务是否需要一个或多个 skill，并确认元入口、目标 skill、辅助入口和本轮目标 skill 是否清楚。
+- 主 agent 负责判断候选目标 skill 是否足够匹配；子代理不负责决定是否创建新 skill。
+- 如果真实任务属于新领域，子代理收到的是新建或更新后的目标 skill，而不是泛化辅助 skill。
 - 主 agent 负责评估目标 skill 是否清楚表达软件能力单元形态，而不把该判断交给子代理。
 - 主 agent 负责判断目标 skill 是否作为能力入口可用、是否需要 CLI/server/UI/状态/schema/测试或回传机制、是否存在已有实现承载。
 - 子代理 prompt 明确要求创建或更新 skill 时使用用户当前请求语言。
@@ -71,6 +78,7 @@
 - 创建或更新了哪个 skill
 - 正式 skill 原始路径和工作副本路径
 - 任务需要的 skill 入口集合、本轮模式和本轮目标 skill
+- 候选目标 skill 的适配判断，以及哪些泛化 skill 只作为辅助入口
 - 软件能力单元建模结果，包括本轮选择和暂不选择的承载
 - 已检查或待用户补充的目标 skill 实现承载来源
 - 本轮策略是观察已有执行、接入已有实现、维护已有实现、包装进 skill，还是新建最小实现
