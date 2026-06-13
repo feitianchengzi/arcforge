@@ -45,7 +45,7 @@ ArcForge 不做：
 
 - 发现：扫描 root、sourceDir、skills、共享资产、profile、audit 摘要和 Git 来源信息。
 - 创建后治理交接：接收已创建、已验证或已整理完成的 skill，确认后续治理阶段和确认边界。
-- 审计：检查 secrets、危险指令、危险 shell 模式、frontmatter 和描述质量。
+- 审计：检查 secrets、危险指令、危险 shell 模式、frontmatter、描述质量和 skill 写作质量。
 - 配置组：创建、编辑、删除 profile，选择全部或部分 skills，记录目标 agent。
 - 导入：从外部或远程 Skill 项目把选中的 skills 放进当前项目的本地维护源，并更新当前项目 profile。
 - 正式化：把当前项目 skill 归并到正式 Skill 项目，并更新正式项目 profile。
@@ -85,7 +85,7 @@ ArcForge 不做：
 
 - 扫描现状：运行 scan，报告本地 skills、shared assets、audit 摘要和 Git 状态。
 - 创建后治理交接：确认用户已经认为新 skill 可用，再建议 audit、merge plan、profile、apply、drift 或 publish/share plan；写入阶段仍按 `arcforge` 的确认规则执行。
-- 审计 skill：运行 audit，解释 findings、风险和修复建议。
+- 审计 skill：运行 audit，解释 findings、风险和修复建议；同时检查是否存在边界后置、纠错泄漏、业务耦合或正文负向补救。
 - 整理 profile：读取或编辑 profile，不自动写入目标。
 - 正式化 skill：先生成 merge plan；只有用户确认后才执行 merge run。
 - 导入外部 skill：先生成 import plan；只有用户确认远程同步源、本地维护目录、目标 profile 和冲突状态后才执行 import run。
@@ -127,3 +127,16 @@ ArcForge 不做：
 - GitHub 认证或权限检查失败。
 
 停止时给出具体下一步：在 Desktop 检查、修复 audit finding、选择正式 Skill 项目、解决冲突、选择目标目录、初始化 Git 仓库，或完成 GitHub 登录后重试。
+
+## Skill 写作质量审计
+
+ArcForge 的审计不替代 `arcforge-skill-first` 的创建和迭代闭环；它只在治理阶段报告风险，帮助用户决定是否回到 Skill First 修订后再正式化、共享或发布。
+
+检查以下质量问题：
+
+- 边界后置：`description` 没有承担触发条件、适用范围、相邻 skill 分工和不触发场景，导致执行正文用路由说明补救。
+- 纠错泄漏：正文直接包含用户纠错、失败复盘、“不要再……”口吻或一次协作中的修正痕迹。
+- 业务耦合：通用 skill 写入具体项目、客户、临时策略或一次性业务上下文，降低复用性。
+- 正文负向补救：执行型 skill 正文大量解释“先用 A / 不用 B / 与 C 的区别”，而不是正向说明被触发后如何执行。
+
+报告时区分质量风险和硬阻断。secrets、危险指令、破坏性命令或权限问题可能是 critical；写作质量问题通常是 warning，除非它会导致 agent 大概率误触发、错误写入或绕过确认。建议修复路径是回到 `arcforge-skill-first` 更新目标 skill，再重新 audit。

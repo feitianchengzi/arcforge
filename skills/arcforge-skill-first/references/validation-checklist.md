@@ -6,6 +6,8 @@
 
 - `SKILL.md` 有 YAML frontmatter，并包含 `name` 和 `description`。
 - `description` 同时说明 skill 做什么、什么时候使用。
+- `description` 承担触发条件、适用边界、相邻 skill 分工和不触发场景。
+- `SKILL.md` 正文从 skill 已经触发的前提出发，使用正向、过程化指令说明如何执行任务。
 - `SKILL.md` 先引导 agent 判断用户任务需要哪些 skill 入口，再逐个定位目标 skill 来源。
 - `SKILL.md` 明确区分创建/更新 skill、新领域任务先建 skill、观察已有 skill 执行真实任务三种模式。
 - 用户显式使用 `skill first:` 时，`SKILL.md` 说明 Skill First 是元入口，真实任务所需 skill 是目标 skill、辅助入口、验证入口或治理入口。
@@ -22,11 +24,15 @@
 - 流程可以借鉴 `skill-creator` 的结构和校验，但不会停在标准 skill 文件夹、资源清单或通用创建指南层。
 - `SKILL.md`、references、`agents/openai.yaml` 的主要文案语言与用户当前请求语言一致，除非用户明确指定其他语言。
 - 正文使用直接的过程化指令。
+- 正文没有把用户纠错、失败复盘、“不要再……”口吻或一次协作中的修正痕迹当成规则原文。
+- 正文没有把具体项目、客户、临时策略或一次性业务上下文写成通用执行规则。
+- 执行型 skill 正文没有用“先用 A / 不用 B / 与 C 的区别”解释相邻 skill 差异；必要边界已前移到 `description` 或上层路由。
+- 必要的安全、权限、产品方向和破坏性操作边界表达清楚，但普通执行流程不依赖负向纠错语句。
 - references 位于 skill 目录下一层。
 - 每个 reference 都在 `SKILL.md` 中有明确读取条件或入口。
 - 没有添加 README、changelog 或无关文档。
 - `agents/openai.yaml` 的 default prompt 提到 `$skill-name`。
-- `agents/openai.yaml` 的 default prompt 同步了关键输出格式、边界规则、语言要求、任务到 skill 分工、元入口/执行入口分工、能力单元建模要求和已有实现承载发现要求。
+- `agents/openai.yaml` 的 default prompt 同步了关键输出格式、边界规则、语言要求、任务到 skill 分工、元入口/执行入口分工、能力单元建模要求、正文正向执行要求和已有实现承载发现要求。
 - `agents/openai.yaml` 的 default prompt 使用 `$arcforge-skill-first`，并说明验证通过后只引导进入 `arcforge` 治理流程。
 - 如果目标来自正式 skill，已记录原始路径，并且只修改当前项目根 `skills/<skill-name>/` 工作副本。
 - 当前 agent 对应的用户级目录和项目级目录已检查；不存在的目录已跳过而不是硬失败。
