@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, FileText, Folder, RefreshCw, Save } from "lucide-react";
-import type { ImportSkillsPlan, SkillFileDocument, SkillFileEntry, SkillSummary, SourceUpdateStatus, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, FileText, Folder, Loader2, RefreshCw, Save, ShieldCheck } from "lucide-react";
+import type { AgentAuditProxyConfig, ImportSkillsPlan, SkillFileDocument, SkillFileEntry, SkillSummary, SourceUpdateStatus, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import type { Tab } from "../types";
 import { basename, formatDate, formatTimeAgo } from "../utils";
@@ -813,7 +813,34 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function Audit({ t, snapshot, criticalCount, warningCount, openFeedback }: { t: Dictionary; snapshot: WorkspaceSnapshot; criticalCount: number; warningCount: number; openFeedback: () => void }) {
+export function Audit({ t, snapshot, criticalCount, warningCount, openFeedback, agentAuditProxy, isRunningAgentAudit, runAgentAudit }: {
+  t: Dictionary;
+  snapshot: WorkspaceSnapshot;
+  criticalCount: number;
+  warningCount: number;
+  openFeedback: () => void;
+  agentAuditProxy: AgentAuditProxyConfig;
+  isRunningAgentAudit: boolean;
+  runAgentAudit: (proxy: AgentAuditProxyConfig, rememberProxy: boolean) => void | Promise<void>;
+}) {
+  const [useProxy, setUseProxy] = useState(Boolean(agentAuditProxy.enabled));
+  const [proxyUrl, setProxyUrl] = useState(agentAuditProxy.proxyUrl ?? "");
+  const [noProxy, setNoProxy] = useState(agentAuditProxy.noProxy ?? "");
+  const [rememberProxy, setRememberProxy] = useState(true);
+
+  useEffect(() => {
+    setUseProxy(Boolean(agentAuditProxy.enabled));
+    setProxyUrl(agentAuditProxy.proxyUrl ?? "");
+    setNoProxy(agentAuditProxy.noProxy ?? "");
+  }, [agentAuditProxy.enabled, agentAuditProxy.proxyUrl, agentAuditProxy.noProxy]);
+
+  const nextProxy: AgentAuditProxyConfig = {
+    enabled: useProxy,
+    proxyUrl: proxyUrl.trim() || undefined,
+    noProxy: noProxy.trim() || undefined
+  };
+  const canRunAgentAudit = !isRunningAgentAudit && (!useProxy || Boolean(proxyUrl.trim()));
+
   return (
     <div className="grid">
       <Metric label={t.metrics.score} value={`${snapshot.audit.score}/100`} />
@@ -822,7 +849,31 @@ export function Audit({ t, snapshot, criticalCount, warningCount, openFeedback }
       <section className="panel wide audit-disclaimer">
         <h3>{t.auditTransparencyTitle}</h3>
         <p>{t.auditTransparencyBody}</p>
-        <button className="primary" onClick={openFeedback}><ExternalLink size={16} /> {t.auditOpenIssue}</button>
+        <div className="audit-actions">
+          <div className="audit-proxy">
+            <strong>{t.agentAuditProxyTitle}</strong>
+            <label>
+              <input type="radio" checked={!useProxy} onChange={() => setUseProxy(false)} />
+              {t.agentAuditProxyNone}
+            </label>
+            <label>
+              <input type="radio" checked={useProxy} onChange={() => setUseProxy(true)} />
+              {t.agentAuditProxyUse}
+            </label>
+            <input value={proxyUrl} disabled={!useProxy} placeholder={t.agentAuditProxyPlaceholder} onChange={(event) => setProxyUrl(event.target.value)} />
+            <input value={noProxy} disabled={!useProxy} placeholder={t.agentAuditNoProxyPlaceholder} onChange={(event) => setNoProxy(event.target.value)} />
+            <label>
+              <input type="checkbox" checked={rememberProxy} onChange={(event) => setRememberProxy(event.target.checked)} />
+              {t.rememberAgentAuditProxy}
+            </label>
+          </div>
+          <div className="audit-buttons">
+            <button className="primary" onClick={() => runAgentAudit(nextProxy, rememberProxy)} disabled={!canRunAgentAudit}>
+              {isRunningAgentAudit ? <Loader2 size={16} /> : <ShieldCheck size={16} />} {isRunningAgentAudit ? t.runningAgentAudit : t.runAgentAudit}
+            </button>
+            <button onClick={openFeedback}><ExternalLink size={16} /> {t.auditOpenIssue}</button>
+          </div>
+        </div>
       </section>
       <section className="panel wide">
         <h3>{t.findingsTitle}</h3>
@@ -834,7 +885,8 @@ export function Audit({ t, snapshot, criticalCount, warningCount, openFeedback }
                 <div>
                   <strong>{finding.code}</strong>
                   <p>{finding.message}</p>
-                  <span>{finding.file}{finding.line ? `:${finding.line}` : ""}</span>
+                  <span>{finding.file}{finding.line ? `:${finding.line}` : ""} · {t.auditFindingMeta(finding.source, finding.confidence)}</span>
+                  {finding.evidence ? <p className="muted">{finding.evidence}</p> : null}
                 </div>
               </article>
             ))}

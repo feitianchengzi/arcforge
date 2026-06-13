@@ -14,7 +14,7 @@ import { hideLocalProjectInList, listLocalProjectStates, saveLocalProjectListMet
 import { defaultSkillFile, listSkillFiles, listWorkspaceFiles, readSkillFile, writeSkillFile } from "../core/skill-files.js";
 import { applyFromSource, createImportSkillsPlan, createMergePlan, driftAppliedSources, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, resolveSkillProjectRoot, runAppliedSources, type ImportSkillsOptions, type MergeOptions } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
-import type { AppState, ApplyDriftCheckRecord, DriftFileDiff, DriftReport, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, ShareDriftCheckRecord, ShareTargetMode, SkillEditorWindowContext, ArcForgeConfig, TargetRecord } from "../shared/types.js";
+import type { AgentAuditProxyConfig, AppState, ApplyDriftCheckRecord, AuditMode, DriftFileDiff, DriftReport, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, ShareDriftCheckRecord, ShareTargetMode, SkillEditorWindowContext, ArcForgeConfig, TargetRecord } from "../shared/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cliMarkerIndex = process.argv.indexOf("--cli");
@@ -166,6 +166,7 @@ ipcMain.handle("workspace:chooseDirectory", async (event, defaultPath?: string, 
 });
 
 ipcMain.handle("workspace:scan", (_event, root: string) => scanWorkspace(root));
+ipcMain.handle("workspace:audit", (_event, root: string, options?: unknown) => scanWorkspace(root, { audit: normalizeAuditRequest(options) }));
 ipcMain.handle("workspace:saveConfig", (_event, root: string, config: ArcForgeConfig) => saveWorkspaceConfig(root, config));
 ipcMain.handle("workspace:openFolder", (_event, root: string) => openWorkspaceFolder(root));
 ipcMain.handle("system:defaultTargets", () => defaultTargets());
@@ -302,6 +303,7 @@ async function saveAppStatePatch(patch: Partial<AppState>): Promise<AppState> {
     const next = normalizeAppState({
       ...current,
       ...patch,
+      agentAuditProxy: patch.agentAuditProxy ?? current.agentAuditProxy,
       recentWorkspaces: [],
       projectState: patch.projectState ?? current.projectState,
       migratedLocalStorageOrigins: patch.migratedLocalStorageOrigins ?? current.migratedLocalStorageOrigins
@@ -320,6 +322,7 @@ async function migrateAppState(legacyState: Partial<AppState>, origin: string): 
     const next = normalizeAppState({
       ...current,
       language: current.language ?? legacyState.language,
+      agentAuditProxy: current.agentAuditProxy ?? legacyState.agentAuditProxy,
       activeWorkspace: current.activeWorkspace ?? legacyState.activeWorkspace,
       recentWorkspaces: [],
       targetHistory: mergeTargetHistory(legacyState.targetHistory, current.targetHistory),
@@ -478,10 +481,39 @@ function isPendingWorkspacePath(value: string): boolean {
   return value.startsWith("pending:");
 }
 
+function normalizeAuditRequest(value: unknown): { mode?: AuditMode; agent?: string; agentCommand?: string; proxy?: AgentAuditProxyConfig; timeoutMs?: number } {
+  if (!value || typeof value !== "object") return {};
+  const input = value as Record<string, unknown>;
+  const mode = normalizeAuditMode(input.mode);
+  return {
+    mode,
+    agent: cleanString(input.agent),
+    agentCommand: cleanString(input.agentCommand),
+    proxy: normalizeAgentAuditProxy(input.proxy),
+    timeoutMs: finiteNumber(input.timeoutMs)
+  };
+}
+
+function normalizeAuditMode(value: unknown): AuditMode | undefined {
+  return value === "rule" || value === "agent" || value === "hybrid" ? value : undefined;
+}
+
+function normalizeAgentAuditProxy(value: unknown): AgentAuditProxyConfig | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const input = value as Partial<AgentAuditProxyConfig>;
+  const proxyUrl = cleanString(input.proxyUrl);
+  return {
+    enabled: Boolean(input.enabled),
+    proxyUrl,
+    noProxy: cleanString(input.noProxy)
+  };
+}
+
 function normalizeAppState(state: Partial<AppState>): AppState {
   return {
     version: 1,
     language: state.language === "en" || state.language === "zh-CN" ? state.language : undefined,
+    agentAuditProxy: normalizeAgentAuditProxy(state.agentAuditProxy),
     activeWorkspace: cleanString(state.activeWorkspace),
     recentWorkspaces: normalizeRecentWorkspaces(state.recentWorkspaces),
     targetHistory: normalizeTargetHistory(state.targetHistory),

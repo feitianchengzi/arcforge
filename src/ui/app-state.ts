@@ -12,6 +12,7 @@ export function readLegacyAppState(): Partial<AppState> {
   return {
     version: 1,
     language: readLegacyLanguage(),
+    agentAuditProxy: undefined,
     activeWorkspace: window.localStorage.getItem(ACTIVE_WORKSPACE_KEY) ?? undefined,
     recentWorkspaces: loadLegacyJson<RecentWorkspace[]>(RECENT_WORKSPACES_KEY, []),
     targetHistory: loadLegacyJson<TargetRecord[]>(TARGET_HISTORY_KEY, []),

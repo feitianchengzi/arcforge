@@ -1,4 +1,4 @@
-import { auditWorkspace } from "./audit.js";
+import { auditWorkspace, type AuditWorkspaceOptions } from "./audit.js";
 import { loadConfig } from "./config.js";
 import { discoverSharedAssets, discoverSkills } from "./skills.js";
 import type { WorkspaceSnapshot } from "../shared/types.js";
@@ -7,6 +7,7 @@ import { detectLocalGitSource } from "./local-git.js";
 
 export interface ScanWorkspaceOptions {
   sourceDir?: string;
+  audit?: AuditWorkspaceOptions;
 }
 
 export async function scanWorkspace(root: string, options: ScanWorkspaceOptions = {}): Promise<WorkspaceSnapshot> {
@@ -15,7 +16,7 @@ export async function scanWorkspace(root: string, options: ScanWorkspaceOptions 
   const config = withSourceDirOverride(await loadConfig(root), options.sourceDir);
   const skills = await discoverSkills(root, config);
   const assets = await discoverSharedAssets(root, config);
-  const audit = await auditWorkspace(root, skills);
+  const audit = await auditWorkspace(root, skills, options.audit);
   const localGit = await detectLocalGitSource(root);
   return { root, config, skills, assets, audit, localGit };
 }

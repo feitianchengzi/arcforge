@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld("arcforge", {
   chooseWorkspace: () => ipcRenderer.invoke("workspace:choose"),
   chooseDirectory: (defaultPath?: string, parentPath?: string) => ipcRenderer.invoke("workspace:chooseDirectory", defaultPath, parentPath),
   scanWorkspace: (root: string) => ipcRenderer.invoke("workspace:scan", root),
+  auditWorkspace: (root: string, options?: unknown) => ipcRenderer.invoke("workspace:audit", root, options),
   saveConfig: (root: string, config: unknown) => ipcRenderer.invoke("workspace:saveConfig", root, config),
   openWorkspaceFolder: (root: string) => ipcRenderer.invoke("workspace:openFolder", root),
   getDefaultTargets: () => ipcRenderer.invoke("system:defaultTargets"),

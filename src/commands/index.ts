@@ -8,7 +8,7 @@ import { arcForgeHome } from "../core/project-store.js";
 import { addAppliedSource, applyFromSource, createImportSkillsPlan, createMergePlan, driftAppliedSources, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, removeAppliedSource, runAppliedSources } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
 import type { CliShimOptions } from "../core/cli-install.js";
-import type { ShareDeliveryMethod, ShareTargetMode } from "../shared/types.js";
+import type { AuditMode, ShareDeliveryMethod, ShareTargetMode } from "../shared/types.js";
 
 export interface CommandRuntime {
   cwd: string;
@@ -50,6 +50,7 @@ Common options:
 Examples:
   arcforge scan --root .
   arcforge audit --root .
+  arcforge audit --root . --mode hybrid --agent codex
   arcforge source status --root .
   arcforge source update --root . --confirm
   arcforge merge plan --root . --to ../team-skills --skills review --target-path skills/project-a
@@ -80,7 +81,15 @@ Usage:
 Print the audit report as JSON. Exits 2 when critical findings exist.
 
 Usage:
-  arcforge audit [--root <dir>] [--source-dir <dir>]
+  arcforge audit [--root <dir>] [--source-dir <dir>] [--mode rule|agent|hybrid] [--agent codex] [--agent-command <command>] [--proxy <url>] [--no-proxy <hosts>] [--timeout-ms <ms>]
+
+Options:
+  --mode <mode>             rule is the default. agent runs only agent diagnosis. hybrid combines both.
+  --agent <name>            Agent adapter name. Defaults to codex.
+  --agent-command <command> Custom non-interactive agent command. The audit prompt is sent on stdin and stdout must be JSON.
+  --proxy <url>             Optional HTTP/HTTPS proxy for the Agent CLI, for example http://127.0.0.1:7890.
+  --no-proxy <hosts>        Optional comma-separated NO_PROXY hosts.
+  --timeout-ms <ms>         Agent diagnosis timeout. Defaults to 120000.
 `,
   source: `ArcForge CLI - source
 
@@ -231,7 +240,16 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
   }
 
   if (command === "audit") {
-    const snapshot = await scanWorkspace(arg(args, "--root") ?? runtime.cwd, { sourceDir: arg(args, "--source-dir") });
+    const snapshot = await scanWorkspace(arg(args, "--root") ?? runtime.cwd, {
+      sourceDir: arg(args, "--source-dir"),
+      audit: {
+        mode: parseAuditMode(arg(args, "--mode") ?? "rule"),
+        agent: arg(args, "--agent"),
+        agentCommand: arg(args, "--agent-command"),
+        proxy: parseProxyOptions(arg(args, "--proxy"), arg(args, "--no-proxy")),
+        timeoutMs: parseOptionalPositiveInteger(arg(args, "--timeout-ms"), "--timeout-ms")
+      }
+    });
     return { exitCode: snapshot.audit.findings.some((item) => item.severity === "critical") ? 2 : 0, value: snapshot.audit };
   }
 
@@ -402,6 +420,28 @@ function parseSkills(value?: string): string[] | undefined {
   if (!value) return undefined;
   const skills = value.split(",").map((item) => item.trim()).filter(Boolean);
   return skills.length > 0 ? skills : undefined;
+}
+
+function parseAuditMode(value: string): AuditMode {
+  if (value === "rule" || value === "agent" || value === "hybrid") return value;
+  throw new Error("Audit mode must be rule, agent, or hybrid.");
+}
+
+function parseOptionalPositiveInteger(value: string | undefined, name: string): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${name} must be a positive integer.`);
+  return parsed;
+}
+
+function parseProxyOptions(proxyUrl?: string, noProxy?: string) {
+  const proxy = proxyUrl?.trim();
+  if (!proxy) return undefined;
+  return {
+    enabled: true,
+    proxyUrl: proxy,
+    noProxy: noProxy?.trim() || undefined
+  };
 }
 
 function parseVisibility(value: string): "private" | "public" {

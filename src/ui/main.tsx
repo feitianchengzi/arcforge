@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { Download, Edit3, FolderOpen, GitBranch, GripVertical, HardDrive, ListOrdered, PackageCheck, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
-import type { AppState, AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, ShareDriftCheckRecord, SharePlanResult, ShareResult, ShareTargetGroup, ArcForgeConfig, SourceUpdateCheckRecord, TargetRecord, WorkspaceSnapshot } from "../shared/types";
+import type { AgentAuditProxyConfig, AppState, AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, ShareDriftCheckRecord, SharePlanResult, ShareResult, ShareTargetGroup, ArcForgeConfig, SourceUpdateCheckRecord, TargetRecord, WorkspaceSnapshot } from "../shared/types";
 import { GITHUB_ISSUE_URL } from "../shared/links";
 import { MAX_RECENT_WORKSPACES, readLegacyAppState } from "./app-state";
 import { AddProjectDialog, CliRepairDialog, EmptyState, EnvironmentNotice, PendingProject, ProjectHeader, SettingsDialog } from "./components/shell";
@@ -62,6 +62,8 @@ function App() {
   const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>([]);
   const [targetHistory, setTargetHistory] = useState<TargetRecord[]>([]);
   const [projectStates, setProjectStates] = useState<Record<string, ProjectUiState>>({});
+  const [agentAuditProxy, setAgentAuditProxy] = useState<AgentAuditProxyConfig>({ enabled: false });
+  const [isRunningAgentAudit, setIsRunningAgentAudit] = useState(false);
   const [defaultTargets, setDefaultTargets] = useState<DefaultTarget[]>([]);
   const [applyTargetGroupId, setApplyTargetGroupId] = useState("");
   const [shareTargetGroupId, setShareTargetGroupId] = useState("");
@@ -170,6 +172,7 @@ function App() {
     setRecentWorkspaces(state.recentWorkspaces.slice(0, MAX_RECENT_WORKSPACES));
     setTargetHistory(state.targetHistory);
     setProjectStates(state.projectState);
+    setAgentAuditProxy(state.agentAuditProxy ?? { enabled: false });
   }
 
   async function saveAppState(patch: Partial<AppState>) {
@@ -392,6 +395,34 @@ function App() {
       if (requestId !== workspaceRequestRef.current) return;
       setSnapshot(undefined);
       setStatus(t.errorStatus(errorMessage(error)));
+    }
+  }
+
+  async function runAgentAudit(proxy: AgentAuditProxyConfig, rememberProxy: boolean) {
+    if (!root) return;
+    try {
+      if (!window.arcforge) {
+        setStatus(t.desktopRequired);
+        return;
+      }
+      if (rememberProxy) {
+        setAgentAuditProxy(proxy);
+        void saveAppState({ agentAuditProxy: proxy });
+      }
+      setIsRunningAgentAudit(true);
+      setStatus(t.runningAgentAudit);
+      const result = await window.arcforge.auditWorkspace(root, {
+        mode: "hybrid",
+        agent: "codex",
+        proxy,
+        timeoutMs: 120000
+      });
+      applySnapshot(result);
+      setStatus(t.agentAuditComplete(result.audit.score));
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    } finally {
+      setIsRunningAgentAudit(false);
     }
   }
 
@@ -1043,7 +1074,7 @@ function App() {
                 cancelSharePlan={() => setSharePlan(undefined)}
               />
             )}
-            {tab === "audit" && <Audit t={t} snapshot={snapshot} criticalCount={criticalCount} warningCount={warningCount} openFeedback={() => openFeedbackIssue(snapshot.audit.feedbackUrl)} />}
+            {tab === "audit" && <Audit t={t} snapshot={snapshot} criticalCount={criticalCount} warningCount={warningCount} openFeedback={() => openFeedbackIssue(snapshot.audit.feedbackUrl)} agentAuditProxy={agentAuditProxy} isRunningAgentAudit={isRunningAgentAudit} runAgentAudit={runAgentAudit} />}
           </>
           )}
         </div>

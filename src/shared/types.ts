@@ -63,6 +63,25 @@ export interface AuditFinding {
   message: string;
   file: string;
   line?: number;
+  source?: "rule" | "agent";
+  evidence?: string;
+  confidence?: "low" | "medium" | "high";
+}
+
+export type AuditMode = "rule" | "agent" | "hybrid";
+
+export interface AuditAgentRun {
+  name: string;
+  status: "not_requested" | "completed" | "failed" | "timeout" | "unavailable";
+  durationMs?: number;
+  command?: string;
+  error?: string;
+}
+
+export interface AgentAuditProxyConfig {
+  enabled: boolean;
+  proxyUrl?: string;
+  noProxy?: string;
 }
 
 export interface AuditReport {
@@ -73,6 +92,8 @@ export interface AuditReport {
   score: number;
   disclaimer: string;
   feedbackUrl: string;
+  mode?: AuditMode;
+  agent?: AuditAgentRun;
 }
 
 export interface ArcForgeProfile {
@@ -375,6 +396,7 @@ export interface ProjectUiState {
 export interface AppState {
   version: 1;
   language?: "en" | "zh-CN";
+  agentAuditProxy?: AgentAuditProxyConfig;
   activeWorkspace?: string;
   recentWorkspaces: RecentWorkspace[];
   targetHistory: TargetRecord[];

@@ -1,8 +1,9 @@
 import path from "node:path";
-import type { AuditFinding, AuditReport, SkillSummary } from "../shared/types.js";
+import type { AuditFinding, AuditMode, AuditReport, SkillSummary } from "../shared/types.js";
 import { GITHUB_ISSUE_URL } from "../shared/links.js";
 import { listFiles, readText } from "./fs.js";
 import { findSkillMarkdownFile, isSkillMarkdownName } from "./skill-markdown.js";
+import { runAgentAudit, type AgentAuditOptions } from "./agent-audit.js";
 
 const SECRET_PATTERNS = [
   { code: "secret.openai", pattern: /sk-(?!proj-)[A-Za-z0-9_-]{20,}/ },
@@ -26,34 +27,44 @@ const RISKY_INSTRUCTIONS = [
   { code: "risk.permission_bypass", pattern: /\b(bypass|disable|turn off)\b.{0,32}\b(approval|permission|sandbox|policy|guardrail)\b/i }
 ];
 
-export const AUDIT_DISCLAIMER = `ArcForge audit is a local rule-based scan. It currently checks known secret patterns, selected risky instruction phrases, high-risk shell command patterns, and basic SKILL.md metadata/structure. It is not a complete security review and can miss issues or report false positives. Treat results as guidance, review skills manually before sharing or publishing, and file an issue on GitHub if you need stronger audit coverage: ${GITHUB_ISSUE_URL}`;
+export const AUDIT_DISCLAIMER = `ArcForge audit combines a local rule-based scan with optional agent-assisted diagnosis. Rule mode checks known secret patterns, selected risky instruction phrases, high-risk shell command patterns, and basic SKILL.md metadata/structure. Agent or hybrid mode can add semantic findings, but it is still not a complete security review and can miss issues or report false positives. Treat results as guidance, review skills manually before sharing or publishing, and file an issue on GitHub if you need stronger audit coverage: ${GITHUB_ISSUE_URL}`;
 
-export async function auditWorkspace(root: string, skills: SkillSummary[]): Promise<AuditReport> {
+export interface AuditWorkspaceOptions extends AgentAuditOptions {
+  mode?: AuditMode;
+}
+
+export async function auditWorkspace(root: string, skills: SkillSummary[], options: AuditWorkspaceOptions = {}): Promise<AuditReport> {
+  const mode = options.mode ?? "rule";
   const findings: AuditFinding[] = [];
 
-  for (const skill of skills) {
-    const skillFile = await findSkillMarkdownFile(skill.path);
-    if (!skillFile) continue;
-    const content = await readText(skillFile);
-    findings.push(...auditSkillMarkdown(root, skillFile, content));
+  if (mode === "rule" || mode === "hybrid") {
+    for (const skill of skills) {
+      const skillFile = await findSkillMarkdownFile(skill.path);
+      if (!skillFile) continue;
+      const content = await readText(skillFile);
+      findings.push(...auditSkillMarkdown(root, skillFile, content));
 
-    if (!skill.description || skill.description.length < 24) {
-      findings.push({
-        severity: "warning",
-        code: "quality.description_short",
-        message: "Skill description is missing or too short for reliable triggering.",
-        file: path.relative(root, skillFile)
-      });
-    }
+      if (!skill.description || skill.description.length < 24) {
+        findings.push(ruleFinding({
+          severity: "warning",
+          code: "quality.description_short",
+          message: "Skill description is missing or too short for reliable triggering.",
+          file: path.relative(root, skillFile)
+        }));
+      }
 
-    const files = await listFiles(skill.path);
-    for (const file of files) {
-      if (isSkillMarkdownName(path.basename(file))) continue;
-      const text = await maybeReadText(file);
-      if (!text) continue;
-      findings.push(...auditSecrets(root, file, text));
+      const files = await listFiles(skill.path);
+      for (const file of files) {
+        if (isSkillMarkdownName(path.basename(file))) continue;
+        const text = await maybeReadText(file);
+        if (!text) continue;
+        findings.push(...auditSecrets(root, file, text));
+      }
     }
   }
+
+  const agent = mode === "agent" || mode === "hybrid" ? await runAgentAudit(root, skills, options) : undefined;
+  if (agent) findings.push(...agent.findings);
 
   return {
     root,
@@ -62,7 +73,9 @@ export async function auditWorkspace(root: string, skills: SkillSummary[]): Prom
     findings,
     score: score(findings),
     disclaimer: AUDIT_DISCLAIMER,
-    feedbackUrl: GITHUB_ISSUE_URL
+    feedbackUrl: GITHUB_ISSUE_URL,
+    mode,
+    agent: agent?.run ?? { name: options.agent ?? "codex", status: "not_requested" }
   };
 }
 
@@ -79,13 +92,13 @@ function auditSecrets(root: string, file: string, content: string): AuditFinding
   for (const rule of SECRET_PATTERNS) {
     const line = findLine(content, rule.pattern);
     if (line) {
-      findings.push({
+      findings.push(ruleFinding({
         severity: "critical",
         code: rule.code,
         message: "Potential secret detected. Remove it before team sharing or public publishing.",
         file: path.relative(root, file),
         line
-      });
+      }));
     }
   }
   return findings;
@@ -96,13 +109,13 @@ function auditRiskyInstructions(root: string, file: string, content: string): Au
   for (const rule of RISKY_INSTRUCTIONS) {
     const line = findLine(content, rule.pattern);
     if (line) {
-      findings.push({
+      findings.push(ruleFinding({
         severity: "warning",
         code: rule.code,
         message: "Risky agent behavior found. Make the instruction narrower or require explicit user approval.",
         file: path.relative(root, file),
         line
-      });
+      }));
     }
   }
   return findings;
@@ -111,30 +124,34 @@ function auditRiskyInstructions(root: string, file: string, content: string): Au
 function auditStructure(root: string, file: string, content: string): AuditFinding[] {
   const findings: AuditFinding[] = [];
   if (!/^---\n[\s\S]+?\n---/m.test(content)) {
-    findings.push({
+    findings.push(ruleFinding({
       severity: "warning",
       code: "quality.frontmatter_missing",
       message: "SKILL.md should include frontmatter with name and description.",
       file: path.relative(root, file)
-    });
+    }));
   }
   if (!/^name:/m.test(content)) {
-    findings.push({
+    findings.push(ruleFinding({
       severity: "warning",
       code: "quality.name_missing",
       message: "SKILL.md frontmatter should include a stable name.",
       file: path.relative(root, file)
-    });
+    }));
   }
   if (!/^description:\s*[\s\S]{24,}/m.test(content)) {
-    findings.push({
+    findings.push(ruleFinding({
       severity: "warning",
       code: "quality.description_missing",
       message: "SKILL.md frontmatter should include a clear trigger-oriented description.",
       file: path.relative(root, file)
-    });
+    }));
   }
   return findings;
+}
+
+function ruleFinding(finding: Omit<AuditFinding, "source">): AuditFinding {
+  return { ...finding, source: "rule" };
 }
 
 function findLine(content: string, pattern: RegExp): number | undefined {

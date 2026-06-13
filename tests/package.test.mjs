@@ -16,21 +16,35 @@ test("project is positioned as github-first arcforge", () => {
 
 test("audit reports disclose rule-based coverage limits", async () => {
   const auditCore = await readFile(new URL("../src/core/audit.ts", import.meta.url), "utf8");
+  const agentAuditCore = await readFile(new URL("../src/core/agent-audit.ts", import.meta.url), "utf8");
   const dashboard = await readFile(new URL("../src/ui/views/dashboard.tsx", import.meta.url), "utf8");
   const links = await readFile(new URL("../src/shared/links.ts", import.meta.url), "utf8");
   const main = await readFile(new URL("../src/electron/main.ts", import.meta.url), "utf8");
   const shell = await readFile(new URL("../src/ui/components/shell.tsx", import.meta.url), "utf8");
 
   assert.match(auditCore, /AUDIT_DISCLAIMER/);
-  assert.match(auditCore, /local rule-based scan/);
+  assert.match(auditCore, /optional agent-assisted diagnosis/);
   assert.match(auditCore, /feedbackUrl/);
   assert.match(auditCore, /secret\.anthropic/);
   assert.match(auditCore, /secret\.aws_access_key/);
   assert.match(auditCore, /risk\.destructive_shell/);
   assert.match(auditCore, /risk\.remote_script/);
+  assert.match(auditCore, /source: "rule"/);
+  assert.match(auditCore, /runAgentAudit/);
+  assert.match(agentAuditCore, /codex/);
+  assert.match(agentAuditCore, /--sandbox/);
+  assert.match(agentAuditCore, /read-only/);
+  assert.match(agentAuditCore, /--ask-for-approval/);
+  assert.match(agentAuditCore, /never/);
+  assert.match(agentAuditCore, /HTTP_PROXY/);
+  assert.match(agentAuditCore, /HTTPS_PROXY/);
+  assert.match(agentAuditCore, /CODEX_HOME/);
+  assert.match(agentAuditCore, /agent\.timeout/);
+  assert.match(agentAuditCore, /agent\.unavailable/);
   assert.match(links, /github\.com\/feitianchengzi\/arcforge\/issues\/new/);
   assert.match(main, /system:openExternal/);
   assert.match(dashboard, /auditTransparencyTitle/);
+  assert.match(dashboard, /auditFindingMeta/);
   assert.match(dashboard, /auditOpenIssue/);
   assert.match(shell, /feedbackHelp/);
 });
@@ -51,6 +65,7 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
 
   assert.match(commands, /arcforge share plan --root \. --repo/);
   assert.match(commands, /arcforge source status --root \./);
+  assert.match(commands, /arcforge audit --root \. --mode hybrid --agent codex/);
   assert.match(commands, /ArcForge CLI - source/);
   assert.match(commands, /command === "source"/);
   assert.match(commands, /ArcForge CLI - merge/);
@@ -81,14 +96,24 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
   assert.match(commands, /--same-repository/);
   assert.match(commands, /command === "share"/);
   assert.match(commands, /command === "doctor"/);
+  assert.match(commands, /parseAuditMode/);
+  assert.match(commands, /--agent-command <command>/);
+  assert.match(commands, /--proxy <url>/);
+  assert.match(commands, /--no-proxy <hosts>/);
+  assert.match(commands, /--timeout-ms <ms>/);
+  assert.match(commands, /parseProxyOptions/);
   assert.match(commands, /requiresConfirm/);
   assert.match(cli, /runArcForgeCommand/);
   assert.match(electronMain, /"--cli"/);
   assert.match(electronMain, /installCliShim/);
   assert.match(electronMain, /system:installCli/);
+  assert.match(electronMain, /workspace:audit/);
+  assert.match(electronMain, /normalizeAuditRequest/);
+  assert.match(electronMain, /agentAuditProxy/);
   assert.match(electronMain, /share:drift/);
   assert.doesNotMatch(electronMain, /workspace:init/);
   assert.match(preload, /installCli/);
+  assert.match(preload, /auditWorkspace/);
   assert.match(preload, /shareDriftReport/);
   assert.doesNotMatch(preload, /initWorkspace/);
 });
@@ -154,6 +179,8 @@ test("desktop project list is backed by local project state", async () => {
   assert.match(mainUi, /rememberProjectWorkspace/);
   assert.match(mainUi, /reorderProjectWorkspaces/);
   assert.match(mainUi, /removeProjectWorkspace/);
+  assert.match(mainUi, /agentAuditProxy/);
+  assert.match(mainUi, /runAgentAudit/);
   assert.match(installer, /arcforge-desktop/);
   assert.match(installer, /"\$@"/);
 });

@@ -6,7 +6,7 @@ metadata:
   owner: core/audit
   version: 1
   created: 2026-05-21
-  updated: 2026-05-25
+  updated: 2026-06-13
 type: object
 required:
   - root
@@ -59,17 +59,60 @@ properties:
           type: integer
           minimum: 1
           nullable: true
+        source:
+          type: string
+          enum:
+            - rule
+            - agent
+          description: Whether the finding came from deterministic rules or Agent-assisted diagnosis.
+        evidence:
+          type: string
+          description: Short supporting excerpt or reason for Agent findings.
+        confidence:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+          description: Confidence level for Agent-assisted findings.
   score:
     type: integer
     minimum: 0
     maximum: 100
   disclaimer:
     type: string
-    description: User-facing explanation that the audit is a local rule-based scan with incomplete coverage and possible false positives.
+    description: User-facing explanation that audit combines local rule checks with optional Agent-assisted diagnosis and can miss issues or report false positives.
   feedbackUrl:
     type: string
     format: uri
     description: GitHub issue URL where users can report audit gaps or request stronger rule coverage.
+  mode:
+    type: string
+    enum:
+      - rule
+      - agent
+      - hybrid
+    description: Audit mode used to generate the report.
+  agent:
+    type: object
+    description: Optional Agent diagnosis run summary.
+    properties:
+      name:
+        type: string
+      status:
+        type: string
+        enum:
+          - not_requested
+          - completed
+          - failed
+          - timeout
+          - unavailable
+      durationMs:
+        type: integer
+      command:
+        type: string
+      error:
+        type: string
 state_machine:
   scoring:
     initial: 100

@@ -599,6 +599,49 @@ button.active {
   margin-top: var(--space-md);
 }
 
+.audit-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-lg);
+  align-items: end;
+  margin-top: var(--space-md);
+}
+
+.audit-proxy {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content)) repeat(2, minmax(160px, 1fr)) minmax(0, max-content);
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.audit-proxy strong {
+  grid-column: 1 / -1;
+  color: var(--text-heading);
+  font-size: 13px;
+}
+
+.audit-proxy label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.audit-proxy input {
+  min-height: 36px;
+  background: var(--surface-panel);
+}
+
+.audit-buttons {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -902,6 +945,12 @@ input[type="checkbox"] { width: auto; min-height: auto; padding: 0; }
   .content { height: auto; overflow: visible; }
   .stage-scroll { overflow: visible; }
   .project-summary, .add-project-options { grid-template-columns: 1fr; }
+  .audit-actions,
+  .audit-proxy {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .audit-buttons { justify-content: flex-start; }
   .summary-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

@@ -158,6 +158,16 @@ export interface Dictionary {
   noFindings: string;
   auditTransparencyTitle: string;
   auditTransparencyBody: string;
+  auditFindingMeta: (source?: string, confidence?: string) => string;
+  runAgentAudit: string;
+  runningAgentAudit: string;
+  agentAuditComplete: (score: number) => string;
+  agentAuditProxyTitle: string;
+  agentAuditProxyNone: string;
+  agentAuditProxyUse: string;
+  agentAuditProxyPlaceholder: string;
+  agentAuditNoProxyPlaceholder: string;
+  rememberAgentAuditProxy: string;
   auditOpenIssue: string;
   applyProfile: string;
   manageProfiles: string;
@@ -412,7 +422,17 @@ export const dictionaries: Record<Language, Dictionary> = {
     findingsTitle: "Findings",
     noFindings: "No findings.",
     auditTransparencyTitle: "Audit coverage is limited",
-    auditTransparencyBody: "This audit is a local rule-based scan. It checks known secret patterns, selected risky instruction phrases, high-risk shell command patterns, and basic SKILL.md metadata/structure. It is not a complete security review and can miss issues or report false positives. Review skills manually before sharing or publishing.",
+    auditTransparencyBody: "This audit combines local rule checks with optional agent-assisted diagnosis. Rule checks catch known secret patterns, risky instruction phrases, high-risk shell commands, and basic SKILL.md metadata/structure. Agent findings are semantic guidance, not a complete security review, and may miss issues or report false positives.",
+    auditFindingMeta: (source?: string, confidence?: string) => `${source === "agent" ? "Agent" : "Rule"}${confidence ? ` / ${confidence} confidence` : ""}`,
+    runAgentAudit: "Run Agent diagnosis",
+    runningAgentAudit: "Running Agent diagnosis...",
+    agentAuditComplete: (score: number) => `Agent diagnosis complete. Audit score: ${score}/100.`,
+    agentAuditProxyTitle: "Agent CLI proxy",
+    agentAuditProxyNone: "Do not use proxy",
+    agentAuditProxyUse: "Use proxy",
+    agentAuditProxyPlaceholder: "http://127.0.0.1:7890",
+    agentAuditNoProxyPlaceholder: "localhost,127.0.0.1",
+    rememberAgentAuditProxy: "Remember on this computer",
     auditOpenIssue: "Submit an issue on GitHub",
     applyProfile: "Apply profile",
     manageProfiles: "Manage profiles",
@@ -665,7 +685,17 @@ export const dictionaries: Record<Language, Dictionary> = {
     findingsTitle: "发现项",
     noFindings: "没有发现问题。",
     auditTransparencyTitle: "当前审计覆盖有限",
-    auditTransparencyBody: "当前审计是本地规则扫描，主要检查已知密钥模式、部分高风险指令短语、高风险 shell 命令模式，以及 SKILL.md 的基础元数据和结构。它不是完整安全审计，可能漏报，也可能误报。共享或发布前请手动复核技能内容。",
+    auditTransparencyBody: "当前审计结合本地规则检查和可选 Agent 诊断。规则检查覆盖已知密钥模式、部分高风险指令短语、高风险 shell 命令模式，以及 SKILL.md 的基础元数据和结构。Agent 发现项属于语义辅助判断，不是完整安全审计，可能漏报，也可能误报。",
+    auditFindingMeta: (source?: string, confidence?: string) => `${source === "agent" ? "Agent" : "规则"}${confidence ? ` / ${confidence} 置信度` : ""}`,
+    runAgentAudit: "运行 Agent 诊断",
+    runningAgentAudit: "正在运行 Agent 诊断...",
+    agentAuditComplete: (score: number) => `Agent 诊断完成。审计评分：${score}/100。`,
+    agentAuditProxyTitle: "Agent CLI 代理",
+    agentAuditProxyNone: "不使用代理",
+    agentAuditProxyUse: "使用代理",
+    agentAuditProxyPlaceholder: "http://127.0.0.1:7890",
+    agentAuditNoProxyPlaceholder: "localhost,127.0.0.1",
+    rememberAgentAuditProxy: "记住本机设置",
     auditOpenIssue: "在 GitHub 提交 issue",
     applyProfile: "应用配置组",
     manageProfiles: "管理配置组",
