@@ -14,6 +14,7 @@ test("arcforge install skill defines source install boundaries", async () => {
   const cliInstall = await readFile(new URL("../src/core/cli-install.ts", import.meta.url), "utf8");
 
   assert.match(skill, /name: arcforge-install/);
+  assert.match(skill, /# ArcForge Install/);
   assert.match(skill, /skills\/arcforge/);
   assert.match(skill, /skills\/arcforge-skill-first/);
   assert.match(skill, /~\/\.codex\/skills\/arcforge/);
@@ -48,6 +49,8 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(skill, /不能被当成成功/);
   assert.match(skill, /arcforge audit --root \./);
   assert.match(agentYaml, /\$arcforge-install/);
+  assert.match(agentYaml, /display_name: "ArcForge Install"/);
+  assert.doesNotMatch(agentYaml, /display_name: ".*[\u4e00-\u9fff].*"/);
   assert.match(agentYaml, /arcforge-skill-first/);
   assert.match(agentYaml, /--home\/--shim-dir/);
   assert.match(agentYaml, /--npm-cache/);

@@ -3,7 +3,7 @@ name: arcforge-install
 description: 当用户拉取 ArcForge 当前仓库后，想在 agent 中运行安装流程，一次性安装用户级 arcforge、arcforge-skill-first、本地 arcforge CLI，以及可真实调起的 ArcForge Desktop launcher 时使用。
 ---
 
-# ArcForge 安装
+# ArcForge Install
 
 这个 skill 用于从当前 ArcForge 源码仓库完成本地安装。它服务于“用户 clone 当前项目，在 agent 中打开项目，然后运行安装 skill，后续使用 `arcforge` 和 `arcforge-skill-first` 时能真实调起 CLI 和 Desktop”的场景。
 
