@@ -9,9 +9,30 @@ import { spawn } from "node:child_process";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..", "..", "..");
-const args = parseArgs(process.argv.slice(2));
+const installedSkillNames = ["arcforge", "arcforge-skill-first"];
+const recommendedSkillProjects = [
+  {
+    name: "arckit",
+    url: "https://github.com/feitianchengzi/arckit",
+    description: "Feitianchengzi AI-agent-assisted software development skill center for idea, decision, project definition, iteration governance, memory, and technology-agnostic engineering workflows."
+  },
+  {
+    name: "arckit-code",
+    url: "https://github.com/feitianchengzi/arckit-code",
+    description: "Feitianchengzi technology-stack-specific coding skill project. Current skills focus on SwiftUI/Apple client architecture and feedback platform integration."
+  }
+];
+const rawArgs = process.argv.slice(2);
+const args = parseArgs(rawArgs);
+if (hasHelpFlag(rawArgs)) {
+  printHelp();
+  process.exit(0);
+}
 const agents = parseAgents(args.agent ?? "codex");
 const desktopMode = args.desktop ?? "install";
+const recommendedSkillsArg = args["recommended-skills"];
+const recommendedSkillSelection = parseRecommendedSkillSelection(recommendedSkillsArg ?? "prompt");
+const recommendedMode = parseRecommendedMode(args["recommended-mode"] ?? "prompt");
 const updatePath = Boolean(args["update-path"]);
 const skipNpmInstall = Boolean(args["skip-npm-install"]);
 const dryRun = Boolean(args["dry-run"]);
@@ -23,7 +44,6 @@ const npmCacheDir = args["npm-cache"]
   : installHome !== os.homedir()
     ? path.join(installHome, ".npm")
     : undefined;
-const installedSkillNames = ["arcforge", "arcforge-skill-first"];
 let currentStage = "initialization";
 
 process.on("uncaughtException", handleFatalError);
@@ -31,6 +51,9 @@ process.on("unhandledRejection", handleFatalError);
 
 if (!["install", "build", "package", "skip"].includes(desktopMode)) {
   fail(`Unsupported --desktop value: ${desktopMode}. Use install, build, package, or skip.`);
+}
+if (recommendedSkillsArg && recommendedMode === "prompt") {
+  fail("Pass --recommended-mode quick or --recommended-mode governed when using --recommended-skills.");
 }
 
 await assertRepoRoot(repoRoot);
@@ -56,6 +79,8 @@ if (dryRun) {
     cliShimDir: await chooseShimDir(),
     desktopShimPath: desktopShimPath(await chooseShimDir()),
     desktopMode,
+    recommendedMode,
+    recommendedSkillSelection,
     npmCacheDir,
     skipNpmInstall,
     updatePath
@@ -105,6 +130,28 @@ const verification = await verifyInstall({ cli: summary.cli, desktop: summary.de
 printVerifySummary(verification);
 if (!verification.ok) process.exit(1);
 
+if (recommendedMode === "prompt") {
+  printRecommendedModePrompt({ agents, scriptPath: installScriptDisplayPath() });
+} else if (recommendedMode === "governed") {
+  printRecommendedGovernancePrompt({
+    agents,
+    scriptPath: installScriptDisplayPath(),
+    selectedNames: recommendedSkillSelection.names,
+    cliShimPath: summary.cli.shimPath
+  });
+} else if (recommendedSkillSelection.mode === "prompt") {
+  printRecommendedQuickSkillPrompt({ agents, scriptPath: installScriptDisplayPath() });
+} else if (recommendedSkillSelection.names.length > 0) {
+  const recommendedSummary = await installRecommendedSkillProjects({
+    agents,
+    cliShimPath: summary.cli.shimPath,
+    selectedNames: recommendedSkillSelection.names
+  });
+  printRecommendedSkillSummary(recommendedSummary);
+} else if (recommendedSkillSelection.mode === "skip") {
+  printRecommendedSkillSummary([]);
+}
+
 function parseArgs(rawArgs) {
   const result = {};
   for (let index = 0; index < rawArgs.length; index += 1) {
@@ -122,6 +169,10 @@ function parseArgs(rawArgs) {
   return result;
 }
 
+function hasHelpFlag(rawArgs) {
+  return rawArgs.includes("--help") || rawArgs.includes("-h");
+}
+
 function parseAgents(value) {
   const agents = String(value)
     .split(",")
@@ -131,6 +182,28 @@ function parseAgents(value) {
   const invalid = agents.filter((agent) => !allowed.has(agent));
   if (invalid.length > 0) fail(`Unsupported --agent value: ${invalid.join(", ")}.`);
   return [...new Set(agents)];
+}
+
+function parseRecommendedSkillSelection(value) {
+  const raw = String(value ?? "prompt").trim().toLowerCase();
+  if (!raw || raw === "prompt") return { mode: "prompt", names: [] };
+  if (["skip", "none", "no"].includes(raw)) return { mode: "skip", names: [] };
+
+  const allowed = new Set(recommendedSkillProjects.map((project) => project.name));
+  const names = raw === "all"
+    ? recommendedSkillProjects.map((project) => project.name)
+    : raw.split(",").map((item) => item.trim()).filter(Boolean);
+  const invalid = names.filter((name) => !allowed.has(name));
+  if (invalid.length > 0) {
+    fail(`Unsupported --recommended-skills value: ${invalid.join(", ")}. Use prompt, skip, all, arckit, arckit-code, or arckit,arckit-code.`);
+  }
+  return { mode: "install", names: [...new Set(names)] };
+}
+
+function parseRecommendedMode(value) {
+  const mode = String(value ?? "prompt").trim().toLowerCase();
+  if (["prompt", "quick", "governed"].includes(mode)) return mode;
+  fail(`Unsupported --recommended-mode value: ${mode}. Use prompt, quick, or governed.`);
 }
 
 async function assertRepoRoot(root) {
@@ -169,6 +242,10 @@ function userSkillTarget(agent, skillName) {
   if (agent === "codex") return path.join(installHome, ".codex", "skills", skillName);
   if (agent === "claude") return path.join(installHome, ".claude", "skills", skillName);
   return path.join(installHome, ".cursor", "skills", skillName);
+}
+
+function userSkillRoot(agent) {
+  return path.dirname(userSkillTarget(agent, "arcforge"));
 }
 
 async function installCliShim(options) {
@@ -500,6 +577,61 @@ async function run(command, commandArgs, options) {
   });
 }
 
+async function installRecommendedSkillProjects(options) {
+  const selectedProjects = recommendedSkillProjects.filter((project) => options.selectedNames.includes(project.name));
+  const installed = [];
+  for (const agent of options.agents) {
+    const targetDir = userSkillRoot(agent);
+    for (const project of selectedProjects) {
+      await run(options.cliShimPath, [
+        "drift",
+        "--root",
+        repoRoot,
+        "--from",
+        project.url,
+        "--profile",
+        "default",
+        "--target",
+        targetDir
+      ], {
+        cwd: repoRoot,
+        label: `Preview ${project.name} install for ${agent}`
+      });
+      await run(options.cliShimPath, [
+        "apply",
+        "--root",
+        repoRoot,
+        "--from",
+        project.url,
+        "--profile",
+        "default",
+        "--target",
+        targetDir,
+        "--confirm"
+      ], {
+        cwd: repoRoot,
+        label: `Install ${project.name} for ${agent}`
+      });
+      await run(options.cliShimPath, [
+        "drift",
+        "--root",
+        repoRoot,
+        "--from",
+        project.url,
+        "--profile",
+        "default",
+        "--target",
+        targetDir
+      ], {
+        cwd: repoRoot,
+        label: `Verify ${project.name} install for ${agent}`
+      });
+      installed.push({ agent, project: project.name, url: project.url, targetDir });
+    }
+  }
+  return installed;
+}
+
 async function assertExists(filePath, message) {
   if (!(await pathExists(filePath))) fail(message);
 }
@@ -573,10 +705,149 @@ function printPlan(value) {
   console.log(`CLI shim directory: ${value.cliShimDir}`);
   console.log(`Desktop launcher: ${value.desktopShimPath}`);
   console.log(`Desktop mode: ${value.desktopMode}`);
+  console.log(`Recommended mode: ${value.recommendedMode}`);
+  console.log(`Recommended skills: ${formatRecommendedSkillSelection(value.recommendedSkillSelection)}`);
   if (value.npmCacheDir) console.log(`NPM cache: ${value.npmCacheDir}`);
   console.log(`Verify only: ${verifyOnly ? "yes" : "no"}`);
   console.log(`Skip npm install: ${value.skipNpmInstall ? "yes" : "no"}`);
   console.log(`Update PATH: ${value.updatePath ? "yes" : "no"}`);
+}
+
+function printHelp() {
+  console.log(`ArcForge repository installer
+
+Usage:
+  node skills/arcforge-install/scripts/install-from-repo.mjs [options]
+
+Options:
+  --agent <list>                 Agent targets: codex, claude, cursor. Default: codex.
+  --desktop <mode>               Desktop mode: install, build, package, skip. Default: install.
+  --recommended-mode <mode>      prompt, quick, or governed. Default: prompt.
+  --recommended-skills <value>   prompt, skip, all, arckit, arckit-code, or arckit,arckit-code. Default: prompt.
+  --update-path                  Add the selected user bin directory to the shell profile.
+  --skip-npm-install             Skip npm install when dependencies are already present.
+  --dry-run                      Print target paths without writing or building.
+  --verify                       Check the existing install without writing.
+  --home <path>                  Use an alternate HOME for temporary validation.
+  --shim-dir <path>              Write CLI and Desktop shims to this directory.
+  --npm-cache <path>             Use an alternate npm cache directory.
+  --help                         Print this help without installing.
+
+Default install:
+  node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex --desktop install
+
+Optional recommended skills after ArcForge is installed:
+  node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills all
+  node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills arckit
+  node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills arckit-code
+  node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode governed
+  node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills skip
+
+Recommended Skill projects:
+  arckit: ${recommendedSkillProjects[0].url}
+    ${recommendedSkillProjects[0].description}
+  arckit-code: ${recommendedSkillProjects[1].url}
+    ${recommendedSkillProjects[1].description}
+`);
+}
+
+function printRecommendedModePrompt(options) {
+  console.log("\nAGENT ACTION REQUIRED: recommended install mode choice pending");
+  console.log("Recommended skill stage: pending_install_mode_choice");
+  console.log("ArcForge core install is complete. Teach the user the difference between quick install and governed install before writing recommended skills.");
+  console.log("Quick install mode: directly uses GitHub as the source, creates only temporary source checkouts, writes the selected projects to the agent skill target, and does not establish a persistent maintenance source.");
+  console.log("Governed install mode: pauses before writing recommended skills, then uses the arcforge workflow to confirm source/upstream, maintenance source, application target, profile/skills, whether to save an applied source record, and the record root.");
+  console.log("Last agent-facing action: ask the user to choose quick install, governed install, or skip recommended Skill projects.");
+  console.log("Do not mark the install turn complete until the user chooses one of these modes or explicitly stops.");
+  console.log("Ask this question in the final response:");
+  console.log("  ArcForge 核心安装已完成。推荐 Skill 项目可以用两种模式继续：");
+  console.log("  1. 快速安装：直接从 GitHub drift/apply 到当前 agent 的用户级 skills，不建立持久维护源。");
+  console.log("  2. 严格治理：先确认来源、维护源、应用目标、profile/skills 和关系记录，再由 arcforge workflow 执行。");
+  console.log("  3. 暂不安装推荐 Skill 项目。");
+  console.log("  你希望使用哪种模式？");
+  console.log("Commands after the user chooses:");
+  console.log(`- Quick mode: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick`);
+  console.log(`- Governed mode: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode governed`);
+  console.log(`- Skip: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills skip`);
+}
+
+function printRecommendedQuickSkillPrompt(options) {
+  console.log("\nAGENT ACTION REQUIRED: recommended quick skill choice pending");
+  console.log("Recommended skill stage: pending_quick_skill_choice");
+  console.log("ArcForge core install is complete. Do not finish with only a summary that arckit or arckit-code were not installed.");
+  console.log("Quick install mode selected: the recommended projects will be applied directly from GitHub to the agent skill target without creating a persistent maintenance source or saved applied source record.");
+  console.log("Last agent-facing action: ask the user to install arckit, install arckit-code, install both, or skip.");
+  console.log("Do not mark the install turn complete until the user chooses one of these four options or explicitly stops.");
+  console.log("Ask the user which recommended Feitianchengzi Skill project to install next:");
+  for (const project of recommendedSkillProjects) {
+    console.log(`- ${project.name}: ${project.description}`);
+    console.log(`  Source: ${project.url}`);
+  }
+  console.log("Ask this question in the final response:");
+  console.log("  ArcForge 核心安装已完成。你希望我现在安装哪一项？");
+  console.log("  1. 安装 arckit 和 arckit-code");
+  console.log("  2. 只安装 arckit");
+  console.log("  3. 只安装 arckit-code");
+  console.log("  4. 暂不安装");
+  console.log("Commands after the user chooses:");
+  console.log(`- Both: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills all`);
+  console.log(`- arckit only: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills arckit`);
+  console.log(`- arckit-code only: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills arckit-code`);
+  console.log(`- Skip: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills skip`);
+}
+
+function printRecommendedGovernancePrompt(options) {
+  const selectedProjects = options.selectedNames.length > 0
+    ? recommendedSkillProjects.filter((project) => options.selectedNames.includes(project.name))
+    : recommendedSkillProjects;
+  console.log("\nAGENT ACTION REQUIRED: recommended governed install pending");
+  console.log("Recommended skill stage: pending_governance_endpoints");
+  console.log("Governed install mode selected. Do not write recommended skills from this script.");
+  console.log("Hand off to the arcforge workflow and confirm the governance endpoints before any apply/import/save operation.");
+  console.log("Suggested endpoint model to explain to the user:");
+  console.log(`- Source/upstream: ${selectedProjects.map((project) => `${project.name}=${project.url}`).join(", ")}`);
+  console.log("- Temporary source checkout: created only while drift/import reads GitHub; it is not a maintenance source.");
+  console.log("- Maintenance source: pending user choice. Use none for direct governed apply, or choose/import into a local formal Skill project for long-term maintenance.");
+  console.log(`- Application target: ${options.agents.map((agent) => `${agent}=${userSkillRoot(agent)}`).join(", ")}`);
+  console.log("- Sharing target: none in this install stage.");
+  console.log("- Profile/skills: pending user choice; default profile is default.");
+  console.log("- Relationship record: pending user choice. If saved, confirm the record root separately; it is not the application target and may not be the current cwd.");
+  console.log("Ask this question in the final response:");
+  console.log("  严格治理模式不会立即写入推荐 skills。请确认：");
+  console.log("  1. 要处理哪些项目：arckit、arckit-code，还是两个都处理？");
+  console.log("  2. 是否需要本地持久维护源？如果需要，维护源 root 是哪个目录？");
+  console.log("  3. 应用目标是否是当前 agent 的用户级 skills 目录？");
+  console.log("  4. 是否保存 applied source record？如果保存，关系记录归属 root 是哪个目录？");
+  console.log("After the user confirms, use the arcforge workflow. Direct governed apply normally uses:");
+  for (const project of selectedProjects) {
+    for (const agent of options.agents) {
+      const targetDir = userSkillRoot(agent);
+      console.log(`- Preview: ${options.cliShimPath} drift --root <record-or-maintenance-root> --from ${project.url} --profile default --target ${targetDir}`);
+      console.log(`- Apply after confirmation: ${options.cliShimPath} apply --root <record-or-maintenance-root> --from ${project.url} --profile default --target ${targetDir} --save --confirm`);
+    }
+  }
+  console.log("If the user wants a persistent local maintenance source first, use import plan/run before apply.");
+}
+
+function printRecommendedSkillSummary(items) {
+  console.log("\nRecommended skill install summary");
+  if (items.length === 0) {
+    console.log("No recommended skills installed.");
+    return;
+  }
+  for (const item of items) {
+    console.log(`Skill project (${item.agent}/${item.project}): ${item.url} -> ${item.targetDir}`);
+  }
+}
+
+function formatRecommendedSkillSelection(selection) {
+  if (selection.mode === "prompt") return "prompt";
+  if (selection.names.length === 0) return "skip";
+  return selection.names.join(",");
+}
+
+function installScriptDisplayPath() {
+  return path.relative(repoRoot, fileURLToPath(import.meta.url)).replace(/\\/g, "/");
 }
 
 function fail(message) {
@@ -586,7 +857,8 @@ function fail(message) {
 
 function handleFatalError(error) {
   const message = error instanceof Error ? error.message : String(error);
-  console.error("\nArcForge install failed");
+  const recommendedStage = isRecommendedInstallStage(currentStage);
+  console.error(recommendedStage ? "\nRecommended skill install failed" : "\nArcForge install failed");
   console.error(`Stage: ${currentStage}`);
   console.error(`Reason: ${message}`);
   console.error("Next steps:");
@@ -597,8 +869,20 @@ function handleFatalError(error) {
     console.error("- Confirm Node.js 20+ is installed and npm can access the registry, then rerun the install command.");
   } else if (currentStage.includes("CLI")) {
     console.error("- Run npm run build:cli manually to inspect TypeScript or build errors.");
+  } else if (recommendedStage) {
+    console.error("- Confirm GitHub access, network, proxy, and target skill directory permissions, then rerun the recommended install command.");
+    console.error("- Rerun with --recommended-skills skip if you only need ArcForge itself.");
   } else {
     console.error("- Rerun with --dry-run to inspect target paths, then rerun the install command after fixing the reported issue.");
   }
   process.exit(1);
+}
+
+function isRecommendedInstallStage(value) {
+  return value.includes("Install arckit")
+    || value.includes("Install arckit-code")
+    || value.includes("Preview arckit")
+    || value.includes("Preview arckit-code")
+    || value.includes("Verify arckit")
+    || value.includes("Verify arckit-code");
 }

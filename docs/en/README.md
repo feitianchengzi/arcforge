@@ -27,6 +27,13 @@ The install skill uses the current source checkout to:
 - Install a `arcforge-desktop` launcher that the agent can open when needed.
 - Run headless verification when GUI launch is unavailable.
 
+After ArcForge itself is installed, the install skill guides you through optional Feitianchengzi recommended Skill projects and first explains two modes:
+
+- `arckit`: Feitianchengzi's AI Agent Skills center for the full AI-agent-assisted software development collaboration lifecycle, including ideas and opportunities, decision frameworks, product specs, interaction, visual design, technical solutions, project governance, project memory, pending context, technology-agnostic debug diagnosis, and Workshop Desktop bridging. Technology-stack-specific coding workflows live elsewhere.
+- `arckit-code`: Feitianchengzi's technology-stack-specific coding skills repository for language, framework, platform, and SDK-level coding practices. Its current focus is SwiftUI/Apple client architecture, project scaffolding, platform capability boundaries, validation rules, and feedback platform integration.
+
+These repositories are both example Skill projects for ArcForge and recommended practices. Quick install mode applies directly from GitHub to the current agent's user-level skills without creating a persistent maintenance source. Governed mode first confirms the source, maintenance source, application target, profile/skills, and relationship record, then hands execution to the `arcforge` workflow. You can install both, install only one, or skip both; Feitianchengzi internal users and open-source users follow the same GitHub-first installation path.
+
 After installation, open any project in your coding agent and ask the agent to use ArcForge in natural language:
 
 ```text

@@ -2,16 +2,16 @@ interface:
   display_name: "ArcForge Skill First"
   short_description: "用 Skill First 闭环把工作模式或已有 skill 执行过程建模为软件能力单元；作为元 skill 先判断、创建或维护目标 skill，再验证并迭代。"
   default_prompt: >-
-    使用 $arcforge-skill-first 时，先把它当成元 skill，而不是业务执行 skill。它不直接完成服务器成本预估、技术方案分析、代码实现、交互设计或发布审计；它先判断真实任务是否已有足够匹配的目标 skill。候选目标 skill 必须明确覆盖任务领域，并有输入收集、假设标注、执行步骤、输出格式、不确定信息处理和可重复执行能力；不能因为 arckit-tech、arckit-code、arckit-spec 等泛化 skill 最接近，就让它们接管整轮任务。泛化 skill 只能作为辅助入口，用于读取项目上下文、实现承载、日志或埋点缺口。
+    使用 $arcforge-skill-first 时，先把它当成元 skill，而不是业务执行 skill。它不直接完成服务器成本预估、技术方案分析、代码实现、交互设计或发布审计；它先判断真实任务是否已有足够匹配的目标 skill。候选目标 skill 必须明确覆盖任务领域，并有输入收集、假设标注、执行步骤、输出格式、不确定信息处理和可重复执行能力；不能因为 arckit-tech、arckit-code、arckit-spec 等泛化 skill 最接近，就让它们接管整轮任务。
 
-    先判断本轮是三种模式之一：创建或更新 skill、新领域任务先建 skill、观察已有 skill 执行真实任务。用户显式写出 $arcforge-skill-first、skill first: 或表达“先沉淀成 skill”时，$arcforge-skill-first 是元入口；真实任务需要的其他 skill 是目标 skill、辅助入口、验证入口或治理入口。如果没有足够匹配的目标 skill，默认命名并创建新目标 skill 工作副本，再用真实任务验证它；不要先用泛化 skill 完成一次业务任务后才补一句“以后可以做成 skill”。
+    按 SKILL.md 的门禁式主流程执行：0 捕获用户硬要求，1 判定模式和入口集合，2 定位来源和工作副本，3 能力单元建模，4 创建或更新目标 skill，5 本地结构检查，6 隔离执行验证，7 观察归因和修复，8 汇报和治理交接。每个门禁必须有退出条件；无法满足时报告阻塞和缺少的最小信息。
 
-    可以借鉴 skill-creator 的结构、命名、frontmatter、资源目录和基础校验规则，但不要停在标准 skill 文件夹或 scripts/references/assets 清单；Skill First 必须用真实任务和子代理执行记录验证目标 skill 是否作为能力入口可用。根据当前 agent 检查用户级和项目级正式 skill；如果要修改正式 skill，先完整复制到当前项目根 skills/<skill-name>/，只改工作副本；如果只是观察已有 skill 执行，可以先读取原始路径，不要为了观察而复制。
+    用户明确提出的要求、纠错和测试反馈必须固化为流程门禁、硬规则、确认点、输出格式或 reference 读取条件；不要只做解释。目标 skill 必须遵循渐进式披露：SKILL.md 保留主流程、强制门禁和 reference 读取条件，复杂细节迁移到 reference，并在对应流程节点写清何时读取。
 
-    创建或维护目标 skill 时，保持 description 管边界、正文管执行。description 写触发条件、适用范围、相邻 skill 分工和不触发场景；SKILL.md 正文从已经触发的场景开始，写正向的输入理解、上下文收集、执行步骤、验证和输出。把用户纠错、失败复盘和一次性业务上下文抽象为可复用的正向规则，不要把纠错口吻、临时业务细节或“不要再……”类说明直接塞进正文。执行型 skill 的正文不要解释它和其他 skill 的差异，也不要靠“先用 A / 不用 B / 与 C 的区别”来补救触发层不清晰；相邻 skill 边界应前移到 description、Skill First 路由判断或上层入口分工。安全、权限、产品方向和破坏性操作边界可以明确禁止，但普通执行方法应正向描述。
+    根据当前 agent 检查用户级和项目级正式 skill；如果要修改正式 skill，先完整复制到当前项目根 skills/<skill-name>/，只改工作副本。创建或维护目标 skill 时，保持 description 管触发和边界、正文管已触发后的执行流程。
 
-    读取或创建目标 skill 后，把它建模为软件能力单元：判断该 skill 需要哪些实现承载，包括 SKILL.md、references、CLI、server、UI、状态、schema、测试 fixture 和 UI 回传机制；不要一开始就把维护范围缩窄成 Markdown。只在目标 skill 的实现层发现承载是否已经存在，例如当前项目、其他仓库、CLI、server、Desktop/Web UI、MCP、脚本、内部服务、schema 或 fixture；如果上下文不足且可能重复造实现，向用户询问路径、仓库、服务或入口。再判断本轮是观察已有执行、接入已有实现、维护已有实现、包装进 skill，还是新建最小实现。
+    读取或创建目标 skill 后，把它建模为软件能力单元：判断该 skill 需要哪些实现承载，包括 SKILL.md、references、CLI、server、UI、状态、schema、测试 fixture 和 UI 回传机制；不要一开始就把维护范围缩窄成 Markdown。先发现已有承载，再判断本轮是观察已有执行、接入已有实现、维护已有实现、包装进 skill，还是新建最小实现。
 
-    Skill First 默认真实启动子代理做前测和复测，不需要用户额外确认；但用户明确要求不要启动或要求停止，或当前平台策略要求用户显式授权子代理时，必须服从并记录原因。传给子代理的是目标 skill 路径、真实任务、工作区、临时路径和写入边界；不要传主 agent 的诊断、预期答案、问题分类、修复思路或请评价 skill 是否需要优化。子代理只负责像普通使用者一样执行任务并记录步骤、命令、路径、错误、确认点和卡点；主 agent 负责观察、归因、分类和修复。
+    Skill First 默认只做人工桥接隔离验证，不使用当前会话自测替代，也不调用任何平台工具来替代人工桥接。人工桥接是主 agent 发起和指挥的验证执行手段，不是停止理由。主 agent 必须生成人工桥接执行包：可复制的隔离执行 prompt、目标 skill 路径、真实任务、工作区、临时路径、写入边界、用户操作步骤、回传格式和当前状态 awaiting_validation_transcript。用户在新的 agent 对话中原样粘贴并执行，完成后把 transcript、最终报告或阻塞点贴回主会话。交付执行包只表示进入 awaiting_validation_transcript，不能把目标 skill 写成验证通过、闭环完成或可进入 ArcForge 治理交接；最终回复必须以要求用户执行桥接并回传结果收尾。不要检查或汇报自动代理工具是否可用；这不是本 skill 的验证路径，也不能作为未验证原因。传给隔离执行者的是目标 skill 路径、真实任务、工作区、临时路径和写入边界；不要传主 agent 的诊断、预期答案、问题分类、修复思路或请评价 skill 是否需要优化。隔离执行者只负责像普通使用者一样执行任务并记录步骤、命令、路径、错误、确认点和卡点；主 agent 收到回传后负责观察、归因、分类和修复。只有用户明确拒绝人工桥接、要求停止、任务无法桥接、已有 transcript 可回放，或平台连生成桥接 prompt 都不允许时，才使用 transcript 回放或受限主会话 dry run；受限 dry run 必须保存本应发送的 prompt 并明确标注客观性不足。
 
-    目标 skill、references 和 agents/openai.yaml 默认使用用户当前请求语言。如果需要 UI，说明 UI 承载的用户动作、结构化输出、回传路径和 agent 下一步。用户确认目标 skill 可用后，只说明建议进入的 ArcForge 治理阶段，不绕过 arcforge 的确认规则，不自动执行真实写入、apply、share、push 或目标目录覆盖。最终汇报任务需要的 skill 入口集合、本轮模式、本轮目标 skill、候选目标 skill 的适配判断、泛化 skill 的辅助边界、原始路径、工作副本路径、软件能力单元建模结果、已有实现承载发现结果、本轮策略、模拟轮次、主 agent 基于执行记录发现的问题、修复内容、用户确认状态、建议的 ArcForge 下一步和校验结果。
+    目标 skill、references 和 agents/openai.yaml 默认使用用户当前请求语言。如果需要 UI，说明 UI 承载的用户动作、结构化输出、回传路径和 agent 下一步。用户确认目标 skill 可用后，只说明建议进入的 ArcForge 治理阶段，不绕过 arcforge 的确认规则，不自动执行真实写入、apply、share、push 或目标目录覆盖。最终汇报任务需要的 skill 入口集合、本轮模式、本轮目标 skill、候选目标 skill 的适配判断、泛化 skill 的辅助边界、原始路径、工作副本路径、软件能力单元建模结果、已有实现承载发现结果、本轮策略、验证模式和轮次、主 agent 基于执行记录发现的问题、修复内容、用户确认状态、建议的 ArcForge 下一步和校验结果。

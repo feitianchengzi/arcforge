@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
@@ -29,7 +30,42 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(skill, /--dry-run/);
   assert.match(skill, /--verify/);
   assert.match(skill, /--npm-cache/);
+  assert.match(skill, /env PATH="\/private\/tmp\/arcforge-install-home\/\.local\/bin:\$PATH"/);
+  assert.match(skill, /临时 shim 目录排在 PATH 最前/);
+  assert.match(skill, /真实用户级 `arcforge` 或 `arcforge-desktop` wrapper/);
+  assert.match(skill, /临时 HOME 外的不可修复 PATH shadow/);
+  assert.match(skill, /--recommended-skills/);
   assert.match(skill, /真实 `~\/\.npm`/);
+  assert.match(skill, /https:\/\/github\.com\/feitianchengzi\/arckit/);
+  assert.match(skill, /https:\/\/github\.com\/feitianchengzi\/arckit-code/);
+  assert.match(skill, /AI Agent Skills 中心/);
+  assert.match(skill, /完整协作生命周期/);
+  assert.match(skill, /不维护具体技术栈 coding workflow/);
+  assert.match(skill, /具体技术栈 coding skills 仓库/);
+  assert.match(skill, /SwiftUI\/Apple 客户端默认架构/);
+  assert.match(skill, /反馈平台接入流程/);
+  assert.match(skill, /用户可以选择快速安装模式、严格治理模式或暂不安装/);
+  assert.match(skill, /飞天橙子内部使用者和开源仓库使用者走同一个 GitHub-first 安装路径/);
+  assert.match(skill, /--recommended-mode/);
+  assert.match(skill, /不要保留旧式隐式快速安装命令/);
+  assert.match(skill, /快速安装模式/);
+  assert.match(skill, /严格治理模式/);
+  assert.match(skill, /pending_install_mode_choice/);
+  assert.match(skill, /pending_quick_skill_choice/);
+  assert.match(skill, /pending_governance_endpoints/);
+  assert.match(skill, /--recommended-skills all/);
+  assert.match(skill, /--recommended-skills skip/);
+  assert.match(skill, /AGENT ACTION REQUIRED: recommended install mode choice pending/);
+  assert.match(skill, /Recommended skill stage: pending_install_mode_choice/);
+  assert.match(skill, /最后一个 agent-facing action/);
+  assert.match(skill, /最后动作门禁/);
+  assert.match(skill, /等待用户选择推荐安装模式/);
+  assert.match(skill, /不能只写“推荐 skills 阶段未静默安装”/);
+  assert.match(skill, /你希望使用哪种模式/);
+  assert.match(skill, /drift --root <arcforge repo> --from <repo url>/);
+  assert.match(skill, /apply --root <arcforge repo> --from <repo url>/);
+  assert.match(skill, /apply --root <record-or-maintenance-root> --from <repo url>/);
+  assert.match(skill, /--save --confirm/);
   assert.match(skill, /Headless 验证/);
   assert.match(skill, /--skip-npm-install/);
   assert.match(skill, /npm run build:cli/);
@@ -54,7 +90,28 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(agentYaml, /arcforge-skill-first/);
   assert.match(agentYaml, /--home\/--shim-dir/);
   assert.match(agentYaml, /--npm-cache/);
+  assert.match(agentYaml, /临时 shim 目录排在 PATH 最前/);
+  assert.match(agentYaml, /临时 HOME 外的不可修复 PATH shadow/);
   assert.match(agentYaml, /--verify/);
+  assert.match(agentYaml, /--recommended-mode prompt/);
+  assert.match(agentYaml, /--recommended-mode quick/);
+  assert.match(agentYaml, /--recommended-mode governed/);
+  assert.match(agentYaml, /--recommended-skills prompt/);
+  assert.match(agentYaml, /不要生成旧式隐式快速安装命令/);
+  assert.match(agentYaml, /快速安装模式/);
+  assert.match(agentYaml, /严格治理模式/);
+  assert.match(agentYaml, /https:\/\/github\.com\/feitianchengzi\/arckit/);
+  assert.match(agentYaml, /https:\/\/github\.com\/feitianchengzi\/arckit-code/);
+  assert.match(agentYaml, /AI Agent Skills 中心/);
+  assert.match(agentYaml, /具体技术栈 coding skills 仓库/);
+  assert.match(agentYaml, /SwiftUI\/Apple 客户端默认架构/);
+  assert.match(agentYaml, /反馈平台接入流程/);
+  assert.match(agentYaml, /AGENT ACTION REQUIRED: recommended install mode choice pending/);
+  assert.match(agentYaml, /Recommended skill stage: pending_install_mode_choice/);
+  assert.match(agentYaml, /最后一个 agent-facing action/);
+  assert.match(agentYaml, /来源\/上游源/);
+  assert.match(agentYaml, /关系记录归属 root/);
+  assert.match(agentYaml, /飞天橙子内部使用者和开源使用者走同一个 GitHub-first 路径/);
   assert.match(agentYaml, /arcforge-desktop launcher/);
   assert.match(agentYaml, /不要使用 --update-path/);
   assert.match(agentYaml, /普通新终端可用/);
@@ -68,6 +125,39 @@ test("arcforge install skill defines source install boundaries", async () => {
 
   assert.match(script, /skills\/arcforge-skill-first\/SKILL\.md/);
   assert.match(script, /installedSkillNames = \["arcforge", "arcforge-skill-first"\]/);
+  assert.match(script, /recommendedSkillProjects/);
+  assert.match(script, /parseRecommendedMode/);
+  assert.match(script, /hasHelpFlag/);
+  assert.match(script, /printHelp/);
+  assert.match(script, /Print this help without installing/);
+  assert.match(script, /Recommended Skill projects/);
+  assert.match(script, /parseRecommendedSkillSelection/);
+  assert.match(script, /--recommended-mode value/);
+  assert.match(script, /--recommended-skills value/);
+  assert.match(script, /Pass --recommended-mode quick or --recommended-mode governed when using --recommended-skills/);
+  assert.match(script, /https:\/\/github\.com\/feitianchengzi\/arckit/);
+  assert.match(script, /https:\/\/github\.com\/feitianchengzi\/arckit-code/);
+  assert.match(script, /AI-agent-assisted software development skill center/);
+  assert.match(script, /technology-stack-specific coding skill project/);
+  assert.match(script, /SwiftUI\/Apple client architecture/);
+  assert.match(script, /feedback platform integration/);
+  assert.match(script, /installRecommendedSkillProjects/);
+  assert.match(script, /printRecommendedModePrompt/);
+  assert.match(script, /printRecommendedQuickSkillPrompt/);
+  assert.match(script, /printRecommendedGovernancePrompt/);
+  assert.match(script, /AGENT ACTION REQUIRED: recommended install mode choice pending/);
+  assert.match(script, /Recommended skill stage: pending_install_mode_choice/);
+  assert.match(script, /Recommended skill stage: pending_quick_skill_choice/);
+  assert.match(script, /Recommended skill stage: pending_governance_endpoints/);
+  assert.match(script, /Last agent-facing action/);
+  assert.match(script, /Do not mark the install turn complete/);
+  assert.match(script, /Do not finish with only a summary/);
+  assert.match(script, /Ask this question in the final response/);
+  assert.match(script, /你希望使用哪种模式/);
+  assert.match(script, /关系记录归属 root/);
+  assert.match(script, /"drift"/);
+  assert.match(script, /"apply"/);
+  assert.match(script, /"--confirm"/);
   assert.match(script, /"build:cli"/);
   assert.match(script, /"run", "build"/);
   assert.match(script, /"run", "package"/);
@@ -109,14 +199,36 @@ test("arcforge install skill defines source install boundaries", async () => {
 
   assert.match(readme, /从当前仓库安装 ArcForge/);
   assert.match(readme, /arcforge-skill-first/);
+  assert.match(readme, /arckit-code/);
+  assert.match(readme, /AI Agent Skills 中心/);
+  assert.match(readme, /具体技术栈 coding skills 仓库/);
+  assert.match(readme, /SwiftUI\/Apple 客户端默认架构/);
+  assert.match(readme, /两个都装、只装其中一个或都不装/);
+  assert.match(readme, /快速安装模式/);
+  assert.match(readme, /严格治理模式/);
+  assert.match(readme, /飞天橙子内部使用者和开源使用者走同一个 GitHub-first 安装路径/);
   assert.match(readme, /\[English\]\(docs\/en\/README\.md\)/);
   assert.match(readme, /skills\/arcforge-install/);
   assert.match(readme, /arcforge-desktop/);
   assert.match(enReadme, /Install ArcForge From This Repository/);
   assert.match(enReadme, /arcforge-skill-first/);
+  assert.match(enReadme, /arckit-code/);
+  assert.match(enReadme, /AI Agent Skills center/);
+  assert.match(enReadme, /Technology-stack-specific coding workflows live elsewhere/);
+  assert.match(enReadme, /SwiftUI\/Apple client architecture/);
+  assert.match(enReadme, /install both, install only one, or skip both/);
+  assert.match(enReadme, /Quick install mode/);
+  assert.match(enReadme, /Governed mode/);
+  assert.match(enReadme, /same GitHub-first installation path/);
   assert.match(enReadme, /\[简体中文\]\(\.\.\/\.\.\/README\.md\)/);
   assert.match(zhReadme, /从当前仓库安装 ArcForge/);
   assert.match(zhReadme, /arcforge-skill-first/);
+  assert.match(zhReadme, /arckit-code/);
+  assert.match(zhReadme, /AI Agent Skills 中心/);
+  assert.match(zhReadme, /具体技术栈 coding skills 仓库/);
+  assert.match(zhReadme, /两个都装、只装其中一个或都不装/);
+  assert.match(zhReadme, /快速安装模式/);
+  assert.match(zhReadme, /严格治理模式/);
   assert.match(zhReadme, /\[English\]\(\.\.\/en\/README\.md\)/);
   assert.match(zhReadme, /skills\/arcforge-install/);
   assert.match(zhReadme, /arcforge-desktop/);
@@ -125,4 +237,43 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(arcforgeDesktopRouting, /--root \/path\/to\/project --page destinations/);
   assert.match(arcforgeDesktopRouting, /页面级 context open/);
   assert.match(arcforgeCliOrchestration, /arcforge-desktop/);
+});
+
+test("arcforge install help guides recommended arckit choices", () => {
+  const result = spawnSync(
+    process.execPath,
+    ["skills/arcforge-install/scripts/install-from-repo.mjs", "--help"],
+    {
+      cwd: new URL("..", import.meta.url),
+      encoding: "utf8"
+    }
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /--recommended-mode <mode>/);
+  assert.match(result.stdout, /Default: prompt\./);
+  assert.match(result.stdout, /--recommended-mode quick/);
+  assert.match(result.stdout, /--recommended-mode governed/);
+  assert.match(result.stdout, /--recommended-skills all/);
+  assert.match(result.stdout, /--recommended-skills arckit/);
+  assert.match(result.stdout, /--recommended-skills arckit-code/);
+  assert.match(result.stdout, /--recommended-skills skip/);
+  assert.match(result.stdout, /https:\/\/github\.com\/feitianchengzi\/arckit/);
+  assert.match(result.stdout, /https:\/\/github\.com\/feitianchengzi\/arckit-code/);
+  assert.match(result.stdout, /AI-agent-assisted software development skill center/);
+  assert.match(result.stdout, /technology-stack-specific coding skill project/);
+});
+
+test("arcforge install rejects old implicit recommended skill commands", () => {
+  const result = spawnSync(
+    process.execPath,
+    ["skills/arcforge-install/scripts/install-from-repo.mjs", "--recommended-skills", "all", "--dry-run"],
+    {
+      cwd: new URL("..", import.meta.url),
+      encoding: "utf8"
+    }
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Pass --recommended-mode quick or --recommended-mode governed/);
 });
