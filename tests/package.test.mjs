@@ -132,6 +132,21 @@ test("cli can scan project-local agent skill directories from the project root",
   assert.match(sources, /if \(names\.includes\("\*"\)\) return \["\*"\]/);
 });
 
+test("workspace discovery ignores root arckit unless it is the explicit source directory", async () => {
+  const skills = await readFile(new URL("../src/core/skills.ts", import.meta.url), "utf8");
+  const config = await readFile(new URL("../src/core/config.ts", import.meta.url), "utf8");
+  const skillMarkdown = await readFile(new URL("../src/core/skill-markdown.ts", import.meta.url), "utf8");
+
+  assert.match(skills, /DEFAULT_IGNORED_ROOT_DIRS = new Set\(\["arckit"\]\)/);
+  assert.match(skills, /path\.resolve\(sourceRoot\) === path\.resolve\(root\)/);
+  assert.match(skills, /path\.resolve\(parentDir\) === path\.resolve\(root\)/);
+  assert.match(skills, /DEFAULT_IGNORED_ROOT_DIRS\.has\(entryName\.toLowerCase\(\)\)/);
+  assert.match(config, /DEFAULT_IGNORED_ROOT_SKILL_DIRS = \["arckit"\]/);
+  assert.match(config, /hasDescendantSkillMarkdownFile\(root, \{ ignoredRootDirs: DEFAULT_IGNORED_ROOT_SKILL_DIRS \}\)/);
+  assert.match(skillMarkdown, /ignoredRootDirs/);
+  assert.match(skillMarkdown, /entry\.name\.toLowerCase\(\)/);
+});
+
 test("workspace config is stored outside source checkouts", async () => {
   const configCore = await readFile(new URL("../src/core/config.ts", import.meta.url), "utf8");
   const projectStore = await readFile(new URL("../src/core/project-store.ts", import.meta.url), "utf8");

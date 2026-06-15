@@ -5,6 +5,10 @@ import { pathExists } from "./fs.js";
 const SKILL_MARKDOWN = "SKILL.md";
 const IGNORED_SCAN_DIRS = new Set([".git", "node_modules", "dist"]);
 
+export interface DescendantSkillMarkdownOptions {
+  ignoredRootDirs?: string[];
+}
+
 export async function findSkillMarkdownFile(dir: string): Promise<string | undefined> {
   const exactPath = path.join(dir, SKILL_MARKDOWN);
   if (await pathExists(exactPath)) return exactPath;
@@ -22,7 +26,11 @@ export async function hasSkillMarkdownFile(dir: string): Promise<boolean> {
   return Boolean(await findSkillMarkdownFile(dir));
 }
 
-export async function hasDescendantSkillMarkdownFile(dir: string): Promise<boolean> {
+export async function hasDescendantSkillMarkdownFile(dir: string, options: DescendantSkillMarkdownOptions = {}): Promise<boolean> {
+  return hasDescendantSkillMarkdownFileIn(dir, path.resolve(dir), new Set((options.ignoredRootDirs ?? []).map((item) => item.toLowerCase())));
+}
+
+async function hasDescendantSkillMarkdownFileIn(dir: string, root: string, ignoredRootDirs: Set<string>): Promise<boolean> {
   if (await hasSkillMarkdownFile(dir)) return true;
 
   let entries;
@@ -35,7 +43,8 @@ export async function hasDescendantSkillMarkdownFile(dir: string): Promise<boole
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     if (IGNORED_SCAN_DIRS.has(entry.name)) continue;
-    if (await hasDescendantSkillMarkdownFile(path.join(dir, entry.name))) return true;
+    if (path.resolve(dir) === root && ignoredRootDirs.has(entry.name.toLowerCase())) continue;
+    if (await hasDescendantSkillMarkdownFileIn(path.join(dir, entry.name), root, ignoredRootDirs)) return true;
   }
   return false;
 }

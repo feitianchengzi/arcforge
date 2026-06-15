@@ -6,6 +6,7 @@ import { loadLocalProjectState, saveLocalProjectConfig } from "./project-store.j
 import { hasDescendantSkillMarkdownFile, hasSkillMarkdownFile } from "./skill-markdown.js";
 
 const CONFIG_FILE = "arcforge.config.json";
+const DEFAULT_IGNORED_ROOT_SKILL_DIRS = ["arckit"];
 
 export function configPath(root: string): string {
   return path.join(root, CONFIG_FILE);
@@ -36,7 +37,7 @@ export async function defaultConfigForRoot(root: string): Promise<ArcForgeConfig
 async function defaultSourceDirForRoot(root: string, conventionalSourceDir = path.join(root, "skills")): Promise<string> {
   if (await hasSkillMarkdownFile(root)) return ".";
   if (await isDirectory(conventionalSourceDir) && await hasDescendantSkillMarkdownFile(conventionalSourceDir)) return "skills";
-  if (await hasDescendantSkillMarkdownFile(root)) return ".";
+  if (await hasDescendantSkillMarkdownFile(root, { ignoredRootDirs: DEFAULT_IGNORED_ROOT_SKILL_DIRS })) return ".";
   return "skills";
 }
 

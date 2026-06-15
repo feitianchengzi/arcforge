@@ -7,13 +7,14 @@ import type { ArcForgeConfig } from "../shared/types.js";
 import { findSkillMarkdownFile, hasSkillMarkdownFile } from "./skill-markdown.js";
 
 const IGNORED_SCAN_DIRS = new Set([".git", "node_modules", "dist"]);
+const DEFAULT_IGNORED_ROOT_DIRS = new Set(["arckit"]);
 
 export async function discoverSkills(root: string, config: ArcForgeConfig): Promise<SkillSummary[]> {
   const sourceRoot = path.resolve(root, config.sourceDir);
   if (!(await pathExists(sourceRoot))) return [];
 
   const skills: SkillSummary[] = [];
-  await walk(sourceRoot, async (dir) => {
+  await walk(root, sourceRoot, sourceRoot, async (dir) => {
     const skillFile = await findSkillMarkdownFile(dir);
     if (!skillFile) return;
     const raw = await readText(skillFile);
@@ -49,10 +50,10 @@ export async function discoverSharedAssets(root: string, config: ArcForgeConfig)
     const entries = await fs.readdir(assetRoot, { withFileTypes: true }).catch(() => []);
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
-      if (IGNORED_SCAN_DIRS.has(entry.name)) continue;
+      if (shouldIgnoreDirectory(root, sourceRoot, assetRoot, entry.name)) continue;
       const assetPath = path.join(assetRoot, entry.name);
       if (seen.has(assetPath)) continue;
-      if (await containsSkillFile(assetPath)) continue;
+      if (await containsSkillFile(root, sourceRoot, assetPath)) continue;
       seen.add(assetPath);
       assets.push({
         name: entry.name,
@@ -64,23 +65,23 @@ export async function discoverSharedAssets(root: string, config: ArcForgeConfig)
   return assets.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-async function walk(dir: string, onDir: (dir: string) => Promise<void>): Promise<void> {
+async function walk(root: string, sourceRoot: string, dir: string, onDir: (dir: string) => Promise<void>): Promise<void> {
   await onDir(dir);
   const entries = await fs.readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    if (IGNORED_SCAN_DIRS.has(entry.name)) continue;
-    await walk(path.join(dir, entry.name), onDir);
+    if (shouldIgnoreDirectory(root, sourceRoot, dir, entry.name)) continue;
+    await walk(root, sourceRoot, path.join(dir, entry.name), onDir);
   }
 }
 
-async function containsSkillFile(dir: string): Promise<boolean> {
+async function containsSkillFile(root: string, sourceRoot: string, dir: string): Promise<boolean> {
   if (await hasSkillMarkdownFile(dir)) return true;
   const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    if (IGNORED_SCAN_DIRS.has(entry.name)) continue;
-    if (await containsSkillFile(path.join(dir, entry.name))) return true;
+    if (shouldIgnoreDirectory(root, sourceRoot, dir, entry.name)) continue;
+    if (await containsSkillFile(root, sourceRoot, path.join(dir, entry.name))) return true;
   }
   return false;
 }
@@ -95,12 +96,19 @@ async function discoverSkillContainerDirs(root: string): Promise<string[]> {
     const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
-      if (IGNORED_SCAN_DIRS.has(entry.name)) continue;
+      if (shouldIgnoreDirectory(root, root, dir, entry.name)) continue;
       await visit(path.join(dir, entry.name));
     }
   }
   await visit(root);
   return containers;
+}
+
+function shouldIgnoreDirectory(root: string, sourceRoot: string, parentDir: string, entryName: string): boolean {
+  if (IGNORED_SCAN_DIRS.has(entryName)) return true;
+  return path.resolve(sourceRoot) === path.resolve(root)
+    && path.resolve(parentDir) === path.resolve(root)
+    && DEFAULT_IGNORED_ROOT_DIRS.has(entryName.toLowerCase());
 }
 
 function stringValue(value: unknown): string {
