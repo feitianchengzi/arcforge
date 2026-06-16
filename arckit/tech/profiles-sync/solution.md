@@ -70,9 +70,23 @@ CLI 调用方负责传入目标路径。归并生成的应用关系默认目标�
 
 共享资产以同一逻辑参与漂移检查，并在漂移项中标记为 `asset`。
 
+## 目标根额外项
+
+漂移检查还扫描目标根目录的直接子项。当前来源技能和共享资产集合之外的目标项不会混入某个 skill 的文件级 diff，而是进入 `DriftReport.targetExtras`。
+
+目标根额外项分类为：
+
+- `managed-stale`：名称存在于应用关系历史 managed 集合中，但不在当前来源选择中。
+- `uncertain`：目标项是带 `SKILL.md` 的 skill 目录，但不在当前来源选择或历史 managed 集合中。它可能由其它来源或用户维护，不属于当前来源的旧 skill。
+- `unrelated`：目标项不是当前来源选择，也不是可确认属于当前关系的 skill 目录。
+
+普通 `drift` 没有应用关系历史时，只能把额外 skill 目录标为 `uncertain`。`applied drift` 传入 `AppliedSourceRecord.managedSkillNames`，可把旧名或退役残留标为 `managed-stale`。
+
+漂移检查只报告分类，不删除目标目录。删除 `managed-stale` 必须由调用方列出具体路径并获得用户确认；`uncertain` 和 `unrelated` 不应作为当前来源旧 skill 删除。
+
 ## 报告模型
 
-漂移报告模型为 `DriftReport`，包含配置组、目标目录和漂移项列表。
+漂移报告模型为 `DriftReport`，包含配置组、目标目录、漂移项列表和目标根额外项列表。
 
 每个漂移项包含名称、类型、状态、来源路径、目标路径、文件级差异和差异汇总。
 

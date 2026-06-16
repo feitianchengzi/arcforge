@@ -40,7 +40,13 @@ properties:
     type: array
     items:
       type: string
-    description: Skill names governed by this applied source record.
+    description: Current skill names selected by this applied source record.
+  managedSkillNames:
+    type: array
+    nullable: true
+    items:
+      type: string
+    description: Historical skill names governed by this record, used to classify stale target directories after source removals or renames.
   sourceCommit:
     type: string
     nullable: true

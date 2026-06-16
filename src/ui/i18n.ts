@@ -223,6 +223,7 @@ export interface Dictionary {
   copiedSkipped: (copied: number, skipped: number, copiedAssets?: number, skippedAssets?: number) => string;
   drift: string;
   driftEmpty: string;
+  targetExtrasSummary: (managedStale: number, uncertain: number, unrelated: number) => string;
   publishHelp: string;
   shareNow: string;
   shareTargets: string;
@@ -488,6 +489,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     copiedSkipped: (copied: number, skipped: number, copiedAssets = 0, skippedAssets = 0) => `Copied ${copied} skills and ${copiedAssets} assets. Skipped ${skipped} skills and ${skippedAssets} assets.`,
     drift: "Drift",
     driftEmpty: "Run drift check to compare selected profile with target directory.",
+    targetExtrasSummary: (managedStale: number, uncertain: number, unrelated: number) => `${managedStale} stale managed / ${uncertain} other target skills / ${unrelated} other target items`,
     publishHelp: "Save reusable profile, repository, and target path combinations for GitHub-first sharing.",
     shareNow: "Share now",
     shareTargets: "Share targets",
@@ -751,6 +753,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     copiedSkipped: (copied: number, skipped: number, copiedAssets = 0, skippedAssets = 0) => `已复制 ${copied} 个技能和 ${copiedAssets} 个资产，跳过 ${skipped} 个技能和 ${skippedAssets} 个资产。`,
     drift: "漂移",
     driftEmpty: "运行漂移检查，将当前配置组与目标目录进行比较。",
+    targetExtrasSummary: (managedStale: number, uncertain: number, unrelated: number) => `${managedStale} 个旧 managed / ${uncertain} 个其它目标 skill / ${unrelated} 个其它目标项`,
     publishHelp: "保存配置组、远端仓库和目标路径组合，用于 GitHub 优先的共享执行。",
     shareNow: "立即共享",
     shareTargets: "共享目标",

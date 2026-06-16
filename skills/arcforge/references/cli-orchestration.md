@@ -124,6 +124,7 @@ business-project/
 - `share --repo`、`share --same-repository`、`--delivery` 和 `--branch` 描述共享目标，不是应用目标。
 - `apply --save` 会把来源、profile、目标目录和技能选择保存为 applied source record。
 - applied source state 保存在 `ARCFORGE_HOME/projects` 下的用户级项目状态中；不写入来源 checkout。保存时的 `--root` 是关系记录归属 root，不只是执行 cwd。临时验证时设置 `ARCFORGE_HOME=/private/tmp/<run>/.arcforge-home`。
+- applied source record 的 `skills` 表示当前选择集合；`managedSkillNames` 表示这条关系历史上管理过的技能名，用来在 `applied drift` 中识别当前来源已删除或更名但目标仍残留的 `managed-stale` 目录。
 - 用户级 Codex/Claude/Cursor 安装如果保存关系，`--root` 优先使用本地维护源 root。若 `--root` 既不是来源/维护源，也不是目标父级，CLI 会拒绝保存，除非显式传 `--allow-unrelated-root`。
 
 示例：归并 `project-showcase-video` 到标准技能目录时应使用：
@@ -192,6 +193,14 @@ arcforge apply --root <target-project> --from <formal-skill-project> --profile d
 ```bash
 arcforge drift --root <target-project> --from <formal-skill-project> --profile default --target <target-agent-skill-dir>
 ```
+
+`drift` 输出中的 `targetExtras` 是目标根目录级别的额外项，不等同于某个 skill 内部的 extra 文件。分类含义：
+
+- `managed-stale`：历史应用关系管理过，但当前来源选择中已不存在；常见于改名或退役残留。
+- `uncertain`：目标里的其它 skill 目录，无法确认是否属于本关系；它可能是其它来源同步或用户维护的有效 skill，不属于旧 skill。
+- `unrelated`：目标里不属于当前来源选择的非 skill 项。
+
+用户说“同步所有 skills”或“应用所有 skills”时，检查 `targetExtras` 是收口步骤的一部分。对真实目标上的 `managed-stale`，必须先报告具体目录并请求确认；即使用户已经表达清理意图，也要在删除前确认最终目录清单。不要删除 `uncertain` 或 `unrelated` 项。
 
 基于已保存应用关系检查和重新应用：
 

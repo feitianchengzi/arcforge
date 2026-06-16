@@ -1,8 +1,10 @@
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
-import type { ApplyProfileResult, DriftFileDiff, DriftReport, SharedAssetSummary, ArcForgeConfig, SkillSummary } from "../shared/types.js";
+import type { ApplyProfileResult, DriftFileDiff, DriftReport, DriftTargetExtra, SharedAssetSummary, ArcForgeConfig, SkillSummary } from "../shared/types.js";
 import { copyDirectory, listFiles, pathExists } from "./fs.js";
+
+const IGNORED_TARGET_ROOT_ENTRIES = new Set([".DS_Store", "Thumbs.db", ".Spotlight-V100", ".Trashes"]);
 
 export async function applyProfile(
   root: string,
@@ -68,7 +70,8 @@ export async function driftReport(
   skills: SkillSummary[],
   assets: SharedAssetSummary[],
   profileName: string,
-  targetDir: string
+  targetDir: string,
+  options: { managedSkillNames?: string[] } = {}
 ): Promise<DriftReport> {
   const profile = config.profiles.find((item) => item.name === profileName);
   if (!profile) throw new Error(`Profile not found: ${profileName}`);
@@ -76,8 +79,10 @@ export async function driftReport(
   const selected = selectSkills(skills, profile.skills);
   const destination = path.resolve(root, targetDir);
   const items = [];
+  const sourceNames = new Set<string>();
 
   for (const skill of selected) {
+    sourceNames.add(skill.name);
     const targetPath = path.join(destination, skill.name);
     const comparison = await compareDirectory(skill.path, targetPath);
     items.push({
@@ -92,6 +97,7 @@ export async function driftReport(
   }
 
   for (const asset of assets) {
+    sourceNames.add(asset.name);
     const targetPath = path.join(destination, asset.name);
     const comparison = await compareDirectory(asset.path, targetPath);
     items.push({
@@ -105,7 +111,48 @@ export async function driftReport(
     });
   }
 
-  return { profile: profileName, targetDir: destination, items };
+  const targetExtras = await targetRootExtras(destination, sourceNames, options.managedSkillNames);
+  return { profile: profileName, targetDir: destination, items, targetExtras };
+}
+
+async function targetRootExtras(targetDir: string, sourceNames: Set<string>, managedSkillNames: string[] = []): Promise<DriftTargetExtra[]> {
+  if (!(await pathExists(targetDir))) return [];
+  const managed = new Set(managedSkillNames);
+  const entries = await fs.readdir(targetDir, { withFileTypes: true });
+  const extras: DriftTargetExtra[] = [];
+  for (const entry of entries) {
+    if (IGNORED_TARGET_ROOT_ENTRIES.has(entry.name)) continue;
+    if (entry.name.startsWith(".")) continue;
+    if (sourceNames.has(entry.name)) continue;
+    const targetPath = path.join(targetDir, entry.name);
+    const kind = entry.isDirectory() && await pathExists(path.join(targetPath, "SKILL.md")) ? "skill" as const : "unknown" as const;
+    if (managed.has(entry.name)) {
+      extras.push({
+        name: entry.name,
+        kind,
+        classification: "managed-stale",
+        targetPath,
+        reason: "Previously managed by this applied source record but absent from the current source selection."
+      });
+    } else if (kind === "skill") {
+      extras.push({
+        name: entry.name,
+        kind,
+        classification: "uncertain",
+        targetPath,
+        reason: "Skill directory exists in the target root, is not part of this record's managed history, and may belong to another source."
+      });
+    } else {
+      extras.push({
+        name: entry.name,
+        kind,
+        classification: "unrelated",
+        targetPath,
+        reason: "Target root entry is not part of the current source selection."
+      });
+    }
+  }
+  return extras.sort((left, right) => left.classification.localeCompare(right.classification) || left.name.localeCompare(right.name));
 }
 
 export async function compareDirectory(source: string, target: string): Promise<{

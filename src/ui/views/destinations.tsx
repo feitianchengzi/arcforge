@@ -183,6 +183,7 @@ export function ApplySkills(props: {
                 <div>
                   <strong>{report.targetDir}</strong>
                   <p>{report.items.filter((item) => item.status !== "same").length} changed / {report.items.length} checked</p>
+                  {extraSummary(report, t) && <span>{extraSummary(report, t)}</span>}
                 </div>
                 <button onClick={() => props.openDriftDiff(report)}><ExternalLink size={16} /> {t.viewDiff}</button>
               </article>
@@ -198,6 +199,7 @@ export function ApplySkills(props: {
                   <div>
                     <strong>{report.targetDir}</strong>
                     <p>{report.items.filter((item) => item.status !== "same").length} changed / {report.items.length} checked</p>
+                    {extraSummary(report, t) && <span>{extraSummary(report, t)}</span>}
                   </div>
                   <button onClick={() => props.openDriftDiff(report)}><ExternalLink size={16} /> {t.viewDiff}</button>
                 </article>
@@ -226,6 +228,15 @@ function isStaleCheck(record: ApplyDriftCheckRecord | undefined, signature: stri
   if (record.signature !== signature) return true;
   const time = Date.parse(record.checkedAt);
   return !Number.isFinite(time) || Date.now() - time > AUTO_CHECK_INTERVAL_MS;
+}
+
+function extraSummary(report: DriftReport, t: Dictionary): string {
+  const extras = report.targetExtras ?? [];
+  if (extras.length === 0) return "";
+  const managedStale = extras.filter((item) => item.classification === "managed-stale").length;
+  const uncertain = extras.filter((item) => item.classification === "uncertain").length;
+  const unrelated = extras.filter((item) => item.classification === "unrelated").length;
+  return t.targetExtrasSummary(managedStale, uncertain, unrelated);
 }
 
 function ApplyTargetDialog(props: {

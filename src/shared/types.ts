@@ -123,6 +123,7 @@ export interface AppliedSourceRecord {
   profile: string;
   targetDir: string;
   skills: string[];
+  managedSkillNames?: string[];
   sourceCommit?: string;
   appliedAt?: string;
   updatedAt: string;
@@ -259,10 +260,19 @@ export interface DriftFileDiff {
   targetHash?: string;
 }
 
+export interface DriftTargetExtra {
+  name: string;
+  kind: "skill" | "asset" | "unknown";
+  classification: "managed-stale" | "uncertain" | "unrelated";
+  targetPath: string;
+  reason: string;
+}
+
 export interface DriftReport {
   profile: string;
   targetDir: string;
   items: DriftItem[];
+  targetExtras?: DriftTargetExtra[];
   remoteUrl?: string;
   targetPath?: string;
   commitHash?: string;

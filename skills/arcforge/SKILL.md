@@ -39,14 +39,15 @@ ArcForge 不负责替代 Skill First 创作或重写目标 skill；它在治理�
 5. 用户要求安装、同步、导入、迁移、应用、更新、漂移、共享或发布时，先明确四类端点：来源/上游源、维护源、应用目标、共享目标；再明确 profile/skills selection 和是否保存关系记录。不要默认写到 `~/.codex/skills`、当前项目 `skills/`、任意正式 Skill 项目或远程仓库。远程来源安装过程中产生的 `/tmp` 或 `/private/tmp` checkout 只是临时工作副本，必须单独标注为临时来源 checkout，不得替代“维护源”。
 6. 用户请求安装 skills 到 Codex、Claude、Cursor 用户级目录时，当前 cwd 只是执行位置，不自动成为 `--root` 或关系记录归属 root。若来源/维护源已明确，优先用维护源 root；若只有远程来源且没有本地维护源，先询问关系记录归属 root，或只做 drift/apply 不保存关系。
 7. 按端点关系选择阶段：外部来源进入维护源走 `import plan/run`；当前项目 skill 进入正式维护源走 `merge plan/run`；来源或维护源进入应用目标走 `drift` 后 `apply --save`，这就是 ArcForge 的安装路径；已保存关系走 `applied drift/run`；维护源进入共享目标走 `publish-plan` 或 `share plan/run`；Git checkout 更新走 `source status/update`。
-8. 优先使用 CLI 做可复现执行和 JSON 结果；需要视觉审查、批量选择、文件编辑、冲突检查、完整 diff 复核、来源/维护源/应用目标/共享目标选择、覆盖确认或快速确认时再转 Desktop。
-9. 只有当用户明确要求相关写入阶段时，才按依赖顺序执行：import plan 先于 import run，merge plan 先于 merge run，drift 先于 apply，applied drift 先于 applied run，share drift/plan 先于 share run。
-10. 真实项目中的写入、Git 更新、push、PR、远程分享、目标目录替换都必须先得到用户明确确认。
-11. `import run`、`merge run`、`apply`、`applied run` 和 `share run` 都有确认参数；真实目标上运行前仍必须向用户确认 root、from、profile、skills、target 和覆盖风险。保存关系时必须额外确认“关系记录归属 root”，并说明它不是应用目标，也不一定是当前 cwd。
-12. `source status` 可能执行 fetch 并写 `.git/FETCH_HEAD`；在只读审查、子代理前测或禁止改源码场景中，跳过它或只在临时 Git fixture 上运行。
-13. 临时验证或子代理模拟必须使用临时项目路径，并设置 `ARCFORGE_HOME=/tmp/...` 或 `/private/tmp/...`，避免写入真实 `~/.arcforge`。
-14. 如果 CLI、Desktop 或 agent workflow 需要的能力本地未实现，直接说明缺口，并继续使用可用 fallback。
-15. 做审计、正式化、共享或发布准备时，检查 skill 是否存在边界后置、纠错泄漏、业务耦合或正文负向补救；这些问题不自动阻断所有治理动作，但必须在结果中作为质量风险报告，并建议回到 `arcforge-skill-first` 修订。
+8. 用户说“同步所有 skills”“应用所有 skills”或等价表达时，收口不能只覆盖当前来源集合。完成 drift/apply 后必须检查目标根目录的额外项，把它们分类为 `managed-stale`、`uncertain` 或 `unrelated`：只有历史应用关系管理过、但当前来源已不存在的名称才是 `managed-stale`；目标里的其它 skill 目录必须视为可能来自其它来源的有效 skill，只能标为 `uncertain`；非当前来源且非 skill 的目标项是 `unrelated`。真实目标上的 `managed-stale` 也不能自动删除；即使用户要求清理旧名称，也必须先列出具体目录并获得明确确认后才能删除。
+9. 优先使用 CLI 做可复现执行和 JSON 结果；需要视觉审查、批量选择、文件编辑、冲突检查、完整 diff 复核、来源/维护源/应用目标/共享目标选择、覆盖确认或快速确认时再转 Desktop。
+10. 只有当用户明确要求相关写入阶段时，才按依赖顺序执行：import plan 先于 import run，merge plan 先于 merge run，drift 先于 apply，applied drift 先于 applied run，share drift/plan 先于 share run。
+11. 真实项目中的写入、Git 更新、push、PR、远程分享、目标目录替换都必须先得到用户明确确认。
+12. `import run`、`merge run`、`apply`、`applied run` 和 `share run` 都有确认参数；真实目标上运行前仍必须向用户确认 root、from、profile、skills、target 和覆盖风险。保存关系时必须额外确认“关系记录归属 root”，并说明它不是应用目标，也不一定是当前 cwd。
+13. `source status` 可能执行 fetch 并写 `.git/FETCH_HEAD`；在只读审查、子代理前测或禁止改源码场景中，跳过它或只在临时 Git fixture 上运行。
+14. 临时验证或子代理模拟必须使用临时项目路径，并设置 `ARCFORGE_HOME=/tmp/...` 或 `/private/tmp/...`，避免写入真实 `~/.arcforge`。
+15. 如果 CLI、Desktop 或 agent workflow 需要的能力本地未实现，直接说明缺口，并继续使用可用 fallback。
+16. 做审计、正式化、共享或发布准备时，检查 skill 是否存在边界后置、纠错泄漏、业务耦合或正文负向补救；这些问题不自动阻断所有治理动作，但必须在结果中作为质量风险报告，并建议回到 `arcforge-skill-first` 修订。
 
 ## 渐进加载
 

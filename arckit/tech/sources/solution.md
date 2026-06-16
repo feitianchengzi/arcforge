@@ -48,11 +48,13 @@ Git 更新检查由 `src/core/source-update.ts` 承载，是独立 Git helper。
 
 应用关系持久化在当前项目的用户级状态中。
 
-`AppliedSourceRecord` 包含记录标识、来源项目根目录、可选远程 URL、来源名称、配置组、目标目录、技能列表、可选来源提交哈希、上次应用时间和更新时间。
+`AppliedSourceRecord` 包含记录标识、来源项目根目录、可选远程 URL、来源名称、配置组、目标目录、当前技能列表、历史 managed skill 名称集合、可选来源提交哈希、上次应用时间和更新时间。
 
 `addAppliedSource` 手动添加应用关系时直接解析 `from` 为来源项目根目录，扫描来源项目并按配置组选出技能。命令传入技能列表时，应用关系只记录指定技能。
 
 `listAppliedSources`、`removeAppliedSource`、`driftAppliedSources` 和 `runAppliedSources` 都只读取当前项目状态，不访问全局来源清单。
+
+`driftAppliedSources` 使用当前技能列表生成本次来源选择，并使用历史 managed skill 名称集合识别应用目标里的旧名、退役名或重命名残留。当前来源已不存在但历史上由同一关系管理过的目标根目录项会在 `DriftReport.targetExtras` 中标记为 `managed-stale`。
 
 ## 一次性应用与漂移
 

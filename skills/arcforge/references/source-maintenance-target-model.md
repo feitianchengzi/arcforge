@@ -14,6 +14,7 @@ ArcForge 的最小完整抽象是：4 个端点对象、1 个关系对象、2 �
 ## 关系对象和选择维度
 
 - 关系记录：记录“哪个来源 profile/skills 连接到了哪个本地目录”，用于 drift 和 reapply。它是连接关系，不是第五类端点。`profileApply` 表示维护源应用到了应用目标；`maintenanceImport` 表示外部来源导入到了当前维护源目录。
+- 关系记录同时保存当前技能选择和历史 managed skill 集合。当前技能选择用于下一次 drift/reapply；历史 managed skill 集合用于识别当前来源已删除或更名、但应用目标中仍残留的旧目录。
 - profile / skills selection：本轮处理哪个 profile、全部 skills 还是部分 skills。
 - 当前项目 / workspace：命令执行上下文和用户级状态归属；它可能同时包含维护源或应用目标，但不能自动等同于二者。
 - 关系记录归属 root：applied source record 存在哪个 workspace 的用户级状态下。它不是应用目标，也不一定是当前 cwd；用户级 agent 安装尤其要单独确认。
@@ -29,6 +30,7 @@ ArcForge 的最小完整抽象是：4 个端点对象、1 个关系对象、2 �
 - 如果 `--root` 既不是 `--from` 来源/维护源，也不是 `--target` 应用目标的父级，必须提示这会把应用关系挂到无关 workspace；除非用户明确要求跨 workspace 归属，不要保存关系。
 - 当前项目 skill 迁移的默认治理方向是：当前项目 skill 来源目录 -> 正式维护源 -> 应用目标或共享目标。不要直接把当前项目 skill 到处复制，除非用户明确要一次性复制并接受没有 durable source relationship。
 - 从 GitHub/Git/本地 Skill 项目安装到 Codex、Claude、Cursor 或项目 agent 目录，是 ArcForge 自己的安装治理路径：先解析来源和 profile/skills，再对目标做 drift，确认后 apply，并按需保存关系记录。不要把这种请求转交给通用 skill installer。
+- “同步所有 skills”包含收口检查：应用当前来源集合后，必须查看目标根目录中的额外项。只有历史关系管理过但当前来源不存在的目录才是 `managed-stale`；目标中其它 skill 目录可能来自其它来源，只能标为 `uncertain`；其它非当前来源目标项是 `unrelated`。`managed-stale` 需要报告并单独确认具体目录后才能清理，不能被普通 extra 静默吞掉，也不能因为用户说“同步所有”就自动删除。
 
 ## 统一前置检查
 
@@ -67,6 +69,7 @@ ArcForge 的最小完整抽象是：4 个端点对象、1 个关系对象、2 �
 - 只读发现、审计、计划和 drift 优先 CLI。
 - 写维护源前必须先有 plan：`import plan` 或 `merge plan`。
 - 写应用目标前必须先 drift：`drift`、`applied drift` 或 Desktop diff。安装到 agent 或项目目录也属于写应用目标。
+- `drift` 和 `applied drift` 除了文件级 missing/changed/extra，也要检查 target root extras。`applied drift` 应优先依据 applied record 的历史 managed skill 集合把旧名、退役名或重命名残留标成 `managed-stale`。
 - 写共享目标前必须先有 `publish-plan`、`share plan` 或共享 drift。
 - `apply --confirm` 会写目标目录；真实目标上运行前必须由 agent 在对话里获得明确确认。
 - `source status` 可能写 Git 元数据；只读/模拟场景中跳过，或使用临时 fixture。

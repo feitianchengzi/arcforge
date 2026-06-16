@@ -211,7 +211,9 @@ export async function driftAppliedSources(root: string, id?: string): Promise<Dr
   for (const record of records) {
     const snapshot = await scanWorkspace(record.sourceRoot);
     const config = configForAppliedRecord(snapshot.config, record);
-    reports.push(await driftReport(record.sourceRoot, config, snapshot.skills, snapshot.assets, record.profile, path.resolve(root, record.targetDir)));
+    reports.push(await driftReport(record.sourceRoot, config, snapshot.skills, snapshot.assets, record.profile, path.resolve(root, record.targetDir), {
+      managedSkillNames: record.managedSkillNames ?? record.skills
+    }));
   }
   return reports;
 }
@@ -227,6 +229,7 @@ export async function runAppliedSources(root: string, id: string | undefined, co
     const next = await upsertAppliedSource(root, {
       ...record,
       sourceCommit: await sourceCommit(record.sourceRoot),
+      managedSkillNames: mergeNames(record.managedSkillNames ?? record.skills, result.copied),
       appliedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
@@ -300,7 +303,8 @@ async function appliedRecordFor(root: string, sourceRoot: string, sourceName: st
     sourceName,
     profile,
     targetDir,
-    skills: mergeNames(existing?.skills ?? [], skills),
+    skills: currentSkillSelection(skills),
+    managedSkillNames: mergeNames(existing?.managedSkillNames ?? existing?.skills ?? [], skills),
     sourceCommit: await sourceCommit(normalizedSourceRoot),
     appliedAt: existing?.appliedAt,
     updatedAt: now
@@ -395,6 +399,11 @@ function mergeNames(left: string[], right: string[]): string[] {
   const names = [...new Set([...left, ...right].filter(Boolean))];
   if (names.includes("*")) return ["*"];
   return names.sort((a, b) => a.localeCompare(b));
+}
+
+function currentSkillSelection(skills: string[]): string[] {
+  if (skills.includes("*")) return ["*"];
+  return [...new Set(skills.filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 
 function compareAppliedRecord(left: AppliedSourceRecord, right: AppliedSourceRecord): number {

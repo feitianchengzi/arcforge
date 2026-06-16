@@ -44,4 +44,5 @@ business_logic:
     - Resolve from to a local Skill project root when provided; otherwise use the current workspace.
     - Select profile skills, optional explicit skills and all shared assets.
     - Build SHA-256 directory signatures.
+    - Scan direct target-root entries outside the current source selection and return them as targetExtras.
     - Return missing, changed, extra, and same statuses.

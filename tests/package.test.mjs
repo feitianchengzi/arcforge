@@ -293,16 +293,30 @@ test("arcforge skill models source maintenance apply and share endpoints", async
   assert.match(skill, /临时来源 checkout，不得替代“维护源”/);
   assert.match(skill, /关系记录归属 root/);
   assert.match(skill, /当前 cwd 只是执行位置/);
+  assert.match(skill, /managed-stale/);
+  assert.match(skill, /uncertain/);
+  assert.match(skill, /同步所有 skills/);
+  assert.match(skill, /只有历史应用关系管理过/);
+  assert.match(skill, /可能来自其它来源的有效 skill/);
+  assert.match(skill, /列出具体目录并获得明确确认/);
   assert.match(skill, /source-maintenance-target-model\.md/);
   assert.match(skill, /import plan 先于 import run/);
   assert.match(agentYaml, /四类端点/);
   assert.match(agentYaml, /关系记录/);
   assert.match(agentYaml, /关系记录归属 root/);
+  assert.match(agentYaml, /targetExtras/);
+  assert.match(agentYaml, /managed-stale/);
+  assert.match(agentYaml, /可能来自其它来源/);
+  assert.match(agentYaml, /删除任何 managed-stale 目录前都必须列出具体路径/);
   assert.match(agentYaml, /Desktop Skills\/Import、Destinations 或 Share/);
   assert.match(model, /4 个端点对象、1 个关系对象、2 个选择维度/);
   assert.match(model, /共享目标不是应用目标/);
   assert.match(model, /临时来源 checkout，不是本地维护源/);
   assert.match(model, /应用目标不应该默认变成维护源/);
+  assert.match(model, /历史 managed skill 集合/);
+  assert.match(model, /managed-stale/);
+  assert.match(model, /可能来自其它来源/);
+  assert.match(model, /不能因为用户说“同步所有”就自动删除/);
   assert.match(model, /不自动成为关系记录归属 root/);
   assert.match(model, /既不是 `--from` 来源\/维护源，也不是 `--target` 应用目标的父级/);
   assert.match(model, /关系记录/);
@@ -314,6 +328,10 @@ test("arcforge skill models source maintenance apply and share endpoints", async
   assert.match(cli, /import --target-dir/);
   assert.match(cli, /维护源：本轮无持久维护源/);
   assert.match(cli, /--allow-unrelated-root/);
+  assert.match(cli, /managedSkillNames/);
+  assert.match(cli, /targetExtras/);
+  assert.match(cli, /不属于旧 skill/);
+  assert.match(cli, /删除前确认最终目录清单/);
   assert.match(cli, /关系记录归属 root/);
   assert.match(cli, /\.DS_Store/);
   assert.match(cli, /共享目标/);
@@ -331,6 +349,9 @@ test("applied relation guard blocks unrelated roots and ignores system metadata"
   const fsCore = await readFile(new URL("../src/core/fs.ts", import.meta.url), "utf8");
   const sourcesCore = await readFile(new URL("../src/core/sources.ts", import.meta.url), "utf8");
   const commands = await readFile(new URL("../src/commands/index.ts", import.meta.url), "utf8");
+  const profilesCore = await readFile(new URL("../src/core/profiles.ts", import.meta.url), "utf8");
+  const sharedTypes = await readFile(new URL("../src/shared/types.ts", import.meta.url), "utf8");
+  const destinationsView = await readFile(new URL("../src/ui/views/destinations.tsx", import.meta.url), "utf8");
 
   assert.match(fsCore, /IGNORED_SYSTEM_ENTRIES/);
   assert.match(fsCore, /\.DS_Store/);
@@ -342,6 +363,16 @@ test("applied relation guard blocks unrelated roots and ignores system metadata"
   assert.match(sourcesCore, /assertAppliedRelationRoot/);
   assert.match(sourcesCore, /Applied source relation root is unrelated to both source and target/);
   assert.match(sourcesCore, /allowUnrelatedRoot/);
+  assert.match(sourcesCore, /managedSkillNames: mergeNames/);
+  assert.match(sourcesCore, /currentSkillSelection/);
+  assert.match(sourcesCore, /managedSkillNames: record\.managedSkillNames \?\? record\.skills/);
+  assert.match(profilesCore, /targetRootExtras/);
+  assert.match(profilesCore, /managed-stale/);
+  assert.match(profilesCore, /uncertain/);
+  assert.match(profilesCore, /may belong to another source/);
+  assert.match(sharedTypes, /DriftTargetExtra/);
+  assert.match(sharedTypes, /targetExtras\?: DriftTargetExtra\[\]/);
+  assert.match(destinationsView, /targetExtrasSummary/);
   assert.match(commands, /hasFlag\(args, "--allow-unrelated-root"\)/);
 });
 

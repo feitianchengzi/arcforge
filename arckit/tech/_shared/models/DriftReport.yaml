@@ -112,8 +112,41 @@ properties:
             extra:
               type: integer
               minimum: 0
+  targetExtras:
+    type: array
+    nullable: true
+    description: Direct children of the target root that are not part of the current source selection.
+    items:
+      type: object
+      required:
+        - name
+        - kind
+        - classification
+        - targetPath
+        - reason
+      properties:
+        name:
+          type: string
+        kind:
+          type: string
+          enum:
+            - skill
+            - asset
+            - unknown
+        classification:
+          type: string
+          enum:
+            - managed-stale
+            - uncertain
+            - unrelated
+        targetPath:
+          type: string
+        reason:
+          type: string
 validation:
   same_status:
     description: Item status is same only when files is empty.
   missing_target:
     description: Missing target directory produces missing file entries for all source files.
+  managed_stale:
+    description: Target root extras are managed-stale only when their name appears in the applied record historical managed set and not in the current source selection.
