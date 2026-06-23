@@ -9,7 +9,7 @@ import { spawn } from "node:child_process";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..", "..", "..");
-const installedSkillNames = ["arcforge", "arcforge-skill-first"];
+const installedSkillNames = ["arcforge", "arcforge-skill-first", "arcforge-skill-creator"];
 const recommendedSkillProjects = [
   {
     name: "arckit",
@@ -211,6 +211,7 @@ async function assertRepoRoot(root) {
     "package.json",
     "skills/arcforge/SKILL.md",
     "skills/arcforge-skill-first/SKILL.md",
+    "skills/arcforge-skill-creator/SKILL.md",
     "src/cli/index.ts",
     "src/electron/main.ts"
   ];

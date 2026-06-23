@@ -18,8 +18,10 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(skill, /# ArcForge Install/);
   assert.match(skill, /skills\/arcforge/);
   assert.match(skill, /skills\/arcforge-skill-first/);
+  assert.match(skill, /skills\/arcforge-skill-creator/);
   assert.match(skill, /~\/\.codex\/skills\/arcforge/);
   assert.match(skill, /~\/\.codex\/skills\/arcforge-skill-first/);
+  assert.match(skill, /~\/\.codex\/skills\/arcforge-skill-creator/);
   assert.match(skill, /arcforge-desktop/);
   assert.match(skill, /--desktop install/);
   assert.match(skill, /--desktop build/);
@@ -88,6 +90,7 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(agentYaml, /display_name: "ArcForge Install"/);
   assert.doesNotMatch(agentYaml, /display_name: ".*[\u4e00-\u9fff].*"/);
   assert.match(agentYaml, /arcforge-skill-first/);
+  assert.match(agentYaml, /arcforge-skill-creator/);
   assert.match(agentYaml, /--home\/--shim-dir/);
   assert.match(agentYaml, /--npm-cache/);
   assert.match(agentYaml, /临时 shim 目录排在 PATH 最前/);
@@ -124,7 +127,8 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(agentYaml, /安装必须失败/);
 
   assert.match(script, /skills\/arcforge-skill-first\/SKILL\.md/);
-  assert.match(script, /installedSkillNames = \["arcforge", "arcforge-skill-first"\]/);
+  assert.match(script, /skills\/arcforge-skill-creator\/SKILL\.md/);
+  assert.match(script, /installedSkillNames = \["arcforge", "arcforge-skill-first", "arcforge-skill-creator"\]/);
   assert.match(script, /recommendedSkillProjects/);
   assert.match(script, /parseRecommendedMode/);
   assert.match(script, /hasHelpFlag/);
@@ -199,6 +203,7 @@ test("arcforge install skill defines source install boundaries", async () => {
 
   assert.match(readme, /从当前仓库安装 ArcForge/);
   assert.match(readme, /arcforge-skill-first/);
+  assert.match(readme, /arcforge-skill-creator/);
   assert.match(readme, /arckit-code/);
   assert.match(readme, /AI Agent Skills 中心/);
   assert.match(readme, /具体技术栈 coding skills 仓库/);
@@ -212,6 +217,7 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(readme, /arcforge-desktop/);
   assert.match(enReadme, /Install ArcForge From This Repository/);
   assert.match(enReadme, /arcforge-skill-first/);
+  assert.match(enReadme, /arcforge-skill-creator/);
   assert.match(enReadme, /arckit-code/);
   assert.match(enReadme, /AI Agent Skills center/);
   assert.match(enReadme, /Technology-stack-specific coding workflows live elsewhere/);
@@ -223,6 +229,7 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(enReadme, /\[简体中文\]\(\.\.\/\.\.\/README\.md\)/);
   assert.match(zhReadme, /从当前仓库安装 ArcForge/);
   assert.match(zhReadme, /arcforge-skill-first/);
+  assert.match(zhReadme, /arcforge-skill-creator/);
   assert.match(zhReadme, /arckit-code/);
   assert.match(zhReadme, /AI Agent Skills 中心/);
   assert.match(zhReadme, /具体技术栈 coding skills 仓库/);

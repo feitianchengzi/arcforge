@@ -6,7 +6,7 @@
 
 skill 是 agent 面向一类任务的交互入口和工作流契约。做事时先识别需要哪些 skill；进入某个目标 skill 后，再分析它如何实现。它可以只是轻量文档，也可以发展成小型软件能力包。
 
-`skill-creator` 的 `SKILL.md`、`scripts/`、`references/`、`assets/` 结构是基础形态，不是能力建模的终点。使用 Skill First 时，要继续判断目标 skill 是否需要更明确的交互入口、可复现执行、状态、UI handoff、回传机制、已有实现接入和真实任务验证。
+`skill-creator` 的 `SKILL.md`、`scripts/`、`references/`、`assets/` 结构是基础形态，不是能力建模的终点。使用 `arcforge-skill-creator` 时，要继续判断目标 skill 是否需要更明确的交互入口、可复现执行、状态、UI handoff、回传机制、已有实现接入和验证方案。
 
 一个完整的软件能力单元可以包含：
 
@@ -16,15 +16,27 @@ skill 是 agent 面向一类任务的交互入口和工作流契约。做事时�
 - Server：长生命周期能力，适合索引、缓存、任务队列、状态订阅、跨会话数据、UI 数据源和回调接收。
 - UI：按需出现的交互面，适合选择、预览、diff、冲突处理、视觉审查、复杂表单和批量确认。
 - 状态和数据模型：profile、source record、manifest、schema、audit result、task result 或用户选择。
-- 测试和模拟：fixture、golden case、dry run、结构检查、人工桥接隔离验证、transcript 回放和复测。
+- 测试和模拟：fixture、golden case、dry run、结构检查、可选人工桥接隔离验证、transcript 回放和复测。
 - 回传机制：UI、CLI 或 server 产生的结构化结果如何回到 agent 对话上下文、本地状态或下一步动作。
 - 治理边界：哪些阶段交给 ArcForge 的 scan、audit、merge、profile、apply、drift、publish 或 share。
 
 这些能力不是固定清单。不要为了完整而堆栈，也不要因为当前只有 Markdown 就把用户需求压扁成文档问题。
 
+## 真实使用场景
+
+创建或更新目标 skill 前，先把用户意图落到具体场景。至少回答：
+
+- 用户会用什么话触发这个 skill。
+- agent 进入 skill 后第一步应该判断什么。
+- 需要读取哪些本地文件、仓库、工具输出、用户输入或外部系统线索。
+- 最终应交付什么产物、路径、状态、证据或下一步。
+- 哪些情况必须澄清、停止、请求确认或记录为产品缺口。
+
+场景不需要写成长案例，但必须足够指导 `description`、主流程、reference 和 `agents/openai.yaml`。
+
 ## 任务到 Skill
 
-创建或更新目标 skill 前，先回答任务层问题：
+创建或更新目标 skill 时，回答任务层问题：
 
 - 用户真正要完成什么工作，而不是只想创建什么文件。
 - 这个任务需要一个 skill，还是需要多个 skill 协作。
@@ -35,7 +47,7 @@ skill 是 agent 面向一类任务的交互入口和工作流契约。做事时�
 
 ## 目标 Skill 适配阈值
 
-Skill First 是元 skill。它不能因为一个泛化 skill 能处理部分上下文，就把该泛化 skill 当成目标 skill。
+不要因为一个泛化 skill 能处理部分上下文，就把该泛化 skill 当成目标 skill。
 
 候选目标 skill 足够匹配，通常需要满足：
 
@@ -43,7 +55,7 @@ Skill First 是元 skill。它不能因为一个泛化 skill 能处理部分上�
 - 工作流匹配：有输入收集、假设标注、执行步骤、确认点和停止条件。
 - 输出匹配：有该领域可复用的输出结构，而不是泛泛的分析总结。
 - 不确定性处理匹配：知道何时补日志、补观测、查配置、向用户澄清或记录假设。
-- 验证匹配：隔离执行者能用它重复执行同类任务，并暴露可迭代的问题。
+- 验证匹配：另一个 agent 或未来自己能用它重复执行同类任务，并暴露可迭代的问题。
 
 如果候选 skill 只覆盖技术背景、代码修改、需求文档或通用研究，它只能是辅助 skill。没有足够匹配目标 skill 时，先创建目标 skill 工作副本，再决定是否调用泛化 skill 辅助发现项目上下文或实现承载。
 

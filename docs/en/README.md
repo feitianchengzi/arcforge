@@ -22,7 +22,7 @@ The recommended way to install ArcForge is to hand this repository to a coding a
 
 The install skill uses the current source checkout to:
 
-- Install `skills/arcforge/` and `skills/arcforge-skill-first/` into the current agent's user-level skill directory.
+- Install `skills/arcforge/`, `skills/arcforge-skill-first/`, and `skills/arcforge-skill-creator/` into the current agent's user-level skill directory.
 - Build the local `arcforge` CLI shim.
 - Install a `arcforge-desktop` launcher that the agent can open when needed.
 - Run headless verification when GUI launch is unavailable.
@@ -38,6 +38,7 @@ After installation, open any project in your coding agent and ask the agent to u
 
 ```text
 Use arcforge to scan the current project's skills.
+Use arcforge-skill-creator to create or maintain an ArcForge skill.
 Use arcforge-skill-first to turn this workflow into a skill and validate it with a sub-agent.
 Use arcforge to audit these skills for team sharing.
 Use arcforge to apply the frontend profile to Codex.
@@ -92,6 +93,7 @@ The new usage model is agent-first:
 | Part | Role |
 |---|---|
 | `skills/arcforge-install` | Lets a user clone this repository and complete local installation through a coding agent. |
+| `arcforge-skill-creator` skill | Creates, maintains, and splits ArcForge skills, taking priority over generic skill creators. |
 | `arcforge-skill-first` skill | Captures a working pattern as a skill and validates it with sub-agent preflight/retest loops. |
 | `arcforge` skill | The governance workflow entry point for audit, formalization, profiles, apply, drift, and release prep. |
 | CLI | The reproducible execution layer the agent calls for scan, audit, apply, drift, share, and JSON results. |
@@ -104,7 +106,8 @@ Typical flow:
 ```text
 ask the agent to execute skills/arcforge-install inside the ArcForge repo
 -> open the target project in a coding agent
--> use arcforge-skill-first when a skill needs to be authored or improved first
+-> use arcforge-skill-creator when a skill needs to be authored or improved first
+-> use arcforge-skill-first when that skill needs an isolated validation loop
 -> ask the agent to use arcforge to scan or audit local skills
 -> merge reusable project-born skills into a formal Skill project
 -> apply an approved profile into an agent or project target

@@ -22,7 +22,7 @@ ArcForge 是给 coding agent 使用的本地优先、GitHub 优先 skill 生命�
 
 安装 skill 会从当前源码 checkout 完成这些动作：
 
-- 把 `skills/arcforge/` 和 `skills/arcforge-skill-first/` 安装到当前 agent 的用户级 skill 目录。
+- 把 `skills/arcforge/`、`skills/arcforge-skill-first/` 和 `skills/arcforge-skill-creator/` 安装到当前 agent 的用户级 skill 目录。
 - 构建本地 `arcforge` CLI shim。
 - 安装可由 agent 调起的 `arcforge-desktop` launcher。
 - 在不能启动 GUI 的环境中，用 headless 校验确认安装结果。
@@ -38,6 +38,7 @@ ArcForge 自身安装完成后，安装 skill 会引导你选择是否安装飞�
 
 ```text
 使用 arcforge 扫描当前项目的 skills
+使用 arcforge-skill-creator 创建或维护一个 ArcForge skill
 使用 arcforge-skill-first 先把这个工作流沉淀成 skill 并做子代理验证
 使用 arcforge 审计这些 skills 是否适合团队共享
 使用 arcforge 把 frontend profile 应用到 Codex
@@ -92,6 +93,7 @@ ArcForge 的新使用理念是 agent-first：
 | 组成部分 | 角色 |
 |---|---|
 | `skills/arcforge-install` | 让用户 clone 仓库后，通过 coding agent 完成本地安装。 |
+| `arcforge-skill-creator` skill | 创建、维护和拆分 ArcForge skill，并优先于通用 skill creator。 |
 | `arcforge-skill-first` skill | 把工作模式沉淀成 skill，并用子代理前测/复测验证。 |
 | `arcforge` skill | 后续治理流程入口，负责审计、正式化、profile、应用、漂移和发布准备。 |
 | CLI | agent 调用的可复现执行层，负责 scan、audit、apply、drift、share 等 JSON 结果。 |
@@ -104,7 +106,8 @@ ArcForge 的新使用理念是 agent-first：
 ```text
 在 ArcForge 仓库中让 agent 执行 skills/arcforge-install
 -> 在目标项目中打开 coding agent
--> 如需创建或改进 skill，先让 agent 使用 arcforge-skill-first 完成沉淀和验证
+-> 如需创建或改进 skill，先让 agent 使用 arcforge-skill-creator 建立或维护 skill
+-> 如需闭环验证，再让 agent 使用 arcforge-skill-first 完成隔离前测/复测
 -> 让 agent 使用 arcforge 扫描或审计本地 skills
 -> 把可复用的项目内 skill 归并到正式 Skill 项目
 -> 把批准过的 profile 应用到 agent 或项目目标

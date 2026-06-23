@@ -1,15 +1,15 @@
 ---
 name: arcforge-install
-description: 当用户拉取 ArcForge 当前仓库后，想在 agent 中运行安装流程，先安装用户级 arcforge、arcforge-skill-first、本地 arcforge CLI 和可真实调起的 ArcForge Desktop launcher，再按用户选择引导安装飞天橙子推荐的 arckit 与 arckit-code GitHub skill 项目时使用。
+description: 当用户拉取 ArcForge 当前仓库后，想在 agent 中运行安装流程，先安装用户级 arcforge、arcforge-skill-first、arcforge-skill-creator、本地 arcforge CLI 和可真实调起的 ArcForge Desktop launcher，再按用户选择引导安装飞天橙子推荐的 arckit 与 arckit-code GitHub skill 项目时使用。
 ---
 
 # ArcForge Install
 
-这个 skill 用于从当前 ArcForge 源码仓库完成本地安装。它服务于“用户 clone 当前项目，在 agent 中打开项目，然后运行安装 skill，后续使用 `arcforge` 和 `arcforge-skill-first` 时能真实调起 CLI 和 Desktop”的场景。
+这个 skill 用于从当前 ArcForge 源码仓库完成本地安装。它服务于“用户 clone 当前项目，在 agent 中打开项目，然后运行安装 skill，后续使用 `arcforge`、`arcforge-skill-first` 和 `arcforge-skill-creator` 时能真实调起 CLI 和 Desktop”的场景。
 
 安装目标：
 
-- 把仓库里的 `skills/arcforge/` 和 `skills/arcforge-skill-first/` 安装到当前 agent 对应的用户级 skill 目录。
+- 把仓库里的 `skills/arcforge/`、`skills/arcforge-skill-first/` 和 `skills/arcforge-skill-creator/` 安装到当前 agent 对应的用户级 skill 目录。
 - 从当前源码构建 CLI，并在用户级 bin 目录写入 `arcforge` shim。
 - 安装 Node 依赖，构建 Desktop，并在用户级 bin 目录写入 `arcforge-desktop` launcher。
 - 需要本地安装包时再执行 Desktop package；package 不替代 `arcforge-desktop` launcher。
@@ -23,6 +23,7 @@ ArcForge 仍然是本地优先、GitHub 优先的治理工作台。不要把这�
 2. 说明将写入的真实用户级目标：
    - Codex: `~/.codex/skills/arcforge`
    - Codex Skill First: `~/.codex/skills/arcforge-skill-first`
+   - Codex Skill Creator: `~/.codex/skills/arcforge-skill-creator`
    - CLI shim: 默认 `~/.local/bin/arcforge`，或脚本按平台选择的持久用户级 bin 目录
    - Desktop launcher: 与 CLI 同目录的 `arcforge-desktop`
    - Desktop runtime: 当前仓库的 `node_modules`、`dist`、`dist-ui`，以及可选 `release/`
@@ -230,10 +231,13 @@ node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex,claude,
 
 - `codex` -> `~/.codex/skills/arcforge`
 - `codex` -> `~/.codex/skills/arcforge-skill-first`
+- `codex` -> `~/.codex/skills/arcforge-skill-creator`
 - `claude` -> `~/.claude/skills/arcforge`
 - `claude` -> `~/.claude/skills/arcforge-skill-first`
+- `claude` -> `~/.claude/skills/arcforge-skill-creator`
 - `cursor` -> `~/.cursor/skills/arcforge`
 - `cursor` -> `~/.cursor/skills/arcforge-skill-first`
+- `cursor` -> `~/.cursor/skills/arcforge-skill-creator`
 
 ## Desktop 规则
 
@@ -256,7 +260,7 @@ Desktop 默认安装为源码仓库 launcher，不静默复制到系统应用目
 - `--recommended-mode` 支持 `prompt`、`quick`、`governed`；默认 `prompt`。显式传 `--recommended-skills` 时必须同时传 `--recommended-mode quick` 或 `--recommended-mode governed`，不要保留旧式隐式快速安装命令。
 - `--recommended-skills` 支持 `prompt`、`skip`、`all`、`arckit`、`arckit-code` 或 `arckit,arckit-code`；除非用户明确选择快速安装推荐 Skill 项目，否则默认只展示推荐说明和后续命令。
 - `--verify` 是只读检查；不能启动 GUI 时用它替代直接运行 `arcforge-desktop`。如果 `--verify` 发现 PATH shadow，不要报告成功，应重新运行安装脚本修复或报告不可修复原因。
-- 不要删除仓库外的文件。脚本只替换目标 `arcforge`、`arcforge-skill-first` skill 目录、目标 `arcforge` shim、同目录的 `arcforge-desktop` launcher，以及 PATH 上排在目标 shim 前方且位于用户目录、可写、非临时的同名旧 wrapper。
+- 不要删除仓库外的文件。脚本只替换目标 `arcforge`、`arcforge-skill-first`、`arcforge-skill-creator` skill 目录、目标 `arcforge` shim、同目录的 `arcforge-desktop` launcher，以及 PATH 上排在目标 shim 前方且位于用户目录、可写、非临时的同名旧 wrapper。
 - 不要运行 Git push、PR、发布 release 或远程分享。
 - 安装过程中发现仓库有未提交改动时，不要 revert；只报告这不影响安装脚本复制当前工作副本。
 
@@ -264,7 +268,7 @@ Desktop 默认安装为源码仓库 launcher，不静默复制到系统应用目
 
 完成后用简短中文报告：
 
-- 安装的用户级 skill 目标路径，包括 `arcforge` 和 `arcforge-skill-first`
+- 安装的用户级 skill 目标路径，包括 `arcforge`、`arcforge-skill-first` 和 `arcforge-skill-creator`
 - CLI shim 路径和是否在 PATH
 - 修复过的旧 wrapper 路径；如果存在不可修复 PATH shadow，报告失败原因
 - Desktop launcher 路径、状态：`install`、`build`、`package`、`skip` 或失败阶段

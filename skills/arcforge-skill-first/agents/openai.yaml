@@ -1,17 +1,5 @@
 interface:
   display_name: "ArcForge Skill First"
-  short_description: "用 Skill First 闭环把工作模式或已有 skill 执行过程建模为软件能力单元；作为元 skill 先判断、创建或维护目标 skill，再验证并迭代。"
+  short_description: "编排 Skill First：路由目标 skill、调用 creator、验证并交接治理。"
   default_prompt: >-
-    使用 $arcforge-skill-first 时，先把它当成元 skill，而不是业务执行 skill。它不直接完成服务器成本预估、技术方案分析、代码实现、交互设计或发布审计；它先判断真实任务是否已有足够匹配的目标 skill。候选目标 skill 必须明确覆盖任务领域，并有输入收集、假设标注、执行步骤、输出格式、不确定信息处理和可重复执行能力；不能因为 arckit-tech、arckit-code、arckit-spec 等泛化 skill 最接近，就让它们接管整轮任务。
-
-    按 SKILL.md 的门禁式主流程执行：0 捕获用户硬要求，1 判定模式和入口集合，2 定位来源和工作副本，3 能力单元建模，4 创建或更新目标 skill，5 本地结构检查，6 隔离执行验证，7 观察归因和修复，8 汇报和治理交接。每个门禁必须有退出条件；无法满足时报告阻塞和缺少的最小信息。
-
-    用户明确提出的要求、纠错和测试反馈必须固化为流程门禁、硬规则、确认点、输出格式或 reference 读取条件；不要只做解释。目标 skill 必须遵循渐进式披露：SKILL.md 保留主流程、强制门禁和 reference 读取条件，复杂细节迁移到 reference，并在对应流程节点写清何时读取。
-
-    根据当前 agent 检查用户级和项目级正式 skill；如果要修改正式 skill，先完整复制到当前项目根 skills/<skill-name>/，只改工作副本。创建或维护目标 skill 时，保持 description 管触发和边界、正文管已触发后的执行流程。
-
-    读取或创建目标 skill 后，把它建模为软件能力单元：判断该 skill 需要哪些实现承载，包括 SKILL.md、references、CLI、server、UI、状态、schema、测试 fixture 和 UI 回传机制；不要一开始就把维护范围缩窄成 Markdown。先发现已有承载，再判断本轮是观察已有执行、接入已有实现、维护已有实现、包装进 skill，还是新建最小实现。
-
-    Skill First 默认只做人工桥接隔离验证，不使用当前会话自测替代，也不调用任何平台工具来替代人工桥接。人工桥接是主 agent 发起和指挥的验证执行手段，不是停止理由。主 agent 必须生成人工桥接执行包：可复制的隔离执行 prompt、目标 skill 路径、真实任务、工作区、临时路径、写入边界、用户操作步骤、回传格式和当前状态 awaiting_validation_transcript。用户在新的 agent 对话中原样粘贴并执行，完成后把 transcript、最终报告或阻塞点贴回主会话。交付执行包只表示进入 awaiting_validation_transcript，不能把目标 skill 写成验证通过、闭环完成或可进入 ArcForge 治理交接；最终回复必须以要求用户执行桥接并回传结果收尾。不要检查或汇报自动代理工具是否可用；这不是本 skill 的验证路径，也不能作为未验证原因。传给隔离执行者的是目标 skill 路径、真实任务、工作区、临时路径和写入边界；不要传主 agent 的诊断、预期答案、问题分类、修复思路或请评价 skill 是否需要优化。隔离执行者只负责像普通使用者一样执行任务并记录步骤、命令、路径、错误、确认点和卡点；主 agent 收到回传后负责观察、归因、分类和修复。只有用户明确拒绝人工桥接、要求停止、任务无法桥接、已有 transcript 可回放，或平台连生成桥接 prompt 都不允许时，才使用 transcript 回放或受限主会话 dry run；受限 dry run 必须保存本应发送的 prompt 并明确标注客观性不足。
-
-    目标 skill、references 和 agents/openai.yaml 默认使用用户当前请求语言。如果需要 UI，说明 UI 承载的用户动作、结构化输出、回传路径和 agent 下一步。用户确认目标 skill 可用后，只说明建议进入的 ArcForge 治理阶段，不绕过 arcforge 的确认规则，不自动执行真实写入、apply、share、push 或目标目录覆盖。最终汇报任务需要的 skill 入口集合、本轮模式、本轮目标 skill、候选目标 skill 的适配判断、泛化 skill 的辅助边界、原始路径、工作副本路径、软件能力单元建模结果、已有实现承载发现结果、本轮策略、验证模式和轮次、主 agent 基于执行记录发现的问题、修复内容、用户确认状态、建议的 ArcForge 下一步和校验结果。
+    使用 $arcforge-skill-first 时，把它当成 Skill First 编排入口，而不是业务执行或 skill 写作入口；用户在 skill、目标 skill 或 Skill First 上下文中只说“模拟测试”“测一下这个 skill”“试跑这个 skill”也应进入本入口。先判断真实任务是否已有足够匹配的目标 skill，明确元入口、目标 skill、辅助入口、创建维护入口、验证入口和治理入口；不要让 arckit-tech、arckit-code、arckit-spec 等泛化 skill 抢占目标 skill。凡是创建、更新、维护、拆分或修复目标 skill，必须调用并遵守 $arcforge-skill-creator；如果通用 skill-creator 或其他 creator 类 skill 同时适用，只把它们作为基础结构、脚本或校验参考。按 SKILL.md 门禁执行：捕获用户硬要求，判定模式和入口集合，定位正式来源和 skills/<skill-name>/ 工作副本，调用 arcforge-skill-creator，准备验证输入，发起人工桥接隔离验证，收到事后总结、必要 transcript 或阻塞点后观察归因并按问题归属修复，最后只在用户确认可用后建议进入 arcforge 的 scan、audit、profile、drift 或 publish/share readiness 等治理阶段。唯一验证路径是人工桥接隔离验证；不要设计人工桥接失败、无法桥接、用户不愿桥接、平台不允许桥接、transcript 回放或受限 dry run 分支。桥接执行包必须两段式：第一段真实任务 prompt 只模拟真实用户请求，包含做什么、必要输入、工作区和写入边界，不写验证背景、诊断、观察重点、总结格式、目标 skill 绝对路径或“你是验证执行者”；第二段事后总结 prompt 只在执行 agent 完成、阻塞或停在确认请求后发送，用来收集实际触发的 skill、读取文件、命令、路径、用户交互点、错误和阻塞。交付桥接执行包只表示状态 awaiting_validation_transcript，不能写成验证通过、闭环完成或可进入治理交接。不要调用平台工具替代人工桥接，也不要把自动代理工具不可用作为未验证原因。不要在 Skill First 中执行真实业务任务、apply、share、push、目标目录覆盖、远程写入或 registry 写入。
