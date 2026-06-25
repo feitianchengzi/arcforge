@@ -29,6 +29,7 @@ ArcForge 的最小完整抽象是：4 个端点对象、1 个关系对象、2 �
 - 用户级 agent 目录安装时，当前 cwd 只是执行位置，不自动成为关系记录归属 root。来源是本地正式 Skill 项目时，关系记录归属 root 应优先使用来源/维护源 root；来源是远程且还没有本地维护源时，先询问归属 root，或只执行 drift/apply 不保存关系。
 - 如果 `--root` 既不是 `--from` 来源/维护源，也不是 `--target` 应用目标的父级，必须提示这会把应用关系挂到无关 workspace；除非用户明确要求跨 workspace 归属，不要保存关系。
 - 当前项目 skill 迁移的默认治理方向是：当前项目 skill 来源目录 -> 正式维护源 -> 应用目标或共享目标。不要直接把当前项目 skill 到处复制，除非用户明确要一次性复制并接受没有 durable source relationship。
+- 当前项目临时 skill 在进入正式维护源、应用目标和共享目标后，清理阶段只能删除当前项目 `sourceDir` 下的临时副本；不能删除正式维护源或用户级 agent 安装目录。使用 `arcforge merge cleanup-local --root <project> --skills <name> --confirm` 前必须先确认具体目录。
 - 从 GitHub/Git/本地 Skill 项目安装到 Codex、Claude、Cursor 或项目 agent 目录，是 ArcForge 自己的安装治理路径：先解析来源和 profile/skills，再对目标做 drift，确认后 apply，并按需保存关系记录。不要把这种请求转交给通用 skill installer。
 - “同步所有 skills”包含收口检查：应用当前来源集合后，必须查看目标根目录中的额外项。只有历史关系管理过但当前来源不存在的目录才是 `managed-stale`；目标中其它 skill 目录可能来自其它来源，只能标为 `uncertain`；其它非当前来源目标项是 `unrelated`。`managed-stale` 需要报告并单独确认具体目录后才能清理，不能被普通 extra 静默吞掉，也不能因为用户说“同步所有”就自动删除。
 
@@ -71,6 +72,7 @@ ArcForge 的最小完整抽象是：4 个端点对象、1 个关系对象、2 �
 - 写应用目标前必须先 drift：`drift`、`applied drift` 或 Desktop diff。安装到 agent 或项目目录也属于写应用目标。
 - `drift` 和 `applied drift` 除了文件级 missing/changed/extra，也要检查 target root extras。`applied drift` 应优先依据 applied record 的历史 managed skill 集合把旧名、退役名或重命名残留标成 `managed-stale`。
 - 写共享目标前必须先有 `publish-plan`、`share plan` 或共享 drift。
+- 删除当前项目临时副本前必须先有 `merge cleanup-local` 计划输出；真实删除必须带 `--confirm`，并且只允许删除当前项目 `sourceDir` 下含 `SKILL.md` 的选定目录。
 - `apply --confirm` 会写目标目录；真实目标上运行前必须由 agent 在对话里获得明确确认。
 - `source status` 可能写 Git 元数据；只读/模拟场景中跳过，或使用临时 fixture。
 - 临时验证必须设置 `ARCFORGE_HOME=/private/tmp/<run>/.arcforge-home`，不要污染真实用户级状态。

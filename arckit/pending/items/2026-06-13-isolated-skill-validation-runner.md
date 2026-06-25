@@ -6,7 +6,7 @@
 - Type: agent
 - Source: agent conversation
 - Created: 2026-06-13
-- Updated: 2026-06-13
+- Updated: 2026-06-24
 - Decision: record only; do not execute yet
 
 ## Background
@@ -50,6 +50,7 @@ For now, prefer a manual bridge: the main agent prepares an isolated executor pr
 - Keep the design local-first and GitHub-first.
 - Treat the runner as governance validation, not as an agent runtime product.
 - The first implementation should likely start with transcript schema and manual bridge fixtures before any long-running executor process.
+- 2026-06-24 user note: `arcforge-skill-first` validation may need a CLI capability that independently invokes an agent, so the main agent and isolated executor agent are genuinely separated instead of only simulated through an in-context subagent.
+- The CLI design should preserve the separation explicitly: the main agent observes, the isolated agent executes, and any shared state must be mediated through files, structured events, or transcripts.
 
 ## Outcome
-

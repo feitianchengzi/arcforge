@@ -1,15 +1,21 @@
 import crypto, { randomUUID } from "node:crypto";
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import type { AppliedSourceRecord, DriftReport, ImportSkillsPlan, ImportSkillsResult, MergePlan, MergeResult, ArcForgeConfig, SkillSummary } from "../shared/types.js";
+import os from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import type { AppliedSourceRecord, ApplyFromSourceResult, CleanupLocalSkillPlan, CleanupLocalSkillResult, DriftReport, ImportSkillsPlan, ImportSkillsResult, LocalSkillWorkflowPlan, MergePlan, MergeResult, ProjectResolveCandidate, ProjectResolveResult, ArcForgeConfig, SkillSummary } from "../shared/types.js";
 import { defaultConfigForRoot, loadConfig, saveConfig } from "./config.js";
 import { copyDirectory, pathExists } from "./fs.js";
 import { applyProfile, compareDirectory, driftReport } from "./profiles.js";
-import { loadLocalProjectState, saveLocalProjectAppliedSources } from "./project-store.js";
+import { listLocalProjectStates, loadLocalProjectState, saveLocalProjectAppliedSources } from "./project-store.js";
 import { downloadSource } from "./share.js";
 import { selectProfileSkills } from "./share-sync.js";
 import { currentCommit } from "./share-git.js";
 import { scanWorkspace } from "./workspace.js";
+import { detectLocalGitSource } from "./local-git.js";
+
+const execFileAsync = promisify(execFile);
 
 export interface MergeOptions {
   root: string;
@@ -43,6 +49,28 @@ export interface ImportSkillsOptions {
   targetProfile?: string;
   confirm?: boolean;
   cacheDir?: string;
+}
+
+export interface ProjectResolveOptions {
+  cwd: string;
+  name: string;
+}
+
+export interface LocalSkillWorkflowPlanOptions {
+  root: string;
+  sourceDir?: string;
+  skill: string;
+  to: string;
+  install?: string;
+  share?: string;
+  cacheDir?: string;
+}
+
+export interface CleanupLocalSkillOptions {
+  root: string;
+  sourceDir?: string;
+  skills: string[];
+  confirm?: boolean;
 }
 
 export async function resolveSkillProjectRoot(input: string, cacheDir: string): Promise<string> {
@@ -181,6 +209,153 @@ export async function importSkillsIntoProject(options: ImportSkillsOptions): Pro
   };
 }
 
+export async function resolveSkillProject(options: ProjectResolveOptions): Promise<ProjectResolveResult> {
+  const cwd = path.resolve(options.cwd);
+  const query = options.name.trim();
+  if (!query) throw new Error("Project name is required.");
+  const candidatePaths = await projectCandidatePaths(cwd, query);
+  const candidates = await Promise.all(candidatePaths.map((candidatePath) => inspectProjectCandidate(candidatePath, query)));
+  const sorted = candidates.sort(compareProjectCandidates);
+  const recommended = sorted.find((item) => item.recommendation === "recommended");
+  return {
+    query,
+    cwd,
+    candidates: sorted,
+    recommended,
+    messages: recommended
+      ? [`Recommended maintenance source: ${recommended.path}`]
+      : ["No recommended Skill project found. Confirm a maintenance source before merge/apply/share writes."]
+  };
+}
+
+export async function createLocalSkillWorkflowPlan(options: LocalSkillWorkflowPlanOptions): Promise<LocalSkillWorkflowPlan> {
+  const root = path.resolve(options.root);
+  const skill = options.skill.trim();
+  if (!skill) throw new Error("Skill name is required.");
+  const rootSnapshot = await scanWorkspace(root, { sourceDir: options.sourceDir });
+  const sourceDir = rootSnapshot.config.sourceDir;
+  const sourceSkillPath = path.join(root, sourceDir, skill);
+  const sourceExists = await pathExists(path.join(sourceSkillPath, "SKILL.md"));
+  const maintenance = await resolveSkillProject({ cwd: root, name: options.to });
+  const recommended = maintenance.recommended;
+  const targetPath = recommended?.sourceDir || "skills";
+  const install = options.install ? resolveInstallTarget(options.install, recommended?.path) : undefined;
+  const share = options.share ? resolveShareTarget(options.share, recommended) : undefined;
+  const blocking = [];
+  const warnings = [];
+  if (!sourceExists) blocking.push(`Source skill not found: ${sourceSkillPath}`);
+  if (!recommended) blocking.push(`No confirmed maintenance source found for: ${options.to}`);
+  if (recommended && !recommended.isSkillProject) blocking.push(`Recommended maintenance source is not a Skill project: ${recommended.path}`);
+  if (install && !recommended) warnings.push("Install stage needs a resolved maintenance source before drift/apply can be exact.");
+  if (share && !share.remoteUrl) warnings.push(`Share target '${options.share}' did not match a Git remote on the maintenance source.`);
+
+  const maintenanceRoot = recommended?.path || `<${options.to}>`;
+  const stages: LocalSkillWorkflowPlan["stages"] = [
+    {
+      name: "resolve-maintenance-source",
+      writes: false,
+      requiresConfirmation: false,
+      command: `arcforge project resolve --name ${shellValue(options.to)}`,
+      description: "Find and inspect the real Skill project maintenance source before writing."
+    },
+    {
+      name: "merge-plan",
+      writes: false,
+      requiresConfirmation: false,
+      command: `arcforge merge plan --root ${shellValue(root)} --source-dir ${shellValue(sourceDir)} --to ${shellValue(maintenanceRoot)} --skills ${shellValue(skill)} --target-path ${shellValue(targetPath)}`,
+      description: "Plan formalizing the current project skill into the maintenance source."
+    },
+    {
+      name: "merge-run",
+      writes: true,
+      requiresConfirmation: true,
+      command: `arcforge merge run --root ${shellValue(root)} --source-dir ${shellValue(sourceDir)} --to ${shellValue(maintenanceRoot)} --skills ${shellValue(skill)} --target-path ${shellValue(targetPath)} --confirm`,
+      description: "Write the skill into the maintenance source after reviewing the merge plan."
+    }
+  ];
+
+  if (install) {
+    stages.push(
+      {
+        name: "apply-drift",
+        writes: false,
+        requiresConfirmation: false,
+        command: `arcforge drift --root ${shellValue(install.relationRecordRoot || maintenanceRoot)} --from ${shellValue(maintenanceRoot)} --profile default --target ${shellValue(install.targetDir)} --skills ${shellValue(skill)}`,
+        description: "Compare the maintenance source skill with the application target before installing."
+      },
+      {
+        name: "apply-run",
+        writes: true,
+        requiresConfirmation: true,
+        command: `arcforge apply --root ${shellValue(install.relationRecordRoot || maintenanceRoot)} --from ${shellValue(maintenanceRoot)} --profile default --target ${shellValue(install.targetDir)} --skills ${shellValue(skill)} --save --confirm`,
+        description: "Install the skill into the application target and save the applied relation."
+      }
+    );
+  }
+
+  if (share) {
+    stages.push({
+      name: "share-plan",
+      writes: false,
+      requiresConfirmation: false,
+      command: share.remoteName
+        ? `arcforge share plan --root ${shellValue(maintenanceRoot)} --same-repository --same-repository-remote ${shellValue(share.remoteName)} --skills ${shellValue(skill)}`
+        : `arcforge share plan --root ${shellValue(maintenanceRoot)} --repo ${shellValue(options.share || "")} --skills ${shellValue(skill)}`,
+      description: "Plan sharing the maintenance source through Git without pushing yet."
+    });
+  }
+
+  stages.push({
+    name: "cleanup-local",
+    writes: true,
+    requiresConfirmation: true,
+    command: `arcforge merge cleanup-local --root ${shellValue(root)} --source-dir ${shellValue(sourceDir)} --skills ${shellValue(skill)} --confirm`,
+    description: "Delete only the current project temporary skill copy after merge, install, and share are complete."
+  });
+
+  return {
+    root,
+    skill,
+    sourceDir,
+    sourceSkillPath,
+    sourceExists,
+    maintenance: {
+      query: options.to,
+      recommended,
+      candidates: maintenance.candidates
+    },
+    install,
+    share,
+    stages,
+    blocking,
+    warnings,
+    recommendedNextAction: blocking.length
+      ? "Resolve blocking endpoint issues before any write step."
+      : stages.find((item) => !item.writes)?.command || "Review the plan, then run the write stages one by one with explicit confirmation."
+  };
+}
+
+export async function cleanupLocalSkills(options: CleanupLocalSkillOptions): Promise<CleanupLocalSkillResult | CleanupLocalSkillPlan> {
+  const plan = await createCleanupLocalSkillPlan(options);
+  if (!options.confirm) return plan;
+  const deleted: string[] = [];
+  const skipped: string[] = [];
+  for (const item of plan.skills) {
+    if (item.action !== "delete") {
+      skipped.push(item.name);
+      continue;
+    }
+    await fs.rm(item.path, { recursive: true, force: false });
+    deleted.push(item.name);
+  }
+  return {
+    plan: { ...plan, requiresConfirm: false },
+    deleted,
+    skipped,
+    messages: [`Deleted ${deleted.length} temporary local skill copies from ${plan.sourceDir}.`, ...skipped.map((name) => `Skipped ${name}.`)]
+  };
+}
+
 export async function listAppliedSources(root: string): Promise<AppliedSourceRecord[]> {
   return [...((await loadLocalProjectState(root))?.appliedSources ?? [])].sort(compareAppliedRecord);
 }
@@ -238,15 +413,22 @@ export async function runAppliedSources(root: string, id: string | undefined, co
   return results;
 }
 
-export async function applyFromSource(root: string, from: string | undefined, profile: string, targetDir: string, save: boolean, skills?: string[], cacheDir?: string, allowUnrelatedRoot = false) {
+export async function applyFromSource(root: string, from: string | undefined, profile: string, targetDir: string, save: boolean, skills?: string[], cacheDir?: string, allowUnrelatedRoot = false): Promise<ApplyFromSourceResult> {
   const sourceRoot = from ? await resolveSkillProjectRoot(from, requiredCacheDir(cacheDir)) : path.resolve(root);
   if (save && from) assertAppliedRelationRoot(root, sourceRoot, targetDir, allowUnrelatedRoot);
   const resolvedTargetDir = from ? path.resolve(root, targetDir) : targetDir;
   const snapshot = await scanWorkspace(sourceRoot);
   const config = skills?.length ? configWithSkillSelection(snapshot.config, profile, skills) : snapshot.config;
+  const selectedSkillsThisRun = selectedSkills(snapshot.skills, config, profile).map((skill) => skill.name);
   const result = await applyProfile(sourceRoot, config, snapshot.skills, snapshot.assets, profile, resolvedTargetDir);
   const record = save && from ? await upsertAppliedSource(root, await appliedRecordFor(root, sourceRoot, path.basename(sourceRoot), profile, targetDir, result.copied, "profileApply")) : undefined;
-  return { result, record };
+  return {
+    result,
+    record,
+    copiedThisRun: result.copied,
+    selectedSkillsThisRun,
+    managedSkillNamesHistorical: record?.managedSkillNames ?? []
+  };
 }
 
 export async function driftFromSource(root: string, from: string | undefined, profile: string, targetDir: string, skills?: string[], cacheDir?: string) {
@@ -412,4 +594,156 @@ function compareAppliedRecord(left: AppliedSourceRecord, right: AppliedSourceRec
 
 function slug(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+async function projectCandidatePaths(cwd: string, query: string): Promise<string[]> {
+  const paths = new Set<string>();
+  const add = (value?: string) => {
+    if (!value) return;
+    paths.add(path.resolve(value));
+  };
+  if (path.isAbsolute(query) || query.includes("/") || query.includes("\\")) {
+    add(path.isAbsolute(query) ? query : path.resolve(cwd, query));
+  } else {
+    add(path.join(cwd, query));
+    add(path.join(path.dirname(cwd), query));
+    add(path.join(path.dirname(path.dirname(cwd)), query));
+    for (const state of await listLocalProjectStates()) {
+      const localSourcePath = state.list?.localSourcePath;
+      if (path.basename(state.root) === query || Boolean(localSourcePath && path.basename(localSourcePath) === query)) {
+        add(state.root);
+        add(localSourcePath);
+      }
+    }
+  }
+  return [...paths];
+}
+
+async function inspectProjectCandidate(candidatePath: string, query: string): Promise<ProjectResolveCandidate> {
+  const exists = await isDirectory(candidatePath);
+  const candidate: ProjectResolveCandidate = {
+    path: candidatePath,
+    name: path.basename(candidatePath),
+    exists,
+    isSkillProject: false,
+    profiles: [],
+    skillCount: 0,
+    reasons: []
+  };
+  if (!exists) {
+    candidate.scan = { ok: false, error: "Path does not exist or is not a directory." };
+    candidate.recommendation = "notSkillProject";
+    candidate.reasons.push("Path is not a directory.");
+    return candidate;
+  }
+  try {
+    const snapshot = await scanWorkspace(candidatePath);
+    const isSkillProject = snapshot.skills.length > 0;
+    const git = await detectLocalGitSource(candidatePath);
+    candidate.isSkillProject = isSkillProject;
+    candidate.sourceDir = snapshot.config.sourceDir;
+    candidate.profiles = snapshot.config.profiles.map((profile) => profile.name);
+    candidate.skillCount = snapshot.skills.length;
+    candidate.git = git ? { ...git, dirty: await isGitDirty(git.root) } : undefined;
+    candidate.scan = { ok: true };
+    if (!isSkillProject) {
+      candidate.recommendation = "notSkillProject";
+      candidate.reasons.push("No skills were discovered.");
+    } else {
+      candidate.recommendation = isRecommendedProjectCandidate(candidatePath, query) ? "recommended" : "candidate";
+      candidate.reasons.push("Skill project scan succeeded.");
+      if (candidate.git?.remotes.length) candidate.reasons.push("Git remote is available for sharing/versioning.");
+      if (candidate.git?.dirty) candidate.reasons.push("Git checkout has uncommitted changes.");
+    }
+  } catch (error) {
+    candidate.scan = { ok: false, error: error instanceof Error ? error.message : String(error) };
+    candidate.recommendation = "notSkillProject";
+    candidate.reasons.push("Scan failed.");
+  }
+  return candidate;
+}
+
+function compareProjectCandidates(left: ProjectResolveCandidate, right: ProjectResolveCandidate): number {
+  return projectCandidateRank(left) - projectCandidateRank(right) || left.path.localeCompare(right.path);
+}
+
+function projectCandidateRank(candidate: ProjectResolveCandidate): number {
+  if (candidate.recommendation === "recommended") return 0;
+  if (candidate.recommendation === "candidate") return 1;
+  return 2;
+}
+
+function isRecommendedProjectCandidate(candidatePath: string, query: string): boolean {
+  if (path.isAbsolute(query) || query.includes("/") || query.includes("\\")) return true;
+  return path.basename(candidatePath) === query;
+}
+
+async function isGitDirty(gitRoot: string): Promise<boolean> {
+  try {
+    const { stdout } = await execFileAsync("git", ["status", "--porcelain"], { cwd: gitRoot });
+    return String(stdout).trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function resolveInstallTarget(input: string, relationRecordRoot?: string): LocalSkillWorkflowPlan["install"] {
+  if (input === "codex:user") return { target: input, targetDir: path.join(os.homedir(), ".codex", "skills"), relationRecordRoot };
+  if (input === "claude:user") return { target: input, targetDir: path.join(os.homedir(), ".claude", "skills"), relationRecordRoot };
+  if (input === "cursor:user") return { target: input, targetDir: path.join(os.homedir(), ".cursor", "skills"), relationRecordRoot };
+  return { target: input, targetDir: input, relationRecordRoot };
+}
+
+function resolveShareTarget(input: string, maintenance?: ProjectResolveCandidate): LocalSkillWorkflowPlan["share"] {
+  const remote = maintenance?.git?.remotes.find((item) => item.name === input);
+  return {
+    target: input,
+    remoteName: remote?.name,
+    remoteUrl: remote?.pushUrl || remote?.fetchUrl
+  };
+}
+
+async function createCleanupLocalSkillPlan(options: CleanupLocalSkillOptions): Promise<CleanupLocalSkillPlan> {
+  const root = path.resolve(options.root);
+  const snapshot = await scanWorkspace(root, { sourceDir: options.sourceDir });
+  const sourceDir = snapshot.config.sourceDir;
+  if (!options.skills.length) throw new Error("Cleanup requires --skills <a,b>.");
+  const sourceRoot = path.resolve(root, sourceDir);
+  assertInside(sourceRoot, root, "cleanup");
+  const skills = await Promise.all(options.skills.map(async (skill) => {
+    const name = skill.trim();
+    const skillPath = path.join(sourceRoot, name);
+    const exists = await pathExists(skillPath);
+    const isSkillDirectory = exists && await pathExists(path.join(skillPath, "SKILL.md"));
+    const inside = isSameOrParent(root, skillPath);
+    const action = exists && isSkillDirectory && inside ? "delete" as const : "skip" as const;
+    const reason = !exists
+      ? "Local skill copy does not exist."
+      : !inside
+        ? "Resolved path is outside the project root."
+        : !isSkillDirectory
+          ? "Directory does not contain SKILL.md."
+          : "Temporary local skill copy can be deleted after maintenance source and install/share stages are complete.";
+    return { name, path: skillPath, exists, isSkillDirectory, action, reason };
+  }));
+  return {
+    root,
+    sourceDir,
+    skills,
+    requiresConfirm: true,
+    messages: ["This cleanup only targets the current project sourceDir. It does not delete maintenance sources or user-level agent installs."]
+  };
+}
+
+async function isDirectory(filePath: string): Promise<boolean> {
+  try {
+    return (await fs.stat(filePath)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function shellValue(value: string): string {
+  if (/^[A-Za-z0-9_./:@~=-]+$/.test(value)) return value;
+  return JSON.stringify(value);
 }

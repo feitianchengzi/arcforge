@@ -6,7 +6,7 @@
 - Type: workflow
 - Source: agent conversation
 - Created: 2026-05-25
-- Updated: 2026-05-25
+- Updated: 2026-06-24
 - Decision: record only; do not execute yet
 
 ## Background
@@ -71,6 +71,7 @@ The first version should likely extend existing audit concepts with structured t
 - Testing should run locally and default to conservative sandbox settings.
 - Audit results should remain tied to pre-share and pre-publish governance.
 - Interactive terminal support is secondary to repeatable validation flows.
+- 2026-06-24 user note: skill stability and expected behavior likely need a dedicated test case and evaluation system, not just ad hoc validation. After a skill update, retesting should verify that core mechanisms still work.
+- The evaluation contract should separate deterministic checks, probabilistic behavior evidence, regression cases, and skill-specific acceptance criteria.
 
 ## Outcome
-

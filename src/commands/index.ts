@@ -5,7 +5,7 @@ import { createSharePlan, shareProject, type ShareProjectOptions } from "../core
 import { shareDriftReport, type ShareDriftOptions } from "../core/share-drift.js";
 import { getEnvironmentStatus } from "../core/environment.js";
 import { arcForgeHome } from "../core/project-store.js";
-import { addAppliedSource, applyFromSource, createImportSkillsPlan, createMergePlan, driftAppliedSources, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, removeAppliedSource, runAppliedSources } from "../core/sources.js";
+import { addAppliedSource, applyFromSource, cleanupLocalSkills, createImportSkillsPlan, createLocalSkillWorkflowPlan, createMergePlan, driftAppliedSources, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, removeAppliedSource, resolveSkillProject, runAppliedSources } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
 import type { CliShimOptions } from "../core/cli-install.js";
 import type { AuditMode, ShareDeliveryMethod, ShareTargetMode } from "../shared/types.js";
@@ -33,6 +33,8 @@ Commands:
   scan             Scan skills, shared assets, and audit status
   audit            Print audit report; exits 2 on critical findings
   source           Check or update the current Git checkout
+  project          Resolve real Skill project maintenance sources
+  workflow         Plan multi-stage skill governance workflows
   merge            Merge project skills into another Skill project
   import           Import skills from another Skill project into this project
   applied          Manage applied source records for the current project
@@ -52,6 +54,8 @@ Examples:
   arcforge audit --root .
   arcforge audit --root . --mode hybrid --agent codex
   arcforge source status --root .
+  arcforge project resolve --name arckit-code
+  arcforge workflow local-skill plan --root . --skill review --to arckit-code --install codex:user --share origin
   arcforge source update --root . --confirm
   arcforge merge plan --root . --to ../team-skills --skills review --target-path skills/project-a
   arcforge merge plan --root . --source-dir .codex/skills --to ../team-skills --skills project-showcase-video --target-path skills
@@ -104,6 +108,24 @@ Options:
   --root <dir>  Git checkout or workspace root. Defaults to current directory.
   --confirm     Required for update. Updates are fast-forward only.
 `,
+  project: `ArcForge CLI - project
+
+Resolve real Skill project maintenance sources before merge/apply/share writes. Outputs JSON.
+
+Usage:
+  arcforge project resolve --name <project-name-or-path> [--root <dir>]
+
+Options:
+  --root <dir>   Search context. Defaults to current directory.
+  --name <name>  Project directory name or path to inspect.
+`,
+  workflow: `ArcForge CLI - workflow
+
+Create read-only endpoint plans for multi-stage governance flows.
+
+Usage:
+  arcforge workflow local-skill plan --root <project> --skill <name> --to <project-name-or-path> [--source-dir <dir>] [--install codex:user|claude:user|cursor:user|<dir>] [--share <remote-or-repo>]
+`,
   merge: `ArcForge CLI - merge
 
 Merge current project skills into another Skill project and record that project as the applied source.
@@ -111,6 +133,7 @@ Merge current project skills into another Skill project and record that project 
 Usage:
   arcforge merge plan --to <path-or-url> --target-path <dir> [options]
   arcforge merge run --to <path-or-url> --target-path <dir> [options] --confirm
+  arcforge merge cleanup-local --skills <a,b> [options] --confirm
 
 Options:
   --root <dir>         Current project root. Defaults to current directory.
@@ -120,6 +143,7 @@ Options:
   --profile <name>     Profile to update in the target project. Defaults to default.
   --target-path <dir>  Parent directory in the target project. Skill names are appended under it.
   --target <dir>       Applied target directory recorded for the current project. Defaults to .arcforge/skills.
+  --confirm            Required for run and cleanup-local writes.
 `,
   import: `ArcForge CLI - import
 
@@ -254,6 +278,8 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
   }
 
   if (command === "source") return runSourceCommand(args, runtime);
+  if (command === "project") return runProjectCommand(args, runtime);
+  if (command === "workflow") return runWorkflowCommand(args, runtime);
   if (command === "merge") return runMergeCommand(args, runtime);
   if (command === "import") return runImportCommand(args, runtime);
   if (command === "applied") return runAppliedCommand(args, runtime);
@@ -322,8 +348,51 @@ async function runSourceCommand(args: string[], runtime: CommandRuntime): Promis
   return { exitCode: 0, value: await checkSourceUpdate({ root }) };
 }
 
+async function runProjectCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
+  const action = args[1] ?? "resolve";
+  if (action !== "resolve") throw new Error(`Unknown project action: ${action}`);
+  return {
+    exitCode: 0,
+    value: await resolveSkillProject({
+      cwd: arg(args, "--root") ?? runtime.cwd,
+      name: requiredArg(args, "--name")
+    })
+  };
+}
+
+async function runWorkflowCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
+  const subject = args[1];
+  const action = args[2];
+  if (subject === "local-skill" && action === "plan") {
+    return {
+      exitCode: 0,
+      value: await createLocalSkillWorkflowPlan({
+        root: arg(args, "--root") ?? runtime.cwd,
+        sourceDir: arg(args, "--source-dir"),
+        skill: requiredArg(args, "--skill"),
+        to: requiredArg(args, "--to"),
+        install: arg(args, "--install"),
+        share: arg(args, "--share"),
+        cacheDir: arg(args, "--cache-dir") ?? runtime.cacheDir ?? defaultCacheDir()
+      })
+    };
+  }
+  throw new Error(`Unknown workflow action: ${[subject, action].filter(Boolean).join(" ") || "missing"}`);
+}
+
 async function runMergeCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
-  const action = args[1] === "run" ? "run" : "plan";
+  const action = args[1] === "run" || args[1] === "cleanup-local" ? args[1] : "plan";
+  if (action === "cleanup-local") {
+    return {
+      exitCode: 0,
+      value: await cleanupLocalSkills({
+        root: arg(args, "--root") ?? runtime.cwd,
+        sourceDir: arg(args, "--source-dir"),
+        skills: parseSkills(requiredArg(args, "--skills")) ?? [],
+        confirm: hasFlag(args, "--confirm")
+      })
+    };
+  }
   const options = {
     root: arg(args, "--root") ?? runtime.cwd,
     sourceDir: arg(args, "--source-dir"),

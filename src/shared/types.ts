@@ -177,6 +177,92 @@ export interface ImportSkillsResult {
   messages: string[];
 }
 
+export interface ProjectResolveCandidate {
+  path: string;
+  name: string;
+  exists: boolean;
+  isSkillProject: boolean;
+  sourceDir?: string;
+  profiles: string[];
+  skillCount: number;
+  git?: {
+    root: string;
+    relativePath: string;
+    currentBranch?: string;
+    remotes: LocalGitRemote[];
+    dirty?: boolean;
+  };
+  scan?: {
+    ok: boolean;
+    error?: string;
+  };
+  recommendation?: "recommended" | "candidate" | "notSkillProject";
+  reasons: string[];
+}
+
+export interface ProjectResolveResult {
+  query: string;
+  cwd: string;
+  candidates: ProjectResolveCandidate[];
+  recommended?: ProjectResolveCandidate;
+  messages: string[];
+}
+
+export interface LocalSkillWorkflowPlan {
+  root: string;
+  skill: string;
+  sourceDir: string;
+  sourceSkillPath: string;
+  sourceExists: boolean;
+  maintenance: {
+    query: string;
+    recommended?: ProjectResolveCandidate;
+    candidates: ProjectResolveCandidate[];
+  };
+  install?: {
+    target: string;
+    targetDir: string;
+    relationRecordRoot?: string;
+  };
+  share?: {
+    target: string;
+    remoteName?: string;
+    remoteUrl?: string;
+  };
+  stages: Array<{
+    name: "resolve-maintenance-source" | "merge-plan" | "merge-run" | "apply-drift" | "apply-run" | "share-plan" | "cleanup-local";
+    writes: boolean;
+    requiresConfirmation: boolean;
+    command: string;
+    description: string;
+  }>;
+  blocking: string[];
+  warnings: string[];
+  recommendedNextAction: string;
+}
+
+export interface CleanupLocalSkillPlan {
+  root: string;
+  sourceDir: string;
+  skills: Array<{
+    name: string;
+    path: string;
+    exists: boolean;
+    isSkillDirectory: boolean;
+    action: "delete" | "skip";
+    reason: string;
+  }>;
+  requiresConfirm: boolean;
+  messages: string[];
+}
+
+export interface CleanupLocalSkillResult {
+  plan: CleanupLocalSkillPlan;
+  deleted: string[];
+  skipped: string[];
+  messages: string[];
+}
+
 export interface ApplyTargetGroup {
   id: string;
   name: string;
@@ -455,4 +541,12 @@ export interface ApplyProfileResult {
   skipped: string[];
   copiedAssets?: string[];
   skippedAssets?: string[];
+}
+
+export interface ApplyFromSourceResult {
+  result: ApplyProfileResult;
+  record?: AppliedSourceRecord;
+  copiedThisRun: string[];
+  selectedSkillsThisRun: string[];
+  managedSkillNamesHistorical: string[];
 }

@@ -65,9 +65,17 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
 
   assert.match(commands, /arcforge share plan --root \. --repo/);
   assert.match(commands, /arcforge source status --root \./);
+  assert.match(commands, /arcforge project resolve --name arckit-code/);
+  assert.match(commands, /arcforge workflow local-skill plan --root \. --skill review --to arckit-code --install codex:user --share origin/);
   assert.match(commands, /arcforge audit --root \. --mode hybrid --agent codex/);
   assert.match(commands, /ArcForge CLI - source/);
   assert.match(commands, /command === "source"/);
+  assert.match(commands, /command === "project"/);
+  assert.match(commands, /runProjectCommand/);
+  assert.match(commands, /resolveSkillProject/);
+  assert.match(commands, /command === "workflow"/);
+  assert.match(commands, /runWorkflowCommand/);
+  assert.match(commands, /createLocalSkillWorkflowPlan/);
   assert.match(commands, /ArcForge CLI - merge/);
   assert.match(commands, /command === "merge"/);
   assert.match(commands, /ArcForge CLI - import/);
@@ -77,6 +85,8 @@ test("cli-first share command is exposed to desktop and terminal entrypoints", a
   assert.match(commands, /importSkillsIntoProject/);
   assert.match(commands, /--target-dir <dir>/);
   assert.match(commands, /--target-profile <name>/);
+  assert.match(commands, /arcforge merge cleanup-local --skills <a,b>/);
+  assert.match(commands, /cleanupLocalSkills/);
   assert.match(commands, /The status action may fetch upstream refs/);
   assert.match(commands, /arcforge apply \[--root <dir>\] \[--from <path-or-url>\] \[--profile <name>\] \[--skills <a,b>\] --target <dir> \[--save\] \[--allow-unrelated-root\] --confirm/);
   assert.match(commands, /Apply writes the target directory and requires --confirm/);
@@ -130,6 +140,48 @@ test("cli can scan project-local agent skill directories from the project root",
   assert.match(workspace, /--source-dir must be a relative path inside the workspace root/);
   assert.match(sources, /scanWorkspace\(root, \{ sourceDir: options\.sourceDir \}\)/);
   assert.match(sources, /if \(names\.includes\("\*"\)\) return \["\*"\]/);
+});
+
+test("cli plans real maintenance source workflows before local skill cleanup", async () => {
+  const commands = await readFile(new URL("../src/commands/index.ts", import.meta.url), "utf8");
+  const sources = await readFile(new URL("../src/core/sources.ts", import.meta.url), "utf8");
+  const sharedTypes = await readFile(new URL("../src/shared/types.ts", import.meta.url), "utf8");
+  const cliOrchestration = await readFile(new URL("../skills/arcforge/references/cli-orchestration.md", import.meta.url), "utf8");
+  const sourceTargetModel = await readFile(new URL("../skills/arcforge/references/source-maintenance-target-model.md", import.meta.url), "utf8");
+  const missingCapabilities = await readFile(new URL("../skills/arcforge/references/missing-capabilities.md", import.meta.url), "utf8");
+
+  assert.match(commands, /ArcForge CLI - project/);
+  assert.match(commands, /ArcForge CLI - workflow/);
+  assert.match(commands, /project resolve --name <project-name-or-path>/);
+  assert.match(commands, /workflow local-skill plan --root <project>/);
+  assert.match(commands, /merge cleanup-local --skills <a,b>/);
+  assert.match(commands, /runProjectCommand/);
+  assert.match(commands, /runWorkflowCommand/);
+
+  assert.match(sources, /resolveSkillProject/);
+  assert.match(sources, /ProjectResolveResult/);
+  assert.match(sources, /createLocalSkillWorkflowPlan/);
+  assert.match(sources, /resolveInstallTarget/);
+  assert.match(sources, /resolveShareTarget/);
+  assert.match(sources, /cleanupLocalSkills/);
+  assert.match(sources, /This cleanup only targets the current project sourceDir/);
+  assert.match(sources, /copiedThisRun/);
+  assert.match(sources, /selectedSkillsThisRun/);
+  assert.match(sources, /managedSkillNamesHistorical/);
+
+  assert.match(sharedTypes, /ProjectResolveCandidate/);
+  assert.match(sharedTypes, /LocalSkillWorkflowPlan/);
+  assert.match(sharedTypes, /CleanupLocalSkillPlan/);
+  assert.match(sharedTypes, /ApplyFromSourceResult/);
+
+  assert.match(cliOrchestration, /arcforge project resolve --name/);
+  assert.match(cliOrchestration, /arcforge workflow local-skill plan/);
+  assert.match(cliOrchestration, /arcforge merge cleanup-local/);
+  assert.match(sourceTargetModel, /清理阶段只能删除当前项目 `sourceDir` 下的临时副本/);
+  assert.match(missingCapabilities, /Workflow Plan 批量和多目标编排/);
+  assert.match(missingCapabilities, /维护源索引和选择回填/);
+  assert.doesNotMatch(missingCapabilities, /Workflow Plan 扩展/);
+  assert.doesNotMatch(missingCapabilities, /正式来源发现扩展/);
 });
 
 test("workspace discovery ignores root arckit unless it is the explicit source directory", async () => {

@@ -36,6 +36,8 @@ arcforge-desktop
 
 - `arcforge scan [--root <dir>] [--source-dir <dir>]`
 - `arcforge audit [--root <dir>] [--source-dir <dir>]`
+- `arcforge project resolve --name <project-name-or-path> [--root <dir>]`
+- `arcforge workflow local-skill plan --root <project> --skill <name> --to <project-name-or-path> [--source-dir <dir>] [--install codex:user|claude:user|cursor:user|<dir>] [--share <remote-or-repo>]`
 - `arcforge source status [--root <dir>]`：会 fetch upstream refs，可能写 `.git/FETCH_HEAD` 等 Git 元数据；不要在禁止写源码的真实 checkout 中运行。
 - `arcforge import plan --root <dir> --from <path-or-url> [--profile <name>] [--skills <a,b>] [--target-dir <dir>] [--target-profile <name>]`
 - `arcforge merge plan --root <dir> [--source-dir <dir>] --to <path-or-url> --target-path <dir> [--skills <a,b>] [--profile <name>] [--target <dir>]`
@@ -52,6 +54,7 @@ arcforge-desktop
 - `arcforge source update [--root <dir>] --confirm`
 - `arcforge import run --root <dir> --from <path-or-url> [--profile <name>] [--skills <a,b>] [--target-dir <dir>] [--target-profile <name>] --confirm`
 - `arcforge merge run --root <dir> [--source-dir <dir>] --to <path-or-url> --target-path <dir> [--skills <a,b>] [--profile <name>] [--target <dir>] --confirm`
+- `arcforge merge cleanup-local --root <dir> [--source-dir <dir>] --skills <a,b> --confirm`
 - `arcforge applied add --root <dir> --from <path-or-url> --profile <name> --target <dir> [--skills <a,b>] [--allow-unrelated-root]`
 - `arcforge applied remove <record-id> [--root <dir>]`
 - `arcforge applied run [--root <dir>] [--id <record-id>] --confirm`
@@ -95,11 +98,14 @@ business-project/
 |---|---|---|---|
 | 发现 | `scan` | 不写项目文件 | 需要在项目列表中选择或查看健康度 |
 | 审计 | `audit` | 不写项目文件 | 需要定位 findings 并编辑文件 |
+| 维护源解析 | `project resolve` | 不写项目文件 | 需要在多个同名候选项目中选择 |
+| 本地 skill 端到端计划 | `workflow local-skill plan` | 不写项目文件 | 需要视觉确认端点和阶段 |
 | Git 来源状态 | `source status` | 可能写 Git 元数据 | 需要用户理解 ahead/behind/dirty 后决定更新 |
 | Git 来源更新 | `source update --confirm` | 写 Git checkout | 需要用户先确认更新风险 |
 | 导入外部 skills | `import plan/run --confirm` | plan 不写；run 写当前项目维护源和应用关系 | 需要从远程源选择 skills、profile、目标目录或复核冲突 |
 | 正式化计划 | `merge plan` | 不写目标 | 有冲突或需要视觉复核 |
 | 正式化执行 | `merge run --confirm` | 写正式 Skill 项目和应用关系 | 有冲突时不要执行，转 Desktop 或手动 review |
+| 清理临时副本 | `merge cleanup-local --confirm` | 删除当前项目 sourceDir 中选定 skill 目录 | 删除前需要确认具体目录 |
 | 应用关系 | `applied list/add/remove/drift/run` | add/remove/run 会写状态或目标 | 需要查看多条关系或完整 diff |
 | 一次性应用 | `apply --confirm` | 写目标目录，`--save` 写应用关系 | 需要选择多个目标或确认覆盖 |
 | 漂移 | `drift` | 不写目标 | 需要完整文件级 diff |
@@ -159,6 +165,7 @@ arcforge import run --root <current-project> --from <skill-project-path-or-url> 
 正式化前计划：
 
 ```bash
+arcforge project resolve --name <formal-skill-project-name-or-path>
 arcforge merge plan --root . --source-dir <source-dir-if-needed> --to <formal-skill-project> --skills <skill-name> --target-path <parent-dir-inside-formal-project> --profile default --target <target-record-path>
 ```
 
@@ -167,6 +174,22 @@ arcforge merge plan --root . --source-dir <source-dir-if-needed> --to <formal-sk
 ```bash
 arcforge merge run --root . --source-dir <source-dir-if-needed> --to <formal-skill-project> --skills <skill-name> --target-path <parent-dir-inside-formal-project> --profile default --target <target-record-path> --confirm
 ```
+
+当前项目临时 skill 已进入维护源、应用目标和共享目标后，清理项目临时副本：
+
+```bash
+arcforge merge cleanup-local --root <project> --source-dir <source-dir-if-needed> --skills <skill-name> --confirm
+```
+
+该命令只删除当前项目 `sourceDir` 下的选定 skill 目录，不删除正式维护源，也不删除 Codex/Claude/Cursor 用户级安装目录。
+
+为本地临时 skill 生成只读端到端计划：
+
+```bash
+arcforge workflow local-skill plan --root <project> --skill <skill-name> --to <formal-skill-project-name-or-path> --install codex:user --share origin
+```
+
+计划会拆分真实维护源解析、merge plan/run、apply drift/run、share plan 和 cleanup-local，并标明每个阶段是否写入、是否需要确认。
 
 从 GitHub/Git/本地 Skill 项目直接安装到 Codex/Claude/Cursor 或项目 agent 目录：
 

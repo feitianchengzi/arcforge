@@ -51,20 +51,25 @@ arcforge project init --root <formal-skill-project>
 
 Fallback：先创建正式 Skill 项目目录；真实远程分享前确认它是 Git 仓库。
 
-### Workflow Plan
+### Workflow Plan 批量和多目标编排
 
-需要命令：
+基础单 skill 本地流程计划已由 `workflow local-skill plan` 覆盖，但还缺少批量、多目标和 Desktop 决策回填。
+
+需要扩展命令：
 
 ```bash
-arcforge workflow local-skill plan --root <project> --skill <name> --to <formal-skill-project> --target-project <project> --repo <repo>
+arcforge workflow local-skill plan --root <project> --skills <a,b> --to <formal-skill-project> \
+  [--install codex:user,claude:user,<dir>] [--share origin] [--desktop-selection <id>]
 ```
 
 用途：
 
-- 一次性生成完整端到端能力路线计划。
-- 标出风险、缺少输入和需要确认的步骤。
+- 一次计划多个 skills 的 merge、apply、share 和 cleanup 顺序。
+- 同时展示多个应用目标的 drift/apply 风险。
+- 接收 Desktop 选择的维护源、skills、目标目录和共享目标。
+- 把 share run 的确认边界纳入端到端计划，而不只停在 share plan。
 
-Fallback：按 `references/capability-framework.md` 和 `references/cli-orchestration.md` 逐步执行。
+Fallback：对每个 skill 或每个应用目标分别运行已实现的 `workflow local-skill plan`；复杂批量场景继续按 `references/capability-framework.md` 和 `references/cli-orchestration.md` 逐步执行。
 
 ### 四端点端到端工作流计划
 
@@ -165,11 +170,25 @@ Fallback：让用户在对话中说明 Desktop 里选择的 profile、target 或
 
 ## Skill 缺口
 
-### 正式来源发现
+### 维护源索引和选择回填
 
-Skill 需要可靠判断项目本地 skill 是否已经属于某个正式 Skill 项目。
+基础维护源解析已由 `project resolve` 覆盖，但还缺少跨工作区索引、用户偏好和 Desktop 回填。
 
-Fallback：检查 applied source records；没有明确关系时，请用户选择正式 Skill 项目。
+需要能力：
+
+```bash
+arcforge project index [--root <dir>]
+arcforge project resolve --name <project-name-or-path> --use-index
+```
+
+用途：
+
+- 维护一个本地 Skill 项目索引，避免只从当前目录邻近路径猜测候选。
+- 记录用户级或项目级推荐维护源目录。
+- 让 Desktop 中选择的维护源回填到后续 CLI plan/run。
+- 当多个同名候选都是真实 Skill 项目时，给出稳定排序和解释。
+
+Fallback：基础场景先用 `project resolve`；没有推荐候选或多个候选并列时检查 applied source records，或请用户选择正式 Skill 项目。
 
 ### 多项目批量同步
 
