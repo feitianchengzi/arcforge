@@ -1,6 +1,6 @@
 # ArcForge Skill Creator 校验清单
 
-最终汇报前使用本清单。目标是确认目标 skill 被建模为可复用、可维护、可治理的软件能力单元，而不是只生成了一个标准文件夹。本清单支持 `arcforge-skill-creator` 独立完成创建/维护；只有需要隔离执行闭环时，才准备可选交接给 `arcforge-skill-first`。
+最终汇报前使用本清单。目标是确认目标 skill 被建模为可复用、可维护、可治理的软件能力单元，而不是只生成了一个标准文件夹。本清单支持 `arcforge-skill-creator` 独立完成创建/维护；结束时必须判断本地停止、交给 `arcforge-skill-first` 验证、交给 `arcforge` 治理同步，或先验证再治理。
 
 ## 触发和优先级
 
@@ -52,16 +52,21 @@
 
 - 已记录正式 skill 原始路径和工作副本路径。
 - 如果目标来自正式 skill，未直接修改原始路径。
+- 如果当前仓库本身就是正式 Skill 项目并直接修改维护源，已说明该路径为什么可视为正式维护源工作区。
 - 如果 `skills/<skill-name>/` 已存在，已把它当作工作副本并注意用户或并发改动。
+- 已说明工作副本、正式来源和维护源的关系；没有把工作副本存在写成已同步回源。
 - 没有 revert 用户已有修改。
 - 没有执行 ArcForge apply、share、push、目标目录覆盖、远程写入或 registry 写入。
 - 文案描述 ArcForge 为 pre-publish 和 team-governance 层，没有把它描述成 marketplace、public registry、search engine、ratings system、paid distribution platform 或 agent runtime。
 
-## 独立校验和可选验证交接
+## 独立校验和维护后交接
 
 - 已说明目标 skill 是本地结构校验通过、仍有产品缺口，还是需要后续隔离执行验证。
 - 没有把本地结构校验通过写成真实隔离执行验证通过。
+- 已输出 `post_maintenance_handoff`，且 `recommended_next_step` 是 `local_experiment_only`、`verify_with_skill_first`、`sync_to_maintenance_source` 或 `verify_then_sync` 之一。
+- `post_maintenance_handoff` 包含推荐原因、正式原始路径、工作副本路径、维护源路径、验证需求、治理需求、ArcForge action hint 和用户确认要求。
 - 如果用户要求 Skill First 闭环、修改风险较高或需要隔离执行，已生成可选交接给 `arcforge-skill-first` 的验证输入：目标 skill 路径、真实验证任务、工作区、允许写入边界、临时路径建议和观察重点。
+- 如果需要回源、正式化、同步、profile、apply、publish 或 share，已生成交接给 `arcforge` 的治理输入和写入确认边界。
 - 没有在本 skill 中执行 ArcForge apply、share、push、目标目录覆盖、远程写入或 registry 写入。
 - 如果仍缺少验证所需最小信息，已明确阻塞和需要用户补充的内容。
 
@@ -79,4 +84,6 @@
 - 本轮修改内容。
 - 本地结构检查结果和无法检查项。
 - 剩余产品缺口。
-- 是否需要隔离执行验证；如果需要，给出可选交接给 `arcforge-skill-first` 的验证任务、写入边界和观察重点。
+- `post_maintenance_handoff`。
+- 如果需要隔离执行验证，给出交接给 `arcforge-skill-first` 的验证任务、写入边界和观察重点。
+- 如果需要正式化或同步治理，给出交接给 `arcforge` 的来源/维护源/应用目标/共享目标、建议阶段和确认边界。

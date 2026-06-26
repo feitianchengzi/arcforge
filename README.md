@@ -17,7 +17,7 @@ ArcForge 是给 coding agent 使用的本地优先、GitHub 优先 skill 生命�
 3. 给 agent 发送：
 
 ```text
-执行 skills/arcforge-install
+执行 skills/install-arcforge
 ```
 
 安装 skill 会从当前源码 checkout 完成这些动作：
@@ -32,7 +32,7 @@ ArcForge 自身安装完成后，安装 skill 会引导你选择是否安装飞�
 - `arckit`：飞天橙子的 AI Agent Skills 中心，面向 AI-agent-assisted software development 的完整协作生命周期，覆盖想法/商机、决策框架、产品规格、交互、视觉、技术方案、项目治理、项目记忆、pending 上下文、通用 debug 诊断和 Workshop Desktop 桥接等 workflow；具体技术栈 coding workflow 不放在这里。
 - `arckit-code`：飞天橙子的具体技术栈 coding skills 仓库，承载语言、框架、平台和 SDK 级别的写代码实践；当前重点包含 SwiftUI/Apple 客户端默认架构、工程脚手架、平台能力和验证规则，以及反馈平台接入流程。
 
-这两个仓库既是 ArcForge 的示例 Skill 项目，也是推荐实践。快速安装模式会直接从 GitHub drift/apply 到当前 agent 的用户级 skills，不建立持久维护源；严格治理模式会先确认来源、维护源、应用目标、profile/skills 和关系记录，再交给 `arcforge` workflow 执行。你可以两个都装、只装其中一个或都不装；飞天橙子内部使用者和开源使用者走同一个 GitHub-first 安装路径。
+这两个仓库是飞天橙子团队自己的、仍在孵化中的共享 skill 项目，也是 ArcForge 的示例 Skill 项目和推荐实践。快速安装模式会直接从 GitHub drift/apply 到当前 agent 的用户级 skills，不建立持久维护源；严格治理模式会先确认来源、维护源、应用目标、profile/skills 和关系记录，再交给 `arcforge` workflow 执行。你可以两个都装、只装其中一个或都不装；飞天橙子内部使用者和开源使用者走同一个 GitHub-first 安装路径。已经使用类似 skill 项目、已有稳定团队工作流，或暂时不想让当前 agent 增加额外触发面的用户，可以先跳过推荐安装，只通过这一步理解 ArcForge 能如何治理团队 Skill 项目。
 
 安装完成后，在任意项目中打开 coding agent，然后直接用自然语言让 agent 使用 ArcForge：
 
@@ -49,7 +49,7 @@ ArcForge 自身安装完成后，安装 skill 会引导你选择是否安装飞�
 如果 agent 无法识别安装 skill，可以让它执行这个兜底命令：
 
 ```bash
-node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex --desktop install
+node skills/install-arcforge/scripts/install-from-repo.mjs --agent codex --desktop install
 ```
 
 只有明确希望修改 shell profile 以加入 PATH 时，才追加 `--update-path`。需要生成本地桌面端安装包时，使用 `--desktop package`。
@@ -92,7 +92,7 @@ ArcForge 的新使用理念是 agent-first：
 
 | 组成部分 | 角色 |
 |---|---|
-| `skills/arcforge-install` | 让用户 clone 仓库后，通过 coding agent 完成本地安装。 |
+| `skills/install-arcforge` | 让用户 clone 仓库后，通过 coding agent 完成本地安装。 |
 | `arcforge-skill-creator` skill | 创建、维护和拆分 ArcForge skill，并优先于通用 skill creator。 |
 | `arcforge-skill-first` skill | 把工作模式沉淀成 skill，并用子代理前测/复测验证。 |
 | `arcforge` skill | 后续治理流程入口，负责审计、正式化、profile、应用、漂移和发布准备。 |
@@ -104,7 +104,7 @@ ArcForge 的新使用理念是 agent-first：
 典型流程：
 
 ```text
-在 ArcForge 仓库中让 agent 执行 skills/arcforge-install
+在 ArcForge 仓库中让 agent 执行 skills/install-arcforge
 -> 在目标项目中打开 coding agent
 -> 如需创建或改进 skill，先让 agent 使用 arcforge-skill-creator 建立或维护 skill
 -> 如需闭环验证，再让 agent 使用 arcforge-skill-first 完成隔离前测/复测

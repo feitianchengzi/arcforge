@@ -1,0 +1,4 @@
+interface:
+  display_name: "Install ArcForge"
+  short_description: "安装 ArcForge skills、CLI、Desktop launcher，并用快速或严格治理模式引导推荐 Skill 项目。"
+  default_prompt: "使用 $install-arcforge 从当前 ArcForge 仓库执行本地安装。默认运行 `node skills/install-arcforge/scripts/install-from-repo.mjs --agent codex --desktop install`；不要默认加 `--update-path`、`--desktop skip` 或 `--desktop package`。安装和验证规则以 `SKILL.md` 为准；当脚本输出 `BEGIN_AGENT_FINAL_RESPONSE ... END_AGENT_FINAL_RESPONSE` 时，按该模板组织最终回复；当脚本输出 `Recommended skill stage:*` 时，必须完成该 stage 的最后动作，不能提前宣布安装回合完成。"

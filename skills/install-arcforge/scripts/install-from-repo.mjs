@@ -14,12 +14,14 @@ const recommendedSkillProjects = [
   {
     name: "arckit",
     url: "https://github.com/feitianchengzi/arckit",
-    description: "Feitianchengzi AI-agent-assisted software development skill center for idea, decision, project definition, iteration governance, memory, and technology-agnostic engineering workflows."
+    description: "Feitianchengzi incubating shared AI-agent-assisted software development skill center for idea, decision, project definition, interaction, visual, technical solution, governance, memory, pending context, debug diagnosis, and Workshop Desktop workflows.",
+    summaryZh: "AI Agent Skills 中心，覆盖想法/商机、决策、规格、交互、视觉、技术方案、项目治理、记忆、pending、通用 debug 和 Workshop Desktop 桥接等协作生命周期。"
   },
   {
     name: "arckit-code",
     url: "https://github.com/feitianchengzi/arckit-code",
-    description: "Feitianchengzi technology-stack-specific coding skill project. Current skills focus on SwiftUI/Apple client architecture and feedback platform integration."
+    description: "Feitianchengzi incubating shared technology-stack-specific coding skill project. Current skills focus on SwiftUI/Apple client architecture and feedback platform integration.",
+    summaryZh: "具体技术栈 coding skills 仓库，当前重点包含 SwiftUI/Apple 客户端默认架构和反馈平台接入流程。"
   }
 ];
 const rawArgs = process.argv.slice(2);
@@ -718,7 +720,7 @@ function printHelp() {
   console.log(`ArcForge repository installer
 
 Usage:
-  node skills/arcforge-install/scripts/install-from-repo.mjs [options]
+  node skills/install-arcforge/scripts/install-from-repo.mjs [options]
 
 Options:
   --agent <list>                 Agent targets: codex, claude, cursor. Default: codex.
@@ -735,14 +737,14 @@ Options:
   --help                         Print this help without installing.
 
 Default install:
-  node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex --desktop install
+  node skills/install-arcforge/scripts/install-from-repo.mjs --agent codex --desktop install
 
 Optional recommended skills after ArcForge is installed:
-  node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills all
-  node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills arckit
-  node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills arckit-code
-  node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode governed
-  node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills skip
+  node skills/install-arcforge/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills all
+  node skills/install-arcforge/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills arckit
+  node skills/install-arcforge/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills arckit-code
+  node skills/install-arcforge/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode governed
+  node skills/install-arcforge/scripts/install-from-repo.mjs --agent codex --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills skip
 
 Recommended Skill projects:
   arckit: ${recommendedSkillProjects[0].url}
@@ -753,81 +755,107 @@ Recommended Skill projects:
 }
 
 function printRecommendedModePrompt(options) {
-  console.log("\nAGENT ACTION REQUIRED: recommended install mode choice pending");
-  console.log("Recommended skill stage: pending_install_mode_choice");
-  console.log("ArcForge core install is complete. Teach the user the difference between quick install and governed install before writing recommended skills.");
-  console.log("Quick install mode: directly uses GitHub as the source, creates only temporary source checkouts, writes the selected projects to the agent skill target, and does not establish a persistent maintenance source.");
-  console.log("Governed install mode: pauses before writing recommended skills, then uses the arcforge workflow to confirm source/upstream, maintenance source, application target, profile/skills, whether to save an applied source record, and the record root.");
-  console.log("Last agent-facing action: ask the user to choose quick install, governed install, or skip recommended Skill projects.");
-  console.log("Do not mark the install turn complete until the user chooses one of these modes or explicitly stops.");
-  console.log("Ask this question in the final response:");
-  console.log("  ArcForge 核心安装已完成。推荐 Skill 项目可以用两种模式继续：");
-  console.log("  1. 快速安装：直接从 GitHub drift/apply 到当前 agent 的用户级 skills，不建立持久维护源。");
-  console.log("  2. 严格治理：先确认来源、维护源、应用目标、profile/skills 和关系记录，再由 arcforge workflow 执行。");
-  console.log("  3. 暂不安装推荐 Skill 项目。");
-  console.log("  你希望使用哪种模式？");
-  console.log("Commands after the user chooses:");
-  console.log(`- Quick mode: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick`);
-  console.log(`- Governed mode: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode governed`);
-  console.log(`- Skip: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills skip`);
+  printAgentActionRequired({
+    status: "recommended install mode choice pending",
+    stage: "pending_install_mode_choice",
+    finalResponse: [
+      "ArcForge 核心安装已完成。接下来是可选的飞天橙子推荐 Skill 项目：",
+      ...recommendedSkillProjects.map((project) => `- ${project.name}：${project.summaryZh}`),
+      "",
+      "这两个项目是飞天橙子团队自己的、仍在孵化中的共享 skill 项目，也是理解 ArcForge 如何治理团队 Skill 项目的示例。",
+      "已经使用类似 skill 项目、已有稳定工作流，或不想让当前 agent 增加额外触发面的用户，建议先跳过；只通过这个步骤理解 ArcForge 能做什么即可。",
+      "",
+      "你可以选择：",
+      "1. 快速安装：直接从 GitHub drift/apply 到当前 agent 的用户级 skills，不建立持久维护源。",
+      "2. 严格治理：先确认来源、维护源、应用目标、profile/skills 和关系记录，再由 arcforge workflow 执行。",
+      "3. 暂不安装推荐 Skill 项目。",
+      "",
+      "你希望使用哪种模式？"
+    ],
+    commands: [
+      `Quick mode: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick`,
+      `Governed mode: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode governed`,
+      `Skip: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills skip`
+    ]
+  });
 }
 
 function printRecommendedQuickSkillPrompt(options) {
-  console.log("\nAGENT ACTION REQUIRED: recommended quick skill choice pending");
-  console.log("Recommended skill stage: pending_quick_skill_choice");
-  console.log("ArcForge core install is complete. Do not finish with only a summary that arckit or arckit-code were not installed.");
-  console.log("Quick install mode selected: the recommended projects will be applied directly from GitHub to the agent skill target without creating a persistent maintenance source or saved applied source record.");
-  console.log("Last agent-facing action: ask the user to install arckit, install arckit-code, install both, or skip.");
-  console.log("Do not mark the install turn complete until the user chooses one of these four options or explicitly stops.");
-  console.log("Ask the user which recommended Feitianchengzi Skill project to install next:");
-  for (const project of recommendedSkillProjects) {
-    console.log(`- ${project.name}: ${project.description}`);
-    console.log(`  Source: ${project.url}`);
-  }
-  console.log("Ask this question in the final response:");
-  console.log("  ArcForge 核心安装已完成。你希望我现在安装哪一项？");
-  console.log("  1. 安装 arckit 和 arckit-code");
-  console.log("  2. 只安装 arckit");
-  console.log("  3. 只安装 arckit-code");
-  console.log("  4. 暂不安装");
-  console.log("Commands after the user chooses:");
-  console.log(`- Both: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills all`);
-  console.log(`- arckit only: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills arckit`);
-  console.log(`- arckit-code only: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills arckit-code`);
-  console.log(`- Skip: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills skip`);
+  printAgentActionRequired({
+    status: "recommended quick skill choice pending",
+    stage: "pending_quick_skill_choice",
+    finalResponse: [
+      "ArcForge 核心安装已完成。你希望我现在安装哪一项？",
+      "1. 安装 arckit 和 arckit-code",
+      "2. 只安装 arckit",
+      "3. 只安装 arckit-code",
+      "4. 暂不安装"
+    ],
+    commands: [
+      `Both: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills all`,
+      `arckit only: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills arckit`,
+      `arckit-code only: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills arckit-code`,
+      `Skip: node ${options.scriptPath} --agent ${options.agents.join(",")} --desktop skip --skip-npm-install --recommended-mode quick --recommended-skills skip`
+    ]
+  });
 }
 
 function printRecommendedGovernancePrompt(options) {
   const selectedProjects = options.selectedNames.length > 0
     ? recommendedSkillProjects.filter((project) => options.selectedNames.includes(project.name))
     : recommendedSkillProjects;
-  console.log("\nAGENT ACTION REQUIRED: recommended governed install pending");
-  console.log("Recommended skill stage: pending_governance_endpoints");
-  console.log("Governed install mode selected. Do not write recommended skills from this script.");
-  console.log("Hand off to the arcforge workflow and confirm the governance endpoints before any apply/import/save operation.");
-  console.log("Suggested endpoint model to explain to the user:");
-  console.log(`- Source/upstream: ${selectedProjects.map((project) => `${project.name}=${project.url}`).join(", ")}`);
-  console.log("- Temporary source checkout: created only while drift/import reads GitHub; it is not a maintenance source.");
-  console.log("- Maintenance source: pending user choice. Use none for direct governed apply, or choose/import into a local formal Skill project for long-term maintenance.");
-  console.log(`- Application target: ${options.agents.map((agent) => `${agent}=${userSkillRoot(agent)}`).join(", ")}`);
-  console.log("- Sharing target: none in this install stage.");
-  console.log("- Profile/skills: pending user choice; default profile is default.");
-  console.log("- Relationship record: pending user choice. If saved, confirm the record root separately; it is not the application target and may not be the current cwd.");
-  console.log("Ask this question in the final response:");
-  console.log("  严格治理模式不会立即写入推荐 skills。请确认：");
-  console.log("  1. 要处理哪些项目：arckit、arckit-code，还是两个都处理？");
-  console.log("  2. 是否需要本地持久维护源？如果需要，维护源 root 是哪个目录？");
-  console.log("  3. 应用目标是否是当前 agent 的用户级 skills 目录？");
-  console.log("  4. 是否保存 applied source record？如果保存，关系记录归属 root 是哪个目录？");
-  console.log("After the user confirms, use the arcforge workflow. Direct governed apply normally uses:");
+  const commands = [];
   for (const project of selectedProjects) {
     for (const agent of options.agents) {
       const targetDir = userSkillRoot(agent);
-      console.log(`- Preview: ${options.cliShimPath} drift --root <record-or-maintenance-root> --from ${project.url} --profile default --target ${targetDir}`);
-      console.log(`- Apply after confirmation: ${options.cliShimPath} apply --root <record-or-maintenance-root> --from ${project.url} --profile default --target ${targetDir} --save --confirm`);
+      commands.push(`Preview: ${options.cliShimPath} drift --root <record-or-maintenance-root> --from ${project.url} --profile default --target ${targetDir}`);
+      commands.push(`Apply after confirmation: ${options.cliShimPath} apply --root <record-or-maintenance-root> --from ${project.url} --profile default --target ${targetDir} --save --confirm`);
     }
   }
-  console.log("If the user wants a persistent local maintenance source first, use import plan/run before apply.");
+  commands.push("If a persistent local maintenance source is needed, use import plan/run before apply.");
+  printAgentActionRequired({
+    status: "recommended governed install pending",
+    stage: "pending_governance_endpoints",
+    context: [
+      `Source/upstream: ${selectedProjects.map((project) => `${project.name}=${project.url}`).join(", ")}`,
+      "Temporary source checkout: created only while drift/import reads GitHub; it is not a maintenance source.",
+      "Maintenance source: pending user choice. Use none for direct governed apply, or choose/import into a local formal Skill project for long-term maintenance.",
+      `Application target: ${options.agents.map((agent) => `${agent}=${userSkillRoot(agent)}`).join(", ")}`,
+      "Sharing target: none in this install stage.",
+      "Profile/skills: pending user choice; default profile is default.",
+      "Relationship record: pending user choice. If saved, confirm the record root separately; it is not the application target and may not be the current cwd."
+    ],
+    finalResponse: [
+      "严格治理模式不会立即写入推荐 skills。请确认：",
+      "1. 要处理哪些项目：arckit、arckit-code，还是两个都处理？",
+      "2. 是否需要本地持久维护源？如果需要，维护源 root 是哪个目录？",
+      "3. 应用目标是否是当前 agent 的用户级 skills 目录？",
+      "4. 是否保存 applied source record？如果保存，关系记录归属 root 是哪个目录？"
+    ],
+    commands
+  });
+}
+
+function printAgentActionRequired(options) {
+  console.log(`\nAGENT ACTION REQUIRED: ${options.status}`);
+  console.log(`Recommended skill stage: ${options.stage}`);
+  if (options.context?.length > 0) {
+    console.log("Context:");
+    for (const item of options.context) console.log(`- ${item}`);
+  }
+  printAgentFinalResponseBlock(options.stage, options.finalResponse);
+  if (options.commands?.length > 0) {
+    console.log("Commands after the user chooses:");
+    for (const command of options.commands) console.log(`- ${command}`);
+  }
+}
+
+function printAgentFinalResponseBlock(stage, lines) {
+  console.log(`BEGIN_AGENT_FINAL_RESPONSE stage=${stage}`);
+  for (const line of lines) {
+    console.log(line);
+  }
+  console.log("END_AGENT_FINAL_RESPONSE");
 }
 
 function printRecommendedSkillSummary(items) {

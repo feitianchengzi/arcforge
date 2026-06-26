@@ -17,7 +17,7 @@ The recommended way to install ArcForge is to hand this repository to a coding a
 3. Send this prompt to the agent:
 
 ```text
-执行 skills/arcforge-install
+执行 skills/install-arcforge
 ```
 
 The install skill uses the current source checkout to:
@@ -32,7 +32,7 @@ After ArcForge itself is installed, the install skill guides you through optiona
 - `arckit`: Feitianchengzi's AI Agent Skills center for the full AI-agent-assisted software development collaboration lifecycle, including ideas and opportunities, decision frameworks, product specs, interaction, visual design, technical solutions, project governance, project memory, pending context, technology-agnostic debug diagnosis, and Workshop Desktop bridging. Technology-stack-specific coding workflows live elsewhere.
 - `arckit-code`: Feitianchengzi's technology-stack-specific coding skills repository for language, framework, platform, and SDK-level coding practices. Its current focus is SwiftUI/Apple client architecture, project scaffolding, platform capability boundaries, validation rules, and feedback platform integration.
 
-These repositories are both example Skill projects for ArcForge and recommended practices. Quick install mode applies directly from GitHub to the current agent's user-level skills without creating a persistent maintenance source. Governed mode first confirms the source, maintenance source, application target, profile/skills, and relationship record, then hands execution to the `arcforge` workflow. You can install both, install only one, or skip both; Feitianchengzi internal users and open-source users follow the same GitHub-first installation path.
+These repositories are Feitianchengzi team's own incubating shared Skill projects, as well as example Skill projects and recommended practices for ArcForge. Quick install mode applies directly from GitHub to the current agent's user-level skills without creating a persistent maintenance source. Governed mode first confirms the source, maintenance source, application target, profile/skills, and relationship record, then hands execution to the `arcforge` workflow. You can install both, install only one, or skip both; Feitianchengzi internal users and open-source users follow the same GitHub-first installation path. Users who already rely on similar Skill projects, have stable team workflows, or do not want extra agent trigger surface right now should skip the optional install and use this step only to understand what ArcForge can govern.
 
 After installation, open any project in your coding agent and ask the agent to use ArcForge in natural language:
 
@@ -49,7 +49,7 @@ Use arcforge to prepare a GitHub and ClawHub/OpenClaw release checklist.
 If the agent cannot resolve the install skill, ask it to run this fallback command:
 
 ```bash
-node skills/arcforge-install/scripts/install-from-repo.mjs --agent codex --desktop install
+node skills/install-arcforge/scripts/install-from-repo.mjs --agent codex --desktop install
 ```
 
 Only add `--update-path` when you explicitly want the script to modify your shell profile. Use `--desktop package` when you need a local Desktop installer.
@@ -92,7 +92,7 @@ The new usage model is agent-first:
 
 | Part | Role |
 |---|---|
-| `skills/arcforge-install` | Lets a user clone this repository and complete local installation through a coding agent. |
+| `skills/install-arcforge` | Lets a user clone this repository and complete local installation through a coding agent. |
 | `arcforge-skill-creator` skill | Creates, maintains, and splits ArcForge skills, taking priority over generic skill creators. |
 | `arcforge-skill-first` skill | Captures a working pattern as a skill and validates it with sub-agent preflight/retest loops. |
 | `arcforge` skill | The governance workflow entry point for audit, formalization, profiles, apply, drift, and release prep. |
@@ -104,7 +104,7 @@ The new usage model is agent-first:
 Typical flow:
 
 ```text
-ask the agent to execute skills/arcforge-install inside the ArcForge repo
+ask the agent to execute skills/install-arcforge inside the ArcForge repo
 -> open the target project in a coding agent
 -> use arcforge-skill-creator when a skill needs to be authored or improved first
 -> use arcforge-skill-first when that skill needs an isolated validation loop

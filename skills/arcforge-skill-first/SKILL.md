@@ -19,7 +19,7 @@ description: 当用户要求“skill first”“Skill First 开发”“skill �
 - 真实任务 prompt 必须像真实用户请求，只包含做什么、必要输入、工作区和写入边界；不得包含验证背景、目标 skill 绝对路径、诊断、观察重点、总结格式或“你是验证执行者”这类测试控制语。
 - 不调用任何平台工具来替代人工桥接。不要把“当前不能直接调用自动代理工具”写成验证缺失原因；它与本 skill 的验证方案无关。
 - 不设计人工桥接失败、无法桥接、用户不愿桥接、平台不允许桥接、transcript 回放或受限 dry run 分支；这些都不是本 skill 的验证路径。
-- ArcForge 后续治理只做引导，不在本 skill 中执行 apply、share、push、目标目录覆盖、远程写入或 registry 写入。
+- ArcForge 后续治理只做引导，不在本 skill 中执行 apply、share、push、目标目录覆盖、远程写入或 registry 写入；如果 `arcforge-skill-creator` 返回 `post_maintenance_handoff`，本 skill 只消费其中的验证相关部分，治理同步部分留给用户确认后交给 `arcforge`。
 
 ## 主流程
 
@@ -66,11 +66,11 @@ description: 当用户要求“skill first”“Skill First 开发”“skill �
 
 动作：
 - 使用 `arcforge-skill-creator` 创建、更新、拆分或维护目标 skill。
-- 要求 `arcforge-skill-creator` 处理能力单元建模、渐进式披露、用户硬要求固化、`description` 与正文分工、`agents/openai.yaml` 同步、已有实现承载发现和本地结构检查。
+- 要求 `arcforge-skill-creator` 处理能力单元建模、渐进式披露、用户硬要求固化、`description` 与正文分工、`agents/openai.yaml` 同步、已有实现承载发现、本地结构检查和维护后 `post_maintenance_handoff`。
 - 如果通用 `skill-creator` 也触发，只把它作为基础结构和校验参考；ArcForge skill 的能力建模、治理边界和验证衔接以 `arcforge-skill-creator` 为准。
 - 保持本 skill 只记录创建/维护结果，不把 `arcforge-skill-creator` 的完整写作规则复制回来。
 
-退出条件：目标 skill 已由 `arcforge-skill-creator` 创建或维护完成，且返回修改摘要、结构检查结果、剩余产品缺口和需要验证的真实任务。
+退出条件：目标 skill 已由 `arcforge-skill-creator` 创建或维护完成，且返回修改摘要、结构检查结果、剩余产品缺口、`post_maintenance_handoff` 和需要验证的真实任务。
 
 ### 4. 验证准备检查
 
@@ -119,7 +119,7 @@ description: 当用户要求“skill first”“Skill First 开发”“skill �
 - 读取 [references/validation-checklist.md](references/validation-checklist.md)，确认本 skill 没有重新吞回创建维护职责，且验证状态判断正确。
 - 汇报本轮目标 skill、原始路径、工作副本、模式、入口集合、`arcforge-skill-creator` 创建/维护摘要、验证模式、观察结论、校验结果和剩余缺口。
 - 如果状态是 `awaiting_validation_transcript`，最终响应不能说目标 skill 已验证通过、闭环已完成或可以进入治理交接；必须以要求用户执行人工桥接执行包并回传事后总结、必要 transcript 或阻塞点收尾。
-- 用户确认目标 skill 可用后，只建议进入合适的 `arcforge` 治理阶段，例如 scan、audit、merge plan、profile、drift、publish/share plan。
+- 用户确认目标 skill 可用后，结合 `post_maintenance_handoff` 只建议进入合适的 `arcforge` 治理阶段，例如 scan、audit、merge plan、profile、drift、publish/share plan。
 - 不自动执行真实写入、apply、share、push、目标目录覆盖或 registry 动作。
 
 退出条件：用户知道改了什么、验证到什么、还缺什么，以及下一步是否需要 ArcForge 治理。

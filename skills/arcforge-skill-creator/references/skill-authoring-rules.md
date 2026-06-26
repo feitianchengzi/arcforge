@@ -104,6 +104,21 @@ Reference 路由
 - 如果目标来自正式 skill，读取原始路径但不要直接修改。
 - 需要修改时，先完整复制到当前项目根 `skills/<skill-name>/`，只改这个工作副本。
 - 如果 `skills/<skill-name>/` 已存在，把它当作本轮工作副本；修改前注意用户或并发改动。
+- 如果当前仓库本身就是正式 Skill 项目，且目标 skill 位于该项目维护源内，可以直接把该路径视为正式维护源工作区；不要额外复制到业务项目。
+- 维护结束后，必须说明工作副本、正式来源和维护源之间的关系；工作副本存在不代表已经同步回维护源。
+
+## 维护后交接
+
+创建或维护结束后，不只判断是否需要 `arcforge-skill-first`。还要判断是否需要 `arcforge` 做正式化、审计、merge plan、drift、apply、profile、publish-plan 或 share-plan。
+
+输出 `post_maintenance_handoff`，推荐下一步只能是：
+
+- `local_experiment_only`
+- `verify_with_skill_first`
+- `sync_to_maintenance_source`
+- `verify_then_sync`
+
+不要在 `arcforge-skill-creator` 中执行治理写入；只给出交接输入、建议阶段和用户确认边界。
 
 ## Agents 元数据
 
@@ -115,4 +130,5 @@ Reference 路由
 - 渐进式披露规则。
 - 能力单元建模要求。
 - 本地校验和可选验证交接要求。
+- 维护后 `post_maintenance_handoff`：本地停止、Skill First 验证、ArcForge 治理同步，或先验证再同步。
 - 最终汇报重点。

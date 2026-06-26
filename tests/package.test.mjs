@@ -220,7 +220,7 @@ test("desktop project list is backed by local project state", async () => {
   const electronMain = await readFile(new URL("../src/electron/main.ts", import.meta.url), "utf8");
   const mainUi = await readFile(new URL("../src/ui/main.tsx", import.meta.url), "utf8");
   const preload = await readFile(new URL("../src/electron/preload.cts", import.meta.url), "utf8");
-  const installer = await readFile(new URL("../skills/arcforge-install/scripts/install-from-repo.mjs", import.meta.url), "utf8");
+  const installer = await readFile(new URL("../skills/install-arcforge/scripts/install-from-repo.mjs", import.meta.url), "utf8");
 
   assert.match(projectStore, /listLocalProjectStates/);
   assert.match(projectStore, /saveLocalProjectListMetadata/);

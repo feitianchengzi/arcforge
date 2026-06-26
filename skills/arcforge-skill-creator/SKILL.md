@@ -1,11 +1,11 @@
 ---
 name: arcforge-skill-creator
-description: ArcForge 优先级的 skill 创建、维护、拆分和修复入口，可独立工作。用于用户要求创建 skill、更新 skill、维护 skill、拆分 skill、把工作模式沉淀成 skill、把用户反馈固化进 skill、把已有 workflow 变成 agent skill、或在 Skill First 流程中需要创建/修订目标 skill 时。它高于通用 skill-creator 或其他 creator 类 skill：在 ArcForge skill 场景中，先遵守本 skill 的能力单元建模、治理边界、渐进式披露和结构检查，再按需参考其他 creator 类 skill 的基础文件结构、脚本或校验工具。它独立完成创建/维护和本地校验；需要隔离执行闭环时，才可选交接给 arcforge-skill-first。
+description: ArcForge 优先级的 skill 创建、维护、拆分和修复入口，可独立工作。用于用户要求创建 skill、更新 skill、维护 skill、拆分 skill、把工作模式沉淀成 skill、把用户反馈固化进 skill、把已有 workflow 变成 agent skill、或在 Skill First 流程中需要创建/修订目标 skill 时。它高于通用 skill-creator 或其他 creator 类 skill：在 ArcForge skill 场景中，先遵守本 skill 的能力单元建模、治理边界、渐进式披露、结构检查和维护后交接判断，再按需参考其他 creator 类 skill 的基础文件结构、脚本或校验工具。它独立完成创建/维护和本地校验；维护结束后必须建议下一步是本地停止、交给 arcforge-skill-first 验证、交给 arcforge 正式化/同步治理，还是先验证再治理。
 ---
 
 # ArcForge Skill Creator
 
-`arcforge-skill-creator` 是 ArcForge 的 skill 创建和维护入口。它把真实任务、用户纠错和验证反馈转化成可复用的 skill 能力单元，并保持 skill 可被 ArcForge 后续 scan、audit、profile、drift、publish-readiness 或 share-readiness 治理。本 skill 可以独立完成目标 skill 的创建、维护、本地结构校验和最终交付；`arcforge-skill-first` 只是需要隔离执行验证闭环时的可选上游或下游入口。
+`arcforge-skill-creator` 是 ArcForge 的 skill 创建和维护入口。它把真实任务、用户纠错和验证反馈转化成可复用的 skill 能力单元，并保持 skill 可被 ArcForge 后续 scan、audit、profile、drift、publish-readiness 或 share-readiness 治理。本 skill 可以独立完成目标 skill 的创建、维护、本地结构校验和维护后交接判断；`arcforge-skill-first` 只是需要隔离执行验证闭环时的可选上游或下游入口，`arcforge` 负责已创建或已验证 skill 的正式化、同步和生命周期治理。
 
 ## 硬约束
 
@@ -14,10 +14,11 @@ description: ArcForge 优先级的 skill 创建、维护、拆分和修复入口
 - 用户明确提出的要求、纠错、测试反馈和使用感受必须固化为流程门禁、硬规则、确认点、输出格式、reference 读取条件或产品缺口；不要只写成提醒性文字。
 - 遵循渐进式披露：`SKILL.md` 只保留职责边界、主流程、强制门禁、reference 读取条件和最终汇报字段；复杂细节放入 reference，并且只在对应节点读取。
 - `description` 负责触发和边界；正文负责已触发后的执行流程。不要把相邻 skill 分工和不触发场景主要藏在正文里。
-- 不直接修改正式 skill 原始路径。需要修改正式 skill 时，先复制到当前项目根 `skills/<skill-name>/` 工作副本，再修改工作副本。
+- 不直接修改正式 skill 原始路径。需要修改正式 skill 时，先复制到当前项目根 `skills/<skill-name>/` 工作副本，再修改工作副本；如果当前仓库本身就是正式 Skill 项目且目标路径位于本项目维护源内，可以把该路径视为正式维护源工作区，不再额外复制到业务项目。
 - 本 skill 独立完成创建/维护和本地校验。不要把“缺少 `arcforge-skill-first`”当成停止理由。
 - 不在本 skill 内执行 ArcForge apply/share/push、目标目录覆盖、远程写入或 registry 写入。
 - 如果用户要求 Skill First 闭环、隔离执行前测/复测，或当前修改风险较高，需要生成可交给 `arcforge-skill-first` 的验证输入；这只是可选交接，不是本 skill 完成创建/维护的前置条件。
+- 每次创建或维护结束都必须生成 `post_maintenance_handoff`，明确推荐下一步是 `local_experiment_only`、`verify_with_skill_first`、`sync_to_maintenance_source` 还是 `verify_then_sync`，并说明原因、路径、确认点和是否需要 ArcForge 治理。
 - ArcForge 是 pre-publish 和 team-governance 层；文案不得把 ArcForge 描述成 marketplace、public registry、search engine、ratings system、paid distribution platform 或 agent runtime。
 
 ## 主流程
@@ -113,23 +114,28 @@ description: ArcForge 优先级的 skill 创建、维护、拆分和修复入口
 
 退出条件：结构检查结果明确；无法检查时说明原因。
 
-### 7. 独立交付和可选验证交接
+### 7. 维护后交接判断
 
 输入：目标 skill 工作副本、结构检查结果、剩余缺口。
 
 动作：
+- 读取 [references/post-maintenance-handoff.md](references/post-maintenance-handoff.md)。
 - 独立汇报目标 skill 已创建或维护到什么程度、通过了哪些本地检查、剩余哪些缺口。
-- 如果用户没有要求隔离执行闭环，可以把目标 skill 标记为“本地结构校验通过”，但不要写成“已通过真实隔离执行验证”。
-- 如果用户要求 Skill First 闭环、需要隔离执行，或修改涉及复杂交互/确认/工具承载，生成可选验证交接包：目标 skill 路径、真实验证任务、工作区、允许写入边界、临时路径建议、已知产品缺口和需要观察的关键行为。
+- 判断本轮修改是仅保留本地实验、需要交给 `arcforge-skill-first` 做隔离验证、需要交给 `arcforge` 做正式化/同步治理，还是应该先验证再治理。
+- 生成结构化 `post_maintenance_handoff`，至少包含推荐下一步、原因、正式原始路径、工作副本路径、维护源路径、验证需求、治理需求、ArcForge action hint 和用户确认要求。
+- 如果需要隔离执行，生成可交给 `arcforge-skill-first` 的验证输入：目标 skill 路径、真实验证任务、工作区、允许写入边界、临时路径建议、已知产品缺口和需要观察的关键行为。
+- 如果需要正式化或同步，生成可交给 `arcforge` 的治理输入：工作副本、维护源、应用目标或共享目标（未知时标注未知）、建议阶段、是否需要 audit、是否保存关系记录，以及必须由用户确认的写入边界。
+- 如果用户没有要求隔离执行闭环，可以把目标 skill 标记为“本地结构校验通过”，但不要写成“已通过真实隔离执行验证”；如果用户没有确认治理写入，不要写成“已同步回维护源”。
 - 不在本 skill 中执行 ArcForge apply、share、push、目标目录覆盖、远程写入或 registry 写入。
 
-退出条件：用户可以直接使用目标 skill，或知道需要补充哪些最小信息；如需要隔离验证，用户也能把交接包交给 `arcforge-skill-first`。
+退出条件：用户可以直接使用目标 skill，或知道需要补充哪些最小信息；如需要验证或治理，用户也能把交接包交给 `arcforge-skill-first` 或 `arcforge`。
 
 ## Reference 路由
 
 - 能力单元、目标 skill 适配阈值、已有实现承载、CLI/server/UI/状态/schema 选择：读 [references/software-capability-unit.md](references/software-capability-unit.md)。
 - skill 写法、用户硬要求固化、渐进式披露、正式来源和工作副本规则：读 [references/skill-authoring-rules.md](references/skill-authoring-rules.md)。
 - 最终结构、安全、metadata 和 ArcForge 治理边界检查：读 [references/validation-checklist.md](references/validation-checklist.md)。
+- 创建或维护后的验证/治理下一步判断和结构化 handoff：读 [references/post-maintenance-handoff.md](references/post-maintenance-handoff.md)。
 
 ## 最终汇报字段
 
@@ -142,4 +148,6 @@ description: ArcForge 优先级的 skill 创建、维护、拆分和修复入口
 - 本轮修改内容。
 - 本地结构检查结果和无法检查项。
 - 剩余产品缺口。
-- 是否需要隔离执行验证；如果需要，给出可选交接给 `arcforge-skill-first` 的验证任务、写入边界和观察重点。
+- `post_maintenance_handoff`：推荐下一步、原因、正式原始路径、工作副本路径、维护源路径、验证需求、治理需求、ArcForge action hint 和用户确认要求。
+- 如果需要隔离执行验证，给出交接给 `arcforge-skill-first` 的验证任务、写入边界和观察重点。
+- 如果需要正式化或同步治理，给出交接给 `arcforge` 的来源/维护源/应用目标/共享目标、建议阶段和确认边界。

@@ -51,7 +51,7 @@ The optimization should preserve ArcForge's explicit confirmation boundaries for
 ## Related Areas
 
 - `skills/arcforge/SKILL.md`
-- `skills/arcforge-install/SKILL.md`
+- `skills/install-arcforge/SKILL.md`
 - `skills/arcforge-skill-first/SKILL.md`
 - `arckit/tech/_shared/models/AppliedSourceRecord.yaml`
 - `arckit/spec/sources/skill-project-merge.md`
