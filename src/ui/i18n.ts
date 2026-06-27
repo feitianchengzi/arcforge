@@ -19,6 +19,35 @@ export interface Dictionary {
   feedback: string;
   feedbackHelp: string;
   recentWorkspaces: string;
+  installedSkills: string;
+  installedSkillsHelp: string;
+  installedSkillsRefresh: string;
+  installedSkillsScanning: string;
+  installedSkillsSummary: (skills: number, roots: number, duplicates: number) => string;
+  installedSkillRoots: string;
+  installedSkillItems: string;
+  installedSkillDuplicates: string;
+  installedSkillDuplicatesEmpty: string;
+  installedSkillDuplicateCount: (items: number) => string;
+  installedSkillsScanError: string;
+  installedSkillsEmpty: string;
+  installedSkillAgentUser: string;
+  installedSkillAgentGeneric: string;
+  installedSkillPluginCache: string;
+  installedSkillScanOptions: string;
+  installedSkillScanOptionsHelp: string;
+  installedSkillIncludeSystem: string;
+  installedSkillIncludePluginCache: string;
+  installedSkillOrganize: string;
+  installedSkillOrganizing: string;
+  installedSkillOrganizeRun: string;
+  installedSkillOrganizePlan: string;
+  installedSkillOrganizeActions: string;
+  installedSkillOrganizeConflicts: string;
+  installedSkillOrganizePlanSummary: (actions: number, conflicts: number) => string;
+  installedSkillOrganizeConflict: (name: string) => string;
+  installedSkillOrganizeResult: (copied: number, linked: number, removed: number, skipped: number) => string;
+  confirmInstalledSkillOrganize: (actions: number, conflicts: number) => string;
   currentWorkspace: string;
   addSharedSource: string;
   sharedSourcePlaceholder: string;
@@ -285,6 +314,35 @@ export const dictionaries: Record<Language, Dictionary> = {
     feedback: "Feedback",
     feedbackHelp: "Report issues or request stronger audit coverage on GitHub.",
     recentWorkspaces: "Skill projects",
+    installedSkills: "Installed skills",
+    installedSkillsHelp: "Read-only view of local Codex, Claude, Cursor, generic agents, and Codex plugin cache skills.",
+    installedSkillsRefresh: "Refresh inventory",
+    installedSkillsScanning: "Scanning inventory...",
+    installedSkillsSummary: (skills: number, roots: number, duplicates: number) => `${skills} physical skills across ${roots} roots. ${duplicates} duplicate name groups.`,
+    installedSkillRoots: "Scanned roots",
+    installedSkillItems: "Physical skill entries",
+    installedSkillDuplicates: "Duplicate names",
+    installedSkillDuplicatesEmpty: "No duplicate skill names found.",
+    installedSkillDuplicateCount: (items: number) => `${items} physical entries`,
+    installedSkillsScanError: "Inventory scan failed",
+    installedSkillsEmpty: "No installed skills found in the scanned directories.",
+    installedSkillAgentUser: "User agent folder",
+    installedSkillAgentGeneric: "Generic agents directory",
+    installedSkillPluginCache: "Codex plugin cache",
+    installedSkillScanOptions: "Scan options",
+    installedSkillScanOptionsHelp: "Agent system skills are hidden by default. Codex plugin cache skills are included by default.",
+    installedSkillIncludeSystem: "Include agent system skills",
+    installedSkillIncludePluginCache: "Include Codex plugin cache skills",
+    installedSkillOrganize: "Smart organize",
+    installedSkillOrganizing: "Organizing...",
+    installedSkillOrganizeRun: "Run organize",
+    installedSkillOrganizePlan: "Smart organize plan",
+    installedSkillOrganizeActions: "Planned actions",
+    installedSkillOrganizeConflicts: "To resolve",
+    installedSkillOrganizePlanSummary: (actions: number, conflicts: number) => `${actions} actions planned. ${conflicts} duplicate conflicts to resolve.`,
+    installedSkillOrganizeConflict: (name: string) => `Resolve duplicate: ${name}`,
+    installedSkillOrganizeResult: (copied: number, linked: number, removed: number, skipped: number) => `Copied ${copied}, linked ${linked}, removed ${removed}, skipped ${skipped}.`,
+    confirmInstalledSkillOrganize: (actions: number, conflicts: number) => `Run ${actions} organize actions? ${conflicts} conflicts will remain unresolved. This can copy skills, create directory links, and remove identical duplicate entries.`,
     currentWorkspace: "Current project",
     addSharedSource: "GitHub source",
     sharedSourcePlaceholder: "owner/repo or github.com/owner/repo/tree/main/path",
@@ -549,6 +607,35 @@ export const dictionaries: Record<Language, Dictionary> = {
     feedback: "反馈",
     feedbackHelp: "在 GitHub 上反馈问题，或提交更强审计能力的需求。",
     recentWorkspaces: "Skill 项目",
+    installedSkills: "已安装 Skills",
+    installedSkillsHelp: "只读查看本机 Codex、Claude、Cursor、通用 agents 和 Codex 插件缓存中的 skills。",
+    installedSkillsRefresh: "刷新清单",
+    installedSkillsScanning: "正在扫描清单...",
+    installedSkillsSummary: (skills: number, roots: number, duplicates: number) => `${roots} 个扫描根目录中共有 ${skills} 个物理 skill，${duplicates} 组同名项。`,
+    installedSkillRoots: "扫描根目录",
+    installedSkillItems: "物理 skill 项",
+    installedSkillDuplicates: "同名项",
+    installedSkillDuplicatesEmpty: "没有发现同名 skill。",
+    installedSkillDuplicateCount: (items: number) => `${items} 个物理项`,
+    installedSkillsScanError: "清单扫描失败",
+    installedSkillsEmpty: "扫描目录中没有发现已安装 skill。",
+    installedSkillAgentUser: "用户级 Agent 目录",
+    installedSkillAgentGeneric: "通用 agents 目录",
+    installedSkillPluginCache: "Codex 插件缓存",
+    installedSkillScanOptions: "扫描选项",
+    installedSkillScanOptionsHelp: "各 Agent 的系统 skill 默认不扫描；Codex 插件缓存中的 skill 默认扫描。",
+    installedSkillIncludeSystem: "扫描系统 skill",
+    installedSkillIncludePluginCache: "扫描 Codex 插件缓存 skill",
+    installedSkillOrganize: "智能整理",
+    installedSkillOrganizing: "正在整理...",
+    installedSkillOrganizeRun: "执行整理",
+    installedSkillOrganizePlan: "智能整理计划",
+    installedSkillOrganizeActions: "计划动作",
+    installedSkillOrganizeConflicts: "待解决",
+    installedSkillOrganizePlanSummary: (actions: number, conflicts: number) => `计划 ${actions} 个动作，${conflicts} 个重复冲突待解决。`,
+    installedSkillOrganizeConflict: (name: string) => `待解决重复项：${name}`,
+    installedSkillOrganizeResult: (copied: number, linked: number, removed: number, skipped: number) => `已复制 ${copied}，已链接 ${linked}，已移除 ${removed}，跳过 ${skipped}。`,
+    confirmInstalledSkillOrganize: (actions: number, conflicts: number) => `确认执行 ${actions} 个整理动作？${conflicts} 个冲突会保留为待解决。该操作可能复制 skill、创建目录链接，并移除内容完全一致的重复物理项。`,
     currentWorkspace: "当前项目",
     addSharedSource: "GitHub 来源",
     sharedSourcePlaceholder: "owner/repo 或 github.com/owner/repo/tree/main/path",

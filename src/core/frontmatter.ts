@@ -4,17 +4,13 @@ export interface ParsedMarkdown {
 }
 
 export function parseFrontmatter(markdown: string): ParsedMarkdown {
-  if (!markdown.startsWith("---\n")) {
+  const match = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/);
+  if (!match) {
     return { frontmatter: {}, body: markdown };
   }
 
-  const end = markdown.indexOf("\n---", 4);
-  if (end === -1) {
-    return { frontmatter: {}, body: markdown };
-  }
-
-  const raw = markdown.slice(4, end).trim();
-  const body = markdown.slice(end + 4).replace(/^\n/, "");
+  const raw = match[1].trim();
+  const body = markdown.slice(match[0].length);
   return { frontmatter: parseYamlSubset(raw), body };
 }
 

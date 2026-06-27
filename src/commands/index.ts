@@ -4,6 +4,7 @@ import { createPublishPlan } from "../core/publish.js";
 import { createSharePlan, shareProject, type ShareProjectOptions } from "../core/share.js";
 import { shareDriftReport, type ShareDriftOptions } from "../core/share-drift.js";
 import { getEnvironmentStatus } from "../core/environment.js";
+import { createInstalledSkillOrganizePlan, organizeInstalledSkills, scanInstalledSkills } from "../core/installed-skills.js";
 import { arcForgeHome } from "../core/project-store.js";
 import { addAppliedSource, applyFromSource, cleanupLocalSkills, createImportSkillsPlan, createLocalSkillWorkflowPlan, createMergePlan, driftAppliedSources, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, removeAppliedSource, resolveSkillProject, runAppliedSources } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
@@ -38,6 +39,7 @@ Commands:
   merge            Merge project skills into another Skill project
   import           Import skills from another Skill project into this project
   applied          Manage applied source records for the current project
+  installed        Scan locally installed and cached agent skills
   apply            Copy a profile into an agent or project target
   drift            Compare a profile against an installed target
   publish-plan     Generate a GitHub-first release checklist
@@ -62,6 +64,8 @@ Examples:
   arcforge merge run --root . --to github.com/acme/team-skills --skills review --target-path skills/project-a --confirm
   arcforge import plan --root . --from github.com/acme/team-skills --skills review --target-dir skills
   arcforge applied drift --root .
+  arcforge installed scan
+  arcforge installed organize plan
   arcforge apply --from ../team-skills --profile default --target ~/.codex/skills
   arcforge share plan --root . --repo github.com/acme/team-skills --profile frontend
   arcforge share run --root . --repo github.com/acme/team-skills --profile frontend --confirm
@@ -177,6 +181,21 @@ Options:
                           and does not contain the target. Use only for intentional
                           cross-workspace ownership.
 `,
+  installed: `ArcForge CLI - installed
+
+Scan locally installed and cached agent skills and plan local cleanup. Scan is read-only. Organize run writes only after --confirm.
+
+Usage:
+  arcforge installed scan [--home <dir>] [--include-system] [--no-plugin-cache]
+  arcforge installed organize plan [--home <dir>] [--no-plugin-cache]
+  arcforge installed organize run [--home <dir>] [--no-plugin-cache] --confirm
+
+Options:
+  --home <dir>         User home directory to inspect. Defaults to the current OS user home.
+  --include-system     Include agent system skills. Defaults to false.
+  --no-plugin-cache    Exclude Codex plugin cache skills. Codex plugin cache is included by default.
+  --confirm            Required for organize run.
+`,
   apply: `ArcForge CLI - apply
 
 Copy a profile from another Skill project or the current workspace into a target directory. Outputs JSON.
@@ -283,6 +302,7 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
   if (command === "merge") return runMergeCommand(args, runtime);
   if (command === "import") return runImportCommand(args, runtime);
   if (command === "applied") return runAppliedCommand(args, runtime);
+  if (command === "installed") return runInstalledCommand(args);
 
   if (command === "apply") {
     const root = arg(args, "--root") ?? runtime.cwd;
@@ -339,6 +359,23 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
   if (command === "doctor") return { exitCode: 0, value: await getEnvironmentStatus(runtime.cliShim) };
 
   throw new Error(`Unknown command: ${command}`);
+}
+
+async function runInstalledCommand(args: string[]): Promise<CommandExecution> {
+  const action = args[1] ?? "scan";
+  const options = {
+    home: arg(args, "--home"),
+    includeAgentSystemSkills: hasFlag(args, "--include-system"),
+    includeCodexPluginCache: !hasFlag(args, "--no-plugin-cache")
+  };
+  if (action === "scan") return { exitCode: 0, value: await scanInstalledSkills(options) };
+  if (action === "organize") {
+    const organizeAction = args[2] ?? "plan";
+    if (organizeAction === "plan") return { exitCode: 0, value: await createInstalledSkillOrganizePlan(options) };
+    if (organizeAction === "run") return { exitCode: 0, value: await organizeInstalledSkills({ ...options, confirm: hasFlag(args, "--confirm") }) };
+    throw new Error(`Unknown installed organize action: ${organizeAction}`);
+  }
+  throw new Error(`Unknown installed action: ${action}`);
 }
 
 async function runSourceCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {

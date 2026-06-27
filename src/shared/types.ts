@@ -11,6 +11,104 @@ export interface SkillSummary {
   hasScripts: boolean;
 }
 
+export type InstalledSkillInstallKind = "agent-user" | "agent-generic" | "codex-plugin-cache";
+
+export interface InstalledSkillsScanOptions {
+  home?: string;
+  includeAgentSystemSkills?: boolean;
+  includeCodexPluginCache?: boolean;
+}
+
+export interface InstalledSkillPluginMetadata {
+  channel: string;
+  pluginName: string;
+  revision: string;
+}
+
+export interface InstalledSkillItem {
+  name: string;
+  description: string;
+  path: string;
+  relativePath: string;
+  rootId: string;
+  rootName: string;
+  rootPath: string;
+  installKind: InstalledSkillInstallKind;
+  targets: string[];
+  version?: string;
+  hasReferences: boolean;
+  hasScripts: boolean;
+  isSystem: boolean;
+  plugin?: InstalledSkillPluginMetadata;
+}
+
+export interface InstalledSkillRoot {
+  id: string;
+  name: string;
+  path: string;
+  installKind: InstalledSkillInstallKind;
+  status: "missing" | "scanned" | "error";
+  skillCount: number;
+  error?: string;
+}
+
+export interface InstalledSkillDuplicateGroup {
+  key: string;
+  name: string;
+  items: InstalledSkillItem[];
+}
+
+export interface InstalledSkillsInventory {
+  home: string;
+  generatedAt: string;
+  options: InstalledSkillsScanOptions;
+  roots: InstalledSkillRoot[];
+  skills: InstalledSkillItem[];
+  duplicateGroups: InstalledSkillDuplicateGroup[];
+}
+
+export type InstalledSkillOrganizeActionKind = "copy-to-generic" | "link-agent-directory" | "replace-with-link" | "remove-duplicate";
+
+export interface InstalledSkillOrganizeAction {
+  kind: InstalledSkillOrganizeActionKind;
+  skillName: string;
+  sourcePath: string;
+  targetPath: string;
+  reason: string;
+  manifestSignature: string;
+  rootName?: string;
+}
+
+export interface InstalledSkillOrganizeConflict {
+  skillName: string;
+  reason: string;
+  items: Array<{
+    rootName: string;
+    path: string;
+    manifestSignature: string;
+  }>;
+}
+
+export interface InstalledSkillOrganizePlan {
+  home: string;
+  generatedAt: string;
+  genericRoot: string;
+  actions: InstalledSkillOrganizeAction[];
+  conflicts: InstalledSkillOrganizeConflict[];
+  requiresConfirm: boolean;
+  messages: string[];
+}
+
+export interface InstalledSkillOrganizeResult {
+  plan: InstalledSkillOrganizePlan;
+  copied: string[];
+  linked: string[];
+  removed: string[];
+  skipped: string[];
+  conflicts: InstalledSkillOrganizeConflict[];
+  messages: string[];
+}
+
 export interface SharedAssetSummary {
   name: string;
   path: string;

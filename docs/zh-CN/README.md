@@ -129,6 +129,7 @@ ArcForge 的新使用理念是 agent-first：
 | 维护 GitHub 来源项目 | 先查看当前 Git checkout 落后上游多少 commit，再自主决定是否更新。 |
 | 公开发布前检查 | 检查 secrets、风险指令、薄弱 metadata 和内部引用。 |
 | 多 agent 漂移控制 | 比较已安装副本和来源 Skill 项目是否一致。 |
+| 已安装 skill 盘点 | 只读搜集用户级 Codex、Claude、Cursor、`.agents/skills` 和 Codex plugin cache 中的物理 skill 项。 |
 | 本地编辑 skill | 在 Desktop 中查看和编辑 `SKILL.md`、references 与 scripts。 |
 | CI 守门 | 在共享或发布前输出可机器读取的检查结果。 |
 
@@ -191,6 +192,7 @@ Desktop 是本地治理工作台，不是必须先打开的主入口。通常由
 - 需要按 profile 批量查看、选择和应用 skills。
 - 需要复核 apply、merge、share 的冲突或差异。
 - 需要查看已安装副本和来源之间的完整 drift diff。
+- 需要只读查看本机已安装 skill inventory，包括 Codex、Claude、Cursor、`.agents/skills` 和 Codex plugin cache。
 
 从源码开发启动：
 
@@ -237,10 +239,13 @@ arcforge drift --from github.com/acme/team-skills --profile default --target ~/.
 arcforge publish-plan --root . --visibility public
 arcforge share plan --root . --repo github.com/acme/team-skills --profile frontend
 arcforge share run --root . --repo github.com/acme/team-skills --profile frontend --message "Share frontend skills" --confirm
+arcforge installed scan
 arcforge doctor
 ```
 
 传给 `merge`、`apply` 或 `drift` 的远程 Skill 项目会先下载到本地缓存，然后以本地目录参与后续操作。`source status` 和 `source update` 是独立的 Git checkout 操作：它们只检查当前 `--root`，报告 ahead/behind 状态，并且只有在显式传入 `--confirm` 后才会执行 fast-forward-only 更新。
+
+`arcforge installed scan` 是只读 inventory 命令。它扫描当前用户个人目录中的 Codex、Claude、Cursor、`.agents/skills` 和 Codex plugin cache 已安装 skill 或缓存 skill，输出物理安装项和同名重复项；它不会导入、应用、删除或创建来源关系。
 
 ## 项目状态
 

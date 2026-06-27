@@ -129,6 +129,7 @@ Use ArcForge when you need a local governance step before skills are copied into
 | GitHub-sourced skill project maintenance | Shows whether the current Git checkout is behind upstream before you choose to update. |
 | Pre-publication review | Checks secrets, risky instructions, weak metadata, and internal references. |
 | Multi-agent drift control | Compares installed copies with the source Skill project. |
+| Installed skill inventory | Provides a read-only inventory of physical skill entries in user-level Codex, Claude, Cursor, `.agents/skills`, and Codex plugin cache locations. |
 | Local skill editing | Opens `SKILL.md`, references, and scripts in Desktop for review and edits. |
 | CI guardrail | Produces machine-readable checks before sharing or publishing. |
 
@@ -191,6 +192,7 @@ Desktop is the local governance workspace, not the first thing users must open. 
 - Profiles need visual review, batch selection, or apply decisions.
 - Apply, merge, or share conflicts need review.
 - Installed copies and sources need a full drift diff.
+- A read-only installed skill inventory is needed for local Codex, Claude, Cursor, `.agents/skills`, and Codex plugin cache locations.
 
 Run from source for development:
 
@@ -237,10 +239,13 @@ arcforge drift --from github.com/acme/team-skills --profile default --target ~/.
 arcforge publish-plan --root . --visibility public
 arcforge share plan --root . --repo github.com/acme/team-skills --profile frontend
 arcforge share run --root . --repo github.com/acme/team-skills --profile frontend --message "Share frontend skills" --confirm
+arcforge installed scan
 arcforge doctor
 ```
 
 Remote Skill projects passed to `merge`, `apply`, or `drift` are downloaded to a local cache first and then treated as local folders. `source status` and `source update` are independent Git checkout operations: they inspect the current `--root`, report ahead/behind status, and only update with `--confirm` using a fast-forward-only pull.
+
+`arcforge installed scan` is a read-only inventory command. It scans the current user's Codex, Claude, Cursor, `.agents/skills`, and Codex plugin cache locations for installed skill or cached skill entries, then reports physical entries and duplicate-name groups. It does not import, apply, delete, or create source relations.
 
 ## Project Status
 

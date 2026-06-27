@@ -577,6 +577,103 @@ button.active {
   font-size: 11px;
   overflow-wrap: anywhere;
 }
+.installed-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+.installed-organize-plan .dashboard-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.installed-skill-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  align-items: flex-start;
+  gap: var(--space-lg);
+}
+.installed-skill-main {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-sm);
+}
+.installed-skill-heading {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-md);
+  align-items: start;
+}
+.installed-skill-title {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-xxs);
+}
+.installed-skill-title strong {
+  font-size: 14px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.installed-skill-title span {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.installed-skill-badges,
+.installed-skill-plugin {
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+.installed-skill-badges span,
+.installed-skill-plugin span {
+  min-width: 0;
+  border-radius: var(--radius-xs);
+  padding: 2px 6px;
+  background: var(--surface-panel-subtle);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.installed-skill-description {
+  margin-top: 0 !important;
+  color: var(--text-secondary) !important;
+  line-height: 1.45 !important;
+  overflow-wrap: anywhere;
+}
+.installed-skill-path {
+  min-width: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  background: var(--surface-panel-subtle);
+  color: var(--text-secondary);
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.installed-skill-plugin {
+  justify-content: flex-start;
+}
+.installed-skill-plugin span {
+  background: var(--surface-selected);
+  color: var(--brand-primary-hover);
+}
+.installed-skill-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel-subtle);
+  color: var(--text-muted);
+}
 .finding { min-height: 58px; justify-content: flex-start; align-items: flex-start; }
 .finding svg { flex: 0 0 auto; margin-top: 1px; color: var(--warning); }
 .finding.critical { border-color: var(--danger-border); background: var(--danger-bg); }
@@ -959,8 +1056,10 @@ input[type="checkbox"] { width: auto; min-height: auto; padding: 0; }
   .topbar { flex-direction: column; }
   .actions, .inline-field { width: 100%; }
   .actions button, .inline-field button { justify-content: center; }
-  .dashboard-metrics, .action-list, .source-status-grid, .check-list, .check-list.inline, .segmented { grid-template-columns: 1fr; }
+  .dashboard-metrics, .action-list, .source-status-grid, .check-list, .check-list.inline, .segmented, .installed-options { grid-template-columns: 1fr; }
   .summary-metrics { grid-template-columns: 1fr 1fr; }
+  .installed-skill-heading { grid-template-columns: 1fr; }
+  .installed-skill-badges { justify-content: flex-start; }
   .skill-editor-panel .editor-header { flex-direction: row; }
   .skill-editor-panel .actions { width: auto; overflow-x: auto; }
   .skill-editor-panel .actions button { width: auto; }

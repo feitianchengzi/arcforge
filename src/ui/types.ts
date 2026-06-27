@@ -1,4 +1,4 @@
-import type { AgentAuditProxyConfig, AppState, AppliedSourceRecord, ApplyProfileResult, AuditMode, CliInstallStatus, DriftReport, EnvironmentStatus, ImportSkillsPlan, ImportSkillsResult, MergePlan, MergeResult, RecentWorkspace, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillEditorWindowContext, SkillFileDocument, SkillFileEntry, ArcForgeConfig, SourceUpdateResult, SourceUpdateStatus, WorkspaceSnapshot } from "../shared/types";
+import type { AgentAuditProxyConfig, AppState, AppliedSourceRecord, ApplyProfileResult, AuditMode, CliInstallStatus, DriftReport, EnvironmentStatus, ImportSkillsPlan, ImportSkillsResult, InstalledSkillOrganizePlan, InstalledSkillOrganizeResult, InstalledSkillsInventory, InstalledSkillsScanOptions, MergePlan, MergeResult, RecentWorkspace, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillEditorWindowContext, SkillFileDocument, SkillFileEntry, ArcForgeConfig, SourceUpdateResult, SourceUpdateStatus, WorkspaceSnapshot } from "../shared/types";
 
 export type Tab = "overview" | "skills" | "profiles" | "destinations" | "share" | "audit";
 
@@ -38,6 +38,9 @@ declare global {
       saveConfig: (root: string, config: ArcForgeConfig) => Promise<WorkspaceSnapshot>;
       openWorkspaceFolder: (root: string) => Promise<void>;
       getDefaultTargets: () => Promise<DefaultTarget[]>;
+      scanInstalledSkills: (options?: InstalledSkillsScanOptions) => Promise<InstalledSkillsInventory>;
+      createInstalledSkillOrganizePlan: (options?: InstalledSkillsScanOptions) => Promise<InstalledSkillOrganizePlan>;
+      organizeInstalledSkills: (options?: InstalledSkillsScanOptions, confirm?: boolean) => Promise<InstalledSkillOrganizeResult>;
       getEnvironmentStatus: () => Promise<EnvironmentStatus>;
       installCli: () => Promise<CliInstallStatus>;
       openExternal: (url: string) => Promise<void>;
