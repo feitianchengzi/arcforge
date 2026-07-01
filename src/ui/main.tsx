@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { Download, Edit3, FolderOpen, GitBranch, GripVertical, HardDrive, ListOrdered, PackageCheck, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
-import type { AgentAuditProxyConfig, AppState, AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, ProjectUiState, RecentWorkspace, ShareDriftCheckRecord, SharePlanResult, ShareResult, ShareTargetGroup, ArcForgeConfig, SourceUpdateCheckRecord, TargetRecord, WorkspaceSnapshot } from "../shared/types";
+import type { AgentAuditProxyConfig, AppState, AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, InstalledSkillOrganizePlan, InstalledSkillsInventory, InstalledSkillsScanOptions, ProjectUiState, RecentWorkspace, ShareDriftCheckRecord, SharePlanResult, ShareResult, ShareTargetGroup, ArcForgeConfig, SourceUpdateCheckRecord, TargetRecord, WorkspaceSnapshot } from "../shared/types";
 import { GITHUB_ISSUE_URL } from "../shared/links";
 import { MAX_RECENT_WORKSPACES, readLegacyAppState } from "./app-state";
 import { AddProjectDialog, CliRepairDialog, EmptyState, EnvironmentNotice, PendingProject, ProjectHeader, SettingsDialog } from "./components/shell";
@@ -10,6 +10,7 @@ import type { CliRepairNotice, DefaultTarget, Tab } from "./types";
 import { basename, buildCliRepairNotice, errorMessage, initialLanguage, normalizeLocalProjectRoot, projectNameFromSource, resolveApplyTargetEntries } from "./utils";
 import { Audit, Overview, SkillsList } from "./views/dashboard";
 import { ApplySkills } from "./views/destinations";
+import { InstalledSkills } from "./views/installed";
 import { Profiles } from "./views/profiles";
 import { Publish } from "./views/share";
 import "./styles.css";
@@ -69,6 +70,13 @@ function App() {
   const [shareTargetGroupId, setShareTargetGroupId] = useState("");
   const [sharedSourceUrl, setSharedSourceUrl] = useState("");
   const [sourceMode, setSourceMode] = useState<"local" | "github">("local");
+  const [globalView, setGlobalView] = useState<"projects" | "installed">("projects");
+  const [installedInventory, setInstalledInventory] = useState<InstalledSkillsInventory | undefined>();
+  const [installedScanOptions, setInstalledScanOptions] = useState<InstalledSkillsScanOptions>({ includeAgentSystemSkills: false, includeCodexPluginCache: true });
+  const [installedOrganizePlan, setInstalledOrganizePlan] = useState<InstalledSkillOrganizePlan | undefined>();
+  const [installedError, setInstalledError] = useState<string | undefined>();
+  const [isScanningInstalledSkills, setIsScanningInstalledSkills] = useState(false);
+  const [isOrganizingInstalledSkills, setIsOrganizingInstalledSkills] = useState(false);
   const [showAddProject, setShowAddProject] = useState(false);
   const [showEditProjectSource, setShowEditProjectSource] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -107,6 +115,7 @@ function App() {
       setDefaultTargets(targets);
     }).catch((error) => setStatus(t.errorStatus(errorMessage(error))))
       .finally(() => setDefaultTargetsLoaded(true));
+    void refreshInstalledSkills(installedScanOptions);
     void refreshEnvironment();
   }, []);
 
@@ -200,6 +209,62 @@ function App() {
     }
   }
 
+  async function refreshInstalledSkills(options = installedScanOptions) {
+    if (!window.arcforge) return;
+    setIsScanningInstalledSkills(true);
+    try {
+      const inventory = await window.arcforge.scanInstalledSkills(options);
+      setInstalledInventory(inventory);
+      setInstalledOrganizePlan(undefined);
+      setInstalledError(undefined);
+      if (globalView === "installed") {
+        setStatus(t.installedSkillsSummary(inventory.skills.length, inventory.roots.length, inventory.duplicateGroups.length));
+      }
+    } catch (error) {
+      const message = errorMessage(error);
+      setInstalledError(message);
+      setStatus(t.errorStatus(message));
+    } finally {
+      setIsScanningInstalledSkills(false);
+    }
+  }
+
+  function updateInstalledScanOptions(patch: Partial<InstalledSkillsScanOptions>) {
+    const next = { ...installedScanOptions, ...patch };
+    setInstalledScanOptions(next);
+    void refreshInstalledSkills(next);
+  }
+
+  async function createInstalledOrganizePlan() {
+    if (!window.arcforge) return;
+    setIsOrganizingInstalledSkills(true);
+    try {
+      const plan = await window.arcforge.createInstalledSkillOrganizePlan(installedScanOptions);
+      setInstalledOrganizePlan(plan);
+      setStatus(t.installedSkillOrganizePlanSummary(plan.actions.length, plan.conflicts.length));
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    } finally {
+      setIsOrganizingInstalledSkills(false);
+    }
+  }
+
+  async function runInstalledOrganizePlan() {
+    if (!window.arcforge || !installedOrganizePlan) return;
+    if (!window.confirm(t.confirmInstalledSkillOrganize(installedOrganizePlan.actions.length, installedOrganizePlan.conflicts.length))) return;
+    setIsOrganizingInstalledSkills(true);
+    try {
+      const result = await window.arcforge.organizeInstalledSkills(installedScanOptions, true);
+      setInstalledOrganizePlan(result.plan);
+      await refreshInstalledSkills(installedScanOptions);
+      setStatus(t.installedSkillOrganizeResult(result.copied.length, result.linked.length, result.removed.length, result.skipped.length));
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    } finally {
+      setIsOrganizingInstalledSkills(false);
+    }
+  }
+
   async function repairCliInstall() {
     if (!window.arcforge) return;
     setIsCliRepairing(true);
@@ -270,6 +335,7 @@ function App() {
   }
 
   function setProjectTab(next: Tab) {
+    setGlobalView("projects");
     setTab(next);
     if (root) rememberProjectState(root, { tab: next });
   }
@@ -303,6 +369,7 @@ function App() {
 
   async function chooseWorkspace() {
     try {
+      setGlobalView("projects");
       if (!window.arcforge) {
         setStatus(t.desktopRequired);
         return;
@@ -329,6 +396,7 @@ function App() {
   async function addRemoteSource() {
     const sourceUrl = sharedSourceUrl.trim();
     if (!sourceUrl) return;
+    setGlobalView("projects");
     const pendingId = `pending:${encodeURIComponent(sourceUrl)}`;
     const pendingRecord: RecentWorkspace = {
       path: pendingId,
@@ -857,6 +925,7 @@ function App() {
   }
 
   function openAddProjectDialog() {
+    setGlobalView("projects");
     setSourceMode("local");
     setSharedSourceUrl("");
     setShowAddProject(true);
@@ -910,6 +979,10 @@ function App() {
             </div>
           </div>
           <button className="primary" onClick={openAddProjectDialog}><Download size={16} /> {t.addSkillProject}</button>
+          <button className={globalView === "installed" ? "active" : ""} onClick={() => {
+            setGlobalView("installed");
+            void refreshInstalledSkills(installedScanOptions);
+          }}><HardDrive size={16} /> {t.installedSkills}</button>
           <div>
             <div className="workspace-list-heading">
               <h4>{t.recentWorkspaces}</h4>
@@ -940,6 +1013,7 @@ function App() {
                     </button>
                   )}
                   <button className="workspace-open-button" onClick={() => {
+                    setGlobalView("projects");
                     setShowAddProject(false);
                     if (item.status === "downloading" || item.status === "error") {
                       setRoot(item.path);
@@ -964,19 +1038,25 @@ function App() {
         <div className="window-drag-strip" aria-hidden="true" />
         <header className="topbar">
           <div>
-            <h2>{snapshot ? basename(snapshot.root) : activeProject?.name ?? t.addSkillProject}</h2>
-            <p>{status}</p>
+            <h2>{globalView === "installed" ? t.installedSkills : snapshot ? basename(snapshot.root) : activeProject?.name ?? t.addSkillProject}</h2>
+            <p>{globalView === "installed" ? t.installedSkillsHelp : status}</p>
             {environment && <EnvironmentNotice t={t} environment={environment} isRepairing={isCliRepairing} onInstallCli={repairCliInstall} />}
           </div>
           <div className="actions">
-            <button onClick={() => scan()} disabled={!root || isPendingProject}><RefreshCw size={16} /> {t.rescan}</button>
-            {snapshot && <button onClick={openProjectFolder}><FolderOpen size={16} /> {t.openProjectFolder}</button>}
-            {snapshot && <button onClick={openEditProjectSourceDialog}><Edit3 size={16} /> {t.editProjectSource}</button>}
-            {activeWorkspaceCanBeRemoved && <button className="icon-button light" title={t.removeWorkspace} onClick={() => removeRecentWorkspace(root)}><Trash2 size={16} /></button>}
+            {globalView === "installed" ? (
+              <button onClick={() => refreshInstalledSkills(installedScanOptions)} disabled={isScanningInstalledSkills}><RefreshCw size={16} /> {isScanningInstalledSkills ? t.installedSkillsScanning : t.installedSkillsRefresh}</button>
+            ) : (
+              <>
+                <button onClick={() => scan()} disabled={!root || isPendingProject}><RefreshCw size={16} /> {t.rescan}</button>
+                {snapshot && <button onClick={openProjectFolder}><FolderOpen size={16} /> {t.openProjectFolder}</button>}
+                {snapshot && <button onClick={openEditProjectSourceDialog}><Edit3 size={16} /> {t.editProjectSource}</button>}
+                {activeWorkspaceCanBeRemoved && <button className="icon-button light" title={t.removeWorkspace} onClick={() => removeRecentWorkspace(root)}><Trash2 size={16} /></button>}
+              </>
+            )}
           </div>
         </header>
 
-        {snapshot && (
+        {globalView !== "installed" && snapshot && (
           <ProjectHeader
             t={t}
             snapshot={snapshot}
@@ -989,7 +1069,20 @@ function App() {
         )}
 
         <div className="stage-scroll">
-          {!snapshot ? (
+          {globalView === "installed" ? (
+            <InstalledSkills
+              t={t}
+              inventory={installedInventory}
+              scanOptions={installedScanOptions}
+              organizePlan={installedOrganizePlan}
+              loading={isScanningInstalledSkills}
+              organizing={isOrganizingInstalledSkills}
+              error={installedError}
+              onScanOptionsChange={updateInstalledScanOptions}
+              onCreateOrganizePlan={createInstalledOrganizePlan}
+              onRunOrganizePlan={runInstalledOrganizePlan}
+            />
+          ) : !snapshot ? (
             isPendingProject && activeProject ? <PendingProject t={t} project={activeProject} /> : <EmptyState t={t} />
           ) : (
           <>

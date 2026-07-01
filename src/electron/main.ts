@@ -9,12 +9,13 @@ import { runArcForgeCommand, shareProjectCommand, createSharePlanCommand, shareD
 import { scanWorkspace } from "../core/workspace.js";
 import { saveConfig } from "../core/config.js";
 import { getEnvironmentStatus } from "../core/environment.js";
+import { createInstalledSkillOrganizePlan, organizeInstalledSkills, scanInstalledSkills } from "../core/installed-skills.js";
 import { installCliShim } from "../core/cli-install.js";
 import { hideLocalProjectInList, listLocalProjectStates, saveLocalProjectListMetadata, saveLocalProjectListOrder, type LocalProjectState } from "../core/project-store.js";
 import { defaultSkillFile, listSkillFiles, listWorkspaceFiles, readSkillFile, writeSkillFile } from "../core/skill-files.js";
 import { applyFromSource, createImportSkillsPlan, createMergePlan, driftAppliedSources, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, resolveSkillProjectRoot, runAppliedSources, type ImportSkillsOptions, type MergeOptions } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
-import type { AgentAuditProxyConfig, AppState, ApplyDriftCheckRecord, AuditMode, DriftFileDiff, DriftReport, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, ShareDriftCheckRecord, ShareTargetMode, SkillEditorWindowContext, ArcForgeConfig, TargetRecord } from "../shared/types.js";
+import type { AgentAuditProxyConfig, AppState, ApplyDriftCheckRecord, AuditMode, DriftFileDiff, DriftReport, InstalledSkillsScanOptions, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, ShareDriftCheckRecord, ShareTargetMode, SkillEditorWindowContext, ArcForgeConfig, TargetRecord } from "../shared/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cliMarkerIndex = process.argv.indexOf("--cli");
@@ -170,6 +171,9 @@ ipcMain.handle("workspace:audit", (_event, root: string, options?: unknown) => s
 ipcMain.handle("workspace:saveConfig", (_event, root: string, config: ArcForgeConfig) => saveWorkspaceConfig(root, config));
 ipcMain.handle("workspace:openFolder", (_event, root: string) => openWorkspaceFolder(root));
 ipcMain.handle("system:defaultTargets", () => defaultTargets());
+ipcMain.handle("installed:scan", (_event, options?: InstalledSkillsScanOptions) => scanInstalledSkills(normalizeInstalledScanOptions(options)));
+ipcMain.handle("installed:organizePlan", (_event, options?: InstalledSkillsScanOptions) => createInstalledSkillOrganizePlan(normalizeInstalledScanOptions(options)));
+ipcMain.handle("installed:organizeRun", (_event, options?: InstalledSkillsScanOptions, confirm?: boolean) => organizeInstalledSkills({ ...normalizeInstalledScanOptions(options), confirm: Boolean(confirm) }));
 ipcMain.handle("system:environment", () => getElectronEnvironmentStatus());
 ipcMain.handle("system:installCli", () => installCliShim({ ...cliShimOptions(), updateShellProfile: true }));
 ipcMain.handle("system:openExternal", (_event, url: string) => openExternalUrl(url));
@@ -491,6 +495,16 @@ function normalizeAuditRequest(value: unknown): { mode?: AuditMode; agent?: stri
     agentCommand: cleanString(input.agentCommand),
     proxy: normalizeAgentAuditProxy(input.proxy),
     timeoutMs: finiteNumber(input.timeoutMs)
+  };
+}
+
+function normalizeInstalledScanOptions(value: unknown): InstalledSkillsScanOptions {
+  if (!value || typeof value !== "object") return {};
+  const input = value as Record<string, unknown>;
+  return {
+    home: cleanString(input.home),
+    includeAgentSystemSkills: input.includeAgentSystemSkills === true,
+    includeCodexPluginCache: input.includeCodexPluginCache !== false
   };
 }
 
