@@ -18,7 +18,11 @@ Git 更新检查由 `src/core/source-update.ts` 承载，是独立 Git helper。
 
 远程地址复用共享来源解析和下载能力，支持 GitHub shorthand、GitHub URL、Git URL、SSH Git URL，以及带引用和子目录的 GitHub tree/blob URL。
 
-解析结果只返回本地项目根目录。系统不创建 `sources.json`，不生成来源 ID，也不要求项目写入额外来源标记。
+解析结果返回本地项目根目录，并从 Git canonical remote 与子目录或本地 realpath 派生 source identity。系统不创建 `sources.json`，不维护全局来源实体，也不要求维护者手写公共来源 ID。
+
+Skill 项目可以提交 `arcforge.skill-project.json` 维护 sourceDir 和可用性推荐。该清单描述来源内容，不注册来源；远程 URL 和 Git checkout 仍是 review、版本和访问控制事实。
+
+Profiles-sync 对 source identity 计算 SHA-256 并取前 24 个十六进制字符作为本机 `sourceKey`。该 key 隔离 catalog 路径和同名 skill，不替代应用关系中的 sourceRoot、remote 或 commit。
 
 ## 归并计划
 
@@ -48,7 +52,7 @@ Git 更新检查由 `src/core/source-update.ts` 承载，是独立 Git helper。
 
 应用关系持久化在当前项目的用户级状态中。
 
-`AppliedSourceRecord` 包含记录标识、来源项目根目录、可选远程 URL、来源名称、配置组、目标目录、当前技能列表、历史 managed skill 名称集合、可选来源提交哈希、上次应用时间和更新时间。
+`AppliedSourceRecord` 包含记录标识、来源项目根目录、可选远程 URL、来源名称、配置组、目标目录、当前技能列表、历史 managed skill 名称集合、可选来源提交哈希、上次应用时间和更新时间。Availability-aware 记录还保存 sourceKey、来源策略摘要以及逐 skill 的有效模式、策略来源和目标路径。
 
 `addAppliedSource` 手动添加应用关系时直接解析 `from` 为来源项目根目录，扫描来源项目并按配置组选出技能。命令传入技能列表时，应用关系只记录指定技能。
 

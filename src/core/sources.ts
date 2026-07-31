@@ -4,7 +4,8 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { AppliedSourceRecord, ApplyFromSourceResult, CleanupLocalSkillPlan, CleanupLocalSkillResult, DriftReport, ImportSkillsPlan, ImportSkillsResult, LocalSkillWorkflowPlan, MergePlan, MergeResult, ProjectResolveCandidate, ProjectResolveResult, ArcForgeConfig, SkillSummary } from "../shared/types.js";
+import { fileURLToPath } from "node:url";
+import type { AppliedSourceRecord, ApplyFromSourceResult, CleanupLocalSkillPlan, CleanupLocalSkillResult, DriftReport, ImportSkillsPlan, ImportSkillsResult, LocalSkillWorkflowPlan, MergePlan, MergeResult, ProjectResolveCandidate, ProjectResolveResult, ArcForgeConfig, SkillAvailabilityOverride, SkillAvailabilityPlan, SkillSummary, WorkspaceSnapshot } from "../shared/types.js";
 import { defaultConfigForRoot, loadConfig, saveConfig } from "./config.js";
 import { copyDirectory, pathExists } from "./fs.js";
 import { applyProfile, compareDirectory, driftReport } from "./profiles.js";
@@ -14,6 +15,9 @@ import { selectProfileSkills } from "./share-sync.js";
 import { currentCommit } from "./share-git.js";
 import { scanWorkspace } from "./workspace.js";
 import { detectLocalGitSource } from "./local-git.js";
+import { createSkillAvailabilityPlan } from "./skill-availability.js";
+import { AvailabilityApplyError, executeSkillAvailabilityPlan, type AvailabilityApplyFailurePoint } from "./skill-availability-apply.js";
+import { createSkillAvailabilityDriftReport } from "./skill-availability-drift.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -73,6 +77,28 @@ export interface CleanupLocalSkillOptions {
   confirm?: boolean;
 }
 
+export interface AvailabilityPlanFromSourceOptions {
+  root: string;
+  from?: string;
+  profile?: string;
+  skills?: string[];
+  agentTargetIds: string[];
+  projectTargetDirs?: string[];
+  availabilityOverrides?: SkillAvailabilityOverride[];
+  cacheDir?: string;
+  homeDir?: string;
+}
+
+export interface AvailabilityApplyFromSourceOptions extends AvailabilityPlanFromSourceOptions {
+  confirm?: boolean;
+  save?: boolean;
+  cleanupPaths?: string[];
+  allowUnrelatedRoot?: boolean;
+  faultInjector?: (point: AvailabilityApplyFailurePoint) => void | Promise<void>;
+}
+
+export type AvailabilityDriftFromSourceOptions = AvailabilityPlanFromSourceOptions;
+
 export async function resolveSkillProjectRoot(input: string, cacheDir: string): Promise<string> {
   const value = input.trim();
   if (!value) throw new Error("Skill project path or URL is required.");
@@ -82,6 +108,121 @@ export async function resolveSkillProjectRoot(input: string, cacheDir: string): 
   if (!stats.isDirectory()) throw new Error("Skill project path is not a directory.");
   await defaultConfigForRoot(root);
   return root;
+}
+
+export async function createAvailabilityPlanFromSource(options: AvailabilityPlanFromSourceOptions): Promise<SkillAvailabilityPlan> {
+  const consumerRoot = path.resolve(options.root);
+  const sourceRoot = options.from
+    ? await resolveSkillProjectRoot(options.from, cacheDirForInput(options.from, options.cacheDir))
+    : consumerRoot;
+  const source = await scanWorkspace(sourceRoot);
+  const loaderSourcePath = await bundledOnDemandSkillPath();
+  return createSkillAvailabilityPlan({
+    source,
+    consumerRoot,
+    profileName: options.profile ?? "default",
+    skills: options.skills,
+    agentTargetIds: options.agentTargetIds,
+    projectTargetDirs: options.projectTargetDirs,
+    invocationOverrides: options.availabilityOverrides,
+    appliedRecords: await listAppliedSources(consumerRoot),
+    homeDir: options.homeDir,
+    loaderSourcePath
+  });
+}
+
+export async function driftAvailabilityFromSource(options: AvailabilityDriftFromSourceOptions): Promise<DriftReport> {
+  const consumerRoot = path.resolve(options.root);
+  const sourceRoot = options.from
+    ? await resolveSkillProjectRoot(options.from, cacheDirForInput(options.from, options.cacheDir))
+    : consumerRoot;
+  const source = await scanWorkspace(sourceRoot);
+  const records = await listAppliedSources(consumerRoot);
+  const loaderSourcePath = await bundledOnDemandSkillPath();
+  const plan = await createSkillAvailabilityPlan({
+    source,
+    consumerRoot,
+    profileName: options.profile ?? "default",
+    skills: options.skills,
+    agentTargetIds: options.agentTargetIds,
+    projectTargetDirs: options.projectTargetDirs,
+    invocationOverrides: options.availabilityOverrides,
+    appliedRecords: records,
+    homeDir: options.homeDir,
+    loaderSourcePath
+  });
+  const record = availabilityRecordFor(records, sourceRoot, plan);
+  return createSkillAvailabilityDriftReport({
+    source,
+    plan,
+    record,
+    loaderSourcePath: plan.loaderTargets.length > 0 ? loaderSourcePath : undefined
+  });
+}
+
+export async function applyAvailabilityFromSource(options: AvailabilityApplyFromSourceOptions): Promise<ApplyFromSourceResult> {
+  const consumerRoot = path.resolve(options.root);
+  const sourceRoot = options.from
+    ? await resolveSkillProjectRoot(options.from, cacheDirForInput(options.from, options.cacheDir))
+    : consumerRoot;
+  const source = await scanWorkspace(sourceRoot);
+  const previousRecords = await listAppliedSources(consumerRoot);
+  const loaderSourcePath = await bundledOnDemandSkillPath();
+  const plan = await createSkillAvailabilityPlan({
+    source,
+    consumerRoot,
+    profileName: options.profile ?? "default",
+    skills: options.skills,
+    agentTargetIds: options.agentTargetIds,
+    projectTargetDirs: options.projectTargetDirs,
+    invocationOverrides: options.availabilityOverrides,
+    appliedRecords: previousRecords,
+    homeDir: options.homeDir,
+    loaderSourcePath
+  });
+  if (!options.confirm) {
+    throw new AvailabilityApplyError("APPLY_CONFIRM_REQUIRED", "Availability-aware apply requires --confirm after reviewing a fresh plan.");
+  }
+  const recordCandidate = options.save && options.from
+    ? await availabilityAppliedRecordFor(consumerRoot, source, plan, previousRecords, options.from, options)
+    : undefined;
+  if (recordCandidate) assertAvailabilityRelationRoot(consumerRoot, sourceRoot, plan, Boolean(options.allowUnrelatedRoot));
+  if (recordCandidate && plan.cleanup.length > 0) {
+    const confirmedCleanup = new Set((options.cleanupPaths ?? []).map((item) => path.resolve(item)));
+    const unconfirmed = plan.cleanup.filter((item) => !confirmedCleanup.has(path.resolve(item.path)));
+    if (unconfirmed.length > 0) {
+      throw new AvailabilityApplyError(
+        "APPLY_CONFIRM_REQUIRED",
+        `Saving this availability relationship requires explicit confirmation of every planned stale destination: ${unconfirmed.map((item) => item.path).join(", ")}`
+      );
+    }
+  }
+  const catalogRoot = path.join(path.resolve(options.homeDir ?? os.homedir()), ".arcforge", "catalog");
+  const execution = await executeSkillAvailabilityPlan({
+    source,
+    plan,
+    cleanupPaths: options.cleanupPaths,
+    catalogRoot,
+    loaderSourcePath: plan.loaderTargets.length > 0 ? loaderSourcePath : undefined,
+    recordCandidate,
+    commitRecord: recordCandidate ? () => upsertAppliedSource(consumerRoot, recordCandidate) : undefined,
+    rollbackRecord: recordCandidate ? async () => { await saveLocalProjectAppliedSources(consumerRoot, previousRecords); } : undefined,
+    faultInjector: options.faultInjector
+  });
+  return {
+    result: execution.result,
+    record: execution.record,
+    copiedThisRun: execution.result.copied,
+    selectedSkillsThisRun: plan.items.map((item) => item.skill),
+    managedSkillNamesHistorical: execution.record?.managedSkillNames ?? []
+  };
+}
+
+async function bundledOnDemandSkillPath(): Promise<string> {
+  const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
+  const candidate = path.resolve(moduleDirectory, "..", "..", "skills", "arcforge-on-demand");
+  if (await pathExists(path.join(candidate, "SKILL.md"))) return candidate;
+  throw new Error(`Bundled on-demand entry skill is missing: ${candidate}`);
 }
 
 export async function createMergePlan(options: MergeOptions): Promise<MergePlan> {
@@ -384,6 +525,20 @@ export async function driftAppliedSources(root: string, id?: string): Promise<Dr
   const records = selectAppliedRecords(await listAppliedSources(root), id);
   const reports: DriftReport[] = [];
   for (const record of records) {
+    if (record.availabilityItems?.length) {
+      const context = requiredAvailabilityContext(record);
+      reports.push(await driftAvailabilityFromSource({
+        root,
+        from: record.sourceRoot,
+        profile: record.profile,
+        skills: record.skills,
+        agentTargetIds: context.agentTargetIds,
+        projectTargetDirs: context.projectTargetDirs,
+        availabilityOverrides: context.availabilityOverrides,
+        homeDir: context.homeDir
+      }));
+      continue;
+    }
     const snapshot = await scanWorkspace(record.sourceRoot);
     const config = configForAppliedRecord(snapshot.config, record);
     reports.push(await driftReport(record.sourceRoot, config, snapshot.skills, snapshot.assets, record.profile, path.resolve(root, record.targetDir), {
@@ -393,11 +548,30 @@ export async function driftAppliedSources(root: string, id?: string): Promise<Dr
   return reports;
 }
 
-export async function runAppliedSources(root: string, id: string | undefined, confirm: boolean) {
+export async function runAppliedSources(root: string, id: string | undefined, confirm: boolean, cleanupPaths: string[] = []) {
   if (!confirm) throw new Error("Applied source run requires --confirm after reviewing drift.");
+  if (cleanupPaths.length > 0 && !id) throw new Error("Applied source cleanup paths require one explicit --id.");
   const records = selectAppliedRecords(await listAppliedSources(root), id);
   const results = [];
   for (const record of records) {
+    if (record.availabilityItems?.length) {
+      const context = requiredAvailabilityContext(record);
+      const execution = await applyAvailabilityFromSource({
+        root,
+        from: record.sourceRoot,
+        profile: record.profile,
+        skills: record.skills,
+        agentTargetIds: context.agentTargetIds,
+        projectTargetDirs: context.projectTargetDirs,
+        availabilityOverrides: context.availabilityOverrides,
+        homeDir: context.homeDir,
+        cleanupPaths,
+        confirm: true,
+        save: true
+      });
+      results.push({ record: execution.record as AppliedSourceRecord, result: execution.result });
+      continue;
+    }
     const snapshot = await scanWorkspace(record.sourceRoot);
     const config = configForAppliedRecord(snapshot.config, record);
     const result = await applyProfile(record.sourceRoot, config, snapshot.skills, snapshot.assets, record.profile, path.resolve(root, record.targetDir));
@@ -442,6 +616,10 @@ export async function driftFromSource(root: string, from: string | undefined, pr
 function requiredCacheDir(cacheDir?: string): string {
   if (!cacheDir) throw new Error("Cache directory is required for remote Skill projects.");
   return cacheDir;
+}
+
+function cacheDirForInput(input: string, cacheDir?: string): string {
+  return isRemoteInput(input) ? requiredCacheDir(cacheDir) : cacheDir ?? "";
 }
 
 function assertAppliedRelationRoot(root: string, sourceRoot: string, targetDir: string, allowUnrelatedRoot = false): void {
@@ -491,6 +669,80 @@ async function appliedRecordFor(root: string, sourceRoot: string, sourceName: st
     appliedAt: existing?.appliedAt,
     updatedAt: now
   };
+}
+
+async function availabilityAppliedRecordFor(
+  root: string,
+  source: WorkspaceSnapshot,
+  plan: SkillAvailabilityPlan,
+  records: AppliedSourceRecord[],
+  from: string,
+  context: AvailabilityPlanFromSourceOptions
+): Promise<AppliedSourceRecord> {
+  const now = new Date().toISOString();
+  const normalizedSourceRoot = path.resolve(source.root);
+  const existing = records.find((item) =>
+    path.resolve(item.sourceRoot) === normalizedSourceRoot
+    && item.profile === plan.profile
+    && recordRelationKind(item) === "profileApply"
+    && (item.sourceKey === plan.sourceKey || item.targetDir === "")
+  );
+  const id = existing?.id || `${slug(path.basename(normalizedSourceRoot) || "source")}-${slug(plan.profile)}-${crypto.createHash("sha256").update(`availability:${normalizedSourceRoot}:${plan.profile}`).digest("hex").slice(0, 8)}`;
+  return {
+    id,
+    relationKind: "profileApply",
+    sourceRoot: normalizedSourceRoot,
+    sourceName: path.basename(normalizedSourceRoot),
+    sourceRemoteUrl: isRemoteInput(from) ? from : existing?.sourceRemoteUrl,
+    sourceKey: plan.sourceKey,
+    sourcePolicyDigest: plan.sourcePolicyDigest,
+    profile: plan.profile,
+    targetDir: "",
+    skills: plan.items.map((item) => item.skill),
+    managedSkillNames: mergeNames(existing?.managedSkillNames ?? existing?.skills ?? [], plan.items.map((item) => item.skill)),
+    availabilityItems: plan.items.map((item) => ({
+      skill: item.skill,
+      mode: item.effectiveMode,
+      policyOrigin: item.policyOrigin,
+      destinations: item.destinations.map((destination) => path.resolve(destination.path))
+    })),
+    availabilityContext: {
+      agentTargetIds: [...new Set(context.agentTargetIds.map((item) => item.trim().toLowerCase()).filter(Boolean))].sort(),
+      projectTargetDirs: [...new Set((context.projectTargetDirs ?? []).map((item) => path.resolve(root, item)))].sort(),
+      availabilityOverrides: context.availabilityOverrides?.map((item) => ({ skill: item.skill, mode: item.mode })),
+      homeDir: path.resolve(context.homeDir ?? os.homedir())
+    },
+    sourceCommit: await sourceCommit(normalizedSourceRoot),
+    appliedAt: now,
+    updatedAt: now
+  };
+}
+
+function availabilityRecordFor(records: AppliedSourceRecord[], sourceRoot: string, plan: SkillAvailabilityPlan): AppliedSourceRecord | undefined {
+  const normalizedSourceRoot = path.resolve(sourceRoot);
+  return records.find((record) =>
+    record.profile === plan.profile
+    && recordRelationKind(record) === "profileApply"
+    && (record.sourceKey === plan.sourceKey || path.resolve(record.sourceRoot) === normalizedSourceRoot)
+  );
+}
+
+function requiredAvailabilityContext(record: AppliedSourceRecord): NonNullable<AppliedSourceRecord["availabilityContext"]> {
+  if (record.availabilityContext) return record.availabilityContext;
+  throw new Error(`Applied availability source '${record.id}' predates saved target context. Re-run an explicit availability apply before using applied drift or reapply.`);
+}
+
+function assertAvailabilityRelationRoot(root: string, sourceRoot: string, plan: SkillAvailabilityPlan, allowUnrelatedRoot: boolean): void {
+  const normalizedRoot = path.resolve(root);
+  if (isSameOrParent(normalizedRoot, path.resolve(sourceRoot))) return;
+  if (plan.items.some((item) => item.destinations.some((destination) => isSameOrParent(normalizedRoot, path.resolve(destination.path))))) return;
+  if (allowUnrelatedRoot) return;
+  throw new Error([
+    "Applied availability relation root is unrelated to both source and planned destinations.",
+    `--root: ${normalizedRoot}`,
+    `--from: ${path.resolve(sourceRoot)}`,
+    "Use a consumer or maintenance project root, or pass --allow-unrelated-root for an intentional user-only relation."
+  ].join("\n"));
 }
 
 function recordRelationKind(record: AppliedSourceRecord): AppliedRelationKind {

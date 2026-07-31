@@ -1,0 +1,62 @@
+metadata:
+  path: tech/_shared/contracts/catalog-resolve.yaml
+  domain: profiles-sync
+  owner: core/skill-catalog
+  version: 1
+  created: 2026-07-30
+  updated: 2026-07-30
+endpoint:
+  transport: core-and-cli
+  command: arcforge catalog resolve
+  method_name: resolveCatalogSkill
+  summary: Resolve one user-level on-demand skill after the ArcForge entry skill is explicitly invoked.
+  auth_required: false
+request:
+  args:
+    - name: query
+      type: string
+      required: true
+    - name: mode
+      type: string
+      required: false
+      enum:
+        - exact
+        - search
+      default: exact
+responses:
+  success:
+    schema:
+      type: object
+      required:
+        - status
+        - candidates
+      properties:
+        status:
+          type: string
+          enum:
+            - resolved
+            - ambiguous
+            - not-found
+        resolved:
+          type: object
+          nullable: true
+          description: Validated UserSkillCatalog entry returned only for resolved status.
+        candidates:
+          type: array
+          description: Minimal name, qualifiedName, sourceKey, and summary fields; full SKILL.md content is never returned for candidate listing.
+          items:
+            type: object
+  errors:
+    - code: CATALOG_INVALID
+      message: The catalog index cannot be parsed or validated.
+    - code: CATALOG_PATH_ESCAPE
+      message: The selected installed path escapes its declared source catalog root.
+    - code: CATALOG_CONTENT_DRIFT
+      message: The selected installed skill digest differs from the catalog entry.
+business_logic:
+  flow:
+    - Read only ~/.arcforge/catalog/index.json and never scan arbitrary filesystem roots.
+    - Exact mode matches qualifiedName, skillName, or alias; ambiguous unqualified matches return candidates without choosing by directory order.
+    - Search mode is available only after explicit entry-skill invocation and matches normalized name, alias, and summary fields.
+    - Resolve installedPath realpath, enforce catalog-root containment, and verify contentDigest.
+    - Return one validated entry or a non-resolved status; never execute the selected skill.

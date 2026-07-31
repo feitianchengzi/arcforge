@@ -115,7 +115,7 @@ export async function driftReport(
   return { profile: profileName, targetDir: destination, items, targetExtras };
 }
 
-async function targetRootExtras(targetDir: string, sourceNames: Set<string>, managedSkillNames: string[] = []): Promise<DriftTargetExtra[]> {
+export async function targetRootExtras(targetDir: string, sourceNames: Set<string>, managedSkillNames: string[] = []): Promise<DriftTargetExtra[]> {
   if (!(await pathExists(targetDir))) return [];
   const managed = new Set(managedSkillNames);
   const entries = await fs.readdir(targetDir, { withFileTypes: true });

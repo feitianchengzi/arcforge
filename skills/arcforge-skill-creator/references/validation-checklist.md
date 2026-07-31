@@ -9,6 +9,8 @@
 - 如果目标属于 ArcForge skill 创建或维护，`description` 或正文已说明本 skill 高于通用 `skill-creator` 或其他 creator 类 skill。
 - 如果参考了其他 creator 类 skill，已记录它们只提供基础结构、脚本、格式或校验帮助，不覆盖 ArcForge 能力单元建模和治理边界。
 - `description` 承担触发条件、适用边界、相邻 skill 分工和不触发场景。
+- `description` 没有复述主流程、输出字段、reference 名称、完整交接模板或长相邻分工。
+- `description` 从用户触发语境和边界出发，而不是从 skill 自我介绍或内部实现过程出发。
 - 正文从 skill 已触发的前提出发，使用过程化指令说明如何执行任务。
 
 ## 能力单元建模
@@ -28,10 +30,12 @@
 
 - `SKILL.md` 主体清楚呈现主流程、门禁顺序、每个门禁的输入、动作和退出条件。
 - 用户本轮明确要求、纠错或测试反馈已转化为流程门禁、硬规则、确认点、输出格式、reference 读取条件或产品缺口。
+- 已完成内容表面积预算：`description`、`SKILL.md`、reference 和 `agents/openai.yaml` 各自承载不同职责。
 - `SKILL.md` 遵循渐进式披露：主文件不堆叠长清单、模板和详细判断标准，细节按节点迁移到 reference。
 - 每个 reference 都在 `SKILL.md` 中有明确读取条件或入口。
 - 如果某个 reference 细节会改变执行顺序，`SKILL.md` 中有对应门禁，而不是只把关键流程藏在 reference。
 - `description` 管触发和边界，正文管已触发后的执行步骤。
+- 主文件超过预算时，已说明为什么不能继续迁移到 reference 或拆分。
 - 正文没有把用户纠错、失败复盘、“不要再……”口吻或一次协作中的修正痕迹当成规则原文。
 - 正文没有把具体项目、客户、临时策略或一次性业务上下文写成通用执行规则。
 - 执行型 skill 正文没有靠相邻 skill 差异说明补救路由不清；必要边界已前移到 `description` 或上层路由。
@@ -43,6 +47,7 @@
 - `agents/openai.yaml` 的 `display_name`、`short_description` 和 `default_prompt` 与 `SKILL.md` 同步。
 - `agents/openai.yaml` 的 `default_prompt` 提到 `$skill-name`。
 - `agents/openai.yaml` 不只是重复 skill 名称，而是同步关键触发、边界、主流程、输出重点和约束。
+- `agents/openai.yaml` 没有复述整份 `SKILL.md`、完整门禁或结构化 handoff 字段。
 - references 位于 skill 目录下一层。
 - 没有添加 README、changelog 或无关文档，除非用户明确要求。
 - 目标 skill 的主要内容语言与用户当前请求语言一致，除非用户明确指定其他语言。

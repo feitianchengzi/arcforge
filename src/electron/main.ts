@@ -13,7 +13,7 @@ import { createInstalledSkillOrganizePlan, organizeInstalledSkills, scanInstalle
 import { installCliShim } from "../core/cli-install.js";
 import { hideLocalProjectInList, listLocalProjectStates, saveLocalProjectListMetadata, saveLocalProjectListOrder, type LocalProjectState } from "../core/project-store.js";
 import { defaultSkillFile, listSkillFiles, listWorkspaceFiles, readSkillFile, writeSkillFile } from "../core/skill-files.js";
-import { applyFromSource, createImportSkillsPlan, createMergePlan, driftAppliedSources, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, resolveSkillProjectRoot, runAppliedSources, type ImportSkillsOptions, type MergeOptions } from "../core/sources.js";
+import { applyAvailabilityFromSource, applyFromSource, createAvailabilityPlanFromSource, createImportSkillsPlan, createMergePlan, driftAppliedSources, driftAvailabilityFromSource, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, resolveSkillProjectRoot, runAppliedSources, type AvailabilityApplyFromSourceOptions, type AvailabilityDriftFromSourceOptions, type AvailabilityPlanFromSourceOptions, type ImportSkillsOptions, type MergeOptions } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
 import type { AgentAuditProxyConfig, AppState, ApplyDriftCheckRecord, AuditMode, DriftFileDiff, DriftReport, InstalledSkillsScanOptions, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, ShareDriftCheckRecord, ShareTargetMode, SkillEditorWindowContext, ArcForgeConfig, TargetRecord } from "../shared/types.js";
 
@@ -192,9 +192,18 @@ ipcMain.handle("import:plan", (_event, options: ImportSkillsOptions) => createIm
 ipcMain.handle("import:run", (_event, options: ImportSkillsOptions) => importSkillsIntoProject({ ...options, cacheDir: cacheRoot(), confirm: true }));
 ipcMain.handle("applied:list", (_event, root: string) => listAppliedSources(root));
 ipcMain.handle("applied:drift", (_event, root: string, id?: string) => driftAppliedSources(root, id));
-ipcMain.handle("applied:run", (_event, root: string, id?: string) => runAppliedSources(root, id, true));
-ipcMain.handle("apply:run", (_event, root: string, from: string | undefined, profile: string, targetDir: string, save?: boolean, skills?: string[]) => applyFromSource(root, from, profile, targetDir, Boolean(save), skills, cacheRoot()));
-ipcMain.handle("apply:drift", (_event, root: string, from: string | undefined, profile: string, targetDir: string, skills?: string[]) => driftFromSource(root, from, profile, targetDir, skills, cacheRoot()));
+ipcMain.handle("applied:run", (_event, root: string, id?: string, cleanupPaths?: string[]) => runAppliedSources(root, id, true, cleanupPaths));
+ipcMain.handle("apply:plan", (_event, options: AvailabilityPlanFromSourceOptions) => createAvailabilityPlanFromSource({ ...options, cacheDir: cacheRoot() }));
+ipcMain.handle("apply:run", (_event, rootOrOptions: string | AvailabilityApplyFromSourceOptions, from?: string, profile?: string, targetDir?: string, save?: boolean, skills?: string[]) =>
+  typeof rootOrOptions === "string"
+    ? applyFromSource(rootOrOptions, from, profile ?? "default", targetDir ?? "", Boolean(save), skills, cacheRoot())
+    : applyAvailabilityFromSource({ ...rootOrOptions, cacheDir: cacheRoot() })
+);
+ipcMain.handle("apply:drift", (_event, rootOrOptions: string | AvailabilityDriftFromSourceOptions, from?: string, profile?: string, targetDir?: string, skills?: string[]) =>
+  typeof rootOrOptions === "string"
+    ? driftFromSource(rootOrOptions, from, profile ?? "default", targetDir ?? "", skills, cacheRoot())
+    : driftAvailabilityFromSource({ ...rootOrOptions, cacheDir: cacheRoot() })
+);
 ipcMain.handle("share:plan", (_event, root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, message?: string, delivery?: ShareDeliveryMethod, branch?: string, sameRepository?: boolean, sameRepositoryRemote?: string) => createSharePlanCommand({
   root,
   remoteUrl,

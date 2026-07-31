@@ -4,9 +4,9 @@ metadata:
   entity_name: ApplyProfileResult
   storage: in_memory
   owner: core/profiles
-  version: 1
+  version: 2
   created: 2026-05-21
-  updated: 2026-05-21
+  updated: 2026-07-30
 type: object
 required:
   - profile
@@ -18,7 +18,8 @@ properties:
     type: string
   targetDir:
     type: string
-    description: Absolute target directory path.
+    nullable: true
+    description: Absolute target directory for legacy direct apply; availability-aware applications use destinations.
   copied:
     type: array
     items:
@@ -41,6 +42,49 @@ properties:
     items:
       type: string
     description: Shared asset names skipped by profile application. Existing target directories are replaced, so this is normally empty.
+  availabilityPlan:
+    $ref: "./SkillAvailabilityPlan.yaml"
+    nullable: true
+  destinations:
+    type: array
+    nullable: true
+    items:
+      type: object
+      required:
+        - skill
+        - kind
+        - path
+        - status
+      properties:
+        skill:
+          type: string
+        kind:
+          type: string
+          enum:
+            - user-agent
+            - project-agent
+            - user-catalog
+            - loader
+        path:
+          type: string
+        status:
+          type: string
+          enum:
+            - copied
+            - replaced
+            - skipped
+  catalogUpdated:
+    type: boolean
+    nullable: true
+  cleanedPaths:
+    type: array
+    nullable: true
+    items:
+      type: string
 validation:
   replace_existing:
     description: Existing target directories are removed and copied again from the source by profile application.
+  plan_required:
+    description: Availability-aware results embed the exact recomputed plan used for writes; plans with error diagnostics cannot produce results.
+  confirmed_cleanup:
+    description: cleanedPaths contains only plan cleanup paths explicitly confirmed by the caller.

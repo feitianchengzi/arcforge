@@ -12,6 +12,7 @@
       --surface-app: #F3F5F8;
       --surface-panel: #FFFFFF;
       --surface-panel-subtle: #F8FAFC;
+      --surface-scrim: rgba(15, 18, 24, 0.45);
       --surface-selected: #E8F1FF;
       --surface-sidebar: #15181F;
       --surface-sidebar-muted: #0F1218;
@@ -161,6 +162,38 @@
     }
     .finding strong { display: block; color: var(--warning); font-size: 13px; }
     .finding span { display: block; margin-top: 5px; color: var(--text-muted); font-size: 12px; }
+    .component-demo { margin-top: 30px; }
+    .dialog-stage { padding: 30px; border-radius: var(--radius-md); background: var(--surface-scrim); }
+    .dialog-preview {
+      max-width: 620px;
+      margin: 0 auto;
+      padding: 18px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      background: var(--surface-panel);
+      box-shadow: 0 20px 48px rgba(16, 24, 40, 0.22);
+    }
+    .dialog-header { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+    .dialog-header strong { color: var(--text-heading); font-size: 18px; }
+    .dialog-header span { display: block; margin-top: 4px; color: var(--text-muted); font-size: 12px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 6px; }
+    .badge { padding: 4px 12px; border-radius: 999px; background: var(--surface-panel-subtle); color: var(--text-secondary); font-size: 12px; }
+    .badge.success { background: var(--success-bg); color: var(--success); }
+    .badge.danger { background: var(--danger-bg); color: var(--danger); }
+    .check-row {
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 8px 12px;
+      border: 1px solid var(--border-selected);
+      border-radius: var(--radius-md);
+      background: var(--surface-selected);
+      color: var(--brand-primary-hover);
+      font-size: 13px;
+      font-weight: 650;
+    }
     .swatches { display: flex; gap: 10px; margin-top: 24px; }
     .swatch { width: 38px; height: 38px; border-radius: var(--radius-md); border: 1px solid var(--border-default); }
   </style>
@@ -214,6 +247,20 @@
           <div class="finding"><strong>risk.env_access</strong><span>Narrow instruction before publishing.</span></div>
           <div class="finding"><strong>quality.description_short</strong><span>Trigger description is too thin.</span></div>
           <div class="row">publish.ready</div>
+        </div>
+      </div>
+      <div class="panel component-demo">
+        <h2>Governed action states</h2>
+        <div class="dialog-stage">
+          <div class="dialog-preview">
+            <div class="dialog-header">
+              <div><strong>Review changes</strong><span>Resolved destinations remain visible before confirmation.</span></div>
+              <div class="badges"><span class="badge success">Resolved</span><span class="badge danger">1 blocking error</span></div>
+            </div>
+            <div class="row selected">User scope · on demand</div>
+            <label class="check-row"><input type="checkbox" checked> Confirm managed cleanup path</label>
+            <div class="actions"><div class="button">Cancel</div><div class="button primary">Confirm</div></div>
+          </div>
         </div>
       </div>
     </div>

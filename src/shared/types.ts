@@ -11,6 +11,141 @@ export interface SkillSummary {
   hasScripts: boolean;
 }
 
+export type SkillAvailabilityMode = "user-ambient" | "project-ambient" | "user-on-demand";
+
+export interface SkillAvailabilityOverride {
+  skill: string;
+  mode: SkillAvailabilityMode;
+}
+
+export interface ArcForgeProfileAvailability {
+  defaultMode?: SkillAvailabilityMode;
+  skills?: SkillAvailabilityOverride[];
+}
+
+export interface SkillProjectManifestSkill {
+  path: string;
+  mode: SkillAvailabilityMode;
+  aliases?: string[];
+}
+
+export interface SkillProjectManifest {
+  version: 1;
+  sourceDir?: string;
+  availability: {
+    defaultMode?: SkillAvailabilityMode;
+    skills: SkillProjectManifestSkill[];
+  };
+}
+
+export interface SkillProjectManifestDiagnostic {
+  severity: "info" | "warning" | "error";
+  code: string;
+  path?: string;
+  message: string;
+}
+
+export type SkillAvailabilityPolicyOrigin =
+  | "invocation"
+  | "profile-skill"
+  | "profile-default"
+  | "source-skill"
+  | "source-default"
+  | "compatibility";
+
+export interface ResolvedSkillAvailability {
+  skill: string;
+  sourcePath: string;
+  sourceRecommendation?: SkillAvailabilityMode;
+  sourceRecommendationOrigin: "skill" | "project" | "none";
+  consumerOverride?: SkillAvailabilityMode;
+  effectiveMode: SkillAvailabilityMode;
+  policyOrigin: SkillAvailabilityPolicyOrigin;
+}
+
+export interface SkillAvailabilityResolution {
+  items: ResolvedSkillAvailability[];
+  diagnostics: SkillProjectManifestDiagnostic[];
+}
+
+export type SkillAvailabilityDestinationKind = "user-agent" | "project-agent" | "user-catalog";
+
+export interface SkillAvailabilityDestination {
+  kind: SkillAvailabilityDestinationKind;
+  agentId?: string;
+  projectRoot?: string;
+  path: string;
+}
+
+export interface SkillAvailabilityPlanItem extends ResolvedSkillAvailability {
+  destinations: SkillAvailabilityDestination[];
+  contentDigest: string;
+}
+
+export interface SkillAvailabilityLoaderTarget {
+  agentId: string;
+  path: string;
+  status: "missing" | "same" | "managed-update" | "conflict";
+  expectedDigest: string;
+  existingDigest?: string;
+}
+
+export interface SkillAvailabilityCleanupItem {
+  skill: string;
+  path: string;
+  reason: string;
+  requiresConfirm: true;
+}
+
+export interface SkillAvailabilityPlan {
+  sourceKey: string;
+  sourceIdentity: string;
+  profile: string;
+  sourcePolicyDigest?: string;
+  items: SkillAvailabilityPlanItem[];
+  loaderTargets: SkillAvailabilityLoaderTarget[];
+  cleanup: SkillAvailabilityCleanupItem[];
+  diagnostics: SkillProjectManifestDiagnostic[];
+  requiresConfirm: true;
+}
+
+export interface UserSkillCatalogEntry {
+  qualifiedName: string;
+  sourceKey: string;
+  skillName: string;
+  aliases?: string[];
+  summary?: string;
+  sourceRoot: string;
+  sourceRemoteUrl?: string;
+  sourceCommit?: string;
+  skillPath: string;
+  installedPath: string;
+  contentDigest: string;
+  appliedRecordIds: string[];
+  installedAt: string;
+}
+
+export interface UserSkillCatalog {
+  version: 1;
+  updatedAt: string;
+  entries: UserSkillCatalogEntry[];
+}
+
+export type CatalogResolveMode = "exact" | "search";
+
+export interface CatalogResolveCandidate {
+  skillName: string;
+  qualifiedName: string;
+  sourceKey: string;
+  summary?: string;
+}
+
+export interface CatalogResolveResult {
+  status: "resolved" | "ambiguous" | "not-found";
+  resolved?: UserSkillCatalogEntry;
+  candidates: CatalogResolveCandidate[];
+}
+
 export type InstalledSkillInstallKind = "agent-user" | "agent-generic" | "codex-plugin-cache";
 
 export interface InstalledSkillsScanOptions {
@@ -199,6 +334,7 @@ export interface ArcForgeProfile {
   description?: string;
   skills: string[];
   targets: string[];
+  availability?: ArcForgeProfileAvailability;
 }
 
 export interface ArcForgeConfig {
@@ -218,10 +354,24 @@ export interface AppliedSourceRecord {
   sourceRoot: string;
   sourceName?: string;
   sourceRemoteUrl?: string;
+  sourceKey?: string;
+  sourcePolicyDigest?: string;
   profile: string;
   targetDir: string;
   skills: string[];
   managedSkillNames?: string[];
+  availabilityItems?: Array<{
+    skill: string;
+    mode: SkillAvailabilityMode;
+    policyOrigin: SkillAvailabilityPolicyOrigin;
+    destinations: string[];
+  }>;
+  availabilityContext?: {
+    agentTargetIds: string[];
+    projectTargetDirs: string[];
+    availabilityOverrides?: SkillAvailabilityOverride[];
+    homeDir: string;
+  };
   sourceCommit?: string;
   appliedAt?: string;
   updatedAt: string;
@@ -425,7 +575,7 @@ export interface SourceUpdateResult {
 
 export interface DriftItem {
   skill: string;
-  kind?: "skill" | "asset";
+  kind?: "skill" | "asset" | "loader";
   status: "missing" | "changed" | "same";
   sourcePath: string;
   targetPath: string;
@@ -435,6 +585,16 @@ export interface DriftItem {
     changed: number;
     extra: number;
   };
+}
+
+export interface DriftPolicyItem {
+  skill: string;
+  status: "same" | "changed" | "unclassified";
+  recordedMode?: SkillAvailabilityMode;
+  currentMode: SkillAvailabilityMode;
+  recordedPaths?: string[];
+  currentPaths: string[];
+  reason: string;
 }
 
 export interface DriftFileDiff {
@@ -457,6 +617,8 @@ export interface DriftReport {
   targetDir: string;
   items: DriftItem[];
   targetExtras?: DriftTargetExtra[];
+  policyDrift?: DriftPolicyItem[];
+  availabilityPlan?: SkillAvailabilityPlan;
   remoteUrl?: string;
   targetPath?: string;
   commitHash?: string;
@@ -491,6 +653,12 @@ export interface PublishPlan {
   files: string[];
   installCommands: string[];
   checklist: string[];
+  sourceManifest?: {
+    path: "arcforge.skill-project.json";
+    selectedSkillPaths: string[];
+    policyDigest: string;
+    diagnostics: string[];
+  };
 }
 
 export type ShareDeliveryMethod = "targetPullRequest" | "forkPullRequest" | "directPush" | "localBranch";
@@ -546,6 +714,8 @@ export type ShareTargetMode = "direct" | "namedProject";
 export interface WorkspaceSnapshot {
   root: string;
   config: ArcForgeConfig;
+  sourceManifest?: SkillProjectManifest;
+  sourceManifestDiagnostics?: SkillProjectManifestDiagnostic[];
   skills: SkillSummary[];
   assets: SharedAssetSummary[];
   audit: AuditReport;
@@ -634,11 +804,20 @@ export interface ToolStatus {
 
 export interface ApplyProfileResult {
   profile: string;
-  targetDir: string;
+  targetDir: string | null;
   copied: string[];
   skipped: string[];
   copiedAssets?: string[];
   skippedAssets?: string[];
+  availabilityPlan?: SkillAvailabilityPlan;
+  destinations?: Array<{
+    skill: string;
+    kind: SkillAvailabilityDestinationKind | "loader";
+    path: string;
+    status: "copied" | "replaced" | "skipped";
+  }>;
+  catalogUpdated?: boolean;
+  cleanedPaths?: string[];
 }
 
 export interface ApplyFromSourceResult {

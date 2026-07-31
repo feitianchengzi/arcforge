@@ -1,0 +1,75 @@
+metadata:
+  path: tech/_shared/contracts/apply-plan.yaml
+  domain: profiles-sync
+  owner: electron/main
+  version: 2
+  created: 2026-07-30
+  updated: 2026-07-31
+endpoint:
+  transport: electron-ipc-and-cli
+  channel: apply:plan
+  method_name: createSkillAvailabilityPlan
+  summary: Resolve source recommendations, consumer overrides, target locations, loader targets, policy diagnostics, and cleanup without writing files.
+  auth_required: false
+request:
+  args:
+    - name: root
+      type: string
+      required: true
+    - name: from
+      type: string
+      required: false
+    - name: profile
+      type: string
+      required: true
+    - name: skills
+      type: string[]
+      required: false
+    - name: agentTargetIds
+      type: string[]
+      required: true
+    - name: projectTargetDirs
+      type: string[]
+      required: false
+    - name: availabilityOverrides
+      type: object[]
+      required: false
+      item_schema:
+        required:
+          - skill
+          - mode
+        properties:
+          skill:
+            type: string
+          mode:
+            type: string
+            enum:
+              - user-ambient
+              - project-ambient
+              - user-on-demand
+responses:
+  success:
+    schema:
+      $ref: "../models/SkillAvailabilityPlan.yaml"
+  errors:
+    - code: PROFILE_NOT_FOUND
+      message: Profile not found.
+    - code: SOURCE_NOT_FOUND
+      message: Source Skill project cannot be resolved.
+    - code: SOURCE_MANIFEST_INVALID
+      message: The Git-tracked Skill project manifest is malformed or contains unsafe paths.
+    - code: TARGET_CONTEXT_INVALID
+      message: Agent or project targets required by an effective mode are missing.
+    - code: ON_DEMAND_LOADER_CONFLICT
+      message: A fixed loader target exists but is neither content-identical nor proven to be managed by a saved ArcForge availability relationship.
+business_logic:
+  flow:
+    - Resolve and scan the source Skill project without mutating the checkout.
+    - Derive sourceKey from canonical Git identity or canonical local real path.
+    - Resolve invocation, profile, source-skill, source-default, and compatibility policy in precedence order.
+    - Map user-ambient to user agent roots, project-ambient to the agent/project cross product, and user-on-demand to the user catalog.
+    - Add user-level on-demand entry loader targets for every selected agent when at least one item is user-on-demand.
+    - Inspect each loader target and classify it as missing, same, managed-update, or conflict; only a saved on-demand availability relation for the same agent and home proves ownership of differing content.
+    - Return ON_DEMAND_LOADER_CONFLICT as a blocking diagnostic for unknown same-name targets.
+    - Compare the plan with saved application relations and return confirmation-gated cleanup items.
+    - Return diagnostics and make no filesystem changes.

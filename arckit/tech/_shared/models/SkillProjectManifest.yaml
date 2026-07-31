@@ -1,0 +1,72 @@
+metadata:
+  path: tech/_shared/models/SkillProjectManifest.yaml
+  domain: profiles-sync
+  entity_name: SkillProjectManifest
+  storage: <skill-project>/arcforge.skill-project.json
+  owner: core/skill-project-manifest
+  version: 1
+  created: 2026-07-30
+  updated: 2026-07-30
+type: object
+required:
+  - version
+  - availability
+properties:
+  version:
+    type: integer
+    const: 1
+    description: Git-tracked Skill project manifest schema version.
+  sourceDir:
+    type: string
+    nullable: true
+    description: Repository-relative skill source directory. Missing values use workspace discovery rules.
+  availability:
+    type: object
+    required:
+      - skills
+    properties:
+      defaultMode:
+        type: string
+        nullable: true
+        enum:
+          - user-ambient
+          - project-ambient
+          - user-on-demand
+        description: Recommended mode for discovered skills without a path-specific entry.
+      skills:
+        type: array
+        items:
+          type: object
+          required:
+            - path
+            - mode
+          properties:
+            path:
+              type: string
+              minLength: 1
+              description: POSIX-style skill directory path relative to the Skill project root.
+            mode:
+              type: string
+              enum:
+                - user-ambient
+                - project-ambient
+                - user-on-demand
+            aliases:
+              type: array
+              nullable: true
+              items:
+                type: string
+              description: Optional explicit catalog aliases for this skill.
+validation:
+  repository_owned:
+    description: The manifest is read from the source checkout and is never merged with ~/.arcforge/projects before source recommendations are derived.
+  safe_paths:
+    description: sourceDir and skill paths must be relative, normalized, contain no parent traversal, and resolve inside the Skill project root.
+  exact_skill_match:
+    description: Every availability.skills path must resolve to exactly one discovered skill directory; stale and duplicate paths are diagnostics.
+  legal_modes:
+    description: Only user-ambient, project-ambient, and user-on-demand are valid; project on-demand is not representable.
+  aliases:
+    description: Aliases are trimmed, non-empty, unique within one entry, and catalog-wide ambiguity is reported during apply planning.
+  optional_manifest:
+    description: Missing manifests remain compatible; missing per-skill and project defaults produce an unclassified diagnostic before compatibility fallback.

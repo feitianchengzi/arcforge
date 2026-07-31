@@ -48,7 +48,7 @@ export async function createSharePlan(options: ShareProjectOptions): Promise<Sha
     const access = sameRepositoryAccess(remoteUrl, sameRepository.remote, []);
     const branch = sameRepository.localGit.currentBranch || "HEAD";
     const targetPath = normalizeGitRelativePath(sameRepository.localGit.relativePath || ".");
-    const plan = await createPublishPlan(root, snapshot.config, selectedSkills, options.visibility);
+    const plan = await createPublishPlan(root, snapshot.config, selectedSkills, options.visibility, snapshot.sourceManifest, snapshot.sourceManifestDiagnostics);
     return {
       plan,
       access,
@@ -69,7 +69,7 @@ export async function createSharePlan(options: ShareProjectOptions): Promise<Sha
   const delivery = normalizeDelivery(options.delivery, access.recommendedDelivery, access.availableDelivery);
   const branch = options.shareBranch?.trim() || defaultShareBranch(projectName);
   const targetPath = shareTargetSubdir(target.subdir, targetMode, projectName, snapshot.config.sourceDir) || ".";
-  const plan = await createPublishPlan(root, snapshot.config, selectedSkills, options.visibility);
+  const plan = await createPublishPlan(root, snapshot.config, selectedSkills, options.visibility, snapshot.sourceManifest, snapshot.sourceManifestDiagnostics);
 
   return {
     plan,
@@ -131,10 +131,10 @@ export async function shareProject(options: ShareProjectOptions): Promise<ShareR
     const publishedConfig = namespaceProfiles(normalizeConfig({ ...localConfig, teamRepo: installRef, profiles: [publishedShareProfile(profile, selectedSkills)] }), namespace);
 
     await saveConfig(root, localConfig);
-    await syncProjectToShareTarget(root, targetRoot, publishedConfig, selectedSkills, snapshot.assets, options.visibility, projectName, namespace);
+    await syncProjectToShareTarget(root, targetRoot, publishedConfig, selectedSkills, snapshot.assets, options.visibility, projectName, namespace, snapshot.sourceManifest, snapshot.sourceManifestDiagnostics);
     messages.push(`Shared project files to ${targetSubdir || "."}.`);
 
-    await stageShareTarget(checkoutRoot, targetSubdir, publishedConfig.sourceDir, messages);
+    await stageShareTarget(checkoutRoot, targetSubdir, publishedConfig.sourceDir, Boolean(snapshot.sourceManifest), messages);
     const committed = await commitIfChanged(checkoutRoot, options.message, messages);
     const commitHash = await currentCommit(checkoutRoot, messages);
     const manualCommands = manualShareCommands(delivery, shareBranch, baseBranch, access.repository);
@@ -228,8 +228,10 @@ export async function downloadSource(options: DownloadSourceOptions): Promise<st
   return projectRoot;
 }
 
-async function stageShareTarget(root: string, targetSubdir: string, sourceDir: string, messages: string[]): Promise<void> {
-  await runGit(root, targetSubdir ? ["add", targetSubdir] : ["add", sourceDir, "README.md"], messages);
+async function stageShareTarget(root: string, targetSubdir: string, sourceDir: string, hasSourceManifest: boolean, messages: string[]): Promise<void> {
+  await runGit(root, targetSubdir
+    ? ["add", "--", targetSubdir]
+    : ["add", "--", sourceDir, "README.md", ...(hasSourceManifest ? ["arcforge.skill-project.json"] : [])], messages);
 }
 
 function publishedShareProfile(profile: ArcForgeConfig["profiles"][number], selectedSkills: SkillSummary[]): ArcForgeConfig["profiles"][number] {

@@ -7,6 +7,7 @@
 - audit/rule-audit.md 依赖 workspace/discovery.md 发现的技能列表，并把安全、元数据和 skill 写作质量审计报告写入工作区快照。
 - profile/profile-management.md 依赖 workspace/discovery.md 加载的配置和技能列表。
 - profile/destination-sync.md 依赖 profile/profile-management.md 的配置组选择结果，并读取 workspace/discovery.md 发现的共享资产。
+- profile/skill-availability.md 从正式 Skill 项目读取可版本控制的推荐策略，由 profile/profile-management.md 提供消费端覆盖，并复用 profile/destination-sync.md 的应用关系、目标解析、确认和漂移语义。
 - share/github-sharing.md 依赖 workspace/discovery.md 的工作区快照，并复用 profile/profile-management.md 中的配置组信息生成 README 使用说明。
 - interface/agent-skill.md 通过 coding agent 解释用户意图，并编排 interface/cli.md 的结构化执行结果与 interface/desktop-app.md 的上下文 UI。
 - interface/agent-skill.md 使用 Skill First 模型创建、更新和验证目标 skill；Skill First 验证通过后只建议进入 ArcForge 治理阶段，不自动执行归并、应用、漂移、共享或远程写入。
@@ -20,6 +21,7 @@
 - 用户也可以直接添加项目，并通过 interface/desktop-app.md 进入 workspace/discovery.md 的扫描流程。
 - 扫描完成后，用户在 interface/desktop-app.md 总览、技能文件编辑器和审计页面查看并修复 audit/rule-audit.md 的安全、元数据和写作质量发现。
 - 用户在 profile/profile-management.md 中维护配置组后，可在 profile/destination-sync.md 中应用到目标目录。
+- Skill 维护者在 profile/skill-availability.md 中长期维护项目默认和逐项推荐策略；用户参考推荐或通过配置组覆盖，把 skill 设为用户级常驻、项目级常驻或用户级按需。
 - 用户在当前项目产生可复用技能后，通过 sources/skill-project-merge.md 归并到另一个 Skill 项目，并让当前项目记录为应用目标。
 - 用户在当前项目维护项目内 skill 后，通过 interface/agent-skill.md 串联 audit/rule-audit.md、sources/skill-project-merge.md、profile/destination-sync.md 和 share/github-sharing.md，完成审计、归并到正式 Skill 项目、应用到目标项目、漂移检查和远程共享准备。
 - 应用配置组后，用户通过 profile/destination-sync.md 的漂移报告判断目标是否与来源一致。

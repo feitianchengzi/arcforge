@@ -5,7 +5,7 @@
 - _library/brief.md 是视觉策略源，定义品牌气质、信息层级、色彩角色、字体节奏、空间密度、组件性格、状态表达和主题策略。
 - _library/design-tokens.yaml 投影 brief.md 中的色彩、字体、间距、圆角、阴影和动效策略。
 - _library/component-catalog.yaml 是组件视觉目录入口，指向 _library/components/workbench-components.yaml。
-- _library/components/workbench-components.yaml 使用 design-tokens.yaml 表达 AppShell、SidebarProjectItem、Button、MetricCard、Panel、ActionRow、FindingRow、StatusBadge 和 Input 的视觉规格。
+- _library/components/workbench-components.yaml 使用 design-tokens.yaml 表达 AppShell、SidebarProjectItem、Button、MetricCard、Panel、ActionRow、FindingRow、StatusBadge、Input、Dialog 和 CheckRow 的视觉规格。
 - themes/light.yaml 和 themes/dark.yaml 仅覆盖 token 值，不改变 brief.md 的视觉策略。
 - _library/style-preview.html 使用同一视觉策略展示预览图中的主要组件和状态。
 

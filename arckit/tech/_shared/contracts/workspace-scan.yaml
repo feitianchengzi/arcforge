@@ -2,14 +2,14 @@ metadata:
   path: tech/_shared/contracts/workspace-scan.yaml
   domain: workspace
   owner: electron/main
-  version: 1
+  version: 2
   created: 2026-05-21
-  updated: 2026-05-21
+  updated: 2026-07-30
 endpoint:
   transport: electron-ipc
   channel: workspace:scan
   method_name: scanWorkspace
-  summary: Scan a ArcForge workspace.
+  summary: Scan an ArcForge workspace, including its optional Git-tracked Skill project manifest.
   auth_required: false
 request:
   args:
@@ -26,9 +26,12 @@ responses:
       message: Workspace config JSON cannot be parsed.
     - code: FILE_READ_FAILED
       message: Required workspace file cannot be read.
+    - code: SKILL_PROJECT_MANIFEST_INVALID
+      message: The optional Skill project manifest cannot be parsed or contains unsafe paths.
 business_logic:
   flow:
     - Load workspace config or default config.
+    - Load arcforge.skill-project.json independently from user-local project config when present.
     - Discover skills and shared assets.
+    - Match manifest availability entries to discovered skill paths and emit stale, duplicate, unclassified, or illegal-mode diagnostics.
     - Run audit and return a combined snapshot.
-

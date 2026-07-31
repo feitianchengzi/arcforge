@@ -9,72 +9,154 @@
 <body>
     <div class="wireframe-container">
         <header><h1>Destinations</h1><div class="meta-info"><div>Page: <code>destinations</code></div></div></header>
+
         <details open>
-            <summary>目标列表与详情</summary>
+            <summary>目标组合与漂移检查</summary>
             <div class="state-content">
-                <div class="state-description"><strong>触发条件：</strong>进入 Destinations 页面。</div>
+                <div class="state-description"><strong>触发条件：</strong>用户进入页面或选择一个目标组合。</div>
                 <div class="wireframe-canvas">
                     <div class="device-frame desktop" data-kit="DestinationList">
-                        <div class="toolbar"><div class="nav-title">Destinations</div><div class="toolbar-spacer"></div><div class="button small">Add destination</div><div class="button small">Check drift</div></div>
+                        <div class="toolbar"><div class="nav-title">Destinations</div><div class="toolbar-spacer"></div><div class="button small">New target group</div></div>
                         <div class="split-h">
                             <aside class="sidebar">
+                                <div class="sidebar-section">Target groups</div>
+                                <div class="list-item active"><div class="list-item-text"><div class="list-item-title">Team agents</div><div class="list-item-subtitle">default / Codex + Claude</div></div></div>
                                 <div class="sidebar-section">Application relations</div>
-                                <div class="list-item active"><div class="list-item-text"><div class="list-item-title">customer-app</div><div class="list-item-subtitle">from team-skills / drifted</div></div><span class="badge">drift</span></div>
-                                <div class="sidebar-section">One-time targets</div>
-                                <div class="list-item"><div class="list-item-title">Codex home</div></div>
+                                <div class="list-item"><div class="list-item-text"><div class="list-item-title">team-skills</div><div class="list-item-subtitle">3 resolved destinations</div></div></div>
                             </aside>
                             <main class="panel">
-                                <div class="panel-header">customer-app application relation</div>
+                                <div class="panel-header">Team agents</div>
                                 <div class="content-area">
-                                    <div class="card-grid">
-                                        <div class="card"><div class="card-title">Source</div><div>team-skills</div></div>
-                                        <div class="card"><div class="card-title">Profile</div><div>Team default</div></div>
-                                        <div class="card"><div class="card-title">Target path</div><div>.codex/skills</div></div>
-                                        <div class="card"><div class="card-title">Status</div><div>1 file drifted</div></div>
+                                    <div class="group-box"><div class="group-box-title">Selected targets</div>
+                                        <div class="list-item"><div class="list-item-text"><div class="list-item-title">Codex user</div><div class="list-item-subtitle">~/.codex/skills</div></div></div>
+                                        <div class="list-item"><div class="list-item-text"><div class="list-item-title">customer-app / Claude</div><div class="list-item-subtitle">customer-app/.claude/skills</div></div></div>
                                     </div>
-                                    <div class="group-box"><div class="group-box-title">Applied skills</div>
-                                        <div class="list-item"><div class="list-item-title">review-code</div><span class="badge">changed</span></div>
-                                        <div class="list-item"><div class="list-item-title">release-checklist</div><span class="badge active">ok</span></div>
-                                    </div>
-                                    <div class="button primary">Reapply profile</div>
-                                    <div class="button">View diff</div>
+                                    <div class="button">Check drift</div>
+                                    <div class="button primary">Review application plan</div>
+                                    <div class="group-box"><div class="group-box-title">Latest drift</div><div>2 changed / 5 checked · policy change detected</div></div>
                                 </div>
                             </main>
                         </div>
                     </div>
                 </div>
-                <div class="component-list"><h3>组件清单</h3><ul><li>DestinationList</li><li>target details</li><li>applied skills</li><li>drift status</li></ul></div>
-                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">目标详情只展示和准备计划，写入前进入确认。</div></div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>DestinationList</li><li>target group details</li><li>DriftSummary</li><li>application relations</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">标准 Agent 目标先检查漂移；有漂移报告后开放应用计划审查。</div></div>
             </div>
         </details>
+
         <details>
-            <summary>添加目标、应用计划与漂移差异</summary>
+            <summary>添加或编辑目标组合</summary>
             <div class="state-content">
-                <div class="state-description"><strong>触发条件：</strong>用户添加目标、重新应用或查看差异。</div>
+                <div class="state-description"><strong>触发条件：</strong>用户点击新增或编辑目标组合。</div>
                 <div class="wireframe-canvas">
-                    <div class="device-frame desktop" data-kit="PlanAndDiff">
+                    <div class="device-frame desktop">
                         <div class="modal-overlay">
-                            <div class="modal-content" data-label="Add destination">
-                                <div class="picker">Maintenance source: team-skills</div>
-                                <div class="picker">Type: Codex / Project / Custom</div>
-                                <div class="input-field">Target path</div>
-                                <div class="picker">Profile: Team default</div>
-                                <div class="toggle-row"><span>Save as application relation</span><div class="toggle-track on"></div></div>
-                                <div class="button primary">Create plan</div>
-                            </div>
-                            <div class="modal-content" data-label="Apply plan">
-                                <div class="placeholder-box">3 files will be written. 1 file will be overwritten.</div>
-                                <div class="button primary">Apply</div>
-                            </div>
-                            <div class="modal-content" data-label="Drift diff">
-                                <div class="placeholder-box">Source vs target diff preview.</div>
-                                <div class="button primary">Reapply</div>
+                            <div class="modal-content" data-label="Edit target group" data-kit="Sheet">
+                                <div class="input-field">Name: Team agents</div>
+                                <div class="picker">Profile: default</div>
+                                <div class="section-header">Agent targets</div>
+                                <div class="toggle-row"><span>Codex user directory</span><div class="toggle-track on"></div></div>
+                                <div class="toggle-row"><span>Claude user directory</span><div class="toggle-track on"></div></div>
+                                <div class="section-header">Agent project folders</div>
+                                <div class="list-item"><div class="list-item-text"><div class="list-item-title">customer-app</div><div class="list-item-subtitle">Combined with selected Agents</div></div></div>
+                                <div class="section-header">Custom direct directories</div>
+                                <div class="placeholder-box">Standard Agent and custom direct targets must use separate groups.</div>
+                                <div class="button primary">Save target group</div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="component-list"><h3>组件清单</h3><ul><li>Sheet</li><li>PlanPreview</li><li>DiffView</li><li>InlineError</li></ul></div>
-                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">应用失败保留计划和目标路径，允许修正后重试。</div></div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>Sheet</li><li>Agent checklist</li><li>project folder picker</li><li>custom directory picker</li><li>field hint</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">同时选择标准 Agent 与自定义 direct 目录时禁用保存，并要求拆分目标组合。</div></div>
+            </div>
+        </details>
+
+        <details>
+            <summary>审查三类 Skill 可用性计划</summary>
+            <div class="state-content">
+                <div class="state-description"><strong>触发条件：</strong>标准 Agent 目标已有漂移报告，用户点击审查应用计划。</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop">
+                        <div class="modal-overlay">
+                            <div class="modal-content" data-label="Application plan" data-kit="ConfirmationDialog">
+                                <div class="card"><div class="card-title">review-code <span class="badge active">User · ambient</span></div><div>Source: User · ambient · Policy: source recommendation</div><div class="list-item-subtitle">~/.codex/skills/review-code</div></div>
+                                <div class="card"><div class="card-title">project-release <span class="badge active">Project · ambient</span></div><div>Source: Project · ambient · Policy: profile override</div><div class="list-item-subtitle">customer-app/.claude/skills/project-release</div></div>
+                                <div class="card"><div class="card-title">rare-audit <span class="badge active">User · on demand</span></div><div>Source: User · on demand · Policy: source recommendation</div><div class="list-item-subtitle">~/.arcforge/catalog/source-key/rare-audit</div></div>
+                                <div class="group-box"><div class="group-box-title">On-demand entry skill</div><div>Codex: ~/.codex/skills/arcforge-on-demand</div></div>
+                                <div class="button primary">Confirm application</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>ConfirmationDialog</li><li>PlanPreview</li><li>mode badge</li><li>policy origin</li><li>resolved paths</li><li>loader targets</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">每个 skill 同时展示来源推荐、最终模式、策略来源与实际目录；按需入口与 catalog 目录分开展示。</div></div>
+            </div>
+        </details>
+
+        <details>
+            <summary>计划被诊断阻断</summary>
+            <div class="state-content">
+                <div class="state-description"><strong>触发条件：</strong>来源清单、Agent 或项目目标上下文产生 error 诊断。</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop">
+                        <div class="modal-overlay">
+                            <div class="modal-content" data-label="Blocked application plan" data-kit="ConfirmationDialog">
+                                <div class="group-box"><div class="group-box-title">Plan diagnostics</div>
+                                    <div class="list-item"><span class="badge active">ERROR</span><div class="list-item-text"><div class="list-item-title">PROJECT_TARGET_REQUIRED</div><div class="list-item-subtitle">Project ambient skills require a project folder.</div></div></div>
+                                    <div class="list-item"><span class="badge">WARNING</span><div class="list-item-text"><div class="list-item-title">UNCLASSIFIED_SKILL</div><div class="list-item-subtitle">Compatibility routing is visible but does not block.</div></div></div>
+                                </div>
+                                <div class="placeholder-box">Confirm application disabled until every error is resolved.</div>
+                                <div class="button">Cancel and edit targets</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>diagnostic list</li><li>severity badge</li><li>DisabledAction</li><li>cancel action</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">warning 允许继续；任一 error 禁用写入，用户取消后修正来源、Profile 或目标。</div></div>
+            </div>
+        </details>
+
+        <details>
+            <summary>确认旧路径清理与关系保存</summary>
+            <div class="state-content">
+                <div class="state-description"><strong>触发条件：</strong>模式或来源身份变化使旧 managed 目标进入 cleanup 候选。</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop">
+                        <div class="modal-overlay">
+                            <div class="modal-content" data-label="Cleanup confirmation" data-kit="ConfirmationDialog">
+                                <div class="section-header">Stale managed destinations</div>
+                                <div class="toggle-row"><span>rare-audit · ~/.codex/skills/rare-audit</span><div class="toggle-track"></div></div>
+                                <div class="toggle-row"><span>Save application relationship</span><div class="toggle-track on"></div></div>
+                                <div class="placeholder-box">Select every stale path before saving the updated relationship, or turn relationship saving off.</div>
+                                <div class="button">Cancel</div>
+                                <div class="button primary">Confirm application</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>cleanup checklist</li><li>relationship toggle</li><li>field hint</li><li>ConfirmationDialog</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">保存关系要求全部 cleanup 候选获得确认；关闭关系保存时只处理明确选择的路径。</div></div>
+            </div>
+        </details>
+
+        <details>
+            <summary>应用中、完成与失败恢复</summary>
+            <div class="state-content">
+                <div class="state-description"><strong>触发条件：</strong>用户确认无阻断的最新计划。</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop" data-kit="ResultSummary">
+                        <div class="toolbar"><div class="nav-title">Applying availability plan</div><div class="toolbar-spacer"></div><span class="badge">Close disabled</span></div>
+                        <div class="content-area">
+                            <div class="progress-bar"><div class="progress-fill"></div></div>
+                            <div class="group-box"><div class="group-box-title">Completed</div><div>Applied 4 destinations · removed 1 confirmed stale path.</div></div>
+                            <div class="group-box"><div class="group-box-title">Failure recovery</div><div>Plan and selections remain available. Retry or cancel and edit the source, Profile, or targets.</div></div>
+                            <div class="button">Retry</div>
+                            <div class="button primary">Return to refreshed drift</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>Progress</li><li>ResultSummary</li><li>InlineError</li><li>retry action</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">执行中禁用关闭和重复提交；成功刷新漂移与关系，失败保留计划和选择。</div></div>
             </div>
         </details>
     </div>

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, FolderOpen, HardDrive, Pencil, Plus, Trash2 } from "lucide-react";
-import type { AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
+import type { AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, SkillAvailabilityPlan, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import type { DefaultTarget } from "../types";
-import { basename, createApplyTargetGroup, formatDate, formatTimeAgo, resolveApplyTargetEntries, selectedSkillCount, summarizeApplyResults } from "../utils";
+import { basename, createApplyTargetGroup, formatDate, formatTimeAgo, hasMixedApplyTargetModes, resolveApplyTargetEntries, selectedSkillCount, summarizeApplyResults, usesAvailabilityPlanning } from "../utils";
 
 const AUTO_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -24,11 +24,16 @@ export function ApplySkills(props: {
   autoCheckReady: boolean;
   isCheckingDrift: boolean;
   applyResults: ApplyProfileResult[];
+  availabilityPreview?: { group: ApplyTargetGroup; plan: SkillAvailabilityPlan };
+  isPlanningAvailability: boolean;
+  isApplyingAvailability: boolean;
   appliedSources: AppliedSourceRecord[];
   appliedSourceDriftReports: DriftReport[];
   targetHistory: TargetRecord[];
   checkTargetGroupDrift: (group: ApplyTargetGroup) => void;
   applyTargetGroup: (group: ApplyTargetGroup) => void;
+  confirmAvailabilityApply: (cleanupPaths: string[], save: boolean) => void;
+  cancelAvailabilityPlan: () => void;
   checkAppliedSourceDrift: (id?: string) => void;
   runAppliedSource: (id?: string) => void;
   openDriftDiff: (report: DriftReport) => void;
@@ -40,12 +45,14 @@ export function ApplySkills(props: {
   const selectedSkills = activeGroup ? selectedSkillCount(props.snapshot, activeGroup.profile) : 0;
   const latestApplySummary = summarizeApplyResults(props.applyResults);
   const hasDriftChanges = props.driftReports.some((report) => report.items.some((item) => item.status !== "same"));
-  const canApply = Boolean(activeGroup && selectedTargets.length > 0 && hasDriftChanges && !props.isCheckingDrift);
+  const availabilityAware = Boolean(activeGroup && usesAvailabilityPlanning(activeGroup));
+  const mixedTargetModes = Boolean(activeGroup && hasMixedApplyTargetModes(activeGroup));
+  const canApply = Boolean(activeGroup && selectedTargets.length > 0 && !props.isCheckingDrift && !mixedTargetModes && (availabilityAware ? props.driftReports.length > 0 : hasDriftChanges));
   const displayedAtMs = useMemo(() => Date.now(), [props.snapshot.root, activeGroup?.id, props.driftCheck?.checkedAt]);
 
   useEffect(() => {
     if (!props.autoCheckReady) return;
-    if (!activeGroup || props.isCheckingDrift || selectedTargets.length === 0) return;
+    if (!activeGroup || hasMixedApplyTargetModes(activeGroup) || props.isCheckingDrift || selectedTargets.length === 0) return;
     if (!isStaleCheck(props.driftCheck, props.driftSignature)) return;
     props.checkTargetGroupDrift(activeGroup);
   }, [props.autoCheckReady, activeGroup?.id, props.driftCheck?.checkedAt, props.driftCheck?.signature, props.driftSignature, props.isCheckingDrift, selectedTargets.length]);
@@ -110,7 +117,7 @@ export function ApplySkills(props: {
                   <strong>{record.sourceName ?? record.sourceRoot}</strong>
                   <span className="badge">{t.appliedRelationKind(record.relationKind)}</span>
                   <p>{t.appliedSourceSummary(record.skills.length, record.profile)}</p>
-                  <span>{record.targetDir}</span>
+                  <span>{appliedTargetSummary(record, t)}</span>
                 </div>
                 <div className="actions">
                   <button onClick={() => props.checkAppliedSourceDrift(record.id)} disabled={props.isCheckingDrift}>{props.isCheckingDrift ? t.checkingDrift : t.checkDrift}</button>
@@ -160,9 +167,13 @@ export function ApplySkills(props: {
               </div>
             )}
             <div className="actions">
-              <button onClick={() => props.checkTargetGroupDrift(activeGroup)} disabled={selectedTargets.length === 0 || props.isCheckingDrift}>{props.isCheckingDrift ? t.checkingDrift : t.checkDrift}</button>
-              <button className={canApply ? "primary" : undefined} onClick={() => props.applyTargetGroup(activeGroup)} disabled={!canApply}>{t.apply}</button>
+              <button onClick={() => props.checkTargetGroupDrift(activeGroup)} disabled={selectedTargets.length === 0 || props.isCheckingDrift || mixedTargetModes}>{props.isCheckingDrift ? t.checkingDrift : t.checkDrift}</button>
+              <button className={canApply ? "primary" : undefined} onClick={() => props.applyTargetGroup(activeGroup)} disabled={!canApply || props.isPlanningAvailability}>
+                {props.isPlanningAvailability ? t.planningAvailability : availabilityAware ? t.reviewAvailabilityPlan : t.apply}
+              </button>
             </div>
+            {availabilityAware && <p className="muted">{t.availabilityPlanningHelp}</p>}
+            {mixedTargetModes && <p className="field-hint">{t.mixedTargetModesHelp}</p>}
             {selectedTargets.length === 0 && <p className="muted">{activeGroup.projectTargetDirs.length > 0 ? t.agentRequired : t.targetRequired}</p>}
             {latestApplySummary && <p className="muted">{t.copiedSkipped(latestApplySummary.copied, latestApplySummary.skipped, latestApplySummary.copiedAssets, latestApplySummary.skippedAssets)}</p>}
           </>
@@ -219,8 +230,24 @@ export function ApplySkills(props: {
           onClose={() => setEditingGroup(undefined)}
         />
       )}
+      {props.availabilityPreview && (
+        <AvailabilityPlanDialog
+          t={t}
+          group={props.availabilityPreview.group}
+          plan={props.availabilityPreview.plan}
+          isApplying={props.isApplyingAvailability}
+          onConfirm={props.confirmAvailabilityApply}
+          onClose={props.cancelAvailabilityPlan}
+        />
+      )}
     </div>
   );
+}
+
+function appliedTargetSummary(record: AppliedSourceRecord, t: Dictionary): string {
+  if (record.targetDir) return record.targetDir;
+  const paths = [...new Set(record.availabilityItems?.flatMap((item) => item.destinations) ?? [])];
+  return paths.length > 0 ? t.availabilityDestinationCount(paths.length) : t.noSelectedTargets;
 }
 
 function isStaleCheck(record: ApplyDriftCheckRecord | undefined, signature: string): boolean {
@@ -284,8 +311,9 @@ function ApplyTargetDialog(props: {
   }
 
   const customTargetCount = (draft.customTargetDirs ?? []).length;
+  const mixedTargetModes = draft.agentTargetIds.length > 0 && customTargetCount > 0;
   const needsAgentForProjectTargets = draft.projectTargetDirs.length > 0 && draft.agentTargetIds.length === 0;
-  const canSave = draft.agentTargetIds.length > 0 || customTargetCount > 0;
+  const canSave = !mixedTargetModes && (draft.agentTargetIds.length > 0 || customTargetCount > 0);
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={props.onClose}>
@@ -347,10 +375,138 @@ function ApplyTargetDialog(props: {
             ))}
           </div>
         )}
-        {!canSave && <p className="field-hint">{t.targetRequired}</p>}
+        {mixedTargetModes && <p className="field-hint">{t.mixedTargetModesHelp}</p>}
+        {!canSave && !mixedTargetModes && <p className="field-hint">{t.targetRequired}</p>}
         <div className="actions modal-actions">
           <button onClick={props.onClose}>{t.cancel}</button>
           <button className="primary" onClick={() => props.onSave({ ...draft, name: draft.name.trim() || t.unnamedProfile, customTargetDirs: draft.customTargetDirs ?? [] })} disabled={!canSave}>{t.saveTargetGroup}</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function AvailabilityPlanDialog(props: {
+  t: Dictionary;
+  group: ApplyTargetGroup;
+  plan: SkillAvailabilityPlan;
+  isApplying: boolean;
+  onConfirm: (cleanupPaths: string[], save: boolean) => void;
+  onClose: () => void;
+}) {
+  const { t, plan } = props;
+  const [cleanupPaths, setCleanupPaths] = useState<string[]>([]);
+  const [saveRelationship, setSaveRelationship] = useState(true);
+
+  useEffect(() => {
+    setCleanupPaths([]);
+    setSaveRelationship(true);
+  }, [plan.sourceKey, plan.profile, plan.sourcePolicyDigest]);
+
+  const blockingDiagnostics = plan.diagnostics.filter((item) => item.severity === "error");
+  const allCleanupSelected = plan.cleanup.every((item) => cleanupPaths.includes(item.path));
+  const canConfirm = plan.items.length > 0
+    && blockingDiagnostics.length === 0
+    && (!saveRelationship || allCleanupSelected)
+    && !props.isApplying;
+
+  function toggleCleanup(targetPath: string) {
+    setCleanupPaths((current) => current.includes(targetPath)
+      ? current.filter((item) => item !== targetPath)
+      : [...current, targetPath]);
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section className="modal availability-plan-modal" role="dialog" aria-modal="true" aria-labelledby="availability-plan-title">
+        <div className="modal-header">
+          <div>
+            <h3 id="availability-plan-title">{t.availabilityPlan}</h3>
+            <p>{t.availabilityPlanSummary(plan.items.length, props.group.profile)}</p>
+          </div>
+          <button className="icon-button light" onClick={props.onClose} disabled={props.isApplying}>x</button>
+        </div>
+
+        {plan.diagnostics.length > 0 && (
+          <section className="availability-plan-section">
+            <h4>{t.planDiagnostics}</h4>
+            <div className="list compact">
+              {plan.diagnostics.map((diagnostic, index) => (
+                <article key={`${diagnostic.code}:${diagnostic.path ?? index}`} className="row stacked">
+                  <div>
+                    <span className={`badge ${diagnostic.severity === "error" ? "danger" : ""}`}>{diagnostic.code}</span>
+                    <p>{diagnostic.message}</p>
+                    {diagnostic.path && <span>{diagnostic.path}</span>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="availability-plan-section">
+          <h4>{t.skillAvailabilityDestinations}</h4>
+          <div className="list">
+            {plan.items.map((item) => (
+              <article key={`${item.skill}:${item.sourcePath}`} className="row stacked availability-plan-item">
+                <div className="availability-plan-heading">
+                  <strong>{item.skill}</strong>
+                  <div className="availability-badges">
+                    <span className="badge good">{t.availabilityMode(item.effectiveMode)}</span>
+                    <span className="badge">{t.availabilityPolicyOrigin(item.policyOrigin)}</span>
+                  </div>
+                </div>
+                <p>{t.sourceRecommendation}: {item.sourceRecommendation ? t.availabilityMode(item.sourceRecommendation) : t.noSourceRecommendation}</p>
+                <div className="availability-paths">
+                  {item.destinations.length === 0
+                    ? <span>{t.noAvailabilityDestinations}</span>
+                    : item.destinations.map((destination) => <span key={`${destination.kind}:${destination.path}`}>{destination.path}</span>)}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        {plan.loaderTargets.length > 0 && (
+          <section className="availability-plan-section">
+            <h4>{t.onDemandLoaderTargets}</h4>
+            <p className="muted">{t.onDemandLoaderHelp}</p>
+            <div className="availability-paths">
+              {plan.loaderTargets.map((target) => (
+                <span key={`${target.agentId}:${target.path}`}>
+                  {target.agentId}: {target.path} · {t.loaderTargetStatus(target.status)}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {plan.cleanup.length > 0 && (
+          <section className="availability-plan-section cleanup-plan">
+            <h4>{t.cleanupCandidates}</h4>
+            <p className="muted">{t.cleanupConfirmationHelp}</p>
+            <div className="check-list">
+              {plan.cleanup.map((item) => (
+                <label key={item.path} className="check-row">
+                  <input type="checkbox" checked={cleanupPaths.includes(item.path)} onChange={() => toggleCleanup(item.path)} />
+                  <span><strong>{item.skill}</strong><small>{item.path}</small></span>
+                </label>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <label className="check-row availability-save-relation">
+          <input type="checkbox" checked={saveRelationship} onChange={(event) => setSaveRelationship(event.target.checked)} />
+          <span><strong>{t.saveAvailabilityRelationship}</strong><small>{t.saveAvailabilityRelationshipHelp}</small></span>
+        </label>
+        {saveRelationship && plan.cleanup.length > 0 && !allCleanupSelected && <p className="field-hint">{t.cleanupRequiredForSavedRelationship}</p>}
+
+        <div className="actions modal-actions">
+          <button onClick={props.onClose} disabled={props.isApplying}>{t.cancel}</button>
+          <button className="primary" onClick={() => props.onConfirm(cleanupPaths, saveRelationship)} disabled={!canConfirm}>
+            {props.isApplying ? t.applyingAvailability : t.confirmAvailabilityApply}
+          </button>
         </div>
       </section>
     </div>

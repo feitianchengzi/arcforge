@@ -16,6 +16,16 @@
 
 默认配置版本为 1，来源目录通常为 `skills`；如果工作区根目录本身包含 `SKILL.md` 或大小写不同的 `skill.md`，来源目录为 `.`。默认配置组名称为 `default`，技能选择为全部技能，目标为 Codex、Claude 和 Cursor。
 
+## Skill 项目清单
+
+工作区根目录的 `arcforge.skill-project.json` 是 Git 跟踪的维护源清单，模型为 `SkillProjectManifest`。它与 `~/.arcforge/projects/<project-key>.json` 中的用户级配置独立加载，不参与 `arcforge.config.json` 迁移和删除。
+
+清单存在时，扫描先解析版本和 `sourceDir`，再发现 skills，最后按项目根相对路径校验 availability entries。清单 `sourceDir` 优先于自动发现，但不覆盖用户通过 CLI 明确传入的只读 `--source-dir` 扫描参数。
+
+清单缺失不是错误。语法、版本、路径安全、重复条目、未命中 skill 和未分类 skill 结果进入 `WorkspaceSnapshot.sourceManifestDiagnostics`。Error 阻止依赖推荐策略的应用计划，warning 不阻止扫描和编辑。
+
+`WorkspaceSnapshot.sourceManifest` 只保存来源清单事实；`WorkspaceSnapshot.config` 只保存用户级消费配置。聚合层不把两者预先合并，最终可用性由 profiles-sync resolver 按可追溯优先级计算。
+
 ## 技能发现
 
 技能发现从配置指定的来源目录开始。来源目录不存在时，发现结果为空数组。
@@ -58,11 +68,11 @@ frontmatter 解析器支持文档开头的 `---` 块。解析结果包含 frontm
 
 ## 快照聚合
 
-`scanWorkspace` 加载配置、发现技能、发现共享资产，并调用审计方案生成审计报告。
+`scanWorkspace` 加载用户级配置和 Skill 项目清单、发现技能、发现共享资产，并调用审计方案生成审计报告。
 
 扫描会尝试识别当前工作区是否位于本地 Git 仓库内。识别成功时，快照包含 Git 根目录、工作区相对 Git 根目录的路径、当前分支和远端列表；识别失败时该字段为空。
 
-返回模型为 `WorkspaceSnapshot`，包含根路径、配置、技能列表、共享资产列表、审计报告和可选本地 Git 来源信息。
+返回模型为 `WorkspaceSnapshot`，包含根路径、用户级配置、可选来源清单、清单诊断、技能列表、共享资产列表、审计报告和可选本地 Git 来源信息。
 
 桌面端和 CLI 均以该模型作为主要数据输入。
 

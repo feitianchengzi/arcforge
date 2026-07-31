@@ -1,0 +1,187 @@
+metadata:
+  path: tech/_shared/models/SkillAvailabilityPlan.yaml
+  domain: profiles-sync
+  entity_name: SkillAvailabilityPlan
+  storage: in_memory
+  owner: core/skill-availability
+  version: 2
+  created: 2026-07-30
+  updated: 2026-07-31
+type: object
+required:
+  - sourceKey
+  - profile
+  - items
+  - loaderTargets
+  - cleanup
+  - diagnostics
+  - requiresConfirm
+properties:
+  sourceKey:
+    type: string
+    description: Path-safe 24-character source identity hash.
+  sourceIdentity:
+    type: string
+    description: Canonical Git remote plus subdirectory, or canonical local real path when no Git identity exists.
+  profile:
+    type: string
+  sourcePolicyDigest:
+    type: string
+    nullable: true
+    description: SHA-256 digest of the normalized source availability policy.
+  items:
+    type: array
+    items:
+      type: object
+      required:
+        - skill
+        - sourcePath
+        - effectiveMode
+        - policyOrigin
+        - destinations
+        - contentDigest
+      properties:
+        skill:
+          type: string
+        sourcePath:
+          type: string
+        sourceRecommendation:
+          type: string
+          nullable: true
+          enum:
+            - user-ambient
+            - project-ambient
+            - user-on-demand
+        sourceRecommendationOrigin:
+          type: string
+          enum:
+            - skill
+            - project
+            - none
+        consumerOverride:
+          type: string
+          nullable: true
+          enum:
+            - user-ambient
+            - project-ambient
+            - user-on-demand
+        effectiveMode:
+          type: string
+          enum:
+            - user-ambient
+            - project-ambient
+            - user-on-demand
+        policyOrigin:
+          type: string
+          enum:
+            - invocation
+            - profile-skill
+            - profile-default
+            - source-skill
+            - source-default
+            - compatibility
+        destinations:
+          type: array
+          items:
+            type: object
+            required:
+              - kind
+              - path
+            properties:
+              kind:
+                type: string
+                enum:
+                  - user-agent
+                  - project-agent
+                  - user-catalog
+              agentId:
+                type: string
+                nullable: true
+              projectRoot:
+                type: string
+                nullable: true
+              path:
+                type: string
+        contentDigest:
+          type: string
+          description: SHA-256 digest of the normalized skill directory manifest.
+  loaderTargets:
+    type: array
+    description: User-level agent skill directories that must contain the ArcForge on-demand entry skill.
+    items:
+      type: object
+      required:
+        - agentId
+        - path
+        - status
+        - expectedDigest
+      properties:
+        agentId:
+          type: string
+        path:
+          type: string
+        status:
+          type: string
+          enum:
+            - missing
+            - same
+            - managed-update
+            - conflict
+          description: Whether the target is absent, content-identical, owned by a saved ArcForge availability relation, or an unresolved same-name conflict.
+        expectedDigest:
+          type: string
+          description: SHA-256 digest of the bundled ArcForge loader used to build the plan.
+        existingDigest:
+          type: string
+          nullable: true
+          description: SHA-256 digest observed at plan time when the existing target is a readable directory.
+  cleanup:
+    type: array
+    description: Previously managed paths that become stale because selection or effective mode changed.
+    items:
+      type: object
+      required:
+        - skill
+        - path
+        - reason
+        - requiresConfirm
+      properties:
+        skill:
+          type: string
+        path:
+          type: string
+        reason:
+          type: string
+        requiresConfirm:
+          type: boolean
+  diagnostics:
+    type: array
+    items:
+      type: object
+      required:
+        - severity
+        - code
+        - message
+      properties:
+        severity:
+          type: string
+          enum:
+            - info
+            - warning
+            - error
+        code:
+          type: string
+        skill:
+          type: string
+          nullable: true
+        message:
+          type: string
+  requiresConfirm:
+    type: boolean
+validation:
+  deterministic_resolution:
+    description: Identical source manifest, local profile, invocation overrides, target context, and source identity produce the same plan.
+  blocking_diagnostics:
+    description: Plans containing error diagnostics cannot run.
+  cleanup_confirmation:
+    description: Every cleanup item requires explicit confirmation and is never executed by plan or drift operations.

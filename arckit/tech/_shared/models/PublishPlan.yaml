@@ -4,9 +4,9 @@ metadata:
   entity_name: PublishPlan
   storage: in_memory
   owner: core/publish
-  version: 1
+  version: 2
   created: 2026-05-21
-  updated: 2026-05-21
+  updated: 2026-07-30
 type: object
 required:
   - root
@@ -40,9 +40,28 @@ properties:
     type: array
     items:
       type: string
+  sourceManifest:
+    type: object
+    nullable: true
+    description: Normalized Git-tracked SkillProjectManifest to publish with this selection; null when the source project has no manifest.
+    properties:
+      path:
+        type: string
+        const: arcforge.skill-project.json
+      selectedSkillPaths:
+        type: array
+        items:
+          type: string
+      policyDigest:
+        type: string
+      diagnostics:
+        type: array
+        items:
+          type: string
 validation:
   install_reference:
     description: Uses config.teamRepo when present, otherwise github.com/<owner>/<repositoryName>.
   visibility_check:
     description: Public visibility includes private information removal guidance; private visibility includes permissions guidance.
-
+  manifest_selection:
+    description: When present, the published manifest retains the source defaultMode and only per-skill entries whose paths are included in files; local profiles, targets, and applied history are never serialized.

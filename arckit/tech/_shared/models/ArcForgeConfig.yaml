@@ -4,9 +4,9 @@ metadata:
   entity_name: ArcForgeConfig
   storage: ~/.arcforge/projects/<project-key>.json
   owner: core/config
-  version: 1
+  version: 2
   created: 2026-05-21
-  updated: 2026-05-25
+  updated: 2026-07-30
 type: object
 required:
   - version
@@ -134,6 +134,35 @@ properties:
           items:
             type: string
           description: Agent target identifiers such as codex, claude, or cursor.
+        availability:
+          type: object
+          nullable: true
+          description: Consumer-side defaults and overrides applied before source recommendations.
+          properties:
+            defaultMode:
+              type: string
+              nullable: true
+              enum:
+                - user-ambient
+                - project-ambient
+                - user-on-demand
+            skills:
+              type: array
+              nullable: true
+              items:
+                type: object
+                required:
+                  - skill
+                  - mode
+                properties:
+                  skill:
+                    type: string
+                  mode:
+                    type: string
+                    enum:
+                      - user-ambient
+                      - project-ambient
+                      - user-on-demand
 validation:
   default_profile:
     description: Missing config files resolve to one default profile with wildcard skills.
@@ -141,3 +170,7 @@ validation:
     description: Saved config trims profile names, descriptions, teamRepo, shareProjectName, target group names, remote URLs, project names, and target directory lists.
   apply_target_group:
     description: A desktop apply target group is valid when it has at least one agent target or one custom target. Project target directories require at least one agent target.
+  availability_override:
+    description: Profile skill overrides use selected skill names, are unique per profile, and accept only the three legal availability modes.
+  backward_compatibility:
+    description: Missing profile availability does not override source recommendations; when both source and consumer policy are absent, legacy target selection resolves to ambient mode.

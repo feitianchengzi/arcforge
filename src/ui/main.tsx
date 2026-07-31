@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { Download, Edit3, FolderOpen, GitBranch, GripVertical, HardDrive, ListOrdered, PackageCheck, RefreshCw, Rocket, Settings, ShieldCheck, Trash2 } from "lucide-react";
-import type { AgentAuditProxyConfig, AppState, AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, InstalledSkillOrganizePlan, InstalledSkillsInventory, InstalledSkillsScanOptions, ProjectUiState, RecentWorkspace, ShareDriftCheckRecord, SharePlanResult, ShareResult, ShareTargetGroup, ArcForgeConfig, SourceUpdateCheckRecord, TargetRecord, WorkspaceSnapshot } from "../shared/types";
+import type { AgentAuditProxyConfig, AppState, AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, EnvironmentStatus, InstalledSkillOrganizePlan, InstalledSkillsInventory, InstalledSkillsScanOptions, ProjectUiState, RecentWorkspace, ShareDriftCheckRecord, SharePlanResult, ShareResult, ShareTargetGroup, SkillAvailabilityPlan, ArcForgeConfig, SourceUpdateCheckRecord, TargetRecord, WorkspaceSnapshot } from "../shared/types";
 import { GITHUB_ISSUE_URL } from "../shared/links";
 import { MAX_RECENT_WORKSPACES, readLegacyAppState } from "./app-state";
 import { AddProjectDialog, CliRepairDialog, EmptyState, EnvironmentNotice, PendingProject, ProjectHeader, SettingsDialog } from "./components/shell";
 import { dictionaries, type Language } from "./i18n";
 import type { CliRepairNotice, DefaultTarget, Tab } from "./types";
-import { basename, buildCliRepairNotice, errorMessage, initialLanguage, normalizeLocalProjectRoot, projectNameFromSource, resolveApplyTargetEntries } from "./utils";
+import { basename, buildCliRepairNotice, errorMessage, hasMixedApplyTargetModes, initialLanguage, normalizeLocalProjectRoot, projectNameFromSource, resolveApplyTargetEntries, usesAvailabilityPlanning } from "./utils";
 import { Audit, Overview, SkillsList } from "./views/dashboard";
 import { ApplySkills } from "./views/destinations";
 import { InstalledSkills } from "./views/installed";
@@ -58,6 +58,9 @@ function App() {
   const [shareProgress, setShareProgress] = useState<string | undefined>();
   const [driftReports, setDriftReports] = useState<DriftReport[]>([]);
   const [applyResults, setApplyResults] = useState<ApplyProfileResult[]>([]);
+  const [availabilityPreview, setAvailabilityPreview] = useState<{ group: ApplyTargetGroup; plan: SkillAvailabilityPlan } | undefined>();
+  const [isPlanningAvailability, setIsPlanningAvailability] = useState(false);
+  const [isApplyingAvailability, setIsApplyingAvailability] = useState(false);
   const [appliedSources, setAppliedSources] = useState<AppliedSourceRecord[]>([]);
   const [appliedSourceDriftReports, setAppliedSourceDriftReports] = useState<DriftReport[]>([]);
   const [recentWorkspaces, setRecentWorkspaces] = useState<RecentWorkspace[]>([]);
@@ -633,6 +636,7 @@ function App() {
     setDriftReports([]);
     setAppliedSourceDriftReports([]);
     setApplyResults([]);
+    setAvailabilityPreview(undefined);
     setShareResult(undefined);
     setSharePlan(undefined);
     setShareProgress(undefined);
@@ -664,6 +668,34 @@ function App() {
 
   async function applyTargetGroup(group: ApplyTargetGroup) {
     if (!root) return;
+    if (hasMixedApplyTargetModes(group)) {
+      setStatus(t.mixedTargetModesHelp);
+      return;
+    }
+    if (usesAvailabilityPlanning(group)) {
+      if (!window.arcforge) {
+        setStatus(t.desktopRequired);
+        return;
+      }
+      setIsPlanningAvailability(true);
+      try {
+        const plan = await window.arcforge.createSkillAvailabilityPlan({
+          root,
+          from: root,
+          profile: group.profile,
+          agentTargetIds: group.agentTargetIds,
+          projectTargetDirs: group.projectTargetDirs
+        });
+        setAvailabilityPreview({ group, plan });
+        const blocking = plan.diagnostics.filter((item) => item.severity === "error").length;
+        setStatus(blocking > 0 ? t.availabilityPlanBlocked(blocking) : t.availabilityPlanReady(plan.items.length));
+      } catch (error) {
+        setStatus(t.errorStatus(errorMessage(error)));
+      } finally {
+        setIsPlanningAvailability(false);
+      }
+      return;
+    }
     const targets = resolveApplyTargetEntries(group, defaultTargets);
     if (targets.length === 0) {
       setStatus(group.projectTargetDirs.length > 0 ? t.agentRequired : t.targetRequired);
@@ -695,8 +727,54 @@ function App() {
     }
   }
 
+  async function confirmAvailabilityApply(cleanupPaths: string[], save: boolean) {
+    if (!root || !availabilityPreview || !window.arcforge) return;
+    const { group } = availabilityPreview;
+    setIsApplyingAvailability(true);
+    try {
+      const execution = await window.arcforge.applySkillAvailabilityPlan({
+        root,
+        from: root,
+        profile: group.profile,
+        agentTargetIds: group.agentTargetIds,
+        projectTargetDirs: group.projectTargetDirs,
+        cleanupPaths,
+        save,
+        confirm: true
+      });
+      const report = await window.arcforge.driftSkillAvailability({
+        root,
+        from: root,
+        profile: group.profile,
+        agentTargetIds: group.agentTargetIds,
+        projectTargetDirs: group.projectTargetDirs
+      });
+      setApplyResults([execution.result]);
+      setDriftReports([report]);
+      rememberApplyDriftCheck(group.id, {
+        checkedAt: new Date().toISOString(),
+        signature: applyDriftSignature(group, defaultTargets),
+        reports: [report]
+      });
+      for (const item of execution.result.destinations ?? []) {
+        rememberTarget(item.path, `${group.name} / ${item.skill}`, group.profile);
+      }
+      await refreshAppliedSources(root);
+      setAvailabilityPreview(undefined);
+      setStatus(t.availabilityApplyComplete(execution.result.destinations?.length ?? 0, execution.result.cleanedPaths?.length ?? 0));
+    } catch (error) {
+      setStatus(t.errorStatus(errorMessage(error)));
+    } finally {
+      setIsApplyingAvailability(false);
+    }
+  }
+
   async function checkTargetGroupDrift(group: ApplyTargetGroup) {
     if (!root) return;
+    if (hasMixedApplyTargetModes(group)) {
+      setStatus(t.mixedTargetModesHelp);
+      return;
+    }
     const targets = resolveApplyTargetEntries(group, defaultTargets);
     if (targets.length === 0) {
       setStatus(group.projectTargetDirs.length > 0 ? t.agentRequired : t.targetRequired);
@@ -706,6 +784,21 @@ function App() {
     try {
       if (!window.arcforge) {
         setStatus(t.desktopRequired);
+        return;
+      }
+      if (usesAvailabilityPlanning(group)) {
+        const report = await window.arcforge.driftSkillAvailability({
+          root,
+          from: root,
+          profile: group.profile,
+          agentTargetIds: group.agentTargetIds,
+          projectTargetDirs: group.projectTargetDirs
+        });
+        const reports = [report];
+        setDriftReports(reports);
+        rememberApplyDriftCheck(group.id, { checkedAt: new Date().toISOString(), signature: applyDriftSignature(group, defaultTargets), reports });
+        const changed = report.items.filter((item) => item.status !== "same").length;
+        setStatus(`${changed} changed / ${report.items.length} checked`);
         return;
       }
       const reports: DriftReport[] = [];
@@ -1132,11 +1225,16 @@ function App() {
                 autoCheckReady={appStateHydrated && defaultTargetsLoaded}
                 isCheckingDrift={isCheckingApplyDrift}
                 applyResults={applyResults}
+                availabilityPreview={availabilityPreview}
+                isPlanningAvailability={isPlanningAvailability}
+                isApplyingAvailability={isApplyingAvailability}
                 appliedSources={appliedSources}
                 appliedSourceDriftReports={appliedSourceDriftReports}
                 targetHistory={projectTargetHistory}
                 checkTargetGroupDrift={checkTargetGroupDrift}
                 applyTargetGroup={applyTargetGroup}
+                confirmAvailabilityApply={confirmAvailabilityApply}
+                cancelAvailabilityPlan={() => setAvailabilityPreview(undefined)}
                 checkAppliedSourceDrift={checkAppliedSourceDrift}
                 runAppliedSource={runAppliedSource}
                 openDriftDiff={openDriftDiff}

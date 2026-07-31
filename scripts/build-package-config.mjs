@@ -47,6 +47,7 @@ const builderConfig = {
     "package.json",
     "dist/**/*",
     "dist-ui/**/*",
+    "skills/arcforge-on-demand/**/*",
     "app.manifest.json",
     "arcforge.config.example.json",
     "README.md",

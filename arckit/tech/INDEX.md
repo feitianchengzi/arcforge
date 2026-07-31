@@ -3,40 +3,45 @@
 ✅ 已采用 | 🔬 调研中 | 📋 调研完成 | ❌ 已废弃 | ⚪ 待定
 
 - architecture/ 总体架构：Electron 桌面壳、React 渲染层、共享 TypeScript core 与本地优先数据流。✅
-  - solution.md 总体架构方案：进程边界、模块分层、本地文件系统与无后端运行模型。✅ (67行)
+  - solution.md 总体架构方案：进程边界、模块分层、本地文件系统与无后端运行模型。✅ (65行)
 - workspace/ 工作区技术：本地项目状态、项目配置迁移、技能发现、共享资产发现、本地 Git 来源识别与工作区快照生成。✅
-  - solution.md 工作区扫描方案：配置加载、frontmatter 解析、目录遍历、本地 Git 来源识别和快照聚合。✅ (89行)
+  - solution.md 工作区扫描方案：本地配置与维护源清单加载、frontmatter 解析、目录遍历、本地 Git 来源识别和快照聚合。✅ (99行)
 - sources/ Skill 项目来源技术：远程下载、本地归并、应用关系、一次性应用、漂移和独立 Git 更新检查。✅
   - solution.md Skill 项目来源技术方案：Skill 项目解析、归并计划与执行、应用关系、一次性应用和 Git fast-forward 更新。✅ (91行)
 - audit/ 审计技术：本地规则引擎、风险匹配、结构质量检查与评分模型。✅
-  - solution.md 规则审计方案：密钥规则、危险指令、结构校验、发现定位和扣分规则。✅ (81行)
-- profiles-sync/ 配置组同步技术：配置组选取、目录复制、哈希签名和漂移报告。✅
-  - solution.md 配置组同步方案：技能选择、替换复制、共享资产同步和 SHA-256 漂移比较。✅ (85行)
+  - solution.md 规则审计方案：密钥规则、危险指令、结构校验、发现定位和扣分规则。✅ (95行)
+- profiles-sync/ 配置组同步技术：维护源推荐、消费端覆盖、三类可用性解析、用户级 catalog、目录复制和双重漂移报告。✅
+  - solution.md 配置组同步方案：策略优先级、应用计划、常驻与按需目标、入口解析、原子复制、共享资产同步和 SHA-256 漂移比较。✅ (178行)
 - sharing-ipc/ 共享与 IPC 技术：Electron preload 桥、应用数据目录注入、技能文件编辑、来源下载、权限预检、共享漂移、共享工作树和 Git/PR 执行。✅
-  - solution.md 共享与 IPC 方案：安全桥接、来源下载、发布计划、共享漂移、共享推送、CLI 修复、技能文件编辑和差异窗口。✅ (169行)
+  - solution.md 共享与 IPC 方案：安全桥接、来源下载、维护源清单交付、发布计划、共享漂移、共享推送、CLI 修复、技能文件编辑和差异窗口。✅ (175行)
 - cli/ 命令行技术：JSON 输出、命令参数、退出码、source/merge/applied/apply/drift/share/doctor 命令和桌面 --cli 模式。✅
-  - solution.md CLI 方案：scan、audit、source、merge、applied、apply、drift、publish-plan、share、doctor 命令和确认边界。✅ (73行)
+  - solution.md CLI 方案：scan、audit、source、merge、applied、apply plan/run、drift、catalog resolve、publish-plan、share、doctor 命令和确认边界。✅ (87行)
 - _shared/models/ 数据模型：跨领域 TypeScript DTO 与持久化配置结构。✅
-  - ArcForgeConfig.yaml 工作区配置模型：来源目录、团队仓库、共享模式、配置组和目标组合列表。✅ (143行)
+  - ArcForgeConfig.yaml 用户级项目配置模型：来源目录、团队仓库、共享模式、配置组、消费端可用性覆盖和目标组合列表。✅ (176行)
   - LocalProjectState.yaml 本地项目状态模型：项目身份、用户级配置覆盖、应用关系和更新时间。✅ (72行)
-  - AppliedSourceRecord.yaml 应用关系记录模型：来源 Skill 项目根目录、配置组、目标目录、技能列表和应用时间。✅ (55行)
-  - WorkspaceSnapshot.yaml 工作区快照模型：配置、技能、共享资产、审计报告和本地 Git 来源信息聚合。✅ (105行)
-  - AuditReport.yaml 审计报告模型：发现列表、严重级别、规则代码、评分、能力边界说明和反馈地址。✅ (83行)
-  - DriftReport.yaml 漂移报告模型：技能/资产状态、文件级差异、共享目标元数据和差异汇总。✅ (119行)
-  - PublishPlan.yaml 发布计划模型：文件清单、安装命令、可见性和检查项。✅ (48行)
+  - AppliedSourceRecord.yaml 应用关系记录模型：来源身份、策略摘要、配置组、目标历史、技能列表和应用时间。✅ (106行)
+  - WorkspaceSnapshot.yaml 工作区快照模型：本地配置、维护源清单及诊断、技能、共享资产、审计报告和 Git 来源信息聚合。✅ (132行)
+  - AuditReport.yaml 审计报告模型：发现列表、严重级别、规则代码、评分、能力边界说明和反馈地址。✅ (126行)
+  - DriftReport.yaml 漂移报告模型：技能/资产内容状态、策略漂移、文件级差异、共享目标元数据和差异汇总。✅ (199行)
+  - PublishPlan.yaml 发布计划模型：文件清单、维护源清单摘要、安装命令、可见性和检查项。✅ (67行)
   - SharePlanResult.yaml 共享计划结果模型：发布计划、GitHub 权限结果、交付方式、分支、目标路径和命令清单。✅ (54行)
   - ShareResult.yaml 共享结果模型：远端地址、分支、目标路径、交付方式、同仓库标记、PR 链接、提交推送状态和消息。✅ (72行)
   - SourceUpdateStatus.yaml 来源更新状态模型：Git 根目录、上游引用、ahead/behind 数、上次 fetch 时间、工作区脏状态和可更新标记。✅ (93行)
   - SourceUpdateResult.yaml 来源更新结果模型：更新前后状态、是否更新、fast-forward-only 标记和 Git 消息。✅ (39行)
   - EnvironmentStatus.yaml 环境状态模型：平台、架构、Git、CLI shim 和第三方工具可用性。✅ (105行)
-  - ApplyProfileResult.yaml 应用结果模型：复制和跳过的技能与共享资产。✅ (46行)
+  - ApplyProfileResult.yaml 应用结果模型：应用计划、各目标复制与跳过结果、catalog 更新和确认清理结果。✅ (90行)
+  - SkillProjectManifest.yaml Skill 项目维护源清单模型：版本、来源目录、项目默认推荐和逐 skill 推荐。✅ (72行)
+  - SkillAvailabilityPlan.yaml Skill 可用性计划模型：策略来源、最终模式、目标映射、入口目标、诊断和待确认清理。✅ (170行)
+  - UserSkillCatalog.yaml 用户级按需 catalog 模型：来源隔离、索引条目、内容摘要和应用关系归属。✅ (88行)
 - _shared/contracts/ IPC 契约：渲染层通过 preload 调用主进程和 core 能力。✅
-  - workspace-scan.yaml 工作区扫描契约：输入根目录，输出工作区快照。✅ (34行)
-  - apply-run.yaml 应用执行契约：输入当前项目、可选来源 Skill 项目、配置组、目标目录和技能选择，输出应用结果与可选应用关系。✅ (56行)
-  - apply-drift.yaml 漂移检查契约：输入当前项目、可选来源 Skill 项目、配置组、目标目录和技能选择，输出漂移报告。✅ (47行)
+  - workspace-scan.yaml 工作区扫描契约：输入根目录，加载可选维护源清单并输出工作区快照。✅ (37行)
+  - apply-plan.yaml 可用性应用计划契约：解析来源推荐、消费端覆盖、三类目标、入口安装和待确认清理，不写文件。✅ (71行)
+  - apply-run.yaml 应用执行契约：执行可用性计划或兼容直接目标模式，输出目标、catalog 和应用关系结果。✅ (85行)
+  - apply-drift.yaml 漂移检查契约：复用可用性计划并输出内容漂移与策略漂移。✅ (65行)
+  - catalog-resolve.yaml 按需 catalog 解析契约：显式触发后按名称或搜索解析并校验单个已安装 skill，不执行 skill。✅ (62行)
   - workspace-add-remote.yaml 远程工作区添加契约：输入 GitHub/Git 来源，返回本地缓存 Skill 项目根目录。✅ (36行)
-  - share-plan.yaml 共享计划契约：输入远端、可见性、目标模式、配置组和交付参数，输出共享计划结果。✅ (68行)
-  - share-run.yaml 共享执行契约：输入远端、可见性、提交信息、目标模式、同仓库模式、交付方式和确认状态，输出共享结果。✅ (99行)
+  - share-plan.yaml 共享计划契约：输入远端、可见性、目标模式、配置组和交付参数，输出含维护源清单摘要的共享计划结果。✅ (71行)
+  - share-run.yaml 共享执行契约：输入远端、配置组和交付参数，原子同步技能与维护源清单并输出共享结果。✅ (101行)
   - share-drift.yaml 共享漂移契约：输入共享目标和配置组，输出不写远端的共享目标漂移报告。✅ (63行)
   - system-environment.yaml 环境检测契约：无业务输入，输出平台与 Git 状态。✅ (26行)
   - skill-file.yaml 技能文件契约：列出、读取、写入工作区文件并打开独立编辑窗口。✅ (84行)

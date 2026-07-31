@@ -1,0 +1,244 @@
+{
+  "schema_version": "project-state-record/v3",
+  "project": {
+    "name": "ArcForge",
+    "status": "active",
+    "created_at": "2026-07-30T08:50:08.647Z",
+    "updated_at": "2026-07-31T07:14:54.875Z",
+    "original_intent": "Local-first, GitHub-first governance workspace for AI agent skills",
+    "current_phase": "runtime-loop"
+  },
+  "active_iteration_ref": "",
+  "active_case_refs": [],
+  "completeness_dimensions": {
+    "project_intent": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "users_and_stakeholders": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "problem_scenarios": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "product_behavior": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "user_experience": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "runtime_surfaces": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "identity_access": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "data_state": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "integration_boundaries": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "architecture_foundation": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "implementation_coverage": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "quality_validation": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "security_privacy": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "delivery_operation": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "observability_support": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "maintainability_handoff": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    },
+    "iteration_governance": {
+      "current_state": "unknown",
+      "target_state": "unknown",
+      "state_reason": "",
+      "evidence": [],
+      "evidence_maturity": "none",
+      "gap": "",
+      "next_transition": "",
+      "blockers": [],
+      "priority": "none",
+      "confidence": "medium"
+    }
+  },
+  "state_gaps": [],
+  "case_control": {
+    "selected_case_ref": "",
+    "selection_reason": "Resolved Case arckit/cases/closed/CASE-20260730-001-skill.md.",
+    "next_case_intent": "",
+    "priority_basis": "No remaining Project state gap requires selection.",
+    "stop_condition": "Stop when no further project-level advancement is intended."
+  },
+  "active_constraints": [],
+  "open_questions": [],
+  "canonical_artifact_refs": [
+    "arckit/cases/closed/CASE-20260730-001-skill.md"
+  ],
+  "last_state_delta": {
+    "changed_dimensions": [],
+    "state_transitions": [],
+    "deferred_dimensions": [],
+    "blocked_dimensions": [],
+    "case_refs": [
+      "arckit/cases/closed/CASE-20260730-001-skill.md"
+    ],
+    "iteration_ref": "",
+    "next_project_focus": "",
+    "updated_at": "2026-07-31T07:14:54.875Z"
+  }
+}

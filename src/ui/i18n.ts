@@ -242,6 +242,33 @@ export interface Dictionary {
   remove: string;
   confirmRemoveTarget: (path: string) => string;
   installPreview: (skills: number, profile: string) => string;
+  reviewAvailabilityPlan: string;
+  planningAvailability: string;
+  availabilityPlanningHelp: string;
+  availabilityPlan: string;
+  availabilityPlanSummary: (skills: number, profile: string) => string;
+  availabilityPlanReady: (skills: number) => string;
+  availabilityPlanBlocked: (errors: number) => string;
+  planDiagnostics: string;
+  skillAvailabilityDestinations: string;
+  availabilityMode: (mode: string) => string;
+  availabilityPolicyOrigin: (origin: string) => string;
+  sourceRecommendation: string;
+  noSourceRecommendation: string;
+  noAvailabilityDestinations: string;
+  onDemandLoaderTargets: string;
+  onDemandLoaderHelp: string;
+  loaderTargetStatus: (status: string) => string;
+  cleanupCandidates: string;
+  cleanupConfirmationHelp: string;
+  saveAvailabilityRelationship: string;
+  saveAvailabilityRelationshipHelp: string;
+  cleanupRequiredForSavedRelationship: string;
+  confirmAvailabilityApply: string;
+  applyingAvailability: string;
+  availabilityApplyComplete: (destinations: number, cleaned: number) => string;
+  availabilityDestinationCount: (destinations: number) => string;
+  mixedTargetModesHelp: string;
   targetHistory: string;
   noTargetHistory: string;
   lastApplied: string;
@@ -537,6 +564,33 @@ export const dictionaries: Record<Language, Dictionary> = {
     remove: "Remove",
     confirmRemoveTarget: (path: string) => `Remove this target path?\n${path}`,
     installPreview: (skills: number, profile: string) => `Ready to apply ${skills} skills from the ${profile} profile.`,
+    reviewAvailabilityPlan: "Review application plan",
+    planningAvailability: "Creating plan...",
+    availabilityPlanningHelp: "Standard agent targets use availability-aware planning. The review resolves user ambient, project ambient, and user on-demand destinations before any files are written.",
+    availabilityPlan: "Application plan",
+    availabilityPlanSummary: (skills: number, profile: string) => `${skills} skills resolved from the ${profile} profile. Review every destination before applying.`,
+    availabilityPlanReady: (skills: number) => `Application plan ready for ${skills} skills.`,
+    availabilityPlanBlocked: (errors: number) => `Application plan has ${errors} blocking diagnostics.`,
+    planDiagnostics: "Plan diagnostics",
+    skillAvailabilityDestinations: "Skill modes and destinations",
+    availabilityMode: (mode: string) => mode === "user-ambient" ? "User · ambient" : mode === "project-ambient" ? "Project · ambient" : mode === "user-on-demand" ? "User · on demand" : mode,
+    availabilityPolicyOrigin: (origin: string) => ({ invocation: "This operation", "profile-skill": "Profile override", "profile-default": "Profile default", "source-skill": "Source recommendation", "source-default": "Source default", compatibility: "Compatibility rule" }[origin] ?? origin),
+    sourceRecommendation: "Source recommendation",
+    noSourceRecommendation: "Not classified by source",
+    noAvailabilityDestinations: "No destination resolved.",
+    onDemandLoaderTargets: "On-demand entry skill",
+    onDemandLoaderHelp: "The fixed entry skill is installed in each selected agent's user-level discovery directory. On-demand target skills remain in the user catalog.",
+    loaderTargetStatus: (status: string) => ({ missing: "New", same: "Same", "managed-update": "Managed update", conflict: "Conflict" }[status] ?? status),
+    cleanupCandidates: "Stale managed destinations",
+    cleanupConfirmationHelp: "Each checked path is removed during this application. Unchecked paths are preserved.",
+    saveAvailabilityRelationship: "Save application relationship",
+    saveAvailabilityRelationshipHelp: "Store this source, profile, target context, and resolved policy for later drift checks and reapply.",
+    cleanupRequiredForSavedRelationship: "Select every stale managed destination before saving the updated relationship, or turn off relationship saving.",
+    confirmAvailabilityApply: "Confirm and apply",
+    applyingAvailability: "Applying...",
+    availabilityApplyComplete: (destinations: number, cleaned: number) => `Applied ${destinations} destinations and removed ${cleaned} confirmed stale paths.`,
+    availabilityDestinationCount: (destinations: number) => `${destinations} resolved destinations`,
+    mixedTargetModesHelp: "Standard agent targets and custom direct directories use different application modes. Put them in separate target groups.",
     targetHistory: "Target history",
     noTargetHistory: "No targets applied yet.",
     lastApplied: "Last applied",
@@ -830,6 +884,33 @@ export const dictionaries: Record<Language, Dictionary> = {
     remove: "移除",
     confirmRemoveTarget: (path: string) => `确认移除这个目标路径？\n${path}`,
     installPreview: (skills: number, profile: string) => `准备应用 ${profile} 配置组中的 ${skills} 个技能。`,
+    reviewAvailabilityPlan: "复核应用计划",
+    planningAvailability: "正在生成计划...",
+    availabilityPlanningHelp: "标准 Agent 目标使用可用性计划。写入前会解析用户级常驻、项目级常驻和用户级按需的实际位置。",
+    availabilityPlan: "应用计划",
+    availabilityPlanSummary: (skills: number, profile: string) => `${profile} 配置组已解析 ${skills} 个 skill，请在应用前复核每个目标位置。`,
+    availabilityPlanReady: (skills: number) => `${skills} 个 skill 的应用计划已就绪。`,
+    availabilityPlanBlocked: (errors: number) => `应用计划存在 ${errors} 个阻断诊断。`,
+    planDiagnostics: "计划诊断",
+    skillAvailabilityDestinations: "Skill 模式与目标位置",
+    availabilityMode: (mode: string) => mode === "user-ambient" ? "用户级 · 常驻" : mode === "project-ambient" ? "项目级 · 常驻" : mode === "user-on-demand" ? "用户级 · 按需" : mode,
+    availabilityPolicyOrigin: (origin: string) => ({ invocation: "本次操作", "profile-skill": "配置组逐项覆盖", "profile-default": "配置组默认", "source-skill": "来源逐项推荐", "source-default": "来源默认", compatibility: "兼容规则" }[origin] ?? origin),
+    sourceRecommendation: "来源推荐",
+    noSourceRecommendation: "来源未分类",
+    noAvailabilityDestinations: "未解析出目标位置。",
+    onDemandLoaderTargets: "按需入口 skill",
+    onDemandLoaderHelp: "固定入口会安装到所选 Agent 的用户级发现目录；按需目标 skill 仍只保存在用户 catalog。",
+    loaderTargetStatus: (status: string) => ({ missing: "新增", same: "一致", "managed-update": "受管更新", conflict: "冲突" }[status] ?? status),
+    cleanupCandidates: "旧 managed 目标",
+    cleanupConfirmationHelp: "本次应用只删除明确勾选的路径；未勾选路径会保留。",
+    saveAvailabilityRelationship: "保存应用关系",
+    saveAvailabilityRelationshipHelp: "保存来源、配置组、目标上下文和解析策略，供后续漂移检查与重新应用使用。",
+    cleanupRequiredForSavedRelationship: "保存更新后的关系前必须勾选全部旧 managed 目标；也可以关闭关系保存。",
+    confirmAvailabilityApply: "确认并应用",
+    applyingAvailability: "正在应用...",
+    availabilityApplyComplete: (destinations: number, cleaned: number) => `已应用 ${destinations} 个目标，并删除 ${cleaned} 个已确认旧路径。`,
+    availabilityDestinationCount: (destinations: number) => `${destinations} 个已解析目标`,
+    mixedTargetModesHelp: "标准 Agent 目标与自定义 direct 目录使用不同应用模式，请分别保存到两个目标组合中。",
     targetHistory: "目标历史",
     noTargetHistory: "尚未应用到任何目标。",
     lastApplied: "上次应用",

@@ -2,9 +2,9 @@ metadata:
   path: tech/_shared/contracts/share-run.yaml
   domain: sharing-ipc
   owner: electron/main
-  version: 3
+  version: 4
   created: 2026-06-01
-  updated: 2026-06-01
+  updated: 2026-07-30
 endpoint:
   transport: electron-ipc
   channel: share:run
@@ -81,6 +81,8 @@ responses:
       message: Pull Request creation failed after local commit or push.
     - code: LOCAL_GIT_REMOTE_REQUIRED
       message: Same-repository sharing requires the workspace to be inside a Git repository with at least one remote.
+    - code: SOURCE_MANIFEST_INVALID
+      message: The Git-tracked Skill project manifest cannot be safely normalized for the selected profile.
 business_logic:
   flow:
     - Parse remote source and target subdirectory unless sameRepository is true.
@@ -89,7 +91,7 @@ business_logic:
     - Choose target Pull Request, fork Pull Request, direct push or local branch delivery for ordinary remote sharing.
     - Prepare isolated shared checkout under app data or CLI cache for ordinary remote sharing.
     - Create or reset the share branch from the resolved base branch for ordinary remote sharing.
-    - Copy sourceDir, config, and README into target path for ordinary remote sharing.
+    - Copy selected skills, shared assets, normalized arcforge.skill-project.json when present, generated shared config, and README into target path for ordinary remote sharing.
     - For sameRepository, resolve local Git root, selected remote, current branch and workspace relative path.
     - For sameRepository, stage and commit only the workspace relative path.
     - Commit changes when git status is non-empty.

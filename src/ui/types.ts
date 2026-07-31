@@ -1,4 +1,4 @@
-import type { AgentAuditProxyConfig, AppState, AppliedSourceRecord, ApplyProfileResult, AuditMode, CliInstallStatus, DriftReport, EnvironmentStatus, ImportSkillsPlan, ImportSkillsResult, InstalledSkillOrganizePlan, InstalledSkillOrganizeResult, InstalledSkillsInventory, InstalledSkillsScanOptions, MergePlan, MergeResult, RecentWorkspace, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillEditorWindowContext, SkillFileDocument, SkillFileEntry, ArcForgeConfig, SourceUpdateResult, SourceUpdateStatus, WorkspaceSnapshot } from "../shared/types";
+import type { AgentAuditProxyConfig, AppState, AppliedSourceRecord, ApplyFromSourceResult, ApplyProfileResult, AuditMode, CliInstallStatus, DriftReport, EnvironmentStatus, ImportSkillsPlan, ImportSkillsResult, InstalledSkillOrganizePlan, InstalledSkillOrganizeResult, InstalledSkillsInventory, InstalledSkillsScanOptions, MergePlan, MergeResult, RecentWorkspace, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, SkillAvailabilityOverride, SkillAvailabilityPlan, SkillEditorWindowContext, SkillFileDocument, SkillFileEntry, ArcForgeConfig, SourceUpdateResult, SourceUpdateStatus, WorkspaceSnapshot } from "../shared/types";
 
 export type Tab = "overview" | "skills" | "profiles" | "destinations" | "share" | "audit";
 
@@ -59,7 +59,10 @@ declare global {
       importSkillsIntoProject: (options: { root: string; from: string; profile?: string; skills?: string[]; targetDir?: string; targetProfile?: string; confirm?: boolean }) => Promise<ImportSkillsResult>;
       listAppliedSources: (root: string) => Promise<AppliedSourceRecord[]>;
       driftAppliedSources: (root: string, id?: string) => Promise<DriftReport[]>;
-      runAppliedSources: (root: string, id?: string) => Promise<Array<{ record: AppliedSourceRecord; result: ApplyProfileResult }>>;
+      runAppliedSources: (root: string, id?: string, cleanupPaths?: string[]) => Promise<Array<{ record: AppliedSourceRecord; result: ApplyProfileResult }>>;
+      createSkillAvailabilityPlan: (options: { root: string; from?: string; profile?: string; skills?: string[]; agentTargetIds: string[]; projectTargetDirs?: string[]; availabilityOverrides?: SkillAvailabilityOverride[] }) => Promise<SkillAvailabilityPlan>;
+      applySkillAvailabilityPlan: (options: { root: string; from?: string; profile?: string; skills?: string[]; agentTargetIds: string[]; projectTargetDirs?: string[]; availabilityOverrides?: SkillAvailabilityOverride[]; cleanupPaths?: string[]; save?: boolean; confirm: boolean; allowUnrelatedRoot?: boolean }) => Promise<ApplyFromSourceResult>;
+      driftSkillAvailability: (options: { root: string; from?: string; profile?: string; skills?: string[]; agentTargetIds: string[]; projectTargetDirs?: string[]; availabilityOverrides?: SkillAvailabilityOverride[] }) => Promise<DriftReport>;
       applyFromSource: (root: string, from: string | undefined, profile: string, targetDir: string, save?: boolean, skills?: string[]) => Promise<{ result: ApplyProfileResult; record?: AppliedSourceRecord }>;
       driftFromSource: (root: string, from: string | undefined, profile: string, targetDir: string, skills?: string[]) => Promise<DriftReport>;
       createSharePlan: (root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, message?: string, delivery?: ShareDeliveryMethod, branch?: string, sameRepository?: boolean, sameRepositoryRemote?: string) => Promise<SharePlanResult>;

@@ -4,6 +4,7 @@ import { discoverSharedAssets, discoverSkills } from "./skills.js";
 import type { WorkspaceSnapshot } from "../shared/types.js";
 import { promises as fs } from "node:fs";
 import { detectLocalGitSource } from "./local-git.js";
+import { loadSkillProjectManifest, validateSkillProjectManifestSkills } from "./skill-project-manifest.js";
 
 export interface ScanWorkspaceOptions {
   sourceDir?: string;
@@ -13,12 +14,34 @@ export interface ScanWorkspaceOptions {
 export async function scanWorkspace(root: string, options: ScanWorkspaceOptions = {}): Promise<WorkspaceSnapshot> {
   const stats = await fs.stat(root);
   if (!stats.isDirectory()) throw new Error("Workspace root is not a directory.");
-  const config = withSourceDirOverride(await loadConfig(root), options.sourceDir);
+  const sourceManifestResult = await loadSkillProjectManifest(root);
+  const config = withSourceDirOverride(
+    withManifestSourceDir(await loadConfig(root), sourceManifestResult.manifest?.sourceDir),
+    options.sourceDir
+  );
   const skills = await discoverSkills(root, config);
   const assets = await discoverSharedAssets(root, config);
   const audit = await auditWorkspace(root, skills, options.audit);
   const localGit = await detectLocalGitSource(root);
-  return { root, config, skills, assets, audit, localGit };
+  const sourceManifestDiagnostics = validateSkillProjectManifestSkills(
+    sourceManifestResult.manifest,
+    skills,
+    sourceManifestResult.diagnostics
+  );
+  return {
+    root,
+    config,
+    sourceManifest: sourceManifestResult.manifest,
+    sourceManifestDiagnostics,
+    skills,
+    assets,
+    audit,
+    localGit
+  };
+}
+
+function withManifestSourceDir(config: WorkspaceSnapshot["config"], sourceDir?: string): WorkspaceSnapshot["config"] {
+  return sourceDir ? { ...config, sourceDir } : config;
 }
 
 function withSourceDirOverride(config: WorkspaceSnapshot["config"], sourceDir?: string): WorkspaceSnapshot["config"] {

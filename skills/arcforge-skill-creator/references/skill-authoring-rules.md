@@ -1,6 +1,6 @@
 # Skill 写作和维护规则
 
-在创建或更新目标 skill 时读取本文件。目标是把用户要求固化成可执行流程，并通过渐进式披露降低主文件密度。
+在创建或更新目标 skill 时读取本文件。目标是把用户要求固化成可执行流程，并通过渐进式披露降低主文件密度。写作前先读取 `content-surface-budget.md`，确定 `description`、`SKILL.md`、reference 和 metadata 的承载分工。
 
 ## Creator 优先级
 
@@ -18,6 +18,8 @@
 - 产品缺口：当前不能落地，但必须记录触发场景、价值、输入输出和阻塞原因。
 
 如果用户反馈“流程不硬”“主流程不清楚”“信息密度太高”“应该渐进式披露”，优先修 `SKILL.md` 的流程结构和 reference 路由，而不是只追加更多规则。
+
+如果用户反馈“description 过长”“描述角度不对”“正文太长”“reference 没有按需披露”，必须先做内容表面积预算：决定哪些内容留在触发描述、哪些留在主流程、哪些迁移到 reference、哪些直接删除。
 
 ## 渐进式披露
 
@@ -65,6 +67,8 @@ Reference 路由
 - 适用范围。
 - 相邻 skill 分工。
 - 明确不触发场景。
+
+它不负责说明完整执行过程、输出字段、reference 文件名、长期治理交接模板或所有相邻 skill 的详细分工。description 的角度应接近用户请求如何触发，而不是 skill 如何自我证明完整。
 
 正文负责已触发后的执行：
 
@@ -122,7 +126,7 @@ Reference 路由
 
 ## Agents 元数据
 
-`agents/openai.yaml` 不能只重复 skill 名称。它应同步：
+`agents/openai.yaml` 不能只重复 skill 名称，也不能复述整份 `SKILL.md`。它应短促同步：
 
 - 关键触发和边界。
 - 主流程节点。
@@ -132,3 +136,5 @@ Reference 路由
 - 本地校验和可选验证交接要求。
 - 维护后 `post_maintenance_handoff`：本地停止、Skill First 验证、ArcForge 治理同步，或先验证再同步。
 - 最终汇报重点。
+
+如果 `default_prompt` 已经列出每个门禁的完整输入、动作和退出条件，说明它过长；保留入口、主流程关键词和最重要边界，把细节交给 `SKILL.md`。

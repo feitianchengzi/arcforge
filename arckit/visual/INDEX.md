@@ -4,11 +4,11 @@
 
 - _library/ Design System 核心：品牌策略、tokens、组件规格和样式预览。✅
   - brief.md 品牌方向与视觉策略：基于 SVG 预览图抽取工具型工作台气质、层级、色彩、字体、密度和状态表达。✅ (84行)
-  - design-tokens.yaml Design Tokens：色彩体系、字体阶梯、间距尺度、圆角、阴影和动效。✅ (190行)
-  - component-catalog.yaml 组件视觉目录：组件组入口、组件清单和使用规则。✅ (29行)
+  - design-tokens.yaml Design Tokens：色彩体系、遮罩、字体阶梯、间距尺度、圆角、阴影和动效。✅ (196行)
+  - component-catalog.yaml 组件视觉目录：组件组入口、组件清单和使用规则。✅ (31行)
   - components/ 组件视觉规格：按组件类别拆分的规格文件。✅
-    - workbench-components.yaml 工作台组件：AppShell、侧栏项目、按钮、指标卡、面板、行动行、发现项、徽标和输入框。✅ (223行)
-  - style-preview.html 样式预览页：展示预览图抽取出的核心布局、色彩、指标卡、行动行和发现项。✅ (222行)
+    - workbench-components.yaml 工作台组件：基础框架、操作、状态、对话框和选择行。✅ (306行)
+  - style-preview.html 样式预览页：展示核心布局、状态、审查对话框和选择反馈。✅ (269行)
   - preview-server.py 本地预览服务：为 style-preview.html 提供本地静态预览。✅ (90行)
 - themes/ 主题配置：亮色主主题与未来深色主题覆盖值。🟡
   - light.yaml 亮色主题：当前主界面 token 覆盖值。✅ (16行)

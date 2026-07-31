@@ -2,9 +2,9 @@ metadata:
   path: tech/_shared/contracts/share-plan.yaml
   domain: sharing-ipc
   owner: electron/main
-  version: 1
+  version: 2
   created: 2026-06-01
-  updated: 2026-06-01
+  updated: 2026-07-30
 endpoint:
   transport: electron-ipc
   channel: share:plan
@@ -61,8 +61,11 @@ responses:
       message: Remote URL is required unless sameRepository is true.
     - code: DELIVERY_UNAVAILABLE
       message: Requested delivery method is not available for the current GitHub access state.
+    - code: SOURCE_MANIFEST_INVALID
+      message: The Git-tracked Skill project manifest cannot produce a safe sharing plan.
 business_logic:
   flow:
     - Resolve direct, named project or same-repository target.
+    - Normalize the optional source manifest and retain only per-skill entries selected by the profile.
     - Inspect GitHub access and delivery options.
-    - Build a plan without committing, pushing or creating a Pull Request.
+    - Build a plan including the publishable manifest and policy diagnostics without committing, pushing or creating a Pull Request.

@@ -1,8 +1,9 @@
 import path from "node:path";
 import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
-import type { SharedAssetSummary, ArcForgeConfig, SkillSummary } from "../shared/types.js";
+import type { SharedAssetSummary, ArcForgeConfig, SkillProjectManifest, SkillProjectManifestDiagnostic, SkillSummary } from "../shared/types.js";
 import { copyDirectory, pathExists } from "./fs.js";
+import { SKILL_PROJECT_MANIFEST_FILE, prepareSkillProjectManifestForShare } from "./skill-project-manifest.js";
 
 export function resolveShareProfile(config: ArcForgeConfig, profileName?: string, skillNames?: string[]): ArcForgeConfig["profiles"][number] {
   const selectedProfile = profileName
@@ -29,7 +30,8 @@ export function selectProfileSkills(skills: SkillSummary[], names: string[], str
   return selected;
 }
 
-export async function syncProjectToShareTarget(root: string, targetRoot: string, config: ArcForgeConfig, skills: SkillSummary[], assets: SharedAssetSummary[], visibility: "private" | "public", sectionName: string, namespace: string): Promise<void> {
+export async function syncProjectToShareTarget(root: string, targetRoot: string, config: ArcForgeConfig, skills: SkillSummary[], assets: SharedAssetSummary[], visibility: "private" | "public", sectionName: string, namespace: string, sourceManifest?: SkillProjectManifest, sourceManifestDiagnostics: SkillProjectManifestDiagnostic[] = []): Promise<void> {
+  const sharedManifest = prepareSkillProjectManifestForShare(sourceManifest, skills, sourceManifestDiagnostics);
   await fs.mkdir(targetRoot, { recursive: true });
   const sourceRoot = path.resolve(root, config.sourceDir);
   const targetSourceRoot = path.join(targetRoot, config.sourceDir);
@@ -44,6 +46,9 @@ export async function syncProjectToShareTarget(root: string, targetRoot: string,
     await replaceSharedEntry(asset.path, path.join(targetSourceRoot, relativePath), targetSourceRoot);
     await writeAssetOwner(path.join(targetSourceRoot, relativePath), namespace);
   }
+  if (sharedManifest.manifest) {
+    await writeJsonAtomic(path.join(targetRoot, SKILL_PROJECT_MANIFEST_FILE), sharedManifest.manifest);
+  }
   const sourceReadme = path.join(root, "README.md");
   const targetReadme = path.join(targetRoot, "README.md");
   if (!(await pathExists(targetReadme)) && await pathExists(sourceReadme)) {
@@ -52,6 +57,17 @@ export async function syncProjectToShareTarget(root: string, targetRoot: string,
     await fs.writeFile(targetReadme, `# ${path.basename(root)}\n`, "utf8");
   }
   await writeSharingReadme(targetRoot, config, visibility, sectionName);
+}
+
+async function writeJsonAtomic(target: string, value: unknown): Promise<void> {
+  const temporary = `${target}.tmp-${crypto.randomUUID()}`;
+  await fs.writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  try {
+    await fs.rename(temporary, target);
+  } catch (error) {
+    await fs.rm(temporary, { force: true });
+    throw error;
+  }
 }
 
 export function shareNamespace(value: string): string {
@@ -102,7 +118,14 @@ export function normalizeConfig(config: ArcForgeConfig): ArcForgeConfig {
       name: profile.name.trim(),
       description: profile.description?.trim() || undefined,
       skills: profile.skills,
-      targets: profile.targets
+      targets: profile.targets,
+      availability: profile.availability ? {
+        defaultMode: profile.availability.defaultMode,
+        skills: profile.availability.skills?.map((item) => ({
+          skill: item.skill.trim(),
+          mode: item.mode
+        })).filter((item) => item.skill)
+      } : undefined
     }))
   };
 }

@@ -6,10 +6,11 @@ import { shareDriftReport, type ShareDriftOptions } from "../core/share-drift.js
 import { getEnvironmentStatus } from "../core/environment.js";
 import { createInstalledSkillOrganizePlan, organizeInstalledSkills, scanInstalledSkills } from "../core/installed-skills.js";
 import { arcForgeHome } from "../core/project-store.js";
-import { addAppliedSource, applyFromSource, cleanupLocalSkills, createImportSkillsPlan, createLocalSkillWorkflowPlan, createMergePlan, driftAppliedSources, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, removeAppliedSource, resolveSkillProject, runAppliedSources } from "../core/sources.js";
+import { addAppliedSource, applyAvailabilityFromSource, applyFromSource, cleanupLocalSkills, createAvailabilityPlanFromSource, createImportSkillsPlan, createLocalSkillWorkflowPlan, createMergePlan, driftAppliedSources, driftAvailabilityFromSource, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, removeAppliedSource, resolveSkillProject, runAppliedSources } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
+import { resolveCatalogSkill } from "../core/skill-catalog.js";
 import type { CliShimOptions } from "../core/cli-install.js";
-import type { AuditMode, ShareDeliveryMethod, ShareTargetMode } from "../shared/types.js";
+import type { AuditMode, ShareDeliveryMethod, ShareTargetMode, SkillAvailabilityMode, SkillAvailabilityOverride } from "../shared/types.js";
 
 export interface CommandRuntime {
   cwd: string;
@@ -40,7 +41,8 @@ Commands:
   import           Import skills from another Skill project into this project
   applied          Manage applied source records for the current project
   installed        Scan locally installed and cached agent skills
-  apply            Copy a profile into an agent or project target
+  catalog          Resolve explicitly requested user-level on-demand skills
+  apply            Plan availability targets or copy a profile into a direct target
   drift            Compare a profile against an installed target
   publish-plan     Generate a GitHub-first release checklist
   share            Plan or execute GitHub-first sharing
@@ -66,6 +68,8 @@ Examples:
   arcforge applied drift --root .
   arcforge installed scan
   arcforge installed organize plan
+  arcforge catalog resolve --query review
+  arcforge apply plan --from ../team-skills --profile default --agent-targets codex,claude --project-targets ../app
   arcforge apply --from ../team-skills --profile default --target ~/.codex/skills
   arcforge share plan --root . --repo github.com/acme/team-skills --profile frontend
   arcforge share run --root . --repo github.com/acme/team-skills --profile frontend --confirm
@@ -174,7 +178,7 @@ Usage:
   arcforge applied add --from <path-or-url> --profile <name> --target <dir> [--skills <a,b>] [--allow-unrelated-root]
   arcforge applied remove <id> [--root <dir>]
   arcforge applied drift [--root <dir>] [--id <record-id>]
-  arcforge applied run [--root <dir>] [--id <record-id>] --confirm
+  arcforge applied run [--root <dir>] [--id <record-id>] [--cleanup-paths <dir,dir>] --confirm
 
 Options:
   --allow-unrelated-root  Save the relation even when --root is not the source root
@@ -196,12 +200,27 @@ Options:
   --no-plugin-cache    Exclude Codex plugin cache skills. Codex plugin cache is included by default.
   --confirm            Required for organize run.
 `,
-  apply: `ArcForge CLI - apply
+  catalog: `ArcForge CLI - catalog
 
-Copy a profile from another Skill project or the current workspace into a target directory. Outputs JSON.
-This writes the application target directory; review drift and confirm the target before running on real projects.
+Resolve an explicitly requested user-level on-demand skill from the local ArcForge catalog. Outputs JSON.
+This command reads only the catalog index and selected skill directory. It never scans arbitrary roots or executes a skill.
 
 Usage:
+  arcforge catalog resolve --query <name-or-qualified-name> [--mode exact|search]
+
+Options:
+  --query <query>  Skill qualified name, name, or alias. Required.
+  --mode <mode>    exact is the default. search also matches indexed summaries after explicit entry-skill invocation.
+`,
+  apply: `ArcForge CLI - apply
+
+Plan availability-aware user, project, and on-demand targets, or copy a profile into a legacy direct target. Outputs JSON.
+Plan is read-only. Legacy direct apply writes the target directory after confirmation.
+
+Usage:
+  arcforge apply plan [--root <dir>] [--from <path-or-url>] [--profile <name>] [--skills <a,b>] --agent-targets <codex,claude,cursor> [--project-targets <dir,dir>] [--availability <skill=mode,...>]
+  arcforge apply run [--root <dir>] [--from <path-or-url>] [--profile <name>] [--skills <a,b>] --agent-targets <codex,claude,cursor> [--project-targets <dir,dir>] [--availability <skill=mode,...>] [--cleanup-paths <dir,dir>] [--save] --confirm
+  arcforge apply run [--root <dir>] [--from <path-or-url>] [--profile <name>] [--skills <a,b>] --target <dir> [--save] [--allow-unrelated-root] --confirm
   arcforge apply [--root <dir>] [--from <path-or-url>] [--profile <name>] [--skills <a,b>] --target <dir> [--save] [--allow-unrelated-root] --confirm
 
 Options:
@@ -209,6 +228,10 @@ Options:
   --from <path-or-url>  Source Skill project path, GitHub shorthand or Git URL. Omit to apply from current workspace.
   --profile <name>      Source profile name. Defaults to default.
   --skills <a,b>        Skills to apply. Defaults to the selected source profile.
+  --agent-targets <ids> Agent user targets used by availability-aware plan.
+  --project-targets <dirs> Comma-separated project roots used by project-ambient skills.
+  --availability <items> Invocation overrides such as review=user-on-demand,build=project-ambient.
+  --cleanup-paths <dirs> Exact comma-separated cleanup paths selected from the fresh plan.
   --target <dir>        Application target directory. With --from, this is resolved inside --root.
   --save                Save an applied source relation for later drift/reapply.
   --allow-unrelated-root Save the relation even when --root is not the source root
@@ -217,9 +240,10 @@ Options:
 `,
   drift: `ArcForge CLI - drift
 
-Compare a profile from another Skill project or the current workspace against an installed target directory. Outputs JSON.
+Compare a profile from another Skill project or the current workspace against availability-aware or legacy installed targets. Outputs JSON.
 
 Usage:
+  arcforge drift [--root <dir>] [--from <path-or-url>] [--profile <name>] [--skills <a,b>] --agent-targets <codex,claude,cursor> [--project-targets <dir,dir>] [--availability <skill=mode,...>]
   arcforge drift [--root <dir>] [--from <path-or-url>] [--profile <name>] [--skills <a,b>] --target <dir>
 
 Options:
@@ -227,6 +251,9 @@ Options:
   --from <path-or-url>  Source Skill project path, GitHub shorthand or Git URL. Omit to compare from current workspace.
   --profile <name>      Source profile name. Defaults to default.
   --skills <a,b>        Skills to compare. Defaults to the selected source profile.
+  --agent-targets <ids> Agent user targets used by availability-aware drift.
+  --project-targets <dirs> Project roots used by project-ambient skills.
+  --availability <items> Invocation overrides such as review=user-on-demand.
   --target <dir>        Application target directory. With --from, this is resolved inside --root.
 `,
   "publish-plan": `ArcForge CLI - publish-plan
@@ -303,10 +330,54 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
   if (command === "import") return runImportCommand(args, runtime);
   if (command === "applied") return runAppliedCommand(args, runtime);
   if (command === "installed") return runInstalledCommand(args);
+  if (command === "catalog") {
+    const action = args[1] ?? "resolve";
+    if (action !== "resolve") throw new Error(`Unknown catalog action: ${action}`);
+    const mode = arg(args, "--mode") ?? "exact";
+    if (mode !== "exact" && mode !== "search") throw new Error("Catalog mode must be exact or search.");
+    return { exitCode: 0, value: await resolveCatalogSkill(requiredArg(args, "--query"), mode) };
+  }
 
   if (command === "apply") {
     const root = arg(args, "--root") ?? runtime.cwd;
     const profile = arg(args, "--profile") ?? "default";
+    if (args[1] === "plan") {
+      return {
+        exitCode: 0,
+        value: await createAvailabilityPlanFromSource({
+          root,
+          from: arg(args, "--from"),
+          profile,
+          skills: parseSkills(arg(args, "--skills")),
+          agentTargetIds: parseCsv(requiredArg(args, "--agent-targets")),
+          projectTargetDirs: parseCsv(arg(args, "--project-targets")),
+          availabilityOverrides: parseAvailabilityOverrides(arg(args, "--availability")),
+          cacheDir: arg(args, "--cache-dir") ?? runtime.cacheDir ?? defaultCacheDir()
+        })
+      };
+    }
+    if (args[1] === "run" && !arg(args, "--target")) {
+      if (!hasFlag(args, "--confirm")) {
+        return { exitCode: 1, value: { error: "Availability-aware apply requires --confirm after reviewing a fresh plan.", requiresConfirm: true } };
+      }
+      return {
+        exitCode: 0,
+        value: await applyAvailabilityFromSource({
+          root,
+          from: arg(args, "--from"),
+          profile,
+          skills: parseSkills(arg(args, "--skills")),
+          agentTargetIds: parseCsv(requiredArg(args, "--agent-targets")),
+          projectTargetDirs: parseCsv(arg(args, "--project-targets")),
+          availabilityOverrides: parseAvailabilityOverrides(arg(args, "--availability")),
+          cleanupPaths: parseCsv(arg(args, "--cleanup-paths")),
+          save: hasFlag(args, "--save"),
+          confirm: true,
+          allowUnrelatedRoot: hasFlag(args, "--allow-unrelated-root"),
+          cacheDir: arg(args, "--cache-dir") ?? runtime.cacheDir ?? defaultCacheDir()
+        })
+      };
+    }
     if (!hasFlag(args, "--confirm")) {
       return { exitCode: 1, value: { error: "Apply writes the target directory and requires --confirm after reviewing drift.", requiresConfirm: true } };
     }
@@ -319,6 +390,21 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
   if (command === "drift") {
     const root = arg(args, "--root") ?? runtime.cwd;
     const profile = arg(args, "--profile") ?? "default";
+    if (!arg(args, "--target")) {
+      return {
+        exitCode: 0,
+        value: await driftAvailabilityFromSource({
+          root,
+          from: arg(args, "--from"),
+          profile,
+          skills: parseSkills(arg(args, "--skills")),
+          agentTargetIds: parseCsv(requiredArg(args, "--agent-targets")),
+          projectTargetDirs: parseCsv(arg(args, "--project-targets")),
+          availabilityOverrides: parseAvailabilityOverrides(arg(args, "--availability")),
+          cacheDir: arg(args, "--cache-dir") ?? runtime.cacheDir ?? defaultCacheDir()
+        })
+      };
+    }
     return { exitCode: 0, value: await driftFromSource(root, arg(args, "--from"), profile, requiredArg(args, "--target"), parseSkills(arg(args, "--skills")), runtime.cacheDir ?? defaultCacheDir()) };
   }
 
@@ -326,7 +412,7 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
     const root = arg(args, "--root") ?? runtime.cwd;
     const visibility = parseVisibility(arg(args, "--visibility") ?? "private");
     const snapshot = await scanWorkspace(root);
-    return { exitCode: 0, value: await createPublishPlan(root, snapshot.config, snapshot.skills, visibility) };
+    return { exitCode: 0, value: await createPublishPlan(root, snapshot.config, snapshot.skills, visibility, snapshot.sourceManifest, snapshot.sourceManifestDiagnostics) };
   }
 
   if (command === "share") {
@@ -479,7 +565,7 @@ async function runAppliedCommand(args: string[], runtime: CommandRuntime): Promi
   }
   if (action === "remove") return { exitCode: 0, value: await removeAppliedSource(root, requiredPositional(args[2], "applied record id")) };
   if (action === "drift") return { exitCode: 0, value: await driftAppliedSources(root, arg(args, "--id")) };
-  if (action === "run") return { exitCode: 0, value: await runAppliedSources(root, arg(args, "--id"), hasFlag(args, "--confirm")) };
+  if (action === "run") return { exitCode: 0, value: await runAppliedSources(root, arg(args, "--id"), hasFlag(args, "--confirm"), parseCsv(arg(args, "--cleanup-paths"))) };
   throw new Error(`Unknown applied action: ${action}`);
 }
 
@@ -523,9 +609,32 @@ function hasFlag(args: string[], name: string): boolean {
 }
 
 function parseSkills(value?: string): string[] | undefined {
-  if (!value) return undefined;
-  const skills = value.split(",").map((item) => item.trim()).filter(Boolean);
+  const skills = parseCsv(value);
   return skills.length > 0 ? skills : undefined;
+}
+
+function parseCsv(value?: string): string[] {
+  return value?.split(",").map((item) => item.trim()).filter(Boolean) ?? [];
+}
+
+function parseAvailabilityOverrides(value?: string): SkillAvailabilityOverride[] | undefined {
+  if (!value?.trim()) return undefined;
+  return parseCsv(value).map((item) => {
+    const separator = item.indexOf("=");
+    if (separator <= 0 || separator === item.length - 1) {
+      throw new Error(`Availability override must use skill=mode: ${item}`);
+    }
+    const skill = item.slice(0, separator).trim();
+    const mode = item.slice(separator + 1).trim();
+    if (!isSkillAvailabilityMode(mode)) {
+      throw new Error(`Availability mode must be user-ambient, project-ambient, or user-on-demand: ${mode}`);
+    }
+    return { skill, mode };
+  });
+}
+
+function isSkillAvailabilityMode(value: string): value is SkillAvailabilityMode {
+  return value === "user-ambient" || value === "project-ambient" || value === "user-on-demand";
 }
 
 function parseAuditMode(value: string): AuditMode {

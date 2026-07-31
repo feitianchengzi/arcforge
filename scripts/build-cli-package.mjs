@@ -23,6 +23,7 @@ await mkdir(assetsDir, { recursive: true });
 for (const dir of ["cli", "commands", "core", "shared"]) {
   await cp(path.join(rootDir, "dist", dir), path.join(cliRoot, "dist", dir), { recursive: true });
 }
+await cp(path.join(rootDir, "skills", "arcforge-on-demand"), path.join(cliRoot, "skills", "arcforge-on-demand"), { recursive: true });
 
 await cp(path.join(rootDir, "README.md"), path.join(cliRoot, "README.md"));
 await cp(path.join(rootDir, "LICENSE"), path.join(cliRoot, "LICENSE"));

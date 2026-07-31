@@ -2,9 +2,9 @@
 
 ## 方案概述
 
-配置组同步方案负责从工作区配置中选择技能，把技能和共享资产复制到目标目录，并通过哈希比较生成漂移报告。
+配置组同步方案负责从工作区配置中选择技能，解析维护源推荐和消费端覆盖，把技能应用到用户、项目或用户级按需 catalog，并通过内容与策略比较生成漂移报告。
 
-方案由 `applyProfile` 和 `driftReport` 两个 core 能力组成。应用关系、桌面端和 CLI 均复用这两个能力。
+方案由可用性解析、应用计划、原子复制、用户级 catalog 和漂移比较组成。应用关系、桌面端、CLI 和按需入口 skill 均复用 core 能力，不各自实现策略优先级。
 
 ## 配置组选取
 
@@ -20,55 +20,150 @@
 
 不存在的技能名称不会自动创建结果项。
 
-## 目标解析
+## 维护源清单
 
-目标目录使用工作区根目录和调用方传入的目标路径解析为绝对路径。
+正式 Skill 项目根目录使用 `arcforge.skill-project.json` 保存 `SkillProjectManifest`。该文件属于 Git 跟踪的维护源事实，与用户级 `ArcForgeConfig` 分离。
 
-CLI 调用方负责传入目标路径。归并生成的应用关系默认目标路径为 `.arcforge/skills`。
+清单版本为 1，可声明仓库相对 `sourceDir`、项目级 `defaultMode` 和按 skill 路径维护的推荐模式与别名。Skill 路径使用相对项目根目录的 POSIX 路径；绝对路径、父目录跳转、重复路径和未命中已发现 skill 的路径产生诊断。
 
-桌面端可以传入 agent 默认目录、用户选择的项目目录或自定义路径。
+推荐模式是封闭枚举：
+
+- `user-ambient`
+- `project-ambient`
+- `user-on-demand`
+
+枚举不表达 `project-on-demand`，因此该非法组合不能进入清单、消费端覆盖或应用计划。
+
+清单缺失时工作区保持可扫描。Skill 没有逐项推荐且项目没有默认推荐时产生 `UNCLASSIFIED_SKILL` warning，并在最终策略解析时进入兼容规则。清单语法错误、路径越界或重复路径产生 error，阻止 availability-aware apply，但不阻止用户打开工作区修复清单。
+
+## 消费端覆盖
+
+用户级 `ArcForgeConfig.profiles[].availability` 保存消费端默认和逐 skill 覆盖。该配置仍存储于 `~/.arcforge/projects/<project-key>.json`，不写回维护源 checkout。
+
+本次应用可以传入一次性 `availabilityOverrides`。一次性覆盖只进入本次计划和确认摘要；只有调用方同时保存应用关系时，最终模式和目标历史才进入 `AppliedSourceRecord`。
+
+同一 skill 的最终策略按以下顺序取第一个存在的合法值：
+
+1. 本次调用逐 skill 覆盖。
+2. 消费端 profile 逐 skill 覆盖。
+3. 消费端 profile 默认模式。
+4. 维护源逐路径推荐。
+5. 维护源项目默认推荐。
+6. 既有直接目标推导出的 ambient 兼容模式。
+
+解析结果记录 `sourceRecommendation`、`consumerOverride`、`effectiveMode` 和 `policyOrigin`。来源推荐与最终策略不同是显式覆盖，不属于 skill 文件内容漂移。
+
+## 来源身份
+
+`sourceIdentity` 优先使用规范化 Git remote canonical key 和工作区相对 Git 根目录的子路径。没有 Git identity 时使用本地 realpath。
+
+`sourceKey` 是 `sourceIdentity` 的 SHA-256 前 24 个十六进制字符。它只用于本机路径隔离和限定名称，不建立公共命名空间，也不替代 Git remote 作为来源事实。
+
+来源身份变化会产生新的 `sourceKey`。应用计划把旧 sourceKey 管理的目标列为需确认的 cleanup，不静默合并两个身份。
+
+## 可用性应用计划
+
+`createSkillAvailabilityPlan` 是所有 availability-aware apply 和 drift 的只读入口，返回 `SkillAvailabilityPlan`。
+
+计划输入包括来源、profile、可选 skills、agent targets、project targets 和一次性覆盖。计划对每个 skill 记录策略来源、最终模式、内容摘要和全部目标，并列出 loader targets、diagnostics 与 cleanup。
+
+目标映射规则为：
+
+- `user-ambient`：每个选中 agent 的用户级原生 skill 目录。
+- `project-ambient`：每个选中 agent 与每个项目根目录组成的项目级原生 skill 目录。
+- `user-on-demand`：`~/.arcforge/catalog/<sourceKey>/<skill-name>/`。
+
+`project-ambient` 没有项目目标、常驻模式没有 agent target、同一来源出现重复 skill 名、别名无法唯一解析或清单含 error 时，计划包含阻塞诊断。包含 error 的计划不能执行。
+
+计划始终返回 `requiresConfirm: true`。Plan 不创建目录、不写 catalog、不安装 loader，也不删除旧目标。
+
+## 目标解析与兼容模式
+
+Availability-aware 目标通过 agent 目录映射和应用计划解析为绝对路径。
+
+CLI 传入单一 `targetDir` 时进入 legacy direct 模式。Direct 模式保留现有复制语义，把选中 skill 视为目标目录中的 ambient 副本，不读取 catalog 目标，也不创建来源策略历史。
+
+桌面端 availability-aware 模式使用 agent target 和 project target 组合。自定义目录仍属于 direct 模式，不被推断为用户级、项目级或按需目标。
+
+归并生成的旧应用关系默认目标路径仍可为 `.arcforge/skills`，并在首次 availability-aware apply 后补齐逐 skill 模式与目标历史。
 
 ## 应用配置组
 
-应用操作确保目标目录存在。
+应用操作确保计划中的目标父目录存在。
 
-每个选中技能复制到目标目录下以技能名称命名的子目录。
+Availability-aware apply 在写入前重新计算计划，拒绝调用方提交的过期目标集合。`confirm: true` 只授权计划中的新增和替换；删除旧路径还要求 `cleanupPaths` 与新计划 cleanup 精确匹配。
 
-目标中已存在同名技能目录时，系统用来源目录替换目标侧旧目录。
+每个选中技能复制到目标目录下以技能名称命名的子目录。目标中已存在同名技能目录时，系统用来源目录替换目标侧旧目录。
 
 复制技能时，系统先复制到目标同级临时目录，复制成功后再替换目标目录。复制失败时，目标侧旧目录保留。
 
-每个共享资产复制到目标目录下以资产名称命名的子目录。
+应用结果模型为 `ApplyProfileResult`。Availability-aware 结果包含实际使用的计划、逐目标写入状态、catalog 是否更新和已确认清理路径。
 
-目标中已存在同名共享资产目录时，系统用来源目录替换目标侧旧目录。
+应用关系保存 `sourceKey`、来源策略摘要、每个 skill 的最终模式、策略来源与目标路径。旧关系没有这些字段时仍按 direct 模式读取。
 
-共享资产使用同样的临时目录替换策略。
+## 共享资产
 
-应用结果模型为 `ApplyProfileResult`，包含配置组名、目标目录、复制技能、跳过技能、复制资产和跳过资产。
+可用性策略只分类 skill。共享资产不进入用户级按需 catalog，也不由按需入口动态加载。
+
+Availability-aware apply 把共享资产复制到计划中去重后的 ambient 目标根。只有 `user-on-demand` skill 且不存在 ambient 目标时，共享资产标记为 skipped 并说明没有可解析的 ambient 目标。需要按需 skill 使用的资源必须位于该 skill 目录内。
+
+## 用户级按需 Catalog
+
+Catalog 索引固定为 `~/.arcforge/catalog/index.json`，skill 副本位于 `~/.arcforge/catalog/<sourceKey>/<skill-name>/`。
+
+`UserSkillCatalog` 条目以 `sourceKey + skillPath` 唯一，限定名称由 `sourceKey` 和 skill 名组成。条目保存来源根、可选 remote/commit、源内路径、安装路径、内容摘要、别名、简短描述和管理它的应用关系 ID。
+
+同一来源 skill 被多个 profile 使用时共享一个物理副本，并合并 `appliedRecordIds`。只有最后一个应用关系移除且 cleanup 明确确认后才能删除条目和目录。
+
+目录复制和 index 更新组成一个可回滚提交：先准备同级临时目录，校验内容摘要，再替换 skill 目录并原子替换 index。任一步失败时恢复旧目录和旧索引。
+
+## 按需入口与解析
+
+ArcForge 分发一个固定名称的用户级入口 skill。Availability plan 只要包含 `user-on-demand` 项，就为每个选中 agent 生成一个用户级 loader target。入口 skill 本身不进入 catalog。
+
+计划读取固定入口的来源摘要和现有目标，将 loader target 标记为 `missing`、`same`、`managed-update` 或 `conflict`。缺失目标可以新增；内容完全一致的目标可以复用；只有同一用户目录、同一 agent 的已保存 on-demand 应用关系才能证明内容不同的旧入口归 ArcForge 管理并允许升级。其它同名目标产生 `ON_DEMAND_LOADER_CONFLICT` 阻断诊断，ArcForge 不替换未知内容。执行在提交任何目录前再次校验目标仍与计划时的缺失状态或内容摘要一致，避免计划后被替换的入口遭到覆盖。
+
+入口只在用户显式调用后执行 `arcforge catalog resolve`。`catalog-resolve` exact 模式按限定名称、skill 名和别名匹配；未限定名称存在多个来源时返回 ambiguous，不按目录顺序选择。Search 模式只在入口已触发后查询索引中的 name、alias 和 summary。
+
+Resolver 只读取 catalog index，不扫描任意目录。返回 resolved 前校验 installedPath realpath 位于声明的 sourceKey 目录内，并重新计算内容摘要。路径逃逸、索引损坏或内容摘要不一致时停止，不把目标 `SKILL.md` 返回给入口。
+
+Resolver 不执行 skill。入口拿到唯一且已校验的路径后读取 `SKILL.md` 和其明确引用，当前 agent 继续执行并沿用原有权限边界。
 
 ## 漂移签名
 
 漂移检查为来源目录和目标目录分别生成目录签名。
 
-目录签名由相对文件路径和 SHA-256 哈希组成。
-
-签名生成使用递归文件列表，忽略 `.git`、`node_modules` 和 `dist` 目录。
+目录签名由相对文件路径和 SHA-256 哈希组成。签名生成使用递归文件列表，忽略 `.git`、`node_modules` 和 `dist` 目录。
 
 文件路径使用 POSIX 风格相对路径，保证跨平台展示稳定。
 
-## 漂移比较
+## 内容漂移
 
 目标目录不存在时，漂移项状态为 `missing`，来源目录内所有文件标记为缺失。
 
-来源存在而目标不存在的文件标记为 `missing`。
+来源存在而目标不存在的文件标记为 `missing`。来源和目标都存在但哈希不同的文件标记为 `changed`。目标存在而来源不存在的文件标记为 `extra`。
 
-来源和目标都存在但哈希不同的文件标记为 `changed`。
-
-目标存在而来源不存在的文件标记为 `extra`。
-
-没有文件级差异时，漂移项状态为 `same`。存在任一差异时，漂移项状态为 `changed`。
+没有文件级差异时，该项状态为 `same`。存在任一差异时，该项状态为 `changed`。
 
 共享资产以同一逻辑参与漂移检查，并在漂移项中标记为 `asset`。
+
+## 策略漂移
+
+Availability-aware drift 使用与 apply-plan 相同的 resolver 计算当前有效模式和目标，再与 `AppliedSourceRecord.availabilityItems` 比较。
+
+Availability-aware 关系同时保存标准化的 agent targets、project targets、调用覆盖和 homeDir。`applied drift` 与 `applied run` 必须使用这组上下文重算 fresh plan，不从已安装路径猜测目标，也不把 availability 关系降级为 legacy `targetDir` 比较。
+
+来源推荐、消费端覆盖、agent targets 或 project targets 变化导致最终模式或目标集合变化时，结果进入 `DriftReport.policyDrift`。Policy drift 不修改内容 diff，也不移动目录。
+
+策略状态为：
+
+- `same`：记录模式和目标集合与当前计划一致。
+- `changed`：最终模式或目标集合不同。
+- `unclassified`：当前策略只能通过兼容规则得出，维护源和消费端均未声明。
+
+从 ambient 改为 on-demand、从 on-demand 改为 ambient 或改变常驻作用域时，旧路径进入计划 cleanup。Drift 只报告；apply 只有收到精确 cleanup 确认后删除。
+
+当 apply/reapply 要同时更新保存的 availability 关系时，计划中的旧目标必须全部以精确 `cleanupPaths` 得到确认；否则停止保存和写入，避免最新关系覆盖历史目标后丢失后续 cleanup 证据。不保存关系的一次性 apply 仍只处理调用方明确选择的 cleanupPaths。
 
 ## 目标根额外项
 
@@ -77,23 +172,13 @@ CLI 调用方负责传入目标路径。归并生成的应用关系默认目标�
 目标根额外项分类为：
 
 - `managed-stale`：名称存在于应用关系历史 managed 集合中，但不在当前来源选择中。
-- `uncertain`：目标项是带 `SKILL.md` 的 skill 目录，但不在当前来源选择或历史 managed 集合中。它可能由其它来源或用户维护，不属于当前来源的旧 skill。
+- `uncertain`：目标项是带 `SKILL.md` 的 skill 目录，但不在当前来源选择或历史 managed 集合中。
 - `unrelated`：目标项不是当前来源选择，也不是可确认属于当前关系的 skill 目录。
 
-普通 `drift` 没有应用关系历史时，只能把额外 skill 目录标为 `uncertain`。`applied drift` 传入 `AppliedSourceRecord.managedSkillNames`，可把旧名或退役残留标为 `managed-stale`。
-
-漂移检查只报告分类，不删除目标目录。删除 `managed-stale` 必须由调用方列出具体路径并获得用户确认；`uncertain` 和 `unrelated` 不应作为当前来源旧 skill 删除。
-
-## 报告模型
-
-漂移报告模型为 `DriftReport`，包含配置组、目标目录、漂移项列表和目标根额外项列表。
-
-每个漂移项包含名称、类型、状态、来源路径、目标路径、文件级差异和差异汇总。
-
-差异汇总包含缺失、变更和额外文件数量。
+漂移检查只报告分类，不删除目标目录。删除 `managed-stale` 必须由调用方列出具体路径并获得用户确认；`uncertain` 和 `unrelated` 不作为当前来源旧 skill 删除。
 
 ## 关联契约
 
-该方案由 `apply-run` 和 `apply-drift` 契约暴露给桌面端。
+该方案由 `apply-plan`、`apply-run`、`apply-drift` 和 `catalog-resolve` 契约暴露。
 
-CLI 的 `apply`、`drift`、`applied drift` 和 `applied run` 命令复用该方案并输出 JSON。
+CLI 的 `apply plan`、`apply run`、`drift`、`applied drift`、`applied run` 和 `catalog resolve` 命令复用该方案并输出 JSON。Legacy `apply --target` 和 `drift --target` 保留 direct 模式。

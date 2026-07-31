@@ -1,0 +1,88 @@
+metadata:
+  path: tech/_shared/models/UserSkillCatalog.yaml
+  domain: profiles-sync
+  entity_name: UserSkillCatalog
+  storage: ~/.arcforge/catalog/index.json
+  owner: core/skill-catalog
+  version: 1
+  created: 2026-07-30
+  updated: 2026-07-30
+type: object
+required:
+  - version
+  - updatedAt
+  - entries
+properties:
+  version:
+    type: integer
+    const: 1
+  updatedAt:
+    type: string
+    format: date-time
+  entries:
+    type: array
+    items:
+      type: object
+      required:
+        - qualifiedName
+        - sourceKey
+        - skillName
+        - sourceRoot
+        - skillPath
+        - installedPath
+        - contentDigest
+        - appliedRecordIds
+        - installedAt
+      properties:
+        qualifiedName:
+          type: string
+          description: Stable local identifier formed from sourceKey and skillName.
+        sourceKey:
+          type: string
+        skillName:
+          type: string
+        aliases:
+          type: array
+          nullable: true
+          items:
+            type: string
+        summary:
+          type: string
+          nullable: true
+          description: Short source description used only after the on-demand entry is explicitly invoked.
+        sourceRoot:
+          type: string
+          description: Last resolved maintenance source root.
+        sourceRemoteUrl:
+          type: string
+          nullable: true
+        sourceCommit:
+          type: string
+          nullable: true
+        skillPath:
+          type: string
+          description: Skill directory path relative to the source project root.
+        installedPath:
+          type: string
+          description: Absolute directory under ~/.arcforge/catalog/<sourceKey>/.
+        contentDigest:
+          type: string
+        appliedRecordIds:
+          type: array
+          items:
+            type: string
+          description: Local application relations that currently manage the entry.
+        installedAt:
+          type: string
+          format: date-time
+validation:
+  unique_entry:
+    description: qualifiedName and the pair sourceKey plus skillPath are unique.
+  contained_path:
+    description: installedPath realpath must remain inside ~/.arcforge/catalog/<sourceKey>/ and must not resolve through an escaping symbolic link.
+  digest_match:
+    description: Resolver returns an entry only when the installed directory digest equals contentDigest.
+  managed_removal:
+    description: An entry can be removed only when no appliedRecordIds remain and cleanup was explicitly confirmed.
+  atomic_write:
+    description: Skill directories and index updates use sibling temporary paths and atomic rename; failure preserves the previous valid catalog.

@@ -4,15 +4,14 @@ metadata:
   entity_name: AppliedSourceRecord
   storage: ~/.arcforge/projects/<project-key>.json
   owner: core/project-store
-  version: 1
+  version: 2
   created: 2026-06-01
-  updated: 2026-06-01
+  updated: 2026-07-30
 type: object
 required:
   - id
   - sourceRoot
   - profile
-  - targetDir
   - skills
   - updatedAt
 properties:
@@ -30,11 +29,20 @@ properties:
     type: string
     nullable: true
     description: User-facing source name captured for display and sorting.
+  sourceKey:
+    type: string
+    nullable: true
+    description: Path-safe source identity used by user-level catalog entries.
+  sourcePolicyDigest:
+    type: string
+    nullable: true
+    description: Normalized source recommendation digest captured by the latest application.
   profile:
     type: string
     description: Profile name used from the source Skill project.
   targetDir:
     type: string
+    nullable: true
     description: Target directory relative to the current project unless absolute.
   skills:
     type: array
@@ -47,6 +55,76 @@ properties:
     items:
       type: string
     description: Historical skill names governed by this record, used to classify stale target directories after source removals or renames.
+  availabilityItems:
+    type: array
+    nullable: true
+    description: Effective modes and managed destinations captured by the latest availability-aware application.
+    items:
+      type: object
+      required:
+        - skill
+        - mode
+        - policyOrigin
+        - destinations
+      properties:
+        skill:
+          type: string
+        mode:
+          type: string
+          enum:
+            - user-ambient
+            - project-ambient
+            - user-on-demand
+        policyOrigin:
+          type: string
+          enum:
+            - invocation
+            - profile-skill
+            - profile-default
+            - source-skill
+            - source-default
+            - compatibility
+        destinations:
+          type: array
+          items:
+            type: string
+  availabilityContext:
+    type: object
+    nullable: true
+    description: Consumer target context required to recompute the same availability plan during applied drift and reapply.
+    required:
+      - agentTargetIds
+      - projectTargetDirs
+      - homeDir
+    properties:
+      agentTargetIds:
+        type: array
+        items:
+          type: string
+      projectTargetDirs:
+        type: array
+        items:
+          type: string
+      availabilityOverrides:
+        type: array
+        nullable: true
+        items:
+          type: object
+          required:
+            - skill
+            - mode
+          properties:
+            skill:
+              type: string
+            mode:
+              type: string
+              enum:
+                - user-ambient
+                - project-ambient
+                - user-on-demand
+      homeDir:
+        type: string
+        description: User home used to resolve user-agent and catalog targets for this relationship.
   sourceCommit:
     type: string
     nullable: true
@@ -60,3 +138,8 @@ properties:
     type: string
     format: date-time
     description: Last time the applied source record was changed.
+validation:
+  legacy_record:
+    description: Records without sourceKey, sourcePolicyDigest, or availabilityItems remain valid direct-apply records and are upgraded after an availability-aware run.
+  availability_reapply_context:
+    description: Availability-aware records persist normalized agent, project, override, and home context so applied drift/run never guesses target locations from installed paths.

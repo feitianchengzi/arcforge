@@ -6,7 +6,7 @@
 - overview/ 依赖 home/ 打开的项目快照，展示健康摘要和所有项目页面入口。
 - skills/ 依赖当前项目快照、文件系统权限和可选目标 Skill 项目，负责技能文件浏览、筛选、编辑、保存和 Skill 归并。
 - profiles/ 依赖当前项目技能列表，负责定义可被应用或共享的技能集合。
-- destinations/ 依赖 skills/ 归并生成的应用关系和 profiles/ 的配置组，负责目标应用与漂移检查。
+- destinations/ 依赖 skills/ 的来源清单与应用关系、profiles/ 的配置组，以及所选 Agent 和项目目录，负责 availability-aware 计划、direct 目标应用与漂移检查。
 - share/ 依赖当前项目、skills/ 的 Skill 范围、profiles/ 的范围定义和 audit/ 的检查结果，负责共享计划与发布准备。
 - audit/ 依赖当前项目快照和技能文件内容，负责审计发现、定位修复和重新扫描。
 
@@ -34,6 +34,6 @@
 - skills/ 保存失败时保留编辑内容，切换文件前处理未保存修改。
 - skills/ 归并失败时保留目标 Skill 项目、技能选择、配置组和目标目录。
 - profiles/ 保存或删除失败时保留配置组草稿和影响摘要。
-- destinations/ 应用失败时保留来源 Skill 项目、目标路径、配置组和写入计划；漂移检查失败时保留上次状态。
+- destinations/ 应用失败时保留来源 Skill 项目、目标组合、配置组、可用性计划、cleanup 和关系保存选择；漂移检查失败时保留上次成功结果。
 - share/ 执行失败时保留共享范围、远端、提交信息和执行日志。
 - audit/ 重新扫描失败时保留旧发现，用户仍可定位和修复已有问题。

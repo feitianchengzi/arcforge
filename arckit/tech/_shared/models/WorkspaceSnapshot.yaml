@@ -4,9 +4,9 @@ metadata:
   entity_name: WorkspaceSnapshot
   storage: in_memory
   owner: core/workspace
-  version: 1
+  version: 2
   created: 2026-05-21
-  updated: 2026-05-25
+  updated: 2026-07-30
 type: object
 required:
   - root
@@ -20,6 +20,33 @@ properties:
     description: Absolute workspace root path.
   config:
     $ref: "./ArcForgeConfig.yaml"
+  sourceManifest:
+    $ref: "./SkillProjectManifest.yaml"
+    nullable: true
+    description: Git-tracked source recommendations loaded independently from user-local config.
+  sourceManifestDiagnostics:
+    type: array
+    nullable: true
+    items:
+      type: object
+      required:
+        - severity
+        - code
+        - message
+      properties:
+        severity:
+          type: string
+          enum:
+            - info
+            - warning
+            - error
+        code:
+          type: string
+        path:
+          type: string
+          nullable: true
+        message:
+          type: string
   skills:
     type: array
     items:

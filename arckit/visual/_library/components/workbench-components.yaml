@@ -170,7 +170,7 @@ components:
         code_color: "{colors.semantic.warning}"
       critical:
         background: "{colors.semantic.danger_bg}"
-        border: "#F2B8B5"
+        border: "{colors.semantic.danger_border}"
         code_color: "{colors.semantic.danger}"
     size:
       min_height: 58
@@ -192,6 +192,9 @@ components:
       warning:
         background: "#FFF4D6"
         foreground: "{colors.semantic.warning}"
+      danger:
+        background: "{colors.semantic.danger_bg}"
+        foreground: "{colors.semantic.danger}"
       selected:
         background: "{colors.surface.selected}"
         foreground: "{colors.brand.primary_hover}"
@@ -221,3 +224,83 @@ components:
       - focus
       - disabled
       - error
+
+  Dialog:
+    role: 承载写入前审查、阻断诊断、选择确认和执行反馈，同时保留被遮罩的工作台上下文。
+    anatomy:
+      - scrim
+      - surface
+      - header
+      - scrollable_body
+      - actions
+    variants:
+      compact:
+        width: 420
+        background: "{colors.surface.panel}"
+        border: "{colors.border.strong}"
+      standard:
+        width: 760
+        background: "{colors.surface.panel}"
+        border: "{colors.border.strong}"
+      wide:
+        width: 880
+        background: "{colors.surface.panel}"
+        border: "{colors.border.strong}"
+    size:
+      max_height: "calc(100vh - 56px)"
+      padding: "{spacing.lg}"
+      radius: "{radius.md}"
+      shadow: "{shadow.modal}"
+      scrim: "{colors.surface.scrim}"
+    states:
+      - default
+      - blocked
+      - busy
+      - failed
+    token_refs:
+      - colors.surface.scrim
+      - colors.surface.panel
+      - colors.border.strong
+      - shadow.modal
+      - radius.md
+    accessibility:
+      notes: 阻断和失败状态同时使用文字、状态标签与禁用操作表达，不只依赖遮罩或颜色。
+
+  CheckRow:
+    role: 承载目标选择、cleanup 授权和关系保存等需要明确勾选的工作台选项。
+    variants:
+      default:
+        background: "{colors.surface.panel}"
+        border: "{colors.border.default}"
+        foreground: "{colors.text.secondary}"
+      checked:
+        background: "{colors.surface.selected}"
+        border: "{colors.border.selected}"
+        foreground: "{colors.brand.primary_hover}"
+      warning:
+        background: "{colors.semantic.warning_bg}"
+        border: "{colors.semantic.warning_border}"
+        foreground: "{colors.semantic.warning}"
+    size:
+      min_height: 40
+      padding: "{spacing.sm} {spacing.md}"
+      gap: "{spacing.sm}"
+      radius: "{radius.md}"
+      label: "{typography.scale.control}"
+      detail: "{typography.scale.caption}"
+    states:
+      - default
+      - hover
+      - checked
+      - disabled
+      - focus
+    token_refs:
+      - colors.surface.panel
+      - colors.surface.selected
+      - colors.border.default
+      - colors.border.selected
+      - colors.semantic.warning_bg
+      - colors.semantic.warning_border
+      - radius.md
+    accessibility:
+      notes: checked 状态保留原生 checkbox 指示，并用背景和边框增强；disabled 状态不移除标签与原因说明。

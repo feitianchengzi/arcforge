@@ -156,6 +156,14 @@ export function resolveApplyTargetEntries(group: ApplyTargetGroup, defaultTarget
   });
 }
 
+export function usesAvailabilityPlanning(group: ApplyTargetGroup): boolean {
+  return group.agentTargetIds.length > 0 && (group.customTargetDirs ?? []).length === 0;
+}
+
+export function hasMixedApplyTargetModes(group: ApplyTargetGroup): boolean {
+  return group.agentTargetIds.length > 0 && (group.customTargetDirs ?? []).length > 0;
+}
+
 function projectAgentTargetPath(projectDir: string, agent: DefaultTarget): string {
   return joinLocalPath(projectDir, `.${agent.id}`, "skills");
 }

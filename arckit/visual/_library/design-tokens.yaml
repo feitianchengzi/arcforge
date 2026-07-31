@@ -28,6 +28,9 @@ colors:
     panel_subtle:
       value: "#F8FAFC"
       description: 次级面板、空态、列表辅助背景。
+    scrim:
+      value: "rgba(15, 18, 24, 0.45)"
+      description: 模态对话框后的遮罩层，压低背景但保留工作台上下文。
     selected:
       value: "#E8F1FF"
       description: 选中态和推荐行动背景。
@@ -106,6 +109,9 @@ colors:
     danger_bg:
       value: "#FFF8F7"
       description: 严重风险发现项背景。
+    danger_border:
+      value: "#F2B8B5"
+      description: 阻断错误、严重风险和危险确认的边框。
 
 typography:
   font_family:
