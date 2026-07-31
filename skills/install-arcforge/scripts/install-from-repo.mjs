@@ -9,7 +9,7 @@ import { spawn } from "node:child_process";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..", "..", "..");
-const installedSkillNames = ["arcforge", "arcforge-skill-first", "arcforge-skill-creator"];
+const installedSkillNames = ["arcforge", "arcforge-on-demand", "arcforge-skill-first", "arcforge-skill-creator"];
 const recommendedSkillProjects = [
   {
     name: "arckit",
@@ -212,6 +212,7 @@ async function assertRepoRoot(root) {
   const requiredFiles = [
     "package.json",
     "skills/arcforge/SKILL.md",
+    "skills/arcforge-on-demand/SKILL.md",
     "skills/arcforge-skill-first/SKILL.md",
     "skills/arcforge-skill-creator/SKILL.md",
     "src/cli/index.ts",
@@ -304,6 +305,11 @@ async function verifyInstall(options) {
   currentStage = "Verify ArcForge install";
   const checks = [];
   const cliEntry = path.join(repoRoot, "dist", "cli", "index.js");
+  for (const agent of agents) {
+    for (const target of userSkillTargets(agent)) {
+      await addPathCheck(checks, `Skill ${agent}/${target.skillName} exists`, path.join(target.target, "SKILL.md"));
+    }
+  }
   await addPathCheck(checks, "CLI shim exists", options.cli.shimPath);
   if (process.platform !== "win32") await addExecutableCheck(checks, "CLI shim executable", options.cli.shimPath);
   checks.push({ label: "CLI command directory on PATH", path: options.cli.shimDir, ok: pathInPath(options.cli.shimDir), optional: true });

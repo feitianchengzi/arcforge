@@ -22,7 +22,7 @@ The recommended way to install ArcForge is to hand this repository to a coding a
 
 The install skill uses the current source checkout to:
 
-- Install `skills/arcforge/`, `skills/arcforge-skill-first/`, and `skills/arcforge-skill-creator/` into the current agent's user-level skill directory.
+- Install `skills/arcforge/`, `skills/arcforge-on-demand/`, `skills/arcforge-skill-first/`, and `skills/arcforge-skill-creator/` into the current agent's user-level skill directory.
 - Build the local `arcforge` CLI shim.
 - Install a `arcforge-desktop` launcher that the agent can open when needed.
 - Run headless verification when GUI launch is unavailable.
@@ -93,6 +93,7 @@ The new usage model is agent-first:
 | Part | Role |
 |---|---|
 | `skills/install-arcforge` | Lets a user clone this repository and complete local installation through a coding agent. |
+| `arcforge-on-demand` skill | Resolves and loads one user-catalog skill only after an explicit user invocation. |
 | `arcforge-skill-creator` skill | Creates, maintains, and splits ArcForge skills, taking priority over generic skill creators. |
 | `arcforge-skill-first` skill | Captures a working pattern as a skill and validates it with sub-agent preflight/retest loops. |
 | `arcforge` skill | The governance workflow entry point for audit, formalization, profiles, apply, drift, and release prep. |

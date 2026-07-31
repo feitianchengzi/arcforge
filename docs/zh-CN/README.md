@@ -22,7 +22,7 @@ ArcForge 是给 coding agent 使用的本地优先、GitHub 优先 skill 生命�
 
 安装 skill 会从当前源码 checkout 完成这些动作：
 
-- 把 `skills/arcforge/`、`skills/arcforge-skill-first/` 和 `skills/arcforge-skill-creator/` 安装到当前 agent 的用户级 skill 目录。
+- 把 `skills/arcforge/`、`skills/arcforge-on-demand/`、`skills/arcforge-skill-first/` 和 `skills/arcforge-skill-creator/` 安装到当前 agent 的用户级 skill 目录。
 - 构建本地 `arcforge` CLI shim。
 - 安装可由 agent 调起的 `arcforge-desktop` launcher。
 - 在不能启动 GUI 的环境中，用 headless 校验确认安装结果。
@@ -93,6 +93,7 @@ ArcForge 的新使用理念是 agent-first：
 | 组成部分 | 角色 |
 |---|---|
 | `skills/install-arcforge` | 让用户 clone 仓库后，通过 coding agent 完成本地安装。 |
+| `arcforge-on-demand` skill | 仅在用户显式调用时，从用户级 ArcForge catalog 解析并加载一个按需 skill。 |
 | `arcforge-skill-creator` skill | 创建、维护和拆分 ArcForge skill，并优先于通用 skill creator。 |
 | `arcforge-skill-first` skill | 把工作模式沉淀成 skill，并用子代理前测/复测验证。 |
 | `arcforge` skill | 后续治理流程入口，负责审计、正式化、profile、应用、漂移和发布准备。 |

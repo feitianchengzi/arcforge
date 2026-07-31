@@ -24,6 +24,7 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(skill, /## Output/);
   assert.match(skill, /arcforge-skill-first/);
   assert.match(skill, /arcforge-skill-creator/);
+  assert.match(skill, /arcforge-on-demand/);
   assert.match(skill, /当前 agent 用户级 skills/);
   assert.match(skill, /arcforge-desktop/);
   assert.match(skill, /--desktop install/);
@@ -78,10 +79,13 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(agentYaml, /安装和验证规则以 `SKILL\.md` 为准/);
   assert.match(agentYaml, /BEGIN_AGENT_FINAL_RESPONSE/);
   assert.match(agentYaml, /Recommended skill stage:\*/);
+  assert.match(agentYaml, /arcforge-on-demand/);
 
+  assert.match(script, /skills\/arcforge-on-demand\/SKILL\.md/);
   assert.match(script, /skills\/arcforge-skill-first\/SKILL\.md/);
   assert.match(script, /skills\/arcforge-skill-creator\/SKILL\.md/);
-  assert.match(script, /installedSkillNames = \["arcforge", "arcforge-skill-first", "arcforge-skill-creator"\]/);
+  assert.match(script, /installedSkillNames = \["arcforge", "arcforge-on-demand", "arcforge-skill-first", "arcforge-skill-creator"\]/);
+  assert.match(script, /Skill \$\{agent\}\/\$\{target\.skillName\} exists/);
   assert.match(script, /recommendedSkillProjects/);
   assert.match(script, /summaryZh/);
   assert.match(script, /parseRecommendedMode/);
@@ -166,6 +170,7 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(readme, /从当前仓库安装 ArcForge/);
   assert.match(readme, /arcforge-skill-first/);
   assert.match(readme, /arcforge-skill-creator/);
+  assert.match(readme, /skills\/arcforge-on-demand/);
   assert.match(readme, /arckit-code/);
   assert.match(readme, /AI Agent Skills 中心/);
   assert.match(readme, /具体技术栈 coding skills 仓库/);
@@ -182,6 +187,7 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(enReadme, /Install ArcForge From This Repository/);
   assert.match(enReadme, /arcforge-skill-first/);
   assert.match(enReadme, /arcforge-skill-creator/);
+  assert.match(enReadme, /skills\/arcforge-on-demand/);
   assert.match(enReadme, /arckit-code/);
   assert.match(enReadme, /AI Agent Skills center/);
   assert.match(enReadme, /Technology-stack-specific coding workflows live elsewhere/);
@@ -196,6 +202,7 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(zhReadme, /从当前仓库安装 ArcForge/);
   assert.match(zhReadme, /arcforge-skill-first/);
   assert.match(zhReadme, /arcforge-skill-creator/);
+  assert.match(zhReadme, /skills\/arcforge-on-demand/);
   assert.match(zhReadme, /arckit-code/);
   assert.match(zhReadme, /AI Agent Skills 中心/);
   assert.match(zhReadme, /具体技术栈 coding skills 仓库/);
@@ -237,6 +244,33 @@ test("arcforge install help guides recommended arckit choices", () => {
   assert.match(result.stdout, /https:\/\/github\.com\/feitianchengzi\/arckit-code/);
   assert.match(result.stdout, /AI-agent-assisted software development skill center/);
   assert.match(result.stdout, /technology-stack-specific coding skill project/);
+});
+
+test("arcforge install dry run includes the on-demand entry skill", () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      "skills/install-arcforge/scripts/install-from-repo.mjs",
+      "--agent",
+      "codex",
+      "--desktop",
+      "skip",
+      "--recommended-mode",
+      "quick",
+      "--recommended-skills",
+      "skip",
+      "--home",
+      "/private/tmp/arcforge-install-dry-run-home",
+      "--dry-run"
+    ],
+    {
+      cwd: new URL("..", import.meta.url),
+      encoding: "utf8"
+    }
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Skill \(codex\/arcforge-on-demand\): .*\.codex\/skills\/arcforge-on-demand/);
 });
 
 test("arcforge install rejects old implicit recommended skill commands", () => {

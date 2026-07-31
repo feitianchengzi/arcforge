@@ -1,11 +1,11 @@
 ---
 name: install-arcforge
-description: 当用户拉取 ArcForge 当前仓库后，想在 agent 中运行本地安装流程时使用：安装用户级 arcforge、arcforge-skill-first、arcforge-skill-creator，构建本地 arcforge CLI 和可真实调起的 ArcForge Desktop launcher，并在核心安装验证后按用户选择引导推荐的 arckit 与 arckit-code GitHub skill 项目。
+description: 当用户拉取 ArcForge 当前仓库后，想在 agent 中运行本地安装流程时使用：安装用户级 arcforge、arcforge-on-demand、arcforge-skill-first、arcforge-skill-creator，构建本地 arcforge CLI 和可真实调起的 ArcForge Desktop launcher，并在核心安装验证后按用户选择引导推荐的 arckit 与 arckit-code GitHub skill 项目。
 ---
 
 # Install ArcForge
 
-从当前 ArcForge 源码仓库完成本机安装。目标是让用户后续能在普通终端和 agent 中真实使用 `arcforge`、`arcforge-desktop`、`arcforge-skill-first` 和 `arcforge-skill-creator`。
+从当前 ArcForge 源码仓库完成本机安装。目标是让用户后续能在普通终端和 agent 中真实使用 `arcforge`、`arcforge-on-demand`、`arcforge-desktop`、`arcforge-skill-first` 和 `arcforge-skill-creator`。
 
 ArcForge 是本地优先、GitHub 优先的 pre-publish 和 team-governance 工作台。安装流程不得把 ArcForge 描述成 marketplace、public registry、search engine、ratings system、paid distribution platform 或 agent runtime。
 
@@ -27,7 +27,7 @@ ArcForge 是本地优先、GitHub 优先的 pre-publish 和 team-governance 工�
 
 ## Default Install
 
-1. 确认当前目录是 ArcForge 仓库根目录：存在 `package.json`、`skills/arcforge/SKILL.md`、`src/cli/index.ts` 和 `src/electron/main.ts`。
+1. 确认当前目录是 ArcForge 仓库根目录：存在 `package.json`、`skills/arcforge/SKILL.md`、`skills/arcforge-on-demand/SKILL.md`、`src/cli/index.ts` 和 `src/electron/main.ts`。
 2. 说明真实写入目标：当前 agent 用户级 skills、持久用户级 CLI shim 目录、Desktop launcher、当前仓库构建产物 `node_modules`、`dist`、`dist-ui`，以及可选 `release/`。
 3. 用户明确要求安装时，默认执行：
 
@@ -111,7 +111,7 @@ node skills/install-arcforge/scripts/install-from-repo.mjs --verify
 
 完成或停在推荐阶段时，用简短中文报告：
 
-- 用户级 skill 目标路径，包括 `arcforge`、`arcforge-skill-first` 和 `arcforge-skill-creator`。
+- 用户级 skill 目标路径，包括 `arcforge`、`arcforge-on-demand`、`arcforge-skill-first` 和 `arcforge-skill-creator`。
 - CLI shim 路径、是否在 PATH、修复过的旧 wrapper 或不可修复 PATH shadow。
 - Desktop launcher 路径和状态：`install`、`build`、`package`、`skip` 或失败阶段。
 - 已运行的验证命令和结果。
