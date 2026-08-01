@@ -1,6 +1,29 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const require = createRequire(import.meta.url);
+const ts = require("typescript");
+
+async function compileInstalledSkillsCore() {
+  const outputRoot = await mkdtemp(path.join(tmpdir(), "arcforge-installed-core-"));
+  const sourceRoot = fileURLToPath(new URL("../src", import.meta.url));
+  for (const relativeFile of ["shared/types.ts", "core/fs.ts", "core/frontmatter.ts", "core/skill-markdown.ts", "core/installed-skills.ts"]) {
+    const source = await readFile(path.join(sourceRoot, relativeFile), "utf8");
+    const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } });
+    const outputPath = path.join(outputRoot, relativeFile.replace(/\.ts$/, ".js"));
+    await mkdir(path.dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, output.outputText, "utf8");
+  }
+  return {
+    importModule: (relativePath) => import(pathToFileURL(path.join(outputRoot, relativePath.replace(/\.ts$/, ".js"))).href),
+    cleanup: () => rm(outputRoot, { recursive: true, force: true })
+  };
+}
 
 test("installed skill inventory core and cli contracts are exposed", async () => {
   const commands = await readFile(new URL("../src/commands/index.ts", import.meta.url), "utf8");
@@ -14,6 +37,7 @@ test("installed skill inventory core and cli contracts are exposed", async () =>
   assert.match(commands, /--no-plugin-cache/);
   assert.match(commands, /arcforge installed organize plan/);
   assert.match(commands, /arcforge installed organize run/);
+  assert.match(commands, /--decisions <json-file>/);
   assert.match(commands, /command === "installed"/);
   assert.match(commands, /runInstalledCommand/);
   assert.match(commands, /scanInstalledSkills/);
@@ -37,7 +61,10 @@ test("installed skill inventory core and cli contracts are exposed", async () =>
   assert.match(core, /createHash/);
   assert.match(core, /isModifiableInstalledSkill/);
   assert.match(core, /skill\.installKind !== "codex-plugin-cache"/);
-  assert.match(core, /root\.status === "scanned"/);
+  assert.match(core, /Installed skill inventory is evidence only/);
+  assert.match(core, /Agent or user decisions are required/);
+  assert.match(core, /validateOrganizeDecision/);
+  assert.doesNotMatch(core, /chooseCanonical|canonicalScore/);
   assert.match(core, /conflict/);
   assert.match(core, /requiresConfirm/);
   assert.match(core, /agent-user/);
@@ -87,14 +114,16 @@ test("installed skill inventory is wired to desktop as a global read-only page",
   assert.match(mainUi, /includeCodexPluginCache: true/);
   assert.match(mainUi, /installedOrganizePlan/);
   assert.match(mainUi, /createInstalledSkillOrganizePlan/);
-  assert.match(mainUi, /organizeInstalledSkills/);
+  assert.doesNotMatch(mainUi, /organizeInstalledSkills\(/);
   assert.match(installedView, /duplicateGroups/);
+  assert.match(installedView, /evidenceGroups/);
   assert.match(installedView, /codex-plugin-cache/);
   assert.match(installedView, /error\?: string/);
   assert.match(installedView, /scanOptions/);
   assert.match(installedView, /installedSkillIncludeSystem/);
   assert.match(installedView, /installedSkillIncludePluginCache/);
   assert.match(installedView, /installedSkillOrganize/);
+  assert.doesNotMatch(installedView, /onRunOrganizePlan/);
   assert.match(installedView, /InstalledSkillMetadata/);
   assert.match(installedView, /InstalledSkillPath/);
   assert.match(installedView, /installed-skill-row/);
@@ -108,7 +137,7 @@ test("installed skill inventory is wired to desktop as a global read-only page",
   assert.match(i18n, /插件缓存/);
   assert.match(i18n, /通用 agents 目录/);
   assert.match(i18n, /系统 skill/);
-  assert.match(i18n, /智能整理/);
+  assert.match(i18n, /复核重复证据/);
   assert.match(i18n, /待解决/);
 });
 
@@ -137,5 +166,35 @@ test("installed skill inventory docs preserve ArcForge product boundaries", asyn
     assert.match(text, /\.agents\/skills|\.agents\\skills/);
     assert.match(text, /plugin cache|插件缓存/i);
     assert.doesNotMatch(text, /marketplace competitor|registry competitor|公共 registry 竞争者|市场竞争者/i);
+  }
+});
+
+test("installed organize decisions reject malformed runtime JSON as plan conflicts", async () => {
+  const compiled = await compileInstalledSkillsCore();
+  const home = await mkdtemp(path.join(tmpdir(), "arcforge-installed-decisions-"));
+  try {
+    const skillPath = path.join(home, ".codex", "skills", "review");
+    await mkdir(skillPath, { recursive: true });
+    await writeFile(path.join(skillPath, "SKILL.md"), "---\nname: review\ndescription: test\n---\n", "utf8");
+    const { createInstalledSkillOrganizePlan } = await compiled.importModule("core/installed-skills.ts");
+    const malformed = await createInstalledSkillOrganizePlan({ home, decisions: [{ skillName: "review" }] });
+    assert.equal(malformed.actions.length, 0);
+    assert.match(malformed.conflicts[0].reason, /canonicalPath is required/);
+
+    const unknownAction = await createInstalledSkillOrganizePlan({
+      home,
+      decisions: [{
+        skillName: "review",
+        canonicalPath: skillPath,
+        reason: "Caller decision",
+        evidence: ["Observed copy"],
+        actions: [{ kind: "invented-action", skillName: "review", sourcePath: skillPath, targetPath: path.join(home, ".agents", "skills", "review"), reason: "Invalid", manifestSignature: "invalid" }]
+      }]
+    });
+    assert.equal(unknownAction.actions.length, 0);
+    assert.match(unknownAction.conflicts[0].reason, /Unknown organize action kind/);
+  } finally {
+    await compiled.cleanup();
+    await rm(home, { recursive: true, force: true });
   }
 });

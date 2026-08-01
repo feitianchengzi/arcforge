@@ -23,10 +23,43 @@ export interface ArcForgeProfileAvailability {
   skills?: SkillAvailabilityOverride[];
 }
 
+export type SkillProjectApplicabilityConditionKind = "required" | "preferred" | "excluded";
+
+export interface SkillProjectApplicabilityCondition {
+  id: string;
+  kind: SkillProjectApplicabilityConditionKind;
+  description: string;
+}
+
+export interface SkillProjectApplicability {
+  summary: string;
+  conditions: SkillProjectApplicabilityCondition[];
+  evidenceGuidance?: string[];
+  clarifyingQuestions?: string[];
+}
+
+export type SkillProjectApplicabilityAssessmentStatus = "suitable" | "unsuitable" | "needs-input" | "overridden";
+
+export interface SkillProjectApplicabilityAssessment {
+  skill: string;
+  projectRoots: string[];
+  status: SkillProjectApplicabilityAssessmentStatus;
+  decidedBy: "agent" | "user";
+  summary: string;
+  conditionResults: Array<{
+    conditionId: string;
+    outcome: "met" | "not-met" | "unknown";
+    evidence: string[];
+  }>;
+  evidence: string[];
+  unknowns: string[];
+}
+
 export interface SkillProjectManifestSkill {
   path: string;
   mode: SkillAvailabilityMode;
   aliases?: string[];
+  projectApplicability?: SkillProjectApplicability;
 }
 
 export interface SkillProjectManifest {
@@ -51,7 +84,7 @@ export type SkillAvailabilityPolicyOrigin =
   | "profile-default"
   | "source-skill"
   | "source-default"
-  | "compatibility";
+  | "unclassified";
 
 export interface ResolvedSkillAvailability {
   skill: string;
@@ -59,8 +92,10 @@ export interface ResolvedSkillAvailability {
   sourceRecommendation?: SkillAvailabilityMode;
   sourceRecommendationOrigin: "skill" | "project" | "none";
   consumerOverride?: SkillAvailabilityMode;
-  effectiveMode: SkillAvailabilityMode;
+  effectiveMode?: SkillAvailabilityMode;
   policyOrigin: SkillAvailabilityPolicyOrigin;
+  projectApplicability?: SkillProjectApplicability;
+  projectAssessment?: SkillProjectApplicabilityAssessment;
 }
 
 export interface SkillAvailabilityResolution {
@@ -214,6 +249,25 @@ export interface InstalledSkillOrganizeAction {
   rootName?: string;
 }
 
+export interface InstalledSkillOrganizeDecision {
+  skillName: string;
+  canonicalPath: string;
+  reason: string;
+  evidence: string[];
+  actions: InstalledSkillOrganizeAction[];
+}
+
+export interface InstalledSkillOrganizeEvidenceGroup {
+  skillName: string;
+  items: Array<{
+    rootName: string;
+    path: string;
+    installKind: InstalledSkillInstallKind;
+    isSystem: boolean;
+    manifestSignature: string;
+  }>;
+}
+
 export interface InstalledSkillOrganizeConflict {
   skillName: string;
   reason: string;
@@ -228,6 +282,8 @@ export interface InstalledSkillOrganizePlan {
   home: string;
   generatedAt: string;
   genericRoot: string;
+  evidenceGroups: InstalledSkillOrganizeEvidenceGroup[];
+  decisions: InstalledSkillOrganizeDecision[];
   actions: InstalledSkillOrganizeAction[];
   conflicts: InstalledSkillOrganizeConflict[];
   requiresConfirm: boolean;
@@ -322,7 +378,12 @@ export interface AuditReport {
   generatedAt: string;
   skills: SkillSummary[];
   findings: AuditFinding[];
-  score: number;
+  coverage: {
+    skillsChecked: number;
+    filesChecked: number;
+    ruleCategories: string[];
+    findingCounts: Record<Severity, number>;
+  };
   disclaimer: string;
   feedbackUrl: string;
   mode?: AuditMode;
@@ -363,13 +424,14 @@ export interface AppliedSourceRecord {
   availabilityItems?: Array<{
     skill: string;
     mode: SkillAvailabilityMode;
-    policyOrigin: SkillAvailabilityPolicyOrigin;
+    policyOrigin: SkillAvailabilityPolicyOrigin | "compatibility";
     destinations: string[];
   }>;
   availabilityContext?: {
     agentTargetIds: string[];
     projectTargetDirs: string[];
     availabilityOverrides?: SkillAvailabilityOverride[];
+    projectAssessments?: SkillProjectApplicabilityAssessment[];
     homeDir: string;
   };
   sourceCommit?: string;
@@ -444,7 +506,7 @@ export interface ProjectResolveCandidate {
     ok: boolean;
     error?: string;
   };
-  recommendation?: "recommended" | "candidate" | "notSkillProject";
+  match: "exact-path" | "name" | "candidate" | "not-skill-project";
   reasons: string[];
 }
 
@@ -452,7 +514,7 @@ export interface ProjectResolveResult {
   query: string;
   cwd: string;
   candidates: ProjectResolveCandidate[];
-  recommended?: ProjectResolveCandidate;
+  selected?: ProjectResolveCandidate;
   messages: string[];
 }
 
@@ -464,7 +526,7 @@ export interface LocalSkillWorkflowPlan {
   sourceExists: boolean;
   maintenance: {
     query: string;
-    recommended?: ProjectResolveCandidate;
+    selected?: ProjectResolveCandidate;
     candidates: ProjectResolveCandidate[];
   };
   install?: {
@@ -478,7 +540,7 @@ export interface LocalSkillWorkflowPlan {
     remoteUrl?: string;
   };
   stages: Array<{
-    name: "resolve-maintenance-source" | "merge-plan" | "merge-run" | "apply-drift" | "apply-run" | "share-plan" | "cleanup-local";
+    name: "resolve-maintenance-source" | "merge-plan" | "merge-run" | "apply-drift" | "apply-run" | "share-plan";
     writes: boolean;
     requiresConfirmation: boolean;
     command: string;
@@ -651,8 +713,16 @@ export interface PublishPlan {
   repositoryName: string;
   visibility: "private" | "public";
   files: string[];
-  installCommands: string[];
-  checklist: string[];
+  installReference?: string;
+  detectedIntegrations: string[];
+  assessmentStatus: "not-supplied" | "supplied";
+  readinessAssessment?: {
+    summary: string;
+    evidence: string[];
+    unknowns: string[];
+    installCommandCandidates: string[];
+    checklist: string[];
+  };
   sourceManifest?: {
     path: "arcforge.skill-project.json";
     selectedSkillPaths: string[];
@@ -727,7 +797,9 @@ export interface RecentWorkspace {
   name: string;
   lastOpenedAt: string;
   skillCount: number;
-  auditScore: number;
+  criticalFindings: number;
+  /** Legacy field kept for app-state migration from older desktop builds. */
+  auditScore?: number;
   status?: "ready" | "downloading" | "error";
   sourceKind?: "local" | "github";
   localSourcePath?: string;

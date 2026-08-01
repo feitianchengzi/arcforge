@@ -11,6 +11,8 @@ import type {
   SkillAvailabilityOverride,
   SkillAvailabilityPolicyOrigin,
   SkillAvailabilityResolution,
+  ResolvedSkillAvailability,
+  SkillProjectApplicabilityAssessment,
   SkillProjectManifest,
   SkillProjectManifestDiagnostic,
   SkillSummary,
@@ -22,7 +24,7 @@ export interface ResolveSkillAvailabilityOptions {
   profile?: Pick<ArcForgeProfile, "availability">;
   sourceManifest?: SkillProjectManifest;
   invocationOverrides?: SkillAvailabilityOverride[];
-  compatibilityMode?: SkillAvailabilityMode;
+  projectAssessments?: SkillProjectApplicabilityAssessment[];
 }
 
 export interface CreateSkillAvailabilityPlanOptions {
@@ -33,10 +35,10 @@ export interface CreateSkillAvailabilityPlanOptions {
   agentTargetIds: string[];
   projectTargetDirs?: string[];
   invocationOverrides?: SkillAvailabilityOverride[];
+  projectAssessments?: SkillProjectApplicabilityAssessment[];
   appliedRecords?: AppliedSourceRecord[];
   homeDir?: string;
   loaderSourcePath?: string;
-  compatibilityMode?: SkillAvailabilityMode;
 }
 
 export const ARCFORGE_ON_DEMAND_SKILL_NAME = "arcforge-on-demand";
@@ -60,8 +62,8 @@ export function resolveSkillAvailability(options: ResolveSkillAvailabilityOption
   const profileSkills = overrideMap(options.profile?.availability?.skills, "profile-skill", selectedNames, diagnostics);
   const profileDefault = checkedMode(options.profile?.availability?.defaultMode, "profile-default", diagnostics);
   const sourceDefault = options.sourceManifest?.availability.defaultMode;
-  const sourceByPath = new Map(options.sourceManifest?.availability.skills.map((item) => [item.path, item.mode]) ?? []);
-  const compatibilityMode = options.compatibilityMode ?? "user-ambient";
+  const sourceByPath = new Map(options.sourceManifest?.availability.skills.map((item) => [item.path, item]) ?? []);
+  const assessments = assessmentMap(options.projectAssessments, selectedNames, diagnostics);
 
   const duplicateNames = duplicateValues(options.skills.map((skill) => skill.name));
   for (const name of duplicateNames) {
@@ -73,30 +75,58 @@ export function resolveSkillAvailability(options: ResolveSkillAvailabilityOption
     });
   }
 
-  const items = options.skills.map((skill) => {
-    const sourceSkill = sourceByPath.get(toPosixPath(skill.relativePath));
+  const items: ResolvedSkillAvailability[] = options.skills.map((skill) => {
+    const sourcePolicy = sourceByPath.get(toPosixPath(skill.relativePath));
+    const sourceSkill = sourcePolicy?.mode;
     const sourceRecommendation = sourceSkill ?? sourceDefault;
     const sourceRecommendationOrigin = sourceSkill ? "skill" as const : sourceDefault ? "project" as const : "none" as const;
-    const ordered: Array<[SkillAvailabilityMode | undefined, SkillAvailabilityPolicyOrigin]> = [
+    const ordered: Array<[SkillAvailabilityMode | undefined, Exclude<SkillAvailabilityPolicyOrigin, "unclassified">]> = [
       [invocation.get(skill.name), "invocation"],
       [profileSkills.get(skill.name), "profile-skill"],
       [profileDefault, "profile-default"],
       [sourceSkill, "source-skill"],
-      [sourceDefault, "source-default"],
-      [compatibilityMode, "compatibility"]
+      [sourceDefault, "source-default"]
     ];
-    const selected = ordered.find(([mode]) => mode !== undefined) as [SkillAvailabilityMode, SkillAvailabilityPolicyOrigin];
+    const selected = ordered.find(([mode]) => mode !== undefined);
     const consumerOverride = invocation.get(skill.name) ?? profileSkills.get(skill.name) ?? profileDefault;
+    if (!selected) {
+      diagnostics.push({
+        severity: "error",
+        code: "UNCLASSIFIED_SKILL",
+        path: skill.relativePath,
+        message: `No source, profile, or invocation policy selected an availability mode for: ${skill.name}`
+      });
+    }
+    const effectiveMode = selected?.[0];
+    const projectAssessment = effectiveMode === "project-ambient" ? assessments.get(skill.name) : undefined;
+    if (effectiveMode === "project-ambient") {
+      validateProjectAssessment(skill.name, sourcePolicy?.projectApplicability, projectAssessment, diagnostics);
+    }
     return {
       skill: skill.name,
       sourcePath: toPosixPath(skill.relativePath),
       sourceRecommendation,
       sourceRecommendationOrigin,
       consumerOverride,
-      effectiveMode: selected[0],
-      policyOrigin: selected[1]
+      effectiveMode,
+      policyOrigin: selected?.[1] ?? "unclassified",
+      ...(effectiveMode === "project-ambient" && sourcePolicy?.projectApplicability
+        ? { projectApplicability: sourcePolicy.projectApplicability }
+        : {}),
+      ...(projectAssessment ? { projectAssessment } : {})
     };
   });
+
+  for (const [skill] of assessments) {
+    const item = items.find((candidate) => candidate.skill === skill);
+    if (item?.effectiveMode === "project-ambient") continue;
+    diagnostics.push({
+      severity: "warning",
+      code: "PROJECT_ASSESSMENT_UNUSED",
+      path: skill,
+      message: `Project applicability assessment does not match a project-ambient selected skill: ${skill}`
+    });
+  }
 
   return { items, diagnostics };
 }
@@ -105,6 +135,8 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
   const profile = options.source.config.profiles.find((item) => item.name === options.profileName);
   if (!profile) throw new Error(`Profile not found: ${options.profileName}`);
 
+  const homeDir = path.resolve(options.homeDir ?? os.homedir());
+  const consumerRoot = path.resolve(options.consumerRoot ?? options.source.root);
   const diagnostics = [...(options.source.sourceManifestDiagnostics ?? [])];
   const selectedSkills = selectPlanSkills(options.source.skills, profile.skills, options.skills, diagnostics);
   const resolution = resolveSkillAvailability({
@@ -112,17 +144,16 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
     profile,
     sourceManifest: options.source.sourceManifest,
     invocationOverrides: options.invocationOverrides,
-    compatibilityMode: options.compatibilityMode ?? compatibilityModeForTargets(options.projectTargetDirs)
+    projectAssessments: normalizeProjectAssessments(options.projectAssessments, consumerRoot)
   });
   diagnostics.push(...resolution.diagnostics);
 
   const sourceIdentity = await resolveSourceIdentity(options.source);
   const sourceKey = crypto.createHash("sha256").update(sourceIdentity).digest("hex").slice(0, 24);
-  const homeDir = path.resolve(options.homeDir ?? os.homedir());
-  const consumerRoot = path.resolve(options.consumerRoot ?? options.source.root);
   const agentTargetIds = normalizeAgentTargets(options.agentTargetIds, diagnostics);
   const projectRoots = normalizeProjectRoots(consumerRoot, options.projectTargetDirs);
   validateTargetContext(resolution.items, agentTargetIds, projectRoots, diagnostics);
+  validateAssessmentProjectRoots(resolution.items, projectRoots, diagnostics);
   validateCatalogAliases(selectedSkills, resolution.items, options.source.sourceManifest, diagnostics);
 
   const planItems = await Promise.all(resolution.items.map(async (item) => {
@@ -156,7 +187,7 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
     sourceKey,
     sourceIdentity,
     profile: options.profileName,
-    sourcePolicyDigest: sourcePolicyDigest(options.source.sourceManifest),
+    sourcePolicyDigest: skillAvailabilitySourcePolicyDigest(options.source.sourceManifest),
     items: planItems,
     loaderTargets,
     cleanup,
@@ -304,10 +335,6 @@ function normalizeProjectRoots(consumerRoot: string, values: string[] | undefine
   return [...new Set((values ?? []).map((item) => item.trim()).filter(Boolean).map((item) => path.resolve(consumerRoot, item)))].sort();
 }
 
-function compatibilityModeForTargets(projectTargetDirs: string[] | undefined): SkillAvailabilityMode {
-  return projectTargetDirs?.some((item) => item.trim()) ? "project-ambient" : "user-ambient";
-}
-
 function validateTargetContext(
   items: SkillAvailabilityResolution["items"],
   agentTargetIds: string[],
@@ -327,13 +354,14 @@ function validateTargetContext(
 }
 
 function availabilityDestinations(
-  mode: SkillAvailabilityMode,
+  mode: SkillAvailabilityMode | undefined,
   skillName: string,
   sourceKey: string,
   homeDir: string,
   agentTargetIds: string[],
   projectRoots: string[]
 ): SkillAvailabilityDestination[] {
+  if (!mode) return [];
   if (!isSafePathSegment(skillName)) return [];
   if (mode === "user-on-demand") {
     return [{ kind: "user-catalog", path: path.join(homeDir, ".arcforge", "catalog", sourceKey, skillName) }];
@@ -446,13 +474,25 @@ async function listDigestFiles(root: string): Promise<string[]> {
   return files;
 }
 
-function sourcePolicyDigest(manifest: SkillProjectManifest | undefined): string | undefined {
+export function skillAvailabilitySourcePolicyDigest(manifest: SkillProjectManifest | undefined): string | undefined {
   if (!manifest) return undefined;
   const normalized = {
     defaultMode: manifest.availability.defaultMode ?? null,
     skills: [...manifest.availability.skills]
       .sort((left, right) => left.path.localeCompare(right.path))
-      .map((item) => ({ path: item.path, mode: item.mode, aliases: [...(item.aliases ?? [])].sort() }))
+      .map((item) => ({
+        path: item.path,
+        mode: item.mode,
+        aliases: [...(item.aliases ?? [])].sort(),
+        projectApplicability: item.projectApplicability ? {
+          summary: item.projectApplicability.summary,
+          conditions: [...item.projectApplicability.conditions]
+            .sort((left, right) => left.id.localeCompare(right.id))
+            .map((condition) => ({ ...condition })),
+          evidenceGuidance: [...(item.projectApplicability.evidenceGuidance ?? [])],
+          clarifyingQuestions: [...(item.projectApplicability.clarifyingQuestions ?? [])]
+        } : null
+      }))
   };
   return crypto.createHash("sha256").update(JSON.stringify(normalized)).digest("hex");
 }
@@ -509,6 +549,130 @@ function overrideMap(
     output.set(skill, mode);
   }
   return output;
+}
+
+function assessmentMap(
+  values: SkillProjectApplicabilityAssessment[] | undefined,
+  selectedNames: Set<string>,
+  diagnostics: SkillProjectManifestDiagnostic[]
+): Map<string, SkillProjectApplicabilityAssessment> {
+  const output = new Map<string, SkillProjectApplicabilityAssessment>();
+  for (const value of values ?? []) {
+    const skill = typeof value?.skill === "string" ? value.skill.trim() : "";
+    if (!skill) {
+      diagnostics.push({ severity: "error", code: "PROJECT_ASSESSMENT_SKILL_REQUIRED", message: "Project applicability assessment requires a skill name." });
+      continue;
+    }
+    if (output.has(skill)) {
+      diagnostics.push({ severity: "error", code: "DUPLICATE_PROJECT_ASSESSMENT", path: skill, message: `Duplicate project applicability assessment for skill: ${skill}` });
+      continue;
+    }
+    if (!selectedNames.has(skill)) {
+      diagnostics.push({ severity: "warning", code: "PROJECT_ASSESSMENT_NOT_SELECTED", path: skill, message: `Project applicability assessment does not match a selected skill: ${skill}` });
+    }
+    if (!new Set(["suitable", "unsuitable", "needs-input", "overridden"]).has(value.status)
+      || !new Set(["agent", "user"]).has(value.decidedBy)
+      || typeof value.summary !== "string"
+      || !value.summary.trim()
+      || !Array.isArray(value.projectRoots)
+      || value.projectRoots.length === 0
+      || value.projectRoots.some((item) => typeof item !== "string" || !item.trim())
+      || !Array.isArray(value.conditionResults)
+      || !Array.isArray(value.evidence)
+      || value.evidence.length === 0
+      || value.evidence.some((item) => typeof item !== "string" || !item.trim())
+      || !Array.isArray(value.unknowns)
+      || value.unknowns.some((item) => typeof item !== "string" || !item.trim())) {
+      diagnostics.push({ severity: "error", code: "PROJECT_ASSESSMENT_INVALID", path: skill, message: `Project applicability assessment is malformed: ${skill}` });
+      continue;
+    }
+    if (value.status === "overridden" && value.decidedBy !== "user") {
+      diagnostics.push({ severity: "error", code: "PROJECT_ASSESSMENT_OVERRIDE_INVALID", path: skill, message: "Only an explicit user decision can override project applicability." });
+      continue;
+    }
+    output.set(skill, { ...value, skill });
+  }
+  return output;
+}
+
+function validateProjectAssessment(
+  skill: string,
+  applicability: SkillProjectManifest["availability"]["skills"][number]["projectApplicability"],
+  assessment: SkillProjectApplicabilityAssessment | undefined,
+  diagnostics: SkillProjectManifestDiagnostic[]
+): void {
+  if (!assessment) {
+    diagnostics.push({
+      severity: "error",
+      code: "PROJECT_ASSESSMENT_REQUIRED",
+      path: skill,
+      message: `Project-ambient skill requires an Agent assessment or explicit user override: ${skill}`
+    });
+    return;
+  }
+  const conditionIds = new Set(applicability?.conditions.map((item) => item.id) ?? []);
+  const seen = new Set<string>();
+  for (const result of assessment.conditionResults) {
+    if (!result || typeof result.conditionId !== "string"
+      || !result.conditionId.trim()
+      || !new Set(["met", "not-met", "unknown"]).has(result.outcome)
+      || !Array.isArray(result.evidence)
+      || result.evidence.length === 0
+      || result.evidence.some((item) => typeof item !== "string" || !item.trim())) {
+      diagnostics.push({ severity: "error", code: "PROJECT_ASSESSMENT_RESULT_INVALID", path: skill, message: `Project assessment contains a malformed condition result: ${skill}` });
+      continue;
+    }
+    if (seen.has(result.conditionId)) {
+      diagnostics.push({ severity: "error", code: "PROJECT_ASSESSMENT_RESULT_DUPLICATE", path: result.conditionId, message: `Project assessment repeats a condition ID: ${result.conditionId}` });
+    }
+    seen.add(result.conditionId);
+    if (!conditionIds.has(result.conditionId)) {
+      diagnostics.push({ severity: "error", code: "PROJECT_ASSESSMENT_CONDITION_UNKNOWN", path: result.conditionId, message: `Project assessment references an unknown source condition: ${result.conditionId}` });
+    }
+  }
+  for (const conditionId of conditionIds) {
+    if (seen.has(conditionId)) continue;
+    diagnostics.push({ severity: "error", code: "PROJECT_ASSESSMENT_CONDITION_MISSING", path: conditionId, message: `Project assessment did not evaluate source condition: ${conditionId}` });
+  }
+  if (assessment.status === "unsuitable" || assessment.status === "needs-input") {
+    diagnostics.push({
+      severity: "error",
+      code: assessment.status === "unsuitable" ? "PROJECT_NOT_SUITABLE" : "PROJECT_ASSESSMENT_NEEDS_INPUT",
+      path: skill,
+      message: assessment.summary
+    });
+  }
+}
+
+function normalizeProjectAssessments(
+  values: SkillProjectApplicabilityAssessment[] | undefined,
+  consumerRoot: string
+): SkillProjectApplicabilityAssessment[] | undefined {
+  return values?.map((item) => ({
+    ...item,
+    projectRoots: Array.isArray(item?.projectRoots)
+      ? item.projectRoots.map((root) => typeof root === "string" ? path.resolve(consumerRoot, root) : root)
+      : item?.projectRoots
+  }));
+}
+
+function validateAssessmentProjectRoots(
+  items: ResolvedSkillAvailability[],
+  projectRoots: string[],
+  diagnostics: SkillProjectManifestDiagnostic[]
+): void {
+  const expected = [...new Set(projectRoots.map((item) => normalizeLocalPath(path.resolve(item))))].sort();
+  for (const item of items) {
+    if (item.effectiveMode !== "project-ambient" || !item.projectAssessment) continue;
+    const actual = [...new Set(item.projectAssessment.projectRoots.map((root) => normalizeLocalPath(path.resolve(root))))].sort();
+    if (actual.length === expected.length && actual.every((root, index) => root === expected[index])) continue;
+    diagnostics.push({
+      severity: "error",
+      code: "PROJECT_ASSESSMENT_TARGET_MISMATCH",
+      path: item.skill,
+      message: `Project applicability assessment does not cover the selected project targets: ${item.skill}`
+    });
+  }
 }
 
 function checkedMode(

@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import type {
   SkillAvailabilityMode,
+  SkillProjectApplicability,
   SkillProjectManifest,
   SkillProjectManifestDiagnostic,
   SkillProjectManifestSkill,
@@ -71,6 +72,9 @@ export function parseSkillProjectManifest(raw: string): SkillProjectManifestLoad
     };
   }
 
+  reportUnknownFields(value, ["version", "sourceDir", "availability"], "manifest", diagnostics);
+  reportUnknownFields(value.availability, ["defaultMode", "skills"], "availability", diagnostics);
+
   const sourceDir = optionalRelativePath(value.sourceDir, true, "sourceDir", diagnostics);
   const defaultMode = optionalMode(value.availability.defaultMode, "availability.defaultMode", diagnostics);
   const skills: SkillProjectManifestSkill[] = [];
@@ -82,16 +86,41 @@ export function parseSkillProjectManifest(raw: string): SkillProjectManifestLoad
       diagnostics.push(errorDiagnostic("SKILL_PROJECT_MANIFEST_SKILL_INVALID", location, `${location} must be an object.`));
       continue;
     }
+    reportUnknownFields(item, ["path", "mode", "aliases", "projectApplicability"], location, diagnostics);
     const skillPath = requiredRelativePath(item.path, false, `${location}.path`, diagnostics);
     const mode = requiredMode(item.mode, `${location}.mode`, diagnostics);
     const aliases = optionalAliases(item.aliases, `${location}.aliases`, diagnostics);
+    const projectApplicability = optionalProjectApplicability(
+      item.projectApplicability,
+      `${location}.projectApplicability`,
+      diagnostics
+    );
     if (!skillPath || !mode) continue;
+    if (aliases && mode !== "user-on-demand") {
+      diagnostics.push(errorDiagnostic(
+        "SKILL_PROJECT_MANIFEST_ALIASES_MODE_INVALID",
+        `${location}.aliases`,
+        `${location}.aliases is only valid when mode is user-on-demand.`
+      ));
+    }
+    if (projectApplicability && mode !== "project-ambient") {
+      diagnostics.push(errorDiagnostic(
+        "SKILL_PROJECT_MANIFEST_APPLICABILITY_MODE_INVALID",
+        `${location}.projectApplicability`,
+        `${location}.projectApplicability is only valid when mode is project-ambient.`
+      ));
+    }
     if (seenPaths.has(skillPath)) {
       diagnostics.push(errorDiagnostic("SKILL_PROJECT_MANIFEST_DUPLICATE_PATH", skillPath, `Duplicate skill policy path: ${skillPath}`));
       continue;
     }
     seenPaths.add(skillPath);
-    skills.push({ path: skillPath, mode, ...(aliases ? { aliases } : {}) });
+    skills.push({
+      path: skillPath,
+      mode,
+      ...(aliases ? { aliases } : {}),
+      ...(projectApplicability ? { projectApplicability } : {})
+    });
   }
 
   return {
@@ -123,6 +152,29 @@ export function validateSkillProjectManifestSkills(
         item.path,
         `Availability policy path does not match a discovered skill: ${item.path}`
       ));
+    }
+  }
+
+  const catalogOwners = new Map<string, string>();
+  const policiesByPath = new Map(manifest?.availability.skills.map((item) => [item.path, item]) ?? []);
+  for (const skill of skills) {
+    const skillPath = toPosixPath(skill.relativePath);
+    const policy = policiesByPath.get(skillPath);
+    if ((policy?.mode ?? manifest?.availability.defaultMode) !== "user-on-demand") continue;
+    for (const candidate of [skill.name, ...(policy?.aliases ?? [])]) {
+      const normalized = candidate.trim().toLowerCase();
+      const owner = catalogOwners.get(normalized);
+      if (owner) {
+        diagnostics.push(errorDiagnostic(
+          "SKILL_PROJECT_MANIFEST_ALIAS_CONFLICT",
+          candidate,
+          owner === skillPath
+            ? `On-demand name or alias duplicates another name for the same source skill: ${candidate}`
+            : `On-demand name or alias is shared by multiple source skills: ${candidate}`
+        ));
+      } else {
+        catalogOwners.set(normalized, skillPath);
+      }
     }
   }
 
@@ -166,7 +218,8 @@ export function prepareSkillProjectManifestForShare(
         .map((item) => ({
           path: toPosixPath(item.path),
           mode: item.mode,
-          ...(item.aliases?.length ? { aliases: [...new Set(item.aliases.map((alias) => alias.trim()).filter(Boolean))].sort() } : {})
+          ...(item.aliases?.length ? { aliases: [...new Set(item.aliases.map((alias) => alias.trim()).filter(Boolean))].sort() } : {}),
+          ...(item.projectApplicability ? { projectApplicability: normalizeProjectApplicability(item.projectApplicability) } : {})
         }))
         .sort((left, right) => left.path.localeCompare(right.path))
     }
@@ -246,14 +299,147 @@ function optionalAliases(
   const seen = new Set<string>();
   for (const alias of value) {
     const normalized = typeof alias === "string" ? alias.trim() : "";
-    if (!normalized || seen.has(normalized)) {
+    const lookupKey = normalized.toLowerCase();
+    if (!normalized || seen.has(lookupKey)) {
       diagnostics.push(errorDiagnostic("SKILL_PROJECT_MANIFEST_ALIASES_INVALID", location, `${location} contains an empty or duplicate alias.`));
       continue;
     }
-    seen.add(normalized);
+    seen.add(lookupKey);
     aliases.push(normalized);
   }
   return aliases.length > 0 ? aliases : undefined;
+}
+
+function optionalProjectApplicability(
+  value: unknown,
+  location: string,
+  diagnostics: SkillProjectManifestDiagnostic[]
+): SkillProjectApplicability | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!isRecord(value)) {
+    diagnostics.push(errorDiagnostic(
+      "SKILL_PROJECT_MANIFEST_APPLICABILITY_INVALID",
+      location,
+      `${location} must be an object.`
+    ));
+    return undefined;
+  }
+  reportUnknownFields(value, ["summary", "conditions", "evidenceGuidance", "clarifyingQuestions"], location, diagnostics);
+  const summary = typeof value.summary === "string" ? value.summary.trim() : "";
+  if (!summary) {
+    diagnostics.push(errorDiagnostic(
+      "SKILL_PROJECT_MANIFEST_APPLICABILITY_INVALID",
+      `${location}.summary`,
+      `${location}.summary must be a non-empty string.`
+    ));
+  }
+  const conditions: SkillProjectApplicability["conditions"] = [];
+  const seenConditionIds = new Set<string>();
+  if (!Array.isArray(value.conditions) || value.conditions.length === 0) {
+    diagnostics.push(errorDiagnostic(
+      "SKILL_PROJECT_MANIFEST_APPLICABILITY_INVALID",
+      `${location}.conditions`,
+      `${location}.conditions must be a non-empty array.`
+    ));
+  } else {
+    for (const [index, condition] of value.conditions.entries()) {
+      const conditionLocation = `${location}.conditions[${index}]`;
+      if (!isRecord(condition)) {
+        diagnostics.push(errorDiagnostic(
+          "SKILL_PROJECT_MANIFEST_APPLICABILITY_CONDITION_INVALID",
+          conditionLocation,
+          `${conditionLocation} must be an object.`
+        ));
+        continue;
+      }
+      reportUnknownFields(condition, ["id", "kind", "description"], conditionLocation, diagnostics);
+      const id = typeof condition.id === "string" ? condition.id.trim() : "";
+      const kind = condition.kind;
+      const description = typeof condition.description === "string" ? condition.description.trim() : "";
+      if (!/^[a-z][a-z0-9-]*$/.test(id) || seenConditionIds.has(id)) {
+        diagnostics.push(errorDiagnostic(
+          "SKILL_PROJECT_MANIFEST_APPLICABILITY_CONDITION_INVALID",
+          `${conditionLocation}.id`,
+          `${conditionLocation}.id must be a unique lowercase identifier.`
+        ));
+        continue;
+      }
+      if (kind !== "required" && kind !== "preferred" && kind !== "excluded") {
+        diagnostics.push(errorDiagnostic(
+          "SKILL_PROJECT_MANIFEST_APPLICABILITY_CONDITION_INVALID",
+          `${conditionLocation}.kind`,
+          `${conditionLocation}.kind must be required, preferred, or excluded.`
+        ));
+        continue;
+      }
+      if (!description) {
+        diagnostics.push(errorDiagnostic(
+          "SKILL_PROJECT_MANIFEST_APPLICABILITY_CONDITION_INVALID",
+          `${conditionLocation}.description`,
+          `${conditionLocation}.description must be a non-empty string.`
+        ));
+        continue;
+      }
+      seenConditionIds.add(id);
+      conditions.push({ id, kind, description });
+    }
+  }
+  const evidenceGuidance = optionalStringList(value.evidenceGuidance, `${location}.evidenceGuidance`, diagnostics);
+  const clarifyingQuestions = optionalStringList(value.clarifyingQuestions, `${location}.clarifyingQuestions`, diagnostics);
+  if (!summary || conditions.length === 0) return undefined;
+  return {
+    summary,
+    conditions,
+    ...(evidenceGuidance?.length ? { evidenceGuidance } : {}),
+    ...(clarifyingQuestions?.length ? { clarifyingQuestions } : {})
+  };
+}
+
+function optionalStringList(
+  value: unknown,
+  location: string,
+  diagnostics: SkillProjectManifestDiagnostic[]
+): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value)) {
+    diagnostics.push(errorDiagnostic(
+      "SKILL_PROJECT_MANIFEST_APPLICABILITY_INVALID",
+      location,
+      `${location} must be an array of non-empty strings.`
+    ));
+    return undefined;
+  }
+  const values: string[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    const normalized = typeof item === "string" ? item.trim() : "";
+    if (!normalized || seen.has(normalized)) {
+      diagnostics.push(errorDiagnostic(
+        "SKILL_PROJECT_MANIFEST_APPLICABILITY_INVALID",
+        location,
+        `${location} contains an empty or duplicate value.`
+      ));
+      continue;
+    }
+    seen.add(normalized);
+    values.push(normalized);
+  }
+  return values.length > 0 ? values : undefined;
+}
+
+function normalizeProjectApplicability(value: SkillProjectApplicability): SkillProjectApplicability {
+  return {
+    summary: value.summary.trim(),
+    conditions: value.conditions
+      .map((condition) => ({
+        id: condition.id.trim(),
+        kind: condition.kind,
+        description: condition.description.trim()
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id)),
+    ...(value.evidenceGuidance?.length ? { evidenceGuidance: [...new Set(value.evidenceGuidance.map((item) => item.trim()))] } : {}),
+    ...(value.clarifyingQuestions?.length ? { clarifyingQuestions: [...new Set(value.clarifyingQuestions.map((item) => item.trim()))] } : {})
+  };
 }
 
 function isSafeRelativePosixPath(value: string, allowDot: boolean): boolean {
@@ -273,6 +459,23 @@ function toPosixPath(value: string): string {
 
 function errorDiagnostic(code: string, location: string, message: string): SkillProjectManifestDiagnostic {
   return { severity: "error", code, path: location, message };
+}
+
+function reportUnknownFields(
+  value: Record<string, unknown>,
+  allowed: string[],
+  location: string,
+  diagnostics: SkillProjectManifestDiagnostic[]
+): void {
+  const allowedFields = new Set(allowed);
+  for (const field of Object.keys(value)) {
+    if (allowedFields.has(field)) continue;
+    diagnostics.push(errorDiagnostic(
+      "SKILL_PROJECT_MANIFEST_UNKNOWN_FIELD",
+      `${location}.${field}`,
+      `Unknown ${SKILL_PROJECT_MANIFEST_FILE} field: ${location}.${field}`
+    ));
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

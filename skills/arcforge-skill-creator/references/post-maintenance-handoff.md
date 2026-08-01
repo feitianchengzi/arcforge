@@ -4,7 +4,7 @@
 
 ## 基本原则
 
-- 当前项目 `skills/<skill-name>/` 通常是工作副本，不自动等于正式维护源。
+- 已安装或当前可见的 skill 目录通常是运行副本、工作副本或来源线索，不自动等于正式维护源；维护关系必须由 provenance、Git、manifest 或用户指定确认。
 - 工作副本保留价值：它让业务场景中的 skill 优化先低风险落地、结构校验和必要验证，再决定是否回源。
 - 如果当前仓库本身就是正式 Skill 项目，且目标 skill 位于该项目维护源内，可以直接把该路径视为维护源工作区；不要为了规则而额外复制。
 - 任何写回维护源、应用到 agent 目录、同步到项目 agent 目录、push、share 或 registry 相关动作，都不在 `arcforge-skill-creator` 内执行，必须交给 `arcforge` 并经用户确认。
@@ -15,7 +15,7 @@
 `post_maintenance_handoff.recommended_next_step` 只能使用下面四个值：
 
 - `local_experiment_only`：本轮只是当前业务项目里的试验、一次性适配、低风险文案调整，用户没有表达复用或回源意图。
-- `verify_with_skill_first`：修改影响触发、流程门禁、确认点、工具调用、复杂交互、状态、CLI/server/UI 承载、人工桥接或真实任务执行路径，需要隔离验证。
+- `verify_with_skill_first`：修改影响触发、流程门禁、确认点、工具调用、复杂交互、状态、实现承载、验证通道或真实任务执行路径，需要隔离验证。
 - `sync_to_maintenance_source`：修改清楚、低风险，主要是结构、metadata、reference 链接、边界补充或用户明确要求回源，可以进入 ArcForge 正式化、审计、merge plan、drift 或 apply 前准备。
 - `verify_then_sync`：修改既有复用价值又存在执行风险，或者用户明确希望优化后的 skill 成为正式能力。先交给 `arcforge-skill-first` 验证，再交给 `arcforge` 做正式化或同步治理。
 

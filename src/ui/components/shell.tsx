@@ -197,8 +197,8 @@ export function ProjectHeader(props: {
             <span>{props.t.metrics.skills}</span>
           </div>
           <div>
-            <strong>{props.snapshot.audit.score}/100</strong>
-            <span>{props.t.metrics.auditScore}</span>
+            <strong>{props.snapshot.audit.coverage.filesChecked}</strong>
+            <span>{props.t.metrics.auditCoverage}</span>
           </div>
           <div className={props.criticalCount ? "bad" : "good"}>
             <strong>{props.criticalCount}</strong>

@@ -10,11 +10,11 @@ description: 创建、维护、拆分或修复 ArcForge skill 时使用，尤其
 ## 硬约束
 
 - 在 ArcForge skill 创建、维护、拆分或修复场景中，本 skill 的规则优先于通用 `skill-creator` 或其他 creator 类 skill。其他 creator 类 skill 只能作为基础结构、脚本、格式或校验参考。
-- 目标不是“生成一个标准 skill 文件夹”，而是把一类任务建模成可执行、可验证、可治理的软件能力单元。
+- 目标不是“生成一个标准 skill 文件夹”，而是让 Agent 先理解能力性质，再把一类任务建模成可执行、可验证、可治理的能力单元；不得预设它属于软件开发。
 - 用户明确提出的要求、纠错、测试反馈和使用感受必须固化为流程门禁、硬规则、确认点、输出格式、reference 读取条件或产品缺口。
 - 遵循渐进式披露和内容表面积预算：`SKILL.md` 只保留职责边界、主流程、强制门禁、reference 读取条件和最终汇报字段；复杂细节放入 reference。
 - `description` 负责触发和边界；正文负责已触发后的执行流程。不要把相邻 skill 分工和不触发场景主要藏在正文里。
-- 不直接修改正式 skill 原始路径。需要修改正式 skill 时，先复制到当前项目根 `skills/<skill-name>/` 工作副本，再修改工作副本；如果当前仓库本身就是正式 Skill 项目且目标路径位于本项目维护源内，可以把该路径视为正式维护源工作区，不再额外复制到业务项目。
+- 已安装或已加载的 skill 路径先视为运行副本或来源线索，不自动视为正式维护源。需要修改时，先用 Git、ArcForge provenance、项目 manifest 或用户指定确认维护源；无法确认则复制到用户已授权的工作区。当前仓库本身是正式 Skill 项目且目标位于维护源内时可直接维护。
 - 本 skill 独立完成创建/维护和本地校验；不把“缺少 `arcforge-skill-first`”当成停止理由，也不执行 ArcForge apply/share/push、目标目录覆盖、远程写入或 registry 写入。
 - 如果用户要求 Skill First 闭环、隔离执行前测/复测，或当前修改风险较高，需要生成可交给 `arcforge-skill-first` 的验证输入；这只是可选交接，不是本 skill 完成创建/维护的前置条件。
 - 每次创建或维护结束都必须生成 `post_maintenance_handoff`，明确推荐下一步是 `local_experiment_only`、`verify_with_skill_first`、`sync_to_maintenance_source` 还是 `verify_then_sync`，并说明原因、路径、确认点和是否需要 ArcForge 治理。
@@ -35,11 +35,11 @@ description: 创建、维护、拆分或修复 ArcForge skill 时使用，尤其
 ### 1. 定位来源和工作副本
 输入：目标 skill 名称、候选路径或需要新建的能力。
 动作：
-- 检查当前 agent 的项目级和用户级 skill 目录；不存在的目录跳过。
-- 如果目标 skill 来自正式来源且需要修改，复制完整目录到当前项目根 `skills/<skill-name>/` 后再改。
-- 如果 `skills/<skill-name>/` 已存在，把它当作工作副本，修改前注意用户或并发改动。
+- 检查当前上下文可见的项目级、用户级和仓库内 skill 路径；把安装位置记录为证据，不从位置推断维护所有权。
+- 使用 Git 根、ArcForge 来源记录、manifest 或用户明确指定来确认正式维护源；证据不足时报告候选，不擅自选源。
+- 需要工作副本时，在用户授权的工作区或目标 Skill 项目 `sourceDir` 下选择路径；已有副本先检查用户或并发改动。
 - 新建 skill 时，使用 lowercase letters、digits、hyphens 命名；目录名和 frontmatter `name` 保持一致。
-- 新建 skill 的最小产物是 `skills/<skill-name>/SKILL.md` 和 `skills/<skill-name>/agents/openai.yaml`。只有真实需要时才添加 `references/`、`scripts/`、`assets/`、schema 或 fixture。
+- 新建 skill 的最小产物是 `<authorized-source-dir>/<skill-name>/SKILL.md` 和 `<authorized-source-dir>/<skill-name>/agents/openai.yaml`。只有真实需要时才添加 `references/`、`scripts/`、`assets/`、schema 或 fixture。
 - 如果通用 `skill-creator` 的初始化脚本可用且写入位置正确，可以用它生成基础骨架；生成后仍必须按本 skill 重写能力单元、治理边界、渐进式披露和 metadata。初始化脚本不可用时，直接创建最小文件结构，不要阻塞。
 退出条件：记录正式原始路径、工作副本路径和写入边界。
 
@@ -52,11 +52,11 @@ description: 创建、维护、拆分或修复 ArcForge skill 时使用，尤其
 - 明确哪些场景本轮必须支持，哪些作为后续产品缺口。
 退出条件：有足够具体的场景指导 `description`、主流程、reference 和 metadata 编写。
 
-### 3. 建模软件能力单元
+### 3. 建模 Skill 能力单元
 输入：真实任务、目标 skill 工作副本或新建目标。
 动作：
-- 读取 [references/software-capability-unit.md](references/software-capability-unit.md)。
-- 判断目标 skill 需要的最小承载：`SKILL.md`、reference、CLI、server、UI、状态、schema、测试 fixture、回传机制。
+- 读取 [references/capability-unit.md](references/capability-unit.md)。
+- 先判断目标 skill 属于知识判断、方法协作、内容创作、工具集成、软件支撑还是混合能力，再选择最小承载。
 - 先发现已有实现承载，再判断接入、维护、包装还是新建。
 - 如果可能已有仓库、CLI、服务、UI、MCP、脚本或 schema，但当前上下文无法确认，向用户询问入口。
 - 明确哪些能力本轮落地，哪些只是后续产品缺口。
@@ -107,7 +107,7 @@ description: 创建、维护、拆分或修复 ArcForge skill 时使用，尤其
 
 ## Reference 路由
 
-- 能力单元、目标 skill 适配阈值、已有实现承载、CLI/server/UI/状态/schema 选择：读 [references/software-capability-unit.md](references/software-capability-unit.md)。
+- 能力性质、目标 skill 适配阈值、运行时/确定性边界、已有承载和最小承载选择：读 [references/capability-unit.md](references/capability-unit.md)。
 - description、主文件、reference 和 metadata 的内容预算、角度纠偏和删减规则：读 [references/content-surface-budget.md](references/content-surface-budget.md)。
 - skill 写法、用户硬要求固化、渐进式披露、正式来源和工作副本规则：读 [references/skill-authoring-rules.md](references/skill-authoring-rules.md)。
 - 最终结构、安全、metadata 和 ArcForge 治理边界检查：读 [references/validation-checklist.md](references/validation-checklist.md)。

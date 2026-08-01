@@ -1,0 +1,87 @@
+metadata:
+  path: tech/_shared/models/SkillProjectApplicabilityAssessment.yaml
+  domain: profiles-sync
+  entity_name: SkillProjectApplicabilityAssessment
+  storage: in_memory
+  owner: agent-caller
+  version: 1
+  created: 2026-08-01
+  updated: 2026-08-01
+type: object
+required:
+  - skill
+  - projectRoots
+  - status
+  - decidedBy
+  - summary
+  - conditionResults
+  - evidence
+  - unknowns
+properties:
+  skill:
+    type: string
+    minLength: 1
+  projectRoots:
+    type: array
+    minItems: 1
+    items:
+      type: string
+      minLength: 1
+    description: Exact project roots evaluated or explicitly approved by the caller.
+  status:
+    type: string
+    enum:
+      - suitable
+      - unsuitable
+      - needs-input
+      - overridden
+  decidedBy:
+    type: string
+    enum:
+      - agent
+      - user
+  summary:
+    type: string
+    minLength: 1
+  conditionResults:
+    type: array
+    items:
+      type: object
+      required:
+        - conditionId
+        - outcome
+        - evidence
+      properties:
+        conditionId:
+          type: string
+          minLength: 1
+        outcome:
+          type: string
+          enum:
+            - met
+            - not-met
+            - unknown
+        evidence:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            minLength: 1
+  evidence:
+    type: array
+    minItems: 1
+    items:
+      type: string
+      minLength: 1
+  unknowns:
+    type: array
+    items:
+      type: string
+      minLength: 1
+validation:
+  caller_owned:
+    description: Agent or user callers create the assessment; ArcForge core never derives it from source condition text or repository heuristics.
+  source_binding:
+    description: skill and every conditionId must match the selected source manifest item; projectRoots must exactly cover the selected project targets; unknown, duplicate, or mismatched bindings are rejected.
+  execution_gate:
+    description: suitable and explicit user overridden assessments may pass; unsuitable, needs-input, or absent assessments block project-ambient execution.

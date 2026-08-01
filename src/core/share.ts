@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { GitHubAccessResult, LocalGitRemote, LocalGitSource, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, ArcForgeConfig, SkillSummary, WorkspaceSnapshot } from "../shared/types.js";
+import type { GitHubAccessResult, LocalGitRemote, LocalGitSource, PublishPlan, ShareDeliveryMethod, SharePlanResult, ShareResult, ShareTargetMode, ArcForgeConfig, SkillSummary, WorkspaceSnapshot } from "../shared/types.js";
 import { saveConfig } from "./config.js";
 import { pathExists } from "./fs.js";
 import { checkoutShareBranch, createPullRequest, currentCommit, ensureForkRemote, inspectGitHubAccess, parseGitHubRepo, prepareShareCheckout, pushBranch, resolveRemoteSourceRef, runGit, withShareLock } from "./share-git.js";
@@ -30,6 +30,7 @@ export interface ShareProjectOptions {
   confirm?: boolean;
   sameRepository?: boolean;
   sameRepositoryRemote?: string;
+  readinessAssessment?: PublishPlan["readinessAssessment"];
 }
 
 export interface DownloadSourceOptions {
@@ -48,7 +49,7 @@ export async function createSharePlan(options: ShareProjectOptions): Promise<Sha
     const access = sameRepositoryAccess(remoteUrl, sameRepository.remote, []);
     const branch = sameRepository.localGit.currentBranch || "HEAD";
     const targetPath = normalizeGitRelativePath(sameRepository.localGit.relativePath || ".");
-    const plan = await createPublishPlan(root, snapshot.config, selectedSkills, options.visibility, snapshot.sourceManifest, snapshot.sourceManifestDiagnostics);
+    const plan = await createPublishPlan(root, snapshot.config, selectedSkills, options.visibility, snapshot.sourceManifest, snapshot.sourceManifestDiagnostics, options.readinessAssessment);
     return {
       plan,
       access,
@@ -69,7 +70,7 @@ export async function createSharePlan(options: ShareProjectOptions): Promise<Sha
   const delivery = normalizeDelivery(options.delivery, access.recommendedDelivery, access.availableDelivery);
   const branch = options.shareBranch?.trim() || defaultShareBranch(projectName);
   const targetPath = shareTargetSubdir(target.subdir, targetMode, projectName, snapshot.config.sourceDir) || ".";
-  const plan = await createPublishPlan(root, snapshot.config, selectedSkills, options.visibility, snapshot.sourceManifest, snapshot.sourceManifestDiagnostics);
+  const plan = await createPublishPlan(root, snapshot.config, selectedSkills, options.visibility, snapshot.sourceManifest, snapshot.sourceManifestDiagnostics, options.readinessAssessment);
 
   return {
     plan,
@@ -98,6 +99,7 @@ export async function shareProject(options: ShareProjectOptions): Promise<ShareR
   const snapshot = await scanWorkspace(root);
   const profile = resolveShareProfile(snapshot.config, options.profileName, options.skills);
   const selectedSkills = selectProfileSkills(snapshot.skills, profile.skills, Boolean(options.skills?.length));
+  const publishPlan = await createPublishPlan(root, snapshot.config, selectedSkills, options.visibility, snapshot.sourceManifest, snapshot.sourceManifestDiagnostics, options.readinessAssessment);
   if (options.sameRepository) {
     return shareSameRepositoryProject(root, options, snapshot, selectedSkills);
   }
@@ -131,7 +133,7 @@ export async function shareProject(options: ShareProjectOptions): Promise<ShareR
     const publishedConfig = namespaceProfiles(normalizeConfig({ ...localConfig, teamRepo: installRef, profiles: [publishedShareProfile(profile, selectedSkills)] }), namespace);
 
     await saveConfig(root, localConfig);
-    await syncProjectToShareTarget(root, targetRoot, publishedConfig, selectedSkills, snapshot.assets, options.visibility, projectName, namespace, snapshot.sourceManifest, snapshot.sourceManifestDiagnostics);
+    await syncProjectToShareTarget(root, targetRoot, publishedConfig, selectedSkills, snapshot.assets, options.visibility, projectName, namespace, snapshot.sourceManifest, snapshot.sourceManifestDiagnostics, publishPlan.readinessAssessment);
     messages.push(`Shared project files to ${targetSubdir || "."}.`);
 
     await stageShareTarget(checkoutRoot, targetSubdir, publishedConfig.sourceDir, Boolean(snapshot.sourceManifest), messages);
@@ -162,7 +164,7 @@ export async function shareProject(options: ShareProjectOptions): Promise<ShareR
           head: `${fork.owner}:${shareBranch}`,
           base: baseBranch,
           title: prTitle(projectName),
-          body: prBody(projectName, options.visibility, targetSubdir || ".", selectedSkills.length, publishedConfig.profiles.map((item) => item.name))
+          body: prBody(projectName, options.visibility, targetSubdir || ".", selectedSkills.length, publishedConfig.profiles.map((item) => item.name), publishPlan.readinessAssessment)
         }, messages);
       } else {
         errorStage = "push";
@@ -177,7 +179,7 @@ export async function shareProject(options: ShareProjectOptions): Promise<ShareR
             head: shareBranch,
             base: baseBranch,
             title: prTitle(projectName),
-            body: prBody(projectName, options.visibility, targetSubdir || ".", selectedSkills.length, publishedConfig.profiles.map((item) => item.name))
+            body: prBody(projectName, options.visibility, targetSubdir || ".", selectedSkills.length, publishedConfig.profiles.map((item) => item.name), publishPlan.readinessAssessment)
           }, messages);
         }
       }
@@ -459,16 +461,26 @@ function prTitle(projectName: string): string {
   return `Share ArcForge project ${projectName}`;
 }
 
-function prBody(projectName: string, visibility: "private" | "public", targetPath: string, skillCount: number, profiles: string[]): string {
-  return [
+function prBody(projectName: string, visibility: "private" | "public", targetPath: string, skillCount: number, profiles: string[], readiness?: PublishPlan["readinessAssessment"]): string {
+  const facts = [
     `Shares the ArcForge project \`${projectName}\`.`,
     "",
     `- Visibility: \`${visibility}\``,
     `- Target path: \`${targetPath}\``,
     `- Skills: ${skillCount}`,
-    `- Profiles: ${profiles.map((item) => `\`${item}\``).join(", ") || "none"}`,
+    `- Profiles: ${profiles.map((item) => `\`${item}\``).join(", ") || "none"}`
+  ];
+  if (!readiness) return facts.join("\n");
+  return [
+    ...facts,
     "",
-    "Review the generated README ArcForge section and audit checklist before merging."
+    "## Agent-supplied readiness assessment",
+    "",
+    readiness.summary,
+    ...(readiness.evidence.length ? ["", "Evidence:", ...readiness.evidence.map((item) => `- ${item}`)] : []),
+    ...(readiness.unknowns.length ? ["", "Unknowns:", ...readiness.unknowns.map((item) => `- ${item}`)] : []),
+    ...(readiness.installCommandCandidates.length ? ["", "Install command candidates:", ...readiness.installCommandCandidates.map((item) => `- \`${item}\``)] : []),
+    ...(readiness.checklist.length ? ["", "Checklist:", ...readiness.checklist.map((item) => `- ${item}`)] : [])
   ].join("\n");
 }
 

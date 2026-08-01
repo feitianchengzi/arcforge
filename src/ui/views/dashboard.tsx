@@ -94,7 +94,7 @@ export function Overview(props: {
         <div className="dashboard-metrics">
           <Metric label={t.metrics.skills} value={snapshot.skills.length} />
           <Metric label={t.sharedAssetsTitle} value={snapshot.assets.length} />
-          <Metric label={t.metrics.auditScore} value={`${snapshot.audit.score}/100`} />
+          <Metric label={t.metrics.auditCoverage} value={snapshot.audit.coverage.filesChecked} />
           <Metric label={t.metrics.critical} value={criticalCount} tone={criticalCount ? "bad" : "good"} />
           <Metric label={t.metrics.warnings} value={warningCount} tone={warningCount ? "warn" : "good"} />
         </div>
@@ -445,7 +445,7 @@ function MergeSkillsDialog(props: {
       const nextProfile = nextSnapshot.config.profiles[0]?.name ?? "default";
       setSourceProfile(nextProfile);
       setSelectedSkills(skillNamesForProfile(nextSnapshot, nextProfile));
-      setStatus(t.foundStatus(nextSnapshot.skills.length, nextSnapshot.audit.score));
+      setStatus(t.foundStatus(nextSnapshot.skills.length, nextSnapshot.audit.findings.length));
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     } finally {
@@ -466,7 +466,7 @@ function MergeSkillsDialog(props: {
       const nextProfile = nextSnapshot.config.profiles[0]?.name ?? "default";
       setSourceProfile(nextProfile);
       setSelectedSkills(skillNamesForProfile(nextSnapshot, nextProfile));
-      setStatus(t.foundStatus(nextSnapshot.skills.length, nextSnapshot.audit.score));
+      setStatus(t.foundStatus(nextSnapshot.skills.length, nextSnapshot.audit.findings.length));
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     } finally {
@@ -843,7 +843,7 @@ export function Audit({ t, snapshot, criticalCount, warningCount, openFeedback, 
 
   return (
     <div className="grid">
-      <Metric label={t.metrics.score} value={`${snapshot.audit.score}/100`} />
+      <Metric label={t.metrics.filesChecked} value={snapshot.audit.coverage.filesChecked} />
       <Metric label={t.metrics.criticalFindings} value={criticalCount} tone={criticalCount ? "bad" : "good"} />
       <Metric label={t.metrics.warnings} value={warningCount} tone={warningCount ? "warn" : "good"} />
       <section className="panel wide audit-disclaimer">

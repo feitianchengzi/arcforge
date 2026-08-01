@@ -5,7 +5,7 @@ import os from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
-import type { AppliedSourceRecord, ApplyFromSourceResult, CleanupLocalSkillPlan, CleanupLocalSkillResult, DriftReport, ImportSkillsPlan, ImportSkillsResult, LocalSkillWorkflowPlan, MergePlan, MergeResult, ProjectResolveCandidate, ProjectResolveResult, ArcForgeConfig, SkillAvailabilityOverride, SkillAvailabilityPlan, SkillSummary, WorkspaceSnapshot } from "../shared/types.js";
+import type { AppliedSourceRecord, ApplyFromSourceResult, CleanupLocalSkillPlan, CleanupLocalSkillResult, DriftReport, ImportSkillsPlan, ImportSkillsResult, LocalSkillWorkflowPlan, MergePlan, MergeResult, ProjectResolveCandidate, ProjectResolveResult, ArcForgeConfig, SkillAvailabilityOverride, SkillAvailabilityPlan, SkillProjectApplicabilityAssessment, SkillSummary, WorkspaceSnapshot } from "../shared/types.js";
 import { defaultConfigForRoot, loadConfig, saveConfig } from "./config.js";
 import { copyDirectory, pathExists } from "./fs.js";
 import { applyProfile, compareDirectory, driftReport } from "./profiles.js";
@@ -15,7 +15,7 @@ import { selectProfileSkills } from "./share-sync.js";
 import { currentCommit } from "./share-git.js";
 import { scanWorkspace } from "./workspace.js";
 import { detectLocalGitSource } from "./local-git.js";
-import { createSkillAvailabilityPlan } from "./skill-availability.js";
+import { createSkillAvailabilityPlan, skillAvailabilitySourcePolicyDigest } from "./skill-availability.js";
 import { AvailabilityApplyError, executeSkillAvailabilityPlan, type AvailabilityApplyFailurePoint } from "./skill-availability-apply.js";
 import { createSkillAvailabilityDriftReport } from "./skill-availability-drift.js";
 
@@ -85,6 +85,7 @@ export interface AvailabilityPlanFromSourceOptions {
   agentTargetIds: string[];
   projectTargetDirs?: string[];
   availabilityOverrides?: SkillAvailabilityOverride[];
+  projectAssessments?: SkillProjectApplicabilityAssessment[];
   cacheDir?: string;
   homeDir?: string;
 }
@@ -116,6 +117,7 @@ export async function createAvailabilityPlanFromSource(options: AvailabilityPlan
     ? await resolveSkillProjectRoot(options.from, cacheDirForInput(options.from, options.cacheDir))
     : consumerRoot;
   const source = await scanWorkspace(sourceRoot);
+  const records = await listAppliedSources(consumerRoot);
   const loaderSourcePath = await bundledOnDemandSkillPath();
   return createSkillAvailabilityPlan({
     source,
@@ -125,7 +127,8 @@ export async function createAvailabilityPlanFromSource(options: AvailabilityPlan
     agentTargetIds: options.agentTargetIds,
     projectTargetDirs: options.projectTargetDirs,
     invocationOverrides: options.availabilityOverrides,
-    appliedRecords: await listAppliedSources(consumerRoot),
+    projectAssessments: options.projectAssessments ?? reusableProjectAssessments(records, sourceRoot, consumerRoot, options.profile ?? "default", options.agentTargetIds, options.projectTargetDirs ?? [], skillAvailabilitySourcePolicyDigest(source.sourceManifest)),
+    appliedRecords: records,
     homeDir: options.homeDir,
     loaderSourcePath
   });
@@ -147,6 +150,7 @@ export async function driftAvailabilityFromSource(options: AvailabilityDriftFrom
     agentTargetIds: options.agentTargetIds,
     projectTargetDirs: options.projectTargetDirs,
     invocationOverrides: options.availabilityOverrides,
+    projectAssessments: options.projectAssessments ?? reusableProjectAssessments(records, sourceRoot, consumerRoot, options.profile ?? "default", options.agentTargetIds, options.projectTargetDirs ?? [], skillAvailabilitySourcePolicyDigest(source.sourceManifest)),
     appliedRecords: records,
     homeDir: options.homeDir,
     loaderSourcePath
@@ -176,6 +180,7 @@ export async function applyAvailabilityFromSource(options: AvailabilityApplyFrom
     agentTargetIds: options.agentTargetIds,
     projectTargetDirs: options.projectTargetDirs,
     invocationOverrides: options.availabilityOverrides,
+    projectAssessments: options.projectAssessments ?? reusableProjectAssessments(previousRecords, sourceRoot, consumerRoot, options.profile ?? "default", options.agentTargetIds, options.projectTargetDirs ?? [], skillAvailabilitySourcePolicyDigest(source.sourceManifest)),
     appliedRecords: previousRecords,
     homeDir: options.homeDir,
     loaderSourcePath
@@ -357,15 +362,17 @@ export async function resolveSkillProject(options: ProjectResolveOptions): Promi
   const candidatePaths = await projectCandidatePaths(cwd, query);
   const candidates = await Promise.all(candidatePaths.map((candidatePath) => inspectProjectCandidate(candidatePath, query)));
   const sorted = candidates.sort(compareProjectCandidates);
-  const recommended = sorted.find((item) => item.recommendation === "recommended");
+  const selected = isExplicitProjectPath(query)
+    ? sorted.find((item) => item.match === "exact-path" && item.isSkillProject)
+    : undefined;
   return {
     query,
     cwd,
     candidates: sorted,
-    recommended,
-    messages: recommended
-      ? [`Recommended maintenance source: ${recommended.path}`]
-      : ["No recommended Skill project found. Confirm a maintenance source before merge/apply/share writes."]
+    selected,
+    messages: selected
+      ? [`Explicit Skill project path resolved: ${selected.path}`]
+      : ["Candidate evidence is read-only. Supply an explicit Skill project path before merge/apply/share writes."]
   };
 }
 
@@ -378,19 +385,18 @@ export async function createLocalSkillWorkflowPlan(options: LocalSkillWorkflowPl
   const sourceSkillPath = path.join(root, sourceDir, skill);
   const sourceExists = await pathExists(path.join(sourceSkillPath, "SKILL.md"));
   const maintenance = await resolveSkillProject({ cwd: root, name: options.to });
-  const recommended = maintenance.recommended;
-  const targetPath = recommended?.sourceDir || "skills";
-  const install = options.install ? resolveInstallTarget(options.install, recommended?.path) : undefined;
-  const share = options.share ? resolveShareTarget(options.share, recommended) : undefined;
+  const selected = maintenance.selected;
+  const targetPath = selected?.sourceDir || "skills";
+  const install = options.install ? resolveInstallTarget(options.install, selected?.path) : undefined;
+  const share = options.share ? resolveShareTarget(options.share, selected) : undefined;
   const blocking = [];
   const warnings = [];
   if (!sourceExists) blocking.push(`Source skill not found: ${sourceSkillPath}`);
-  if (!recommended) blocking.push(`No confirmed maintenance source found for: ${options.to}`);
-  if (recommended && !recommended.isSkillProject) blocking.push(`Recommended maintenance source is not a Skill project: ${recommended.path}`);
-  if (install && !recommended) warnings.push("Install stage needs a resolved maintenance source before drift/apply can be exact.");
+  if (!selected) blocking.push(`No explicit Skill project path was selected for: ${options.to}`);
+  if (install && !selected) warnings.push("Install stage needs an explicit maintenance source path before drift/apply can be exact.");
   if (share && !share.remoteUrl) warnings.push(`Share target '${options.share}' did not match a Git remote on the maintenance source.`);
 
-  const maintenanceRoot = recommended?.path || `<${options.to}>`;
+  const maintenanceRoot = selected?.path || `<explicit-skill-project-path>`;
   const stages: LocalSkillWorkflowPlan["stages"] = [
     {
       name: "resolve-maintenance-source",
@@ -446,14 +452,6 @@ export async function createLocalSkillWorkflowPlan(options: LocalSkillWorkflowPl
     });
   }
 
-  stages.push({
-    name: "cleanup-local",
-    writes: true,
-    requiresConfirmation: true,
-    command: `arcforge merge cleanup-local --root ${shellValue(root)} --source-dir ${shellValue(sourceDir)} --skills ${shellValue(skill)} --confirm`,
-    description: "Delete only the current project temporary skill copy after merge, install, and share are complete."
-  });
-
   return {
     root,
     skill,
@@ -462,7 +460,7 @@ export async function createLocalSkillWorkflowPlan(options: LocalSkillWorkflowPl
     sourceExists,
     maintenance: {
       query: options.to,
-      recommended,
+      selected,
       candidates: maintenance.candidates
     },
     install,
@@ -493,7 +491,7 @@ export async function cleanupLocalSkills(options: CleanupLocalSkillOptions): Pro
     plan: { ...plan, requiresConfirm: false },
     deleted,
     skipped,
-    messages: [`Deleted ${deleted.length} temporary local skill copies from ${plan.sourceDir}.`, ...skipped.map((name) => `Skipped ${name}.`)]
+    messages: [`Deleted ${deleted.length} explicitly selected local skill directories from ${plan.sourceDir}. No provenance or temporary-copy status was inferred.`, ...skipped.map((name) => `Skipped ${name}.`)]
   };
 }
 
@@ -535,6 +533,7 @@ export async function driftAppliedSources(root: string, id?: string): Promise<Dr
         agentTargetIds: context.agentTargetIds,
         projectTargetDirs: context.projectTargetDirs,
         availabilityOverrides: context.availabilityOverrides,
+        projectAssessments: context.projectAssessments,
         homeDir: context.homeDir
       }));
       continue;
@@ -564,6 +563,7 @@ export async function runAppliedSources(root: string, id: string | undefined, co
         agentTargetIds: context.agentTargetIds,
         projectTargetDirs: context.projectTargetDirs,
         availabilityOverrides: context.availabilityOverrides,
+        projectAssessments: context.projectAssessments,
         homeDir: context.homeDir,
         cleanupPaths,
         confirm: true,
@@ -702,7 +702,7 @@ async function availabilityAppliedRecordFor(
     managedSkillNames: mergeNames(existing?.managedSkillNames ?? existing?.skills ?? [], plan.items.map((item) => item.skill)),
     availabilityItems: plan.items.map((item) => ({
       skill: item.skill,
-      mode: item.effectiveMode,
+      mode: requiredEffectiveMode(item),
       policyOrigin: item.policyOrigin,
       destinations: item.destinations.map((destination) => path.resolve(destination.path))
     })),
@@ -710,12 +710,24 @@ async function availabilityAppliedRecordFor(
       agentTargetIds: [...new Set(context.agentTargetIds.map((item) => item.trim().toLowerCase()).filter(Boolean))].sort(),
       projectTargetDirs: [...new Set((context.projectTargetDirs ?? []).map((item) => path.resolve(root, item)))].sort(),
       availabilityOverrides: context.availabilityOverrides?.map((item) => ({ skill: item.skill, mode: item.mode })),
+      projectAssessments: plan.items.flatMap((item) => item.projectAssessment ? [{
+        ...item.projectAssessment,
+        projectRoots: [...item.projectAssessment.projectRoots],
+        conditionResults: item.projectAssessment.conditionResults.map((result) => ({ ...result, evidence: [...result.evidence] })),
+        evidence: [...item.projectAssessment.evidence],
+        unknowns: [...item.projectAssessment.unknowns]
+      }] : []),
       homeDir: path.resolve(context.homeDir ?? os.homedir())
     },
     sourceCommit: await sourceCommit(normalizedSourceRoot),
     appliedAt: now,
     updatedAt: now
   };
+}
+
+function requiredEffectiveMode(item: SkillAvailabilityPlan["items"][number]) {
+  if (!item.effectiveMode) throw new Error(`Availability plan item is unclassified: ${item.skill}`);
+  return item.effectiveMode;
 }
 
 function availabilityRecordFor(records: AppliedSourceRecord[], sourceRoot: string, plan: SkillAvailabilityPlan): AppliedSourceRecord | undefined {
@@ -844,6 +856,45 @@ function compareAppliedRecord(left: AppliedSourceRecord, right: AppliedSourceRec
   return (left.sourceName || left.sourceRoot).localeCompare(right.sourceName || right.sourceRoot) || left.targetDir.localeCompare(right.targetDir);
 }
 
+function reusableProjectAssessments(
+  records: AppliedSourceRecord[],
+  sourceRoot: string,
+  consumerRoot: string,
+  profile: string,
+  agentTargetIds: string[],
+  projectTargetDirs: string[],
+  currentPolicyDigest: string | undefined
+): SkillProjectApplicabilityAssessment[] | undefined {
+  const expectedAgents = normalizedStringSet(agentTargetIds);
+  const expectedProjects = normalizedPathSet(projectTargetDirs.map((item) => path.resolve(consumerRoot, item)));
+  const matching = records
+    .filter((record) => path.resolve(record.sourceRoot) === path.resolve(sourceRoot)
+      && record.profile === profile
+      && Boolean(currentPolicyDigest)
+      && record.sourcePolicyDigest === currentPolicyDigest
+      && sameStringSet(record.availabilityContext?.agentTargetIds ?? [], expectedAgents)
+      && sameStringSet(normalizedPathSet(record.availabilityContext?.projectTargetDirs ?? []), expectedProjects)
+      && (record.availabilityContext?.projectAssessments?.length ?? 0) > 0)
+    .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+  return matching[0]?.availabilityContext?.projectAssessments;
+}
+
+function normalizedStringSet(values: string[]): string[] {
+  return [...new Set(values.map((item) => item.trim()).filter(Boolean))].sort();
+}
+
+function normalizedPathSet(values: string[]): string[] {
+  return [...new Set(values.map((item) => {
+    const resolved = path.resolve(item);
+    return process.platform === "win32" || process.platform === "darwin" ? resolved.toLowerCase() : resolved;
+  }))].sort();
+}
+
+function sameStringSet(left: string[], right: string[]): boolean {
+  const normalizedLeft = normalizedStringSet(left);
+  return normalizedLeft.length === right.length && normalizedLeft.every((item, index) => item === right[index]);
+}
+
 function slug(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
 }
@@ -880,11 +931,11 @@ async function inspectProjectCandidate(candidatePath: string, query: string): Pr
     isSkillProject: false,
     profiles: [],
     skillCount: 0,
+    match: "not-skill-project",
     reasons: []
   };
   if (!exists) {
     candidate.scan = { ok: false, error: "Path does not exist or is not a directory." };
-    candidate.recommendation = "notSkillProject";
     candidate.reasons.push("Path is not a directory.");
     return candidate;
   }
@@ -899,17 +950,19 @@ async function inspectProjectCandidate(candidatePath: string, query: string): Pr
     candidate.git = git ? { ...git, dirty: await isGitDirty(git.root) } : undefined;
     candidate.scan = { ok: true };
     if (!isSkillProject) {
-      candidate.recommendation = "notSkillProject";
       candidate.reasons.push("No skills were discovered.");
     } else {
-      candidate.recommendation = isRecommendedProjectCandidate(candidatePath, query) ? "recommended" : "candidate";
+      candidate.match = isExplicitProjectPath(query)
+        ? "exact-path"
+        : path.basename(candidatePath) === query
+          ? "name"
+          : "candidate";
       candidate.reasons.push("Skill project scan succeeded.");
       if (candidate.git?.remotes.length) candidate.reasons.push("Git remote is available for sharing/versioning.");
       if (candidate.git?.dirty) candidate.reasons.push("Git checkout has uncommitted changes.");
     }
   } catch (error) {
     candidate.scan = { ok: false, error: error instanceof Error ? error.message : String(error) };
-    candidate.recommendation = "notSkillProject";
     candidate.reasons.push("Scan failed.");
   }
   return candidate;
@@ -920,14 +973,14 @@ function compareProjectCandidates(left: ProjectResolveCandidate, right: ProjectR
 }
 
 function projectCandidateRank(candidate: ProjectResolveCandidate): number {
-  if (candidate.recommendation === "recommended") return 0;
-  if (candidate.recommendation === "candidate") return 1;
-  return 2;
+  if (candidate.match === "exact-path") return 0;
+  if (candidate.match === "name") return 1;
+  if (candidate.match === "candidate") return 2;
+  return 3;
 }
 
-function isRecommendedProjectCandidate(candidatePath: string, query: string): boolean {
-  if (path.isAbsolute(query) || query.includes("/") || query.includes("\\")) return true;
-  return path.basename(candidatePath) === query;
+function isExplicitProjectPath(query: string): boolean {
+  return path.isAbsolute(query) || query.includes("/") || query.includes("\\");
 }
 
 async function isGitDirty(gitRoot: string): Promise<boolean> {
@@ -975,7 +1028,7 @@ async function createCleanupLocalSkillPlan(options: CleanupLocalSkillOptions): P
         ? "Resolved path is outside the project root."
         : !isSkillDirectory
           ? "Directory does not contain SKILL.md."
-          : "Temporary local skill copy can be deleted after maintenance source and install/share stages are complete.";
+          : "Selected local skill directory is eligible for explicit deletion.";
     return { name, path: skillPath, exists, isSkillDirectory, action, reason };
   }));
   return {
@@ -983,7 +1036,7 @@ async function createCleanupLocalSkillPlan(options: CleanupLocalSkillOptions): P
     sourceDir,
     skills,
     requiresConfirm: true,
-    messages: ["This cleanup only targets the current project sourceDir. It does not delete maintenance sources or user-level agent installs."]
+    messages: ["This command only deletes explicitly selected skill directories under the current project sourceDir. It does not infer that they are temporary, and it does not delete maintenance sources or user-level agent installs."]
   };
 }
 

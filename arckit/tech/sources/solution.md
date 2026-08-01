@@ -20,6 +20,10 @@ Git 更新检查由 `src/core/source-update.ts` 承载，是独立 Git helper。
 
 解析结果返回本地项目根目录，并从 Git canonical remote 与子目录或本地 realpath 派生 source identity。系统不创建 `sources.json`，不维护全局来源实体，也不要求维护者手写公共来源 ID。
 
+候选解析只输出客观匹配依据：路径是否存在、是否可扫描、sourceDir、skill 数量、来源清单、Git 根、remote、相对路径、dirty 状态以及查询与路径的匹配方式。扫描到 skill 或 basename 匹配不会产生 `recommended`、`confirmed` 或维护源角色结论。
+
+调用方需要把 Agent 或用户选择的确切候选路径作为后续归并输入。`workflow local-skill` 只有在 `--to` 已解析为明确路径时才生成写入阶段；名称查询只返回候选并停止在选择边界。
+
 Skill 项目可以提交 `arcforge.skill-project.json` 维护 sourceDir 和可用性推荐。该清单描述来源内容，不注册来源；远程 URL 和 Git checkout 仍是 review、版本和访问控制事实。
 
 Profiles-sync 对 source identity 计算 SHA-256 并取前 24 个十六进制字符作为本机 `sourceKey`。该 key 隔离 catalog 路径和同名 skill，不替代应用关系中的 sourceRoot、remote 或 commit。
@@ -47,6 +51,10 @@ Profiles-sync 对 source identity 计算 SHA-256 并取前 24 个十六进制字
 归并后系统把当前项目更新为应用目标。应用关系按来源项目根目录、配置组和目标目录合并技能列表。
 
 归并不提交或推送 Git 变更。
+
+`workflow local-skill` 不自动追加本地删除阶段。`cleanup-local` 是用户显式选择技能目录后单独执行的删除命令，计划使用中性“selected local skill directory”表述，不把目录推断为临时副本。
+
+自动清理工作副本要求调用方提供可验证 provenance，包括创建该目录的 workflow identity、原始来源、归并目标和满足的清理前置阶段。Core 只验证 provenance 与当前路径和摘要一致后生成受确认保护的删除动作。
 
 ## 应用关系
 

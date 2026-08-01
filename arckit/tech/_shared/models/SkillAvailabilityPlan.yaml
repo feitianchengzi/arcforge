@@ -4,9 +4,9 @@ metadata:
   entity_name: SkillAvailabilityPlan
   storage: in_memory
   owner: core/skill-availability
-  version: 2
+  version: 3
   created: 2026-07-30
-  updated: 2026-07-31
+  updated: 2026-08-01
 type: object
 required:
   - sourceKey
@@ -36,7 +36,6 @@ properties:
       required:
         - skill
         - sourcePath
-        - effectiveMode
         - policyOrigin
         - destinations
         - contentDigest
@@ -67,6 +66,7 @@ properties:
             - user-on-demand
         effectiveMode:
           type: string
+          nullable: true
           enum:
             - user-ambient
             - project-ambient
@@ -79,7 +79,15 @@ properties:
             - profile-default
             - source-skill
             - source-default
-            - compatibility
+            - unclassified
+        projectApplicability:
+          type: object
+          nullable: true
+          description: Source-maintained natural-language conditions copied from the manifest without domain evaluation.
+        projectAssessment:
+          $ref: "./SkillProjectApplicabilityAssessment.yaml"
+          nullable: true
+          description: Agent or user decision supplied by the caller; core validates structure and condition IDs but does not generate the conclusion.
         destinations:
           type: array
           items:
@@ -180,7 +188,9 @@ properties:
     type: boolean
 validation:
   deterministic_resolution:
-    description: Identical source manifest, local profile, invocation overrides, target context, and source identity produce the same plan.
+    description: Identical source manifest, local profile, invocation overrides, caller-supplied assessments, target context, and source identity produce the same plan.
+  no_semantic_inference:
+    description: Missing policies remain unclassified and project applicability conclusions are never generated from target paths, filenames, or source condition text.
   blocking_diagnostics:
     description: Plans containing error diagnostics cannot run.
   cleanup_confirmation:

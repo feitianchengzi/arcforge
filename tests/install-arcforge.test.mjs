@@ -26,6 +26,7 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(skill, /arcforge-skill-creator/);
   assert.match(skill, /arcforge-on-demand/);
   assert.match(skill, /当前 agent 用户级 skills/);
+  assert.match(skill, /`--agent` 必填/);
   assert.match(skill, /arcforge-desktop/);
   assert.match(skill, /--desktop install/);
   assert.match(skill, /--desktop package/);
@@ -74,7 +75,7 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(agentYaml, /\$install-arcforge/);
   assert.match(agentYaml, /display_name: "Install ArcForge"/);
   assert.doesNotMatch(agentYaml, /display_name: ".*[\u4e00-\u9fff].*"/);
-  assert.match(agentYaml, /--desktop install/);
+  assert.match(agentYaml, /显式传必填的 `--agent`/);
   assert.match(agentYaml, /不要默认加 `--update-path`/);
   assert.match(agentYaml, /安装和验证规则以 `SKILL\.md` 为准/);
   assert.match(agentYaml, /BEGIN_AGENT_FINAL_RESPONSE/);
@@ -92,6 +93,7 @@ test("arcforge install skill defines source install boundaries", async () => {
   assert.match(script, /hasHelpFlag/);
   assert.match(script, /printHelp/);
   assert.match(script, /Print this help without installing/);
+  assert.match(script, /Pass --agent codex/);
   assert.match(script, /Recommended Skill projects/);
   assert.match(script, /parseRecommendedSkillSelection/);
   assert.match(script, /--recommended-mode value/);
@@ -276,7 +278,7 @@ test("arcforge install dry run includes the on-demand entry skill", () => {
 test("arcforge install rejects old implicit recommended skill commands", () => {
   const result = spawnSync(
     process.execPath,
-    ["skills/install-arcforge/scripts/install-from-repo.mjs", "--recommended-skills", "all", "--dry-run"],
+    ["skills/install-arcforge/scripts/install-from-repo.mjs", "--agent", "codex", "--recommended-skills", "all", "--dry-run"],
     {
       cwd: new URL("..", import.meta.url),
       encoding: "utf8"
@@ -285,4 +287,15 @@ test("arcforge install rejects old implicit recommended skill commands", () => {
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Pass --recommended-mode quick or --recommended-mode governed/);
+});
+
+test("arcforge install requires an explicit agent target", () => {
+  const result = spawnSync(
+    process.execPath,
+    ["skills/install-arcforge/scripts/install-from-repo.mjs", "--dry-run"],
+    { cwd: new URL("..", import.meta.url), encoding: "utf8" }
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Pass --agent codex/);
 });

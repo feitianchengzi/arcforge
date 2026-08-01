@@ -6,7 +6,7 @@ metadata:
   owner: core/skill-project-manifest
   version: 1
   created: 2026-07-30
-  updated: 2026-07-30
+  updated: 2026-08-01
 type: object
 required:
   - version
@@ -57,6 +57,48 @@ properties:
               items:
                 type: string
               description: Optional explicit catalog aliases for this skill.
+            projectApplicability:
+              type: object
+              nullable: true
+              required:
+                - summary
+                - conditions
+              properties:
+                summary:
+                  type: string
+                  minLength: 1
+                conditions:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - kind
+                      - description
+                    properties:
+                      id:
+                        type: string
+                        pattern: "^[a-z][a-z0-9-]*$"
+                      kind:
+                        type: string
+                        enum:
+                          - required
+                          - preferred
+                          - excluded
+                      description:
+                        type: string
+                        minLength: 1
+                evidenceGuidance:
+                  type: array
+                  nullable: true
+                  items:
+                    type: string
+                clarifyingQuestions:
+                  type: array
+                  nullable: true
+                  items:
+                    type: string
 validation:
   repository_owned:
     description: The manifest is read from the source checkout and is never merged with ~/.arcforge/projects before source recommendations are derived.
@@ -68,5 +110,7 @@ validation:
     description: Only user-ambient, project-ambient, and user-on-demand are valid; project on-demand is not representable.
   aliases:
     description: Aliases are trimmed, non-empty, unique within one entry, and catalog-wide ambiguity is reported during apply planning.
+  project_applicability:
+    description: Applicability is valid only for project-ambient entries; conditions are natural-language source facts, IDs are unique, and core never evaluates their domain meaning.
   optional_manifest:
-    description: Missing manifests remain compatible; missing per-skill and project defaults produce an unclassified diagnostic before compatibility fallback.
+    description: Missing manifests remain scannable; missing per-skill and project defaults keep availability-aware items unclassified until an explicit consumer override is supplied.

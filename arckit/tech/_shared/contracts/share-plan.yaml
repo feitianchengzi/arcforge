@@ -2,9 +2,9 @@ metadata:
   path: tech/_shared/contracts/share-plan.yaml
   domain: sharing-ipc
   owner: electron/main
-  version: 2
+  version: 3
   created: 2026-06-01
-  updated: 2026-07-30
+  updated: 2026-08-01
 endpoint:
   transport: electron-ipc
   channel: share:plan
@@ -52,6 +52,10 @@ request:
     - name: sameRepositoryRemote
       type: string
       required: false
+    - name: readinessAssessment
+      type: object
+      required: false
+      description: Agent-generated publishing assessment, evidence, unknowns, install command candidates and checklist; core validates and preserves it.
 responses:
   success:
     schema:
@@ -68,4 +72,4 @@ business_logic:
     - Resolve direct, named project or same-repository target.
     - Normalize the optional source manifest and retain only per-skill entries selected by the profile.
     - Inspect GitHub access and delivery options.
-    - Build a plan including the publishable manifest and policy diagnostics without committing, pushing or creating a Pull Request.
+    - Build a plan including repository facts, the publishable manifest, policy diagnostics, and an optional caller-supplied readiness assessment without committing, pushing or creating a Pull Request.

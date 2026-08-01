@@ -12,7 +12,6 @@ export function InstalledSkills(props: {
   error?: string;
   onScanOptionsChange: (patch: Partial<InstalledSkillsScanOptions>) => void;
   onCreateOrganizePlan: () => void;
-  onRunOrganizePlan: () => void;
 }) {
   const { t, inventory } = props;
   const skills = inventory?.skills ?? [];
@@ -41,7 +40,6 @@ export function InstalledSkills(props: {
           </div>
           <div className="actions">
             <button onClick={props.onCreateOrganizePlan} disabled={props.loading || props.organizing}>{props.organizing ? t.installedSkillOrganizing : t.installedSkillOrganize}</button>
-            {props.organizePlan && <button className="primary" onClick={props.onRunOrganizePlan} disabled={props.loading || props.organizing || props.organizePlan.actions.length === 0}>{t.installedSkillOrganizeRun}</button>}
           </div>
         </div>
         <div className="installed-options">
@@ -89,13 +87,13 @@ export function InstalledSkills(props: {
           <div className="panel-heading">
             <div>
               <h3>{t.installedSkillOrganizePlan}</h3>
-              <p className="muted">{t.installedSkillOrganizePlanSummary(props.organizePlan.actions.length, props.organizePlan.conflicts.length)}</p>
+              <p className="muted">{t.installedSkillOrganizePlanSummary(props.organizePlan.evidenceGroups.length, props.organizePlan.conflicts.length)}</p>
             </div>
           </div>
           <div className="dashboard-metrics">
             <div className="metric">
               <span>{t.installedSkillOrganizeActions}</span>
-              <strong>{props.organizePlan.actions.length}</strong>
+              <strong>{props.organizePlan.evidenceGroups.length}</strong>
             </div>
             <div className={`metric ${props.organizePlan.conflicts.length ? "warn" : ""}`}>
               <span>{t.installedSkillOrganizeConflicts}</span>
@@ -103,12 +101,12 @@ export function InstalledSkills(props: {
             </div>
           </div>
           <div className="list compact">
-            {props.organizePlan.actions.slice(0, 8).map((action) => (
-              <article key={`${action.kind}:${action.sourcePath}:${action.targetPath}`} className="row stacked">
+            {props.organizePlan.evidenceGroups.map((group) => (
+              <article key={group.skillName} className="row stacked">
                 <div>
-                  <strong>{action.skillName}</strong>
-                  <p>{action.kind} / {action.reason}</p>
-                  <span>{action.sourcePath} {"->"} {action.targetPath}</span>
+                  <strong>{group.skillName}</strong>
+                  <p>{group.items.length} observed copies</p>
+                  <span>{group.items.map((item) => `${item.rootName}: ${item.path}`).join(" / ")}</span>
                 </div>
               </article>
             ))}

@@ -19,7 +19,7 @@ required:
 properties:
   plan:
     $ref: "./PublishPlan.yaml"
-    description: File list, install commands and release checklist for the shared project.
+    description: Deterministic file and source facts plus an optional caller-supplied readiness assessment for the shared project.
   access:
     type: object
     description: GitHub access and delivery capability result.

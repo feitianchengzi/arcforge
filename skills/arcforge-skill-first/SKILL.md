@@ -12,16 +12,15 @@ description: 当用户要求“skill first”“Skill First 开发”“skill �
 - 先治理能力入口，再执行业务任务。真实业务任务属于目标 skill；本 skill 只负责路由、目标 skill 创建或维护的发起、验证、观察、修复要求和治理交接。
 - 创建、更新、维护或修复目标 skill 时，必须遵守 `arcforge-skill-creator`。如果通用 `skill-creator` 或其他 creator 类 skill 同时适用，ArcForge skill 场景先遵守 `arcforge-skill-creator`，再按需参考其他 creator 类 skill 的基础结构或工具规则。
 - 用户明确提出的要求、纠错和测试反馈必须落到目标 skill 的流程门禁、硬规则、硬输出、确认点、reference 读取条件或明确边界；具体落地方式由 `arcforge-skill-creator` 承担。
-- 不要让泛化 skill 抢占目标 skill。`arckit-tech`、`arckit-code`、`arckit-spec` 等只能作为辅助入口，除非它们本身足够覆盖该任务领域。
-- 不直接修改正式 skill 原始路径。需要修改正式 skill 时，先复制到当前项目根 `skills/<skill-name>/` 工作副本，再修改工作副本。
-- 验证默认只使用人工桥接隔离验证：主 agent 生成两段式桥接执行包，用户在新 agent 对话中先粘贴“真实任务 prompt”，任务完成、阻塞或停在确认请求后再粘贴“事后总结 prompt”，最后把总结、必要 transcript 或阻塞点贴回主会话。
-- 隔离验证必须绑定到本轮目标 skill 工作副本。人工桥接执行包要说明预期目标 skill 路径、启动新 agent 的环境要求，以及回传总结中必须能看见实际读取的 skill 路径；如果实际读取的是用户级旧版或其他路径，本轮只算验证绑定失败，不能评价目标 skill 是否通过。
-- 人工桥接是主 agent 发起和指挥的验证执行手段，不是停止理由。交付桥接执行包只表示进入 `awaiting_validation_transcript` 状态，不能把目标 skill 标记为验证通过或本轮闭环完成。
+- 不要让只覆盖部分背景或工具能力的泛化 skill 抢占目标 skill；是否匹配由 Agent 根据领域、工作流、输入输出和不确定性处理动态判断，不维护具体业务 skill 黑白名单。
+- 已安装路径只作为可见副本和来源线索；正式维护源与工作副本由 `arcforge-skill-creator` 根据 provenance、Git、manifest、用户指定和授权工作区确定。
+- 隔离验证运行时选择当前环境中最强且合规的执行通道：平台原生隔离 agent/sub-agent、已配置 runner/harness，最后才是人工桥接。选择基于可用能力、写入边界和用户授权，不把某一种通道写死成唯一方案。
+- 隔离验证必须绑定本轮目标 skill 工作副本，并在结果中核对实际读取路径；如果读取用户级旧版或其他路径，只能判定验证绑定失败。
+- 异步或人工通道发起后进入等待状态；收到结构化执行记录前，不能把目标 skill 标记为验证通过或闭环完成。
 - 真实任务 prompt 必须像真实用户请求，只包含做什么、真实输入材料、工作区和写入边界；不得包含验证背景、目标 skill 绝对路径、诊断、观察重点、失败模式、验收标准、执行形态提示、总结格式或“你是验证执行者”这类测试控制语。
 - 不得把主会话的观察重点改写成真实任务要求。除非原始业务用户本来就会提出这些要求，否则不要在第一段 prompt 中提示隔离 agent 避免某类问题；这类内容只能留给主 agent 观察归因。
 - 不得把目标 skill 应自行决定的实现方式写进真实任务 prompt，例如“最小 skill 文件结构”“本地结构检查”“创建哪些文件”“先做什么校验”。除非原始业务任务本身就是要求产出某种具体文件或检查报告，否则这些内容属于验证污染。
-- 不调用任何平台工具来替代人工桥接。不要把“当前不能直接调用自动代理工具”写成验证缺失原因；它与本 skill 的验证方案无关。
-- 不设计人工桥接失败、无法桥接、用户不愿桥接、平台不允许桥接、transcript 回放或受限 dry run 分支；这些都不是本 skill 的验证路径。
+- 不把通道选择结果写进真实任务 prompt。原生 agent、runner 与人工桥接都必须使用同一份去污染真实任务，并返回同一组执行证据。
 - ArcForge 后续治理只做引导，不在本 skill 中执行 apply、share、push、目标目录覆盖、远程写入或 registry 写入；如果 `arcforge-skill-creator` 返回 `post_maintenance_handoff`，本 skill 只消费其中的验证相关部分，治理同步部分留给用户确认后交给 `arcforge`。
 
 ## 主流程
@@ -47,7 +46,7 @@ description: 当用户要求“skill first”“Skill First 开发”“skill �
 - 判断本轮模式：创建或更新 skill、新领域任务先建 skill、观察已有 skill 执行真实任务、拆分/重构 skill、验证已有修改。
 - 识别入口集合：元入口 `arcforge-skill-first`、目标 skill、辅助入口、创建维护入口 `arcforge-skill-creator`、验证入口、治理入口。
 - 判断候选目标 skill 是否足够匹配。需要适配阈值、能力单元或 skill 写法判断时，交给 `arcforge-skill-creator` 的能力建模规则。
-- 明确哪些泛化 skill 只能辅助读取项目上下文、技术约束或文档背景，不能接管整轮任务。
+- 明确哪些候选只覆盖部分上下文或工具能力，因而只能辅助而不能接管整轮任务。
 
 退出条件：明确本轮模式、目标 skill、辅助入口、是否需要 `arcforge-skill-creator`，以及不使用泛化 skill 接管的理由。
 
@@ -56,10 +55,9 @@ description: 当用户要求“skill first”“Skill First 开发”“skill �
 输入：目标 skill 名称或候选路径。
 
 动作：
-- 检查当前 agent 的项目级和用户级 skill 目录；不存在的目录跳过。
-- 如果目标 skill 来自正式来源且需要修改，复制完整目录到当前项目根 `skills/<skill-name>/` 后再改。
-- 如果 `skills/<skill-name>/` 已存在，把它当作工作副本，修改前注意用户或并发改动。
-- 如果没有足够匹配目标 skill，准备在当前项目根 `skills/<skill-name>/` 创建新的工作副本。
+- 检查当前上下文可见的项目级、用户级、仓库内和 plugin 提供的 skill；安装位置只记为证据。
+- 由 `arcforge-skill-creator` 确认维护源，并在用户授权工作区或目标 Skill 项目 sourceDir 中准备工作副本。
+- 如果没有足够匹配目标 skill，准备在已授权位置创建新目标 skill。
 
 退出条件：记录正式原始路径、工作副本路径和写入边界。
 
@@ -82,7 +80,7 @@ description: 当用户要求“skill first”“Skill First 开发”“skill �
 动作：
 - 确认目标 skill 路径、真实验证任务、工作区、允许写入边界和临时路径。
 - 确认目标 skill 的主流程、reference 读取条件和 `agents/openai.yaml` 已足够让隔离执行者发现正确入口。
-- 确认隔离执行环境能使用目标 skill 工作副本，而不是同名用户级旧版或其他安装副本。不能确认时，在执行包中标明需要用户启动新 agent 时绑定的目标 skill 路径。
+- 确认候选执行通道能使用目标 skill 工作副本，而不是同名用户级旧版或其他安装副本。
 - 如果创建/维护结果缺少必要信息，回到门禁 3 修复；不要带着已知结构缺口进入验证。
 
 退出条件：验证输入完整，或明确阻塞原因。
@@ -93,24 +91,23 @@ description: 当用户要求“skill first”“Skill First 开发”“skill �
 
 动作：
 - 读取 [references/validation-execution.md](references/validation-execution.md)。
-- 默认生成人工桥接执行包，让用户新开 agent 对话执行，并把事后总结、必要 transcript 或阻塞点贴回主会话。
-- 人工桥接执行包必须包含目标 skill 路径、预期读取路径、工作区、允许写入边界、临时路径、用户操作步骤、当前状态 `awaiting_validation_transcript`、第一段真实任务 prompt 和第二段事后总结 prompt。
+- 先选择平台原生隔离 agent/sub-agent；不可用或不适合时选择已配置 runner/harness；两者都不可用时生成人工桥接执行包。
+- 所有通道必须携带目标 skill 绑定、工作区、允许写入边界、临时路径和去污染后的真实任务；异步通道还要给出等待状态和结果回传方式。
 - 第一段真实任务 prompt 只能模拟用户真实会说的话；如果预期显式触发 skill，可写“执行 `<skill-name>` 做 `<task>`”，如果预期自动触发，就只写任务本身。生成前先剥离主会话中的诊断、失败模式、期望修复点、验收口径和执行形态提示。
-- 第二段事后总结 prompt 只能在执行 agent 完成、阻塞或停在确认请求后发送，用于收集实际触发的 skill、读取文件、命令、路径、用户交互点、错误和阻塞。
-- 不要尝试调用任何平台工具来替代人工桥接；也不要把这类工具是否可用写进验证模式判断。
+- 原生或 runner 通道直接收集结构化执行报告；人工桥接仅在执行 agent 完成、阻塞或停在确认请求后发送第二段事后总结 prompt。
 
-退出条件：得到事后总结、必要 transcript 或阻塞点；或已交付人工桥接执行包并明确状态为 `awaiting_validation_transcript`。`awaiting_validation_transcript` 不是完成状态，不能进入“验证通过”或治理交接，只能等待用户回传后继续门禁 6。
+退出条件：得到结构化执行报告、必要 transcript 或阻塞点；或已发起异步/人工通道并进入对应等待状态。等待状态不是完成状态，不能进入“验证通过”或治理交接。
 
 ### 6. 观察、归因和修复
 
-输入：人工桥接回传的事后总结、必要 transcript 或阻塞点。
+输入：选定验证通道回传的结构化执行报告、必要 transcript 或阻塞点。
 
 动作：
 - 读取 [references/iteration-rules.md](references/iteration-rules.md)。
-- 如果当前状态是 `awaiting_validation_transcript` 且尚未收到事后总结、必要 transcript 或阻塞点，停止归因和修复，只提醒用户按执行包回传结果。
+- 如果仍在等待执行结果，停止归因和修复；人工桥接时提醒用户按执行包回传，自动通道则按平台能力等待或轮询。
 - 主 agent 负责分类和归因；不要直接采纳隔离执行者的修复判断。
 - 如果问题来自目标 skill 表述、流程门禁、用户硬要求缺失、渐进式披露不足、实现承载、`agents/openai.yaml` 或结构检查，回到门禁 3，由 `arcforge-skill-creator` 做范围明确的修复。
-- 如果问题来自验证协议、人工桥接 prompt、状态判断或 ArcForge 治理边界，在本 skill 中修复。
+- 如果问题来自验证通道协议、真实任务 prompt、状态判断或 ArcForge 治理边界，在本 skill 中修复。
 - 如果回传记录显示隔离 agent 读取的目标 skill 路径不是本轮工作副本，把问题归为验证绑定失败，修复执行包的环境绑定说明后重新发起验证；不要把产物好坏归因到目标 skill。
 - 有实质修复后再次进入门禁 4 和 5，生成复测执行包，除非用户停止或只剩已接受的产品缺口。用户明确要求 Skill First 验证闭环时，不能因为任务很小跳过验证发起或复测发起。
 
@@ -123,7 +120,7 @@ description: 当用户要求“skill first”“Skill First 开发”“skill �
 动作：
 - 读取 [references/validation-checklist.md](references/validation-checklist.md)，确认本 skill 没有重新吞回创建维护职责，且验证状态判断正确。
 - 汇报本轮目标 skill、原始路径、工作副本、模式、入口集合、`arcforge-skill-creator` 创建/维护摘要、验证模式、观察结论、校验结果和剩余缺口。
-- 如果状态是 `awaiting_validation_transcript`，最终响应不能说目标 skill 已验证通过、闭环已完成或可以进入治理交接；必须以要求用户执行人工桥接执行包并回传事后总结、必要 transcript 或阻塞点收尾。
+- 如果仍在 `awaiting_validation_result` 或 `awaiting_validation_transcript`，最终响应不能说目标 skill 已验证通过、闭环已完成或可以进入治理交接；说明当前通道与下一步等待/回传动作。
 - 用户确认目标 skill 可用后，结合 `post_maintenance_handoff` 只建议进入合适的 `arcforge` 治理阶段，例如 scan、audit、merge plan、profile、drift、publish/share plan。
 - 不自动执行真实写入、apply、share、push、目标目录覆盖或 registry 动作。
 
@@ -131,7 +128,7 @@ description: 当用户要求“skill first”“Skill First 开发”“skill �
 
 ## Reference 路由
 
-- 隔离执行 prompt 和人工桥接：读 [references/validation-execution.md](references/validation-execution.md)。
+- 隔离执行通道选择、真实任务 prompt、结构化报告和人工桥接 fallback：读 [references/validation-execution.md](references/validation-execution.md)。
 - 验证记录后的问题分类、归因和修复策略：读 [references/iteration-rules.md](references/iteration-rules.md)。
 - 最终汇报前的编排、验证状态和治理交接检查：读 [references/validation-checklist.md](references/validation-checklist.md)。
 - 目标 skill 的能力单元建模、创建、维护、渐进式披露、结构检查和 `agents/openai.yaml` 同步：使用 `arcforge-skill-creator`。
@@ -143,8 +140,8 @@ description: 当用户要求“skill first”“Skill First 开发”“skill �
 - 本轮模式、入口集合、候选目标 skill 适配判断。
 - 是否调用 `arcforge-skill-creator`，以及它完成的创建/维护摘要。
 - 本轮修改内容。
-- 验证任务、验证模式、运行轮次和是否人工桥接。
-- 如果已发起人工桥接但未收到回传，说明状态是 `awaiting_validation_transcript`，并再次给出用户需要执行和回传的内容。
+- 验证任务、验证通道、运行轮次和工作副本绑定结果。
+- 如果尚未收到结果，说明等待状态；人工桥接时再次给出用户需要执行和回传的内容。
 - 主 agent 基于执行记录发现的问题、修复内容和剩余缺口。
 - 用户是否确认目标 skill 可用。
 - 建议的 ArcForge 下一步和确认要求。

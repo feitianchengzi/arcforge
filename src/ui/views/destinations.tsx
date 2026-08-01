@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, FolderOpen, HardDrive, Pencil, Plus, Trash2 } from "lucide-react";
-import type { AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, SkillAvailabilityPlan, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
+import type { AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, SkillAvailabilityPlan, SkillProjectApplicabilityAssessment, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import type { DefaultTarget } from "../types";
 import { basename, createApplyTargetGroup, formatDate, formatTimeAgo, hasMixedApplyTargetModes, resolveApplyTargetEntries, selectedSkillCount, summarizeApplyResults, usesAvailabilityPlanning } from "../utils";
@@ -32,7 +32,7 @@ export function ApplySkills(props: {
   targetHistory: TargetRecord[];
   checkTargetGroupDrift: (group: ApplyTargetGroup) => void;
   applyTargetGroup: (group: ApplyTargetGroup) => void;
-  confirmAvailabilityApply: (cleanupPaths: string[], save: boolean) => void;
+  confirmAvailabilityApply: (cleanupPaths: string[], save: boolean, projectAssessments: SkillProjectApplicabilityAssessment[]) => void;
   cancelAvailabilityPlan: () => void;
   checkAppliedSourceDrift: (id?: string) => void;
   runAppliedSource: (id?: string) => void;
@@ -391,22 +391,39 @@ function AvailabilityPlanDialog(props: {
   group: ApplyTargetGroup;
   plan: SkillAvailabilityPlan;
   isApplying: boolean;
-  onConfirm: (cleanupPaths: string[], save: boolean) => void;
+  onConfirm: (cleanupPaths: string[], save: boolean, projectAssessments: SkillProjectApplicabilityAssessment[]) => void;
   onClose: () => void;
 }) {
   const { t, plan } = props;
   const [cleanupPaths, setCleanupPaths] = useState<string[]>([]);
   const [saveRelationship, setSaveRelationship] = useState(true);
+  const [projectOverrides, setProjectOverrides] = useState<string[]>([]);
 
   useEffect(() => {
     setCleanupPaths([]);
     setSaveRelationship(true);
+    setProjectOverrides([]);
   }, [plan.sourceKey, plan.profile, plan.sourcePolicyDigest]);
 
-  const blockingDiagnostics = plan.diagnostics.filter((item) => item.severity === "error");
+  const overridableAssessmentCodes = new Set([
+    "PROJECT_ASSESSMENT_REQUIRED",
+    "PROJECT_NOT_SUITABLE",
+    "PROJECT_ASSESSMENT_NEEDS_INPUT",
+    "PROJECT_ASSESSMENT_TARGET_MISMATCH"
+  ]);
+  const projectAssessmentSkills = plan.items.filter((item) => item.effectiveMode === "project-ambient"
+    && plan.diagnostics.some((diagnostic) => diagnostic.severity === "error"
+      && diagnostic.path === item.skill
+      && overridableAssessmentCodes.has(diagnostic.code))).map((item) => item.skill);
+  const visibleDiagnostics = plan.diagnostics.filter((item) => !(overridableAssessmentCodes.has(item.code)
+    && item.path
+    && projectOverrides.includes(item.path)));
+  const blockingDiagnostics = visibleDiagnostics.filter((item) => item.severity === "error");
   const allCleanupSelected = plan.cleanup.every((item) => cleanupPaths.includes(item.path));
+  const allProjectOverridesSelected = projectAssessmentSkills.every((skill) => projectOverrides.includes(skill));
   const canConfirm = plan.items.length > 0
     && blockingDiagnostics.length === 0
+    && allProjectOverridesSelected
     && (!saveRelationship || allCleanupSelected)
     && !props.isApplying;
 
@@ -414,6 +431,33 @@ function AvailabilityPlanDialog(props: {
     setCleanupPaths((current) => current.includes(targetPath)
       ? current.filter((item) => item !== targetPath)
       : [...current, targetPath]);
+  }
+
+  function toggleProjectOverride(skill: string) {
+    setProjectOverrides((current) => current.includes(skill)
+      ? current.filter((item) => item !== skill)
+      : [...current, skill]);
+  }
+
+  function projectAssessments(): SkillProjectApplicabilityAssessment[] {
+    return plan.items.flatMap((item) => {
+      if (projectOverrides.includes(item.skill)) return [{
+        skill: item.skill,
+        projectRoots: projectRootsForItem(item, props.group.projectTargetDirs),
+        status: "overridden",
+        decidedBy: "user",
+        summary: "User explicitly confirmed applicability for the selected project targets.",
+        conditionResults: (item.projectApplicability?.conditions ?? []).map((condition) => ({
+          conditionId: condition.id,
+          outcome: "unknown",
+          evidence: ["Explicit Desktop user override; no semantic inference was performed by ArcForge core."]
+        })),
+        evidence: ["Explicit confirmation in the ArcForge application plan."],
+        unknowns: (item.projectApplicability?.conditions ?? []).map((condition) => condition.description)
+      } satisfies SkillProjectApplicabilityAssessment];
+      if (item.projectAssessment) return [{ ...item.projectAssessment, projectRoots: [...item.projectAssessment.projectRoots] }];
+      return [];
+    });
   }
 
   return (
@@ -427,11 +471,11 @@ function AvailabilityPlanDialog(props: {
           <button className="icon-button light" onClick={props.onClose} disabled={props.isApplying}>x</button>
         </div>
 
-        {plan.diagnostics.length > 0 && (
+        {visibleDiagnostics.length > 0 && (
           <section className="availability-plan-section">
             <h4>{t.planDiagnostics}</h4>
             <div className="list compact">
-              {plan.diagnostics.map((diagnostic, index) => (
+              {visibleDiagnostics.map((diagnostic, index) => (
                 <article key={`${diagnostic.code}:${diagnostic.path ?? index}`} className="row stacked">
                   <div>
                     <span className={`badge ${diagnostic.severity === "error" ? "danger" : ""}`}>{diagnostic.code}</span>
@@ -452,11 +496,40 @@ function AvailabilityPlanDialog(props: {
                 <div className="availability-plan-heading">
                   <strong>{item.skill}</strong>
                   <div className="availability-badges">
-                    <span className="badge good">{t.availabilityMode(item.effectiveMode)}</span>
+                    <span className={`badge ${item.effectiveMode ? "good" : "danger"}`}>{item.effectiveMode ? t.availabilityMode(item.effectiveMode) : t.availabilityPolicyOrigin(item.policyOrigin)}</span>
                     <span className="badge">{t.availabilityPolicyOrigin(item.policyOrigin)}</span>
                   </div>
                 </div>
                 <p>{t.sourceRecommendation}: {item.sourceRecommendation ? t.availabilityMode(item.sourceRecommendation) : t.noSourceRecommendation}</p>
+                {item.projectApplicability && (
+                  <div className="availability-applicability">
+                    <strong>{t.projectApplicability}</strong>
+                    <p>{item.projectApplicability.summary}</p>
+                    <ul>{item.projectApplicability.conditions.map((condition) => <li key={condition.id}>{condition.description}</li>)}</ul>
+                    {(item.projectApplicability.evidenceGuidance ?? []).length > 0 && <p>{t.applicabilityEvidenceGuidance}: {(item.projectApplicability.evidenceGuidance ?? []).join(" · ")}</p>}
+                    {(item.projectApplicability.clarifyingQuestions ?? []).length > 0 && <p>{t.applicabilityClarifyingQuestions}: {(item.projectApplicability.clarifyingQuestions ?? []).join(" · ")}</p>}
+                  </div>
+                )}
+                {item.projectAssessment && (
+                  <div className="availability-applicability">
+                    <strong>{t.projectAssessment}</strong>
+                    <p><span className="badge">{item.projectAssessment.status}</span> {t.projectAssessmentBy}: {item.projectAssessment.decidedBy}</p>
+                    <p>{item.projectAssessment.summary}</p>
+                    {item.projectAssessment.conditionResults.length > 0 && (
+                      <ul>{item.projectAssessment.conditionResults.map((result) => (
+                        <li key={result.conditionId}>{result.conditionId}: {result.outcome} — {result.evidence.join(" · ")}</li>
+                      ))}</ul>
+                    )}
+                    {item.projectAssessment.evidence.length > 0 && <p>{t.publishEvidence}: {item.projectAssessment.evidence.join(" · ")}</p>}
+                    {item.projectAssessment.unknowns.length > 0 && <p>{t.publishUnknowns}: {item.projectAssessment.unknowns.join(" · ")}</p>}
+                  </div>
+                )}
+                {item.effectiveMode === "project-ambient" && projectAssessmentSkills.includes(item.skill) && (
+                  <label className="check-row">
+                    <input type="checkbox" checked={projectOverrides.includes(item.skill)} onChange={() => toggleProjectOverride(item.skill)} />
+                    <span><strong>{t.explicitProjectOverride}</strong><small>{t.explicitProjectOverrideHelp}</small></span>
+                  </label>
+                )}
                 <div className="availability-paths">
                   {item.destinations.length === 0
                     ? <span>{t.noAvailabilityDestinations}</span>
@@ -504,11 +577,18 @@ function AvailabilityPlanDialog(props: {
 
         <div className="actions modal-actions">
           <button onClick={props.onClose} disabled={props.isApplying}>{t.cancel}</button>
-          <button className="primary" onClick={() => props.onConfirm(cleanupPaths, saveRelationship)} disabled={!canConfirm}>
+          <button className="primary" onClick={() => props.onConfirm(cleanupPaths, saveRelationship, projectAssessments())} disabled={!canConfirm}>
             {props.isApplying ? t.applyingAvailability : t.confirmAvailabilityApply}
           </button>
         </div>
       </section>
     </div>
   );
+}
+
+function projectRootsForItem(item: SkillAvailabilityPlan["items"][number], fallback: string[]): string[] {
+  const roots = item.destinations.flatMap((destination) => destination.kind === "project-agent" && destination.projectRoot
+    ? [destination.projectRoot]
+    : []);
+  return [...new Set(roots.length > 0 ? roots : fallback)];
 }

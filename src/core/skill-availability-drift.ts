@@ -92,37 +92,27 @@ function policyDrift(plan: SkillAvailabilityPlan, record?: AppliedSourceRecord):
   const recordedBySkill = new Map(record?.availabilityItems?.map((item) => [item.skill, item]) ?? []);
   return plan.items.map((item) => {
     const recorded = recordedBySkill.get(item.skill);
+    const currentMode = requiredEffectiveMode(item);
     const currentPaths = normalizedPaths(item.destinations.map((destination) => destination.path));
     const recordedPaths = recorded ? normalizedPaths(recorded.destinations) : undefined;
-    if (item.policyOrigin === "compatibility") {
-      return {
-        skill: item.skill,
-        status: "unclassified" as const,
-        recordedMode: recorded?.mode,
-        currentMode: item.effectiveMode,
-        recordedPaths,
-        currentPaths,
-        reason: "The effective mode comes from compatibility fallback because neither source nor consumer policy classifies this skill."
-      };
-    }
     if (!recorded) {
       return {
         skill: item.skill,
         status: "changed" as const,
-        currentMode: item.effectiveMode,
+        currentMode,
         currentPaths,
         reason: "The current availability plan has no matching saved relationship item."
       };
     }
-    if (recorded.mode !== item.effectiveMode || !sameValues(recordedPaths ?? [], currentPaths)) {
+    if (recorded.mode !== currentMode || !sameValues(recordedPaths ?? [], currentPaths)) {
       return {
         skill: item.skill,
         status: "changed" as const,
         recordedMode: recorded.mode,
-        currentMode: item.effectiveMode,
+        currentMode,
         recordedPaths,
         currentPaths,
-        reason: recorded.mode !== item.effectiveMode
+        reason: recorded.mode !== currentMode
           ? "The effective availability mode differs from the saved relationship."
           : "The resolved destination set differs from the saved relationship."
       };
@@ -131,12 +121,17 @@ function policyDrift(plan: SkillAvailabilityPlan, record?: AppliedSourceRecord):
       skill: item.skill,
       status: "same" as const,
       recordedMode: recorded.mode,
-      currentMode: item.effectiveMode,
+      currentMode,
       recordedPaths,
       currentPaths,
       reason: "The effective mode and destination set match the saved relationship."
     };
   }).sort((left, right) => left.skill.localeCompare(right.skill));
+}
+
+function requiredEffectiveMode(item: SkillAvailabilityPlan["items"][number]) {
+  if (!item.effectiveMode) throw new Error(`Availability plan item is unclassified: ${item.skill}`);
+  return item.effectiveMode;
 }
 
 function normalizedPaths(values: string[]): string[] {

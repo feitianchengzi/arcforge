@@ -12,3 +12,4 @@
 | ID | Status | Title | Updated |
 | --- | --- | --- | --- |
 | [CASE-20260730-001](closed/CASE-20260730-001-skill.md) | closed | 支持按使用场景治理与触发三类 Skill | 2026-07-31T07:14:54.875Z |
+| [CASE-20260801-001](closed/CASE-20260801-001-arcforge-agent.md) | closed | 收敛 ArcForge 代码与 Agent 运行时职责边界 | 2026-08-01T04:55:47.128Z |

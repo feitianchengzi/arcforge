@@ -16,7 +16,20 @@ export async function loadConfig(root: string): Promise<ArcForgeConfig> {
   const fallback = await defaultConfigForRoot(root);
   await migrateRepositoryConfig(root);
   const localState = await loadLocalProjectState(root);
-  const parsed = localState?.config;
+  return mergeConfig(fallback, localState?.config);
+}
+
+export async function loadConfigReadOnly(root: string): Promise<ArcForgeConfig> {
+  const fallback = await defaultConfigForRoot(root);
+  const localState = await loadLocalProjectState(root);
+  if (localState?.config) return mergeConfig(fallback, localState.config);
+  const repositoryConfigPath = configPath(root);
+  if (!(await pathExists(repositoryConfigPath))) return fallback;
+  const raw = await fs.readFile(repositoryConfigPath, "utf8");
+  return mergeConfig(fallback, JSON.parse(raw) as ArcForgeConfig);
+}
+
+function mergeConfig(fallback: ArcForgeConfig, parsed?: ArcForgeConfig): ArcForgeConfig {
   if (!parsed) return fallback;
   return {
     ...fallback,

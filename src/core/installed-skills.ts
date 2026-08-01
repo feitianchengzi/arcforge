@@ -2,7 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
-import type { InstalledSkillInstallKind, InstalledSkillItem, InstalledSkillOrganizeAction, InstalledSkillOrganizePlan, InstalledSkillOrganizeResult, InstalledSkillPluginMetadata, InstalledSkillRoot, InstalledSkillsInventory, InstalledSkillsScanOptions } from "../shared/types.js";
+import type { InstalledSkillInstallKind, InstalledSkillItem, InstalledSkillOrganizeAction, InstalledSkillOrganizeDecision, InstalledSkillOrganizePlan, InstalledSkillOrganizeResult, InstalledSkillPluginMetadata, InstalledSkillRoot, InstalledSkillsInventory, InstalledSkillsScanOptions } from "../shared/types.js";
 import { parseFrontmatter } from "./frontmatter.js";
 import { pathExists, readText } from "./fs.js";
 import { findSkillMarkdownFile } from "./skill-markdown.js";
@@ -23,6 +23,14 @@ export const DEFAULT_INSTALLED_SKILL_ROOTS: InstalledSkillRootDefinition[] = [
 ];
 
 export type ScanInstalledSkillsOptions = InstalledSkillsScanOptions;
+export type InstalledSkillOrganizeOptions = ScanInstalledSkillsOptions & { decisions?: InstalledSkillOrganizeDecision[]; confirm?: boolean };
+
+const ORGANIZE_ACTION_KINDS = new Set<InstalledSkillOrganizeAction["kind"]>([
+  "copy-to-generic",
+  "link-agent-directory",
+  "replace-with-link",
+  "remove-duplicate"
+]);
 
 export async function scanInstalledSkills(options: ScanInstalledSkillsOptions = {}): Promise<InstalledSkillsInventory> {
   const home = path.resolve(options.home ?? os.homedir());
@@ -41,15 +49,15 @@ export async function scanInstalledSkills(options: ScanInstalledSkillsOptions = 
   };
 }
 
-export async function createInstalledSkillOrganizePlan(options: ScanInstalledSkillsOptions = {}): Promise<InstalledSkillOrganizePlan> {
+export async function createInstalledSkillOrganizePlan(options: InstalledSkillOrganizeOptions = {}): Promise<InstalledSkillOrganizePlan> {
   const inventory = await scanInstalledSkills({ ...options, includeAgentSystemSkills: false });
   const genericRoot = path.join(inventory.home, ".agents", "skills");
   const groups = new Map<string, Array<InstalledSkillItem & { manifestSignature: string }>>();
   const actions: InstalledSkillOrganizeAction[] = [];
   const conflicts: InstalledSkillOrganizePlan["conflicts"] = [];
   const messages: string[] = [
-    "Organize plan only includes non-system skills.",
-    "Run requires explicit confirmation before copying, linking, or removing duplicate physical entries."
+    "Installed skill inventory is evidence only; identical names or content do not select a canonical owner.",
+    "Agent or user decisions are required before the plan can contain copy, link, or removal actions."
   ];
 
   for (const skill of inventory.skills) {
@@ -59,10 +67,24 @@ export async function createInstalledSkillOrganizePlan(options: ScanInstalledSki
     groups.set(key, [...(groups.get(key) ?? []), { ...skill, manifestSignature }]);
   }
 
+  const evidenceGroups = [...groups.values()]
+    .filter((items) => items.length > 1)
+    .map((items) => ({
+      skillName: items[0]?.name ?? "",
+      items: items.map((item) => ({
+        rootName: item.rootName,
+        path: item.path,
+        installKind: item.installKind,
+        isSystem: item.isSystem,
+        manifestSignature: item.manifestSignature
+      }))
+    }))
+    .sort((left, right) => left.skillName.localeCompare(right.skillName));
+
   for (const items of groups.values()) {
     const bySignature = new Map<string, typeof items>();
     for (const item of items) bySignature.set(item.manifestSignature, [...(bySignature.get(item.manifestSignature) ?? []), item]);
-    if (bySignature.size > 1) {
+    if (items.length > 1 && bySignature.size > 1) {
       conflicts.push({
         skillName: items[0]?.name ?? "",
         reason: "Same skill name has different file-level content.",
@@ -72,89 +94,45 @@ export async function createInstalledSkillOrganizePlan(options: ScanInstalledSki
           manifestSignature: item.manifestSignature
         }))
       });
-      continue;
-    }
-
-    const canonical = chooseCanonicalSkill(items, genericRoot);
-    if (!canonical) continue;
-    const targetPath = path.join(genericRoot, path.basename(canonical.path));
-    if (canonical.installKind !== "agent-generic") {
-      actions.push({
-        kind: "copy-to-generic",
-        skillName: canonical.name,
-        sourcePath: canonical.path,
-        targetPath,
-        reason: "Move non-system skill ownership into the generic agents directory.",
-        manifestSignature: canonical.manifestSignature,
-        rootName: canonical.rootName
-      });
-      if (isModifiableInstalledSkill(canonical)) {
-        actions.push({
-          kind: "replace-with-link",
-          skillName: canonical.name,
-          sourcePath: canonical.path,
-          targetPath,
-          reason: "Canonical agent skill is copied to the generic agents directory, then replaced with a directory link.",
-          manifestSignature: canonical.manifestSignature,
-          rootName: canonical.rootName
-        });
-      }
-    }
-
-    for (const item of items) {
-      if (samePath(item.path, canonical.path)) continue;
-      if (!isModifiableInstalledSkill(item)) continue;
-      if (item.installKind === "agent-generic") {
-        actions.push({
-          kind: "remove-duplicate",
-          skillName: item.name,
-          sourcePath: item.path,
-          targetPath: canonical.path,
-          reason: "Duplicate generic skill has identical file-level content.",
-          manifestSignature: item.manifestSignature,
-          rootName: item.rootName
-        });
-        continue;
-      }
-      actions.push({
-        kind: "replace-with-link",
-        skillName: item.name,
-        sourcePath: item.path,
-        targetPath,
-        reason: "Agent directory duplicate has identical content; keep one generic copy and replace the duplicate with a directory link.",
-        manifestSignature: item.manifestSignature,
-        rootName: item.rootName
-      });
-    }
-
-    const linkedAgentRoots = new Set(items.filter((item) => item.installKind !== "agent-generic").map((item) => item.rootPath));
-    for (const root of inventory.roots.filter((root) => root.installKind === "agent-user" && root.status === "scanned")) {
-      if (linkedAgentRoots.has(root.path)) continue;
-      const linkPath = path.join(root.path, path.basename(targetPath));
-      actions.push({
-        kind: "link-agent-directory",
-        skillName: canonical.name,
-        sourcePath: targetPath,
-        targetPath: linkPath,
-        reason: "Reference the generic agents copy from agent-specific directories that do not support the generic agents directory directly.",
-        manifestSignature: canonical.manifestSignature,
-        rootName: root.name
-      });
     }
   }
+
+  const acceptedDecisions: InstalledSkillOrganizeDecision[] = [];
+  const seenDecisions = new Set<string>();
+  for (const decision of options.decisions ?? []) {
+    const skillName = typeof decision?.skillName === "string" ? decision.skillName : "";
+    const key = normalizeSkillKey(skillName);
+    const items = groups.get(key) ?? [];
+    const reason = validateOrganizeDecision(decision, items, inventory.roots);
+    if (key && seenDecisions.has(key)) {
+      conflicts.push(conflictForDecision(skillName, "Multiple organize decisions target the same skill.", items));
+      continue;
+    }
+    if (key) seenDecisions.add(key);
+    if (reason) {
+      conflicts.push(conflictForDecision(skillName || "<invalid-decision>", reason, items));
+      continue;
+    }
+    acceptedDecisions.push(decision);
+    actions.push(...decision.actions);
+  }
+
+  if ((options.decisions ?? []).length === 0) messages.push("No organize decisions were supplied; actions are intentionally empty.");
 
   return {
     home: inventory.home,
     generatedAt: new Date().toISOString(),
     genericRoot,
+    evidenceGroups,
+    decisions: acceptedDecisions,
     actions: uniqueOrganizeActions(actions),
     conflicts,
-    requiresConfirm: true,
+    requiresConfirm: actions.length > 0,
     messages
   };
 }
 
-export async function organizeInstalledSkills(options: ScanInstalledSkillsOptions & { confirm?: boolean } = {}): Promise<InstalledSkillOrganizeResult> {
+export async function organizeInstalledSkills(options: InstalledSkillOrganizeOptions = {}): Promise<InstalledSkillOrganizeResult> {
   const plan = await createInstalledSkillOrganizePlan(options);
   if (!options.confirm) {
     return {
@@ -173,6 +151,10 @@ export async function organizeInstalledSkills(options: ScanInstalledSkillsOption
   const removed: string[] = [];
   const skipped: string[] = [];
   for (const action of plan.actions) {
+    if (!(await pathExists(action.sourcePath)) || await fileManifest(action.sourcePath) !== action.manifestSignature) {
+      skipped.push(action.sourcePath);
+      continue;
+    }
     if (action.kind === "copy-to-generic") {
       if (await isSameSkillDirectory(action.sourcePath, action.targetPath)) {
         skipped.push(action.targetPath);
@@ -321,7 +303,7 @@ async function summarizeInstalledSkill(rootPath: string, definition: InstalledSk
 
 export function isInstalledSkillSystemPath(rootPath: string, dir: string): boolean {
   const parts = path.relative(rootPath, dir).split(path.sep).filter(Boolean).map((part) => part.toLowerCase());
-  return parts.includes(".system") || parts.includes("system") || parts.includes("builtin") || parts.includes("builtins");
+  return parts[0] === ".system";
 }
 
 function pluginMetadata(rootPath: string, dir: string): InstalledSkillPluginMetadata | undefined {
@@ -355,19 +337,65 @@ function compareInstalledSkills(left: InstalledSkillItem, right: InstalledSkillI
   return left.name.localeCompare(right.name) || left.rootName.localeCompare(right.rootName) || left.path.localeCompare(right.path);
 }
 
-function chooseCanonicalSkill<T extends InstalledSkillItem & { manifestSignature: string }>(items: T[], genericRoot: string): T | undefined {
-  return [...items].sort((left, right) => canonicalScore(right, genericRoot) - canonicalScore(left, genericRoot) || compareInstalledSkills(left, right))[0];
-}
-
-function canonicalScore(skill: InstalledSkillItem, genericRoot: string): number {
-  if (skill.installKind === "agent-generic") return 3;
-  if (samePath(skill.rootPath, genericRoot)) return 2;
-  if (skill.installKind === "agent-user") return 1;
-  return 0;
-}
-
 function isModifiableInstalledSkill(skill: InstalledSkillItem): boolean {
   return skill.installKind !== "codex-plugin-cache" && !skill.isSystem;
+}
+
+function validateOrganizeDecision(
+  decision: InstalledSkillOrganizeDecision | null | undefined,
+  items: Array<InstalledSkillItem & { manifestSignature: string }>,
+  roots: InstalledSkillRoot[]
+): string | undefined {
+  if (!decision || typeof decision !== "object") return "Decision must be an object.";
+  if (typeof decision.skillName !== "string" || !decision.skillName.trim()) return "Decision skillName is required.";
+  if (typeof decision.canonicalPath !== "string" || !decision.canonicalPath.trim()) return "Decision canonicalPath is required.";
+  if (typeof decision.reason !== "string" || !decision.reason.trim()) return "Decision reason is required.";
+  if (!Array.isArray(decision.evidence) || !decision.evidence.length || decision.evidence.some((item) => typeof item !== "string" || !item.trim())) return "Decision evidence must contain non-empty entries.";
+  if (!Array.isArray(decision.actions)) return "Decision actions must be an array.";
+  if (!items.length) return "Decision does not match an installed skill evidence group.";
+  const canonical = items.find((item) => samePath(item.path, decision.canonicalPath));
+  if (!canonical) return "canonicalPath must identify an observed installed copy in the same evidence group.";
+
+  const writableRoots = roots.filter((root) => root.installKind !== "codex-plugin-cache").map((root) => path.resolve(root.path));
+  for (const action of decision.actions) {
+    if (!action || typeof action !== "object") return "Every action must be an object.";
+    if (!ORGANIZE_ACTION_KINDS.has(action.kind)) return `Unknown organize action kind: ${String(action.kind)}`;
+    if (typeof action.skillName !== "string" || !action.skillName.trim()) return "Every action requires a skillName.";
+    if (typeof action.sourcePath !== "string" || !action.sourcePath.trim()) return "Every action requires a sourcePath.";
+    if (typeof action.targetPath !== "string" || !action.targetPath.trim()) return "Every action requires a targetPath.";
+    if (typeof action.manifestSignature !== "string" || !action.manifestSignature.trim()) return "Every action requires a manifestSignature.";
+    if (normalizeSkillKey(action.skillName) !== normalizeSkillKey(decision.skillName)) return "Action skillName must match its decision.";
+    if (typeof action.reason !== "string" || !action.reason.trim()) return "Every action requires a non-empty reason.";
+    const source = items.find((item) => samePath(item.path, action.sourcePath));
+    if (!source) return `Action source was not observed in the evidence group: ${action.sourcePath}`;
+    if (source.manifestSignature !== action.manifestSignature) return `Action manifestSignature does not match observed source content: ${action.sourcePath}`;
+    if (samePath(action.sourcePath, action.targetPath)) return "Action sourcePath and targetPath must differ.";
+    if (!writableRoots.some((root) => isPathWithinSkillRoot(action.targetPath, root))) return `Action target is not a child of a user-managed installed-skill root: ${action.targetPath}`;
+    if ((action.kind === "remove-duplicate" || action.kind === "replace-with-link") && !isModifiableInstalledSkill(source)) {
+      return `Action cannot modify a system or plugin-managed copy: ${action.sourcePath}`;
+    }
+    if ((action.kind === "remove-duplicate" || action.kind === "replace-with-link") && !samePath(action.targetPath, canonical.path)) {
+      return `${action.kind} must reference the selected canonicalPath as targetPath.`;
+    }
+  }
+  return undefined;
+}
+
+function conflictForDecision(
+  skillName: string,
+  reason: string,
+  items: Array<InstalledSkillItem & { manifestSignature: string }>
+): InstalledSkillOrganizePlan["conflicts"][number] {
+  return {
+    skillName,
+    reason,
+    items: items.map((item) => ({ rootName: item.rootName, path: item.path, manifestSignature: item.manifestSignature }))
+  };
+}
+
+function isPathWithinSkillRoot(candidate: string, root: string): boolean {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
 function uniqueOrganizeActions(actions: InstalledSkillOrganizeAction[]): InstalledSkillOrganizeAction[] {
@@ -428,7 +456,11 @@ async function createDirectoryLink(source: string, target: string): Promise<void
 }
 
 function samePath(left: string, right: string): boolean {
-  return path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase();
+  const normalize = (value: string) => {
+    const resolved = path.resolve(value);
+    return process.platform === "win32" || process.platform === "darwin" ? resolved.toLowerCase() : resolved;
+  };
+  return normalize(left) === normalize(right);
 }
 
 function normalizeSkillKey(name: string): string {

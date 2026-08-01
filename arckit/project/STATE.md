@@ -1,7 +1,7 @@
 # ArcForge Project State
 
 Status: active
-Updated: 2026-07-31T07:14:54.875Z
+Updated: 2026-08-01T04:55:47.128Z
 Canonical Record: state.record.json
 
 ## Purpose
@@ -15,7 +15,7 @@ TBD
 ## Case Selection
 
 - Selected case: TBD
-- Case selection reason: Resolved Case arckit/cases/closed/CASE-20260730-001-skill.md.
+- Case selection reason: Resolved Case arckit/cases/closed/CASE-20260801-001-arcforge-agent.md.
 - Next case intent: TBD
 - Priority basis: No remaining Project state gap requires selection.
 

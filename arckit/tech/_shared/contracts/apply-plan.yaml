@@ -2,9 +2,9 @@ metadata:
   path: tech/_shared/contracts/apply-plan.yaml
   domain: profiles-sync
   owner: electron/main
-  version: 2
+  version: 3
   created: 2026-07-30
-  updated: 2026-07-31
+  updated: 2026-08-01
 endpoint:
   transport: electron-ipc-and-cli
   channel: apply:plan
@@ -47,6 +47,10 @@ request:
               - user-ambient
               - project-ambient
               - user-on-demand
+    - name: projectAssessments
+      type: object[]
+      required: false
+      description: Agent or user applicability decisions supplied by the caller for project-ambient skills; core validates but never generates them.
 responses:
   success:
     schema:
@@ -60,13 +64,18 @@ responses:
       message: The Git-tracked Skill project manifest is malformed or contains unsafe paths.
     - code: TARGET_CONTEXT_INVALID
       message: Agent or project targets required by an effective mode are missing.
+    - code: UNCLASSIFIED_SKILL
+      message: No source, profile, or invocation policy selected an availability mode.
+    - code: PROJECT_ASSESSMENT_REQUIRED
+      message: A project-ambient skill requires a suitable Agent assessment or explicit user override.
     - code: ON_DEMAND_LOADER_CONFLICT
       message: A fixed loader target exists but is neither content-identical nor proven to be managed by a saved ArcForge availability relationship.
 business_logic:
   flow:
     - Resolve and scan the source Skill project without mutating the checkout.
     - Derive sourceKey from canonical Git identity or canonical local real path.
-    - Resolve invocation, profile, source-skill, source-default, and compatibility policy in precedence order.
+    - Resolve invocation, profile, source-skill, and source-default policy in precedence order; keep missing values unclassified.
+    - Validate caller-supplied project assessments against source condition IDs without interpreting condition text.
     - Map user-ambient to user agent roots, project-ambient to the agent/project cross product, and user-on-demand to the user catalog.
     - Add user-level on-demand entry loader targets for every selected agent when at least one item is user-on-demand.
     - Inspect each loader target and classify it as missing, same, managed-update, or conflict; only a saved on-demand availability relation for the same agent and home proves ownership of differing content.

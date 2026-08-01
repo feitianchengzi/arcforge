@@ -4,9 +4,9 @@ metadata:
   entity_name: AppliedSourceRecord
   storage: ~/.arcforge/projects/<project-key>.json
   owner: core/project-store
-  version: 2
+  version: 3
   created: 2026-06-01
-  updated: 2026-07-30
+  updated: 2026-08-01
 type: object
 required:
   - id
@@ -77,6 +77,7 @@ properties:
             - user-on-demand
         policyOrigin:
           type: string
+          description: Current values identify an explicit invocation, profile, or source policy. compatibility is accepted only when reading legacy records and is never emitted by a new plan.
           enum:
             - invocation
             - profile-skill
@@ -122,6 +123,12 @@ properties:
                 - user-ambient
                 - project-ambient
                 - user-on-demand
+      projectAssessments:
+        type: array
+        nullable: true
+        description: Validated caller-owned project applicability assessments saved from the accepted plan for exact source-policy, profile, agent-target, and normalized project-root drift or reapply context; the core does not generate their semantic content.
+        items:
+          $ref: "./SkillProjectApplicabilityAssessment.yaml"
       homeDir:
         type: string
         description: User home used to resolve user-agent and catalog targets for this relationship.
@@ -140,6 +147,6 @@ properties:
     description: Last time the applied source record was changed.
 validation:
   legacy_record:
-    description: Records without sourceKey, sourcePolicyDigest, or availabilityItems remain valid direct-apply records and are upgraded after an availability-aware run.
+    description: Records without sourceKey, sourcePolicyDigest, availabilityItems, or projectAssessments remain readable. Legacy compatibility policy origins remain deserializable but new availability plans never emit them.
   availability_reapply_context:
     description: Availability-aware records persist normalized agent, project, override, and home context so applied drift/run never guesses target locations from installed paths.

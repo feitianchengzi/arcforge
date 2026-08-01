@@ -2,4 +2,4 @@ interface:
   display_name: "ArcForge Skill First"
   short_description: "编排 Skill First：路由目标 skill、调用 creator、验证并交接治理。"
   default_prompt: >-
-    使用 $arcforge-skill-first 时，把它当成 Skill First 编排入口，而不是业务执行或 skill 写作入口；用户在 skill、目标 skill 或 Skill First 上下文中只说“模拟测试”“测一下这个 skill”“试跑这个 skill”也应进入本入口。先判断真实任务是否已有足够匹配的目标 skill，明确元入口、目标 skill、辅助入口、创建维护入口、验证入口和治理入口；不要让泛化 skill 抢占目标 skill。凡是创建、更新、维护、拆分或修复目标 skill，必须调用并遵守 $arcforge-skill-creator。唯一验证路径是人工桥接隔离验证，执行包必须两段式并绑定目标工作副本：第一段真实任务 prompt 只模拟真实用户请求，包含做什么、真实输入材料、工作区和写入边界；不得写验证背景、诊断、观察重点、失败模式、验收标准、目标 skill 绝对路径，也不得加入最小文件结构、本地结构检查、必须生成哪些文件等执行形态提示。执行包说明中写清预期实际读取的目标 skill 路径，收到总结后核对路径；读到同名旧版只能算验证绑定失败。第二段事后总结 prompt 后置收集执行痕迹。交付桥接执行包只表示状态 awaiting_validation_transcript；不要调用平台工具替代人工桥接，不要执行 apply/share/push/目标覆盖/远程写入/registry 写入。
+    使用 $arcforge-skill-first 编排目标 skill 的创建/维护、隔离验证、观察和治理交接，不直接完成业务任务。由 Agent 动态判断目标与辅助能力，不维护具体业务 skill 黑白名单；创建维护交给 $arcforge-skill-creator。验证时依次选择平台原生隔离 agent/sub-agent、已配置 runner/harness、人工桥接 fallback，并让所有通道绑定同一工作副本、使用去污染真实任务、返回统一事实报告。结果回来前保持等待状态；路径不匹配只算绑定失败。不要执行 apply/share/push/目标覆盖/远程写入/registry 写入。

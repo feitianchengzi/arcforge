@@ -1,5 +1,8 @@
 import path from "node:path";
+import { promises as fs } from "node:fs";
 import { scanWorkspace } from "../core/workspace.js";
+import { loadConfigReadOnly } from "../core/config.js";
+import { discoverSkills } from "../core/skills.js";
 import { createPublishPlan } from "../core/publish.js";
 import { createSharePlan, shareProject, type ShareProjectOptions } from "../core/share.js";
 import { shareDriftReport, type ShareDriftOptions } from "../core/share-drift.js";
@@ -9,8 +12,10 @@ import { arcForgeHome } from "../core/project-store.js";
 import { addAppliedSource, applyAvailabilityFromSource, applyFromSource, cleanupLocalSkills, createAvailabilityPlanFromSource, createImportSkillsPlan, createLocalSkillWorkflowPlan, createMergePlan, driftAppliedSources, driftAvailabilityFromSource, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, removeAppliedSource, resolveSkillProject, runAppliedSources } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
 import { resolveCatalogSkill } from "../core/skill-catalog.js";
+import { createSkillProjectAvailabilityPlan, executeSkillProjectAvailabilityPlan, type SkillProjectAliasUpdate } from "../core/skill-project-availability.js";
+import { loadSkillProjectManifest, validateSkillProjectManifestSkills } from "../core/skill-project-manifest.js";
 import type { CliShimOptions } from "../core/cli-install.js";
-import type { AuditMode, ShareDeliveryMethod, ShareTargetMode, SkillAvailabilityMode, SkillAvailabilityOverride } from "../shared/types.js";
+import type { AuditMode, InstalledSkillOrganizeDecision, PublishPlan, ShareDeliveryMethod, ShareTargetMode, SkillAvailabilityMode, SkillAvailabilityOverride, SkillProjectApplicabilityAssessment } from "../shared/types.js";
 
 export interface CommandRuntime {
   cwd: string;
@@ -35,7 +40,7 @@ Commands:
   scan             Scan skills, shared assets, and audit status
   audit            Print audit report; exits 2 on critical findings
   source           Check or update the current Git checkout
-  project          Resolve real Skill project maintenance sources
+  project          Resolve maintenance sources or maintain source availability policy
   workflow         Plan multi-stage skill governance workflows
   merge            Merge project skills into another Skill project
   import           Import skills from another Skill project into this project
@@ -44,7 +49,7 @@ Commands:
   catalog          Resolve explicitly requested user-level on-demand skills
   apply            Plan availability targets or copy a profile into a direct target
   drift            Compare a profile against an installed target
-  publish-plan     Generate a GitHub-first release checklist
+  publish-plan     Collect release facts and preserve an optional Agent assessment
   share            Plan or execute GitHub-first sharing
   doctor           Check Git, CLI install, and optional tools
 
@@ -58,8 +63,9 @@ Examples:
   arcforge audit --root .
   arcforge audit --root . --mode hybrid --agent codex
   arcforge source status --root .
-  arcforge project resolve --name arckit-code
-  arcforge workflow local-skill plan --root . --skill review --to arckit-code --install codex:user --share origin
+  arcforge project resolve --name team-skills
+  arcforge project availability plan --root ../team-skills --default-mode user-ambient --set review=user-on-demand --aliases 'review=reviewer|code-review'
+  arcforge workflow local-skill plan --root . --skill review --to ../team-skills --install codex:user --share origin
   arcforge source update --root . --confirm
   arcforge merge plan --root . --to ../team-skills --skills review --target-path skills/project-a
   arcforge merge plan --root . --source-dir .codex/skills --to ../team-skills --skills project-showcase-video --target-path skills
@@ -118,21 +124,31 @@ Options:
 `,
   project: `ArcForge CLI - project
 
-Resolve real Skill project maintenance sources before merge/apply/share writes. Outputs JSON.
+Resolve real Skill project maintenance sources or maintain their persistent skill availability policy. Outputs JSON.
+Availability plan is read-only. Availability run atomically writes arcforge.skill-project.json after confirmation.
 
 Usage:
   arcforge project resolve --name <project-name-or-path> [--root <dir>]
+  arcforge project availability plan [--root <dir>] [--source-dir <dir>] [--default-mode <mode|none>] [--set <skill=mode,...>] [--aliases <skill=alias|alias,...>] [--remove <skill,...>]
+  arcforge project availability run [--root <dir>] [--source-dir <dir>] [--default-mode <mode|none>] [--set <skill=mode,...>] [--aliases <skill=alias|alias,...>] [--remove <skill,...>] --plan-digest <digest> --confirm
 
 Options:
-  --root <dir>   Search context. Defaults to current directory.
-  --name <name>  Project directory name or path to inspect.
+  --root <dir>          Search context or maintenance source root. Defaults to current directory.
+  --name <name>         Project directory name or path to inspect.
+  --source-dir <dir>    Skill source directory used when creating the source manifest.
+  --default-mode <mode> Project recommendation: user-ambient, project-ambient, user-on-demand, or none to clear.
+  --set <items>         Persistent per-skill recommendations such as review=user-on-demand.
+  --aliases <items>     On-demand aliases such as review=reviewer|code-review; an empty value clears aliases.
+  --remove <skills>     Remove persistent per-skill recommendations by name or relative path.
+  --plan-digest <hash>  Digest returned by the reviewed availability plan; required for run.
+  --confirm             Required for availability run.
 `,
   workflow: `ArcForge CLI - workflow
 
 Create read-only endpoint plans for multi-stage governance flows.
 
 Usage:
-  arcforge workflow local-skill plan --root <project> --skill <name> --to <project-name-or-path> [--source-dir <dir>] [--install codex:user|claude:user|cursor:user|<dir>] [--share <remote-or-repo>]
+  arcforge workflow local-skill plan --root <project> --skill <name> --to <explicit-skill-project-path> [--source-dir <dir>] [--install codex:user|claude:user|cursor:user|<dir>] [--share <remote-or-repo>]
 `,
   merge: `ArcForge CLI - merge
 
@@ -191,13 +207,14 @@ Scan locally installed and cached agent skills and plan local cleanup. Scan is r
 
 Usage:
   arcforge installed scan [--home <dir>] [--include-system] [--no-plugin-cache]
-  arcforge installed organize plan [--home <dir>] [--no-plugin-cache]
-  arcforge installed organize run [--home <dir>] [--no-plugin-cache] --confirm
+  arcforge installed organize plan [--home <dir>] [--no-plugin-cache] [--decisions <json-file>]
+  arcforge installed organize run [--home <dir>] [--no-plugin-cache] --decisions <json-file> --confirm
 
 Options:
   --home <dir>         User home directory to inspect. Defaults to the current OS user home.
   --include-system     Include agent system skills. Defaults to false.
   --no-plugin-cache    Exclude Codex plugin cache skills. Codex plugin cache is included by default.
+  --decisions <file>   Agent- or user-authored JSON decisions. Without it, the plan contains evidence only and no actions.
   --confirm            Required for organize run.
 `,
   catalog: `ArcForge CLI - catalog
@@ -231,6 +248,7 @@ Options:
   --agent-targets <ids> Agent user targets used by availability-aware plan.
   --project-targets <dirs> Comma-separated project roots used by project-ambient skills.
   --availability <items> Invocation overrides such as review=user-on-demand,build=project-ambient.
+  --project-assessments <file> Agent- or user-authored JSON assessments bound to the selected project roots.
   --cleanup-paths <dirs> Exact comma-separated cleanup paths selected from the fresh plan.
   --target <dir>        Application target directory. With --from, this is resolved inside --root.
   --save                Save an applied source relation for later drift/reapply.
@@ -254,14 +272,15 @@ Options:
   --agent-targets <ids> Agent user targets used by availability-aware drift.
   --project-targets <dirs> Project roots used by project-ambient skills.
   --availability <items> Invocation overrides such as review=user-on-demand.
+  --project-assessments <file> Agent- or user-authored JSON assessments bound to the selected project roots.
   --target <dir>        Application target directory. With --from, this is resolved inside --root.
 `,
   "publish-plan": `ArcForge CLI - publish-plan
 
-Generate a GitHub-first release checklist and install command hints. This command does not push to a remote repository.
+Collect deterministic GitHub-first release facts. An optional Agent-authored assessment is preserved but not generated by core. This command does not push to a remote repository.
 
 Usage:
-  arcforge publish-plan [--root <dir>] [--visibility private|public]
+  arcforge publish-plan [--root <dir>] [--visibility private|public] [--readiness-assessment <json-file>]
 `,
   share: `ArcForge CLI - share
 
@@ -287,6 +306,7 @@ Options:
   --delivery <target-pr|fork-pr|direct-push|local-branch> Preferred GitHub delivery method.
   --branch <name>                   Share branch name.
   --message <text>                  Commit or PR message.
+  --readiness-assessment <json-file> Agent-authored readiness assessment to validate and preserve.
   --confirm                         Required for run.
 `,
   doctor: `ArcForge CLI - doctor
@@ -329,7 +349,7 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
   if (command === "merge") return runMergeCommand(args, runtime);
   if (command === "import") return runImportCommand(args, runtime);
   if (command === "applied") return runAppliedCommand(args, runtime);
-  if (command === "installed") return runInstalledCommand(args);
+  if (command === "installed") return runInstalledCommand(args, runtime);
   if (command === "catalog") {
     const action = args[1] ?? "resolve";
     if (action !== "resolve") throw new Error(`Unknown catalog action: ${action}`);
@@ -352,6 +372,7 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
           agentTargetIds: parseCsv(requiredArg(args, "--agent-targets")),
           projectTargetDirs: parseCsv(arg(args, "--project-targets")),
           availabilityOverrides: parseAvailabilityOverrides(arg(args, "--availability")),
+          projectAssessments: await parseProjectAssessments(arg(args, "--project-assessments"), runtime.cwd),
           cacheDir: arg(args, "--cache-dir") ?? runtime.cacheDir ?? defaultCacheDir()
         })
       };
@@ -370,6 +391,7 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
           agentTargetIds: parseCsv(requiredArg(args, "--agent-targets")),
           projectTargetDirs: parseCsv(arg(args, "--project-targets")),
           availabilityOverrides: parseAvailabilityOverrides(arg(args, "--availability")),
+          projectAssessments: await parseProjectAssessments(arg(args, "--project-assessments"), runtime.cwd),
           cleanupPaths: parseCsv(arg(args, "--cleanup-paths")),
           save: hasFlag(args, "--save"),
           confirm: true,
@@ -401,6 +423,7 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
           agentTargetIds: parseCsv(requiredArg(args, "--agent-targets")),
           projectTargetDirs: parseCsv(arg(args, "--project-targets")),
           availabilityOverrides: parseAvailabilityOverrides(arg(args, "--availability")),
+          projectAssessments: await parseProjectAssessments(arg(args, "--project-assessments"), runtime.cwd),
           cacheDir: arg(args, "--cache-dir") ?? runtime.cacheDir ?? defaultCacheDir()
         })
       };
@@ -412,7 +435,7 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
     const root = arg(args, "--root") ?? runtime.cwd;
     const visibility = parseVisibility(arg(args, "--visibility") ?? "private");
     const snapshot = await scanWorkspace(root);
-    return { exitCode: 0, value: await createPublishPlan(root, snapshot.config, snapshot.skills, visibility, snapshot.sourceManifest, snapshot.sourceManifestDiagnostics) };
+    return { exitCode: 0, value: await createPublishPlan(root, snapshot.config, snapshot.skills, visibility, snapshot.sourceManifest, snapshot.sourceManifestDiagnostics, await parseReadinessAssessment(arg(args, "--readiness-assessment"), runtime.cwd)) };
   }
 
   if (command === "share") {
@@ -434,7 +457,8 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
       shareBranch: arg(args, "--branch"),
       confirm: hasFlag(args, "--confirm"),
       sameRepository,
-      sameRepositoryRemote: arg(args, "--same-repository-remote")
+      sameRepositoryRemote: arg(args, "--same-repository-remote"),
+      readinessAssessment: await parseReadinessAssessment(arg(args, "--readiness-assessment"), runtime.cwd)
     };
     if (action === "plan") return { exitCode: 0, value: await createSharePlanCommand(options) };
     const plan = !options.confirm ? await createSharePlanCommand(options) : undefined;
@@ -447,7 +471,7 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
   throw new Error(`Unknown command: ${command}`);
 }
 
-async function runInstalledCommand(args: string[]): Promise<CommandExecution> {
+async function runInstalledCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
   const action = args[1] ?? "scan";
   const options = {
     home: arg(args, "--home"),
@@ -457,8 +481,9 @@ async function runInstalledCommand(args: string[]): Promise<CommandExecution> {
   if (action === "scan") return { exitCode: 0, value: await scanInstalledSkills(options) };
   if (action === "organize") {
     const organizeAction = args[2] ?? "plan";
-    if (organizeAction === "plan") return { exitCode: 0, value: await createInstalledSkillOrganizePlan(options) };
-    if (organizeAction === "run") return { exitCode: 0, value: await organizeInstalledSkills({ ...options, confirm: hasFlag(args, "--confirm") }) };
+    const decisions = await parseOrganizeDecisions(arg(args, "--decisions"), runtime.cwd);
+    if (organizeAction === "plan") return { exitCode: 0, value: await createInstalledSkillOrganizePlan({ ...options, decisions }) };
+    if (organizeAction === "run") return { exitCode: 0, value: await organizeInstalledSkills({ ...options, decisions, confirm: hasFlag(args, "--confirm") }) };
     throw new Error(`Unknown installed organize action: ${organizeAction}`);
   }
   throw new Error(`Unknown installed action: ${action}`);
@@ -473,6 +498,61 @@ async function runSourceCommand(args: string[], runtime: CommandRuntime): Promis
 
 async function runProjectCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
   const action = args[1] ?? "resolve";
+  if (action === "availability") {
+    const availabilityAction = args[2] ?? "plan";
+    if (availabilityAction !== "plan" && availabilityAction !== "run") {
+      throw new Error(`Unknown project availability action: ${availabilityAction}`);
+    }
+    if (availabilityAction === "run" && !hasFlag(args, "--confirm")) {
+      return {
+        exitCode: 1,
+        value: {
+          error: "Source availability update requires --confirm after reviewing a fresh plan.",
+          requiresConfirm: true
+        }
+      };
+    }
+    const root = arg(args, "--root") ?? runtime.cwd;
+    const sourceDirOverride = arg(args, "--source-dir");
+    const snapshot = await loadSourceAvailabilitySnapshot(root, sourceDirOverride);
+    const plan = createSkillProjectAvailabilityPlan({
+      root: snapshot.root,
+      sourceDir: snapshot.sourceDir,
+      skills: snapshot.skills,
+      currentManifest: snapshot.sourceManifest,
+      currentDiagnostics: snapshot.sourceManifestDiagnostics,
+      sourceDirOverrideProvided: sourceDirOverride !== undefined,
+      defaultMode: parseOptionalSourceDefaultMode(arg(args, "--default-mode")),
+      set: parseAvailabilityOverrides(arg(args, "--set")),
+      aliases: parseAliasUpdates(arg(args, "--aliases")),
+      remove: parseCsv(arg(args, "--remove"))
+    });
+    if (availabilityAction === "plan") return { exitCode: plan.blocked ? 2 : 0, value: plan };
+    const expectedPlanDigest = arg(args, "--plan-digest");
+    if (!expectedPlanDigest) {
+      return {
+        exitCode: 1,
+        value: {
+          error: "Source availability run requires --plan-digest from the reviewed plan.",
+          requiresPlanDigest: true,
+          freshPlan: plan
+        }
+      };
+    }
+    if (expectedPlanDigest !== plan.planDigest) {
+      return {
+        exitCode: 1,
+        value: {
+          error: "Source availability plan changed; review the fresh plan before running again.",
+          planChanged: true,
+          expectedPlanDigest,
+          actualPlanDigest: plan.planDigest,
+          freshPlan: plan
+        }
+      };
+    }
+    return { exitCode: 0, value: await executeSkillProjectAvailabilityPlan(plan, true) };
+  }
   if (action !== "resolve") throw new Error(`Unknown project action: ${action}`);
   return {
     exitCode: 0,
@@ -481,6 +561,82 @@ async function runProjectCommand(args: string[], runtime: CommandRuntime): Promi
       name: requiredArg(args, "--name")
     })
   };
+}
+
+async function loadSourceAvailabilitySnapshot(root: string, sourceDirOverride?: string) {
+  const resolvedRoot = path.resolve(root);
+  const stats = await fs.stat(resolvedRoot);
+  if (!stats.isDirectory()) throw new Error("Workspace root is not a directory.");
+  const sourceManifestResult = await loadSkillProjectManifest(resolvedRoot);
+  const config = await loadConfigReadOnly(resolvedRoot);
+  const sourceDir = resolveAvailabilitySourceDir(
+    sourceDirOverride,
+    sourceManifestResult.manifest?.sourceDir ?? config.sourceDir
+  );
+  await assertAvailabilitySourceDirContained(resolvedRoot, sourceDir);
+  const skills = await discoverSkills(resolvedRoot, { ...config, sourceDir });
+  return {
+    root: resolvedRoot,
+    sourceDir,
+    skills,
+    sourceManifest: sourceManifestResult.manifest,
+    sourceManifestDiagnostics: validateSkillProjectManifestSkills(
+      sourceManifestResult.manifest,
+      skills,
+      sourceManifestResult.diagnostics
+    )
+  };
+}
+
+function resolveAvailabilitySourceDir(override: string | undefined, fallback: string): string {
+  const value = override?.trim() || fallback.trim();
+  const normalized = value.replaceAll("\\", "/");
+  if (!normalized || path.posix.isAbsolute(normalized) || path.win32.isAbsolute(value) || path.posix.normalize(normalized) !== normalized || normalized === ".." || normalized.startsWith("../")) {
+    throw new Error("--source-dir must be a normalized relative path inside the workspace root.");
+  }
+  return normalized;
+}
+
+async function assertAvailabilitySourceDirContained(root: string, sourceDir: string): Promise<void> {
+  const resolvedRoot = await fs.realpath(root);
+  const resolvedSourceDir = await resolvePathEvenIfMissing(path.resolve(resolvedRoot, sourceDir));
+  const relative = path.relative(resolvedRoot, resolvedSourceDir);
+  if (relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))) return;
+  throw new Error("Skill source directory resolves outside the maintenance source root.");
+}
+
+async function resolvePathEvenIfMissing(input: string): Promise<string> {
+  const absolute = path.resolve(input);
+  const parsed = path.parse(absolute);
+  let current = parsed.root;
+  let pending = absolute.slice(parsed.root.length).split(path.sep).filter(Boolean);
+  let followedLinks = 0;
+
+  while (pending.length > 0) {
+    const segment = pending.shift()!;
+    const candidate = path.join(current, segment);
+    try {
+      const stats = await fs.lstat(candidate);
+      if (!stats.isSymbolicLink()) {
+        current = candidate;
+        continue;
+      }
+      followedLinks += 1;
+      if (followedLinks > 40) throw new Error("Skill source directory contains too many symbolic links.");
+      const target = path.resolve(path.dirname(candidate), await fs.readlink(candidate));
+      const targetRoot = path.parse(target).root;
+      pending = [
+        ...target.slice(targetRoot.length).split(path.sep).filter(Boolean),
+        ...pending
+      ];
+      current = targetRoot;
+    } catch (error) {
+      if (!(error instanceof Error) || !("code" in error) || (error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      return path.resolve(candidate, ...pending);
+    }
+  }
+
+  return current;
 }
 
 async function runWorkflowCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
@@ -630,6 +786,52 @@ function parseAvailabilityOverrides(value?: string): SkillAvailabilityOverride[]
       throw new Error(`Availability mode must be user-ambient, project-ambient, or user-on-demand: ${mode}`);
     }
     return { skill, mode };
+  });
+}
+
+async function parseProjectAssessments(value: string | undefined, cwd: string): Promise<SkillProjectApplicabilityAssessment[] | undefined> {
+  return parseJsonArrayFile<SkillProjectApplicabilityAssessment>(value, cwd, "project assessments");
+}
+
+async function parseOrganizeDecisions(value: string | undefined, cwd: string): Promise<InstalledSkillOrganizeDecision[] | undefined> {
+  return parseJsonArrayFile<InstalledSkillOrganizeDecision>(value, cwd, "installed-skill organize decisions");
+}
+
+async function parseReadinessAssessment(value: string | undefined, cwd: string): Promise<PublishPlan["readinessAssessment"]> {
+  if (!value?.trim()) return undefined;
+  const file = path.resolve(cwd, value);
+  const parsed = JSON.parse(await fs.readFile(file, "utf8")) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error(`Publish readiness assessment must be a JSON object: ${file}`);
+  return parsed as PublishPlan["readinessAssessment"];
+}
+
+async function parseJsonArrayFile<T>(value: string | undefined, cwd: string, label: string): Promise<T[] | undefined> {
+  if (!value?.trim()) return undefined;
+  const file = path.resolve(cwd, value);
+  const parsed = JSON.parse(await fs.readFile(file, "utf8")) as unknown;
+  if (!Array.isArray(parsed)) throw new Error(`${label} must be a JSON array: ${file}`);
+  return parsed as T[];
+}
+
+function parseOptionalSourceDefaultMode(value?: string): SkillAvailabilityMode | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === "none") return null;
+  if (isSkillAvailabilityMode(value)) return value;
+  throw new Error("Source default mode must be user-ambient, project-ambient, user-on-demand, or none.");
+}
+
+function parseAliasUpdates(value?: string): SkillProjectAliasUpdate[] | undefined {
+  if (value === undefined) return undefined;
+  return value.split(",").map((item) => {
+    const separator = item.indexOf("=");
+    if (separator <= 0) throw new Error(`On-demand aliases must use skill=alias|alias: ${item}`);
+    const rawAliases = item.slice(separator + 1);
+    const aliases = rawAliases === "" ? [] : rawAliases.split("|").map((alias) => alias.trim());
+    if (aliases.some((alias) => !alias)) throw new Error(`On-demand aliases cannot contain empty values: ${item}`);
+    return {
+      skill: item.slice(0, separator).trim(),
+      aliases
+    };
   });
 }
 

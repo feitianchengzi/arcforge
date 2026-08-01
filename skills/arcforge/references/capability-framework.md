@@ -53,7 +53,7 @@ ArcForge 不做：
 - 应用关系：保存、列出、删除、检查和重新应用来源关系。
 - 漂移：比较来源 profile 与目标目录，报告 missing、changed、extra。
 - 来源维护：检查 Git checkout ahead、behind、dirty 和 fast-forward 更新能力；status 检查可能 fetch 并写 Git 元数据。
-- 发布准备：生成发布 checklist、文件清单和安装命令提示。
+- 发布准备：核心收集文件与仓库事实；Agent 生成有证据的 readiness、安装命令候选和 checklist。
 - 共享：把 Skill 项目同步到 GitHub/Git 仓库，支持 PR、fork PR、direct push 或 local branch。
 - Desktop handoff：把需要视觉选择、编辑、diff 或确认的步骤交给桌面端。
 - 环境诊断：检查 Git、CLI shim、`skillshare`、`npx`、`clawhub` 等工具状态。

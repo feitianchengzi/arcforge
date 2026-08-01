@@ -136,6 +136,22 @@ export function Publish(props: {
         )}
         {props.sharePlan && (
           <div className="target-subsection">
+            <div className="section-header"><strong>{t.publishFacts}</strong></div>
+            <div className="list compact">
+              <div className="row"><span>{t.publishFiles(props.sharePlan.plan.files.length)}</span></div>
+              {props.sharePlan.plan.installReference && <div className="row"><strong>{t.publishInstallReference}</strong><span>{props.sharePlan.plan.installReference}</span></div>}
+              {props.sharePlan.plan.sourceManifest && <div className="row"><strong>{t.publishSourceManifest}</strong><span>{props.sharePlan.plan.sourceManifest.selectedSkillPaths.length} skills / {props.sharePlan.plan.sourceManifest.policyDigest.slice(0, 12)}</span></div>}
+            </div>
+            <div className="section-header"><strong>{t.publishAssessment}</strong></div>
+            {!props.sharePlan.plan.readinessAssessment ? <p className="muted">{t.publishAssessmentNotSupplied}</p> : (
+              <div className="list compact">
+                <div className="row stacked"><strong>{props.sharePlan.plan.readinessAssessment.summary}</strong></div>
+                {assessmentSection(t.publishEvidence, props.sharePlan.plan.readinessAssessment.evidence)}
+                {assessmentSection(t.publishUnknowns, props.sharePlan.plan.readinessAssessment.unknowns)}
+                {assessmentSection(t.publishInstallCommands, props.sharePlan.plan.readinessAssessment.installCommandCandidates)}
+                {assessmentSection(t.publishChecklist, props.sharePlan.plan.readinessAssessment.checklist)}
+              </div>
+            )}
             <div className="section-header">
               <div>
                 <strong>{t.githubAccess}</strong>
@@ -220,6 +236,11 @@ export function Publish(props: {
       )}
     </div>
   );
+}
+
+function assessmentSection(label: string, items: string[]) {
+  if (items.length === 0) return null;
+  return <div className="row stacked"><strong>{label}</strong><ul>{items.map((item) => <li key={`${label}:${item}`}>{item}</li>)}</ul></div>;
 }
 
 function isStaleCheck(record: ShareDriftCheckRecord | undefined, signature: string): boolean {

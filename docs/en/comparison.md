@@ -57,7 +57,7 @@ ArcForge should not compete on simple one-command install.
 | How do I check drift between a target folder and source repo? | Not the main job. | Core feature. |
 | How do I prepare a GitHub release checklist? | Not the main job. | Core feature. |
 
-Practical stance: ArcForge should emit `npx skills add ...` commands in publish plans, not replace the installer.
+Practical stance: ArcForge core exposes source, file, manifest, and integration facts. The Agent generates install-command candidates from the target ecosystem and user intent. ArcForge neither replaces installers nor hardcodes one installer as the answer for every skill.
 
 ## ArcForge vs ClawHub/OpenClaw
 

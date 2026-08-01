@@ -55,7 +55,7 @@ ArcForge 不应该竞争“一条命令安装”。
 | 如何检查目标目录和源仓库之间的 drift？ | 不是主要任务。 | 核心能力。 |
 | 如何准备 GitHub release checklist？ | 不是主要任务。 | 核心能力。 |
 
-实际立场：ArcForge 应该在发布计划里输出 `npx skills add ...` 命令，而不是替代 installer。
+实际立场：ArcForge 核心在发布计划里提供来源、文件、manifest 和集成事实；Agent 根据目标生态与用户意图生成安装命令候选。ArcForge 不替代 installer，也不把某个 installer 写成所有 skill 的固定答案。
 
 ## ArcForge vs ClawHub/OpenClaw
 

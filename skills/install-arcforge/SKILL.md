@@ -29,7 +29,7 @@ ArcForge 是本地优先、GitHub 优先的 pre-publish 和 team-governance 工�
 
 1. 确认当前目录是 ArcForge 仓库根目录：存在 `package.json`、`skills/arcforge/SKILL.md`、`skills/arcforge-on-demand/SKILL.md`、`src/cli/index.ts` 和 `src/electron/main.ts`。
 2. 说明真实写入目标：当前 agent 用户级 skills、持久用户级 CLI shim 目录、Desktop launcher、当前仓库构建产物 `node_modules`、`dist`、`dist-ui`，以及可选 `release/`。
-3. 用户明确要求安装时，默认执行：
+3. Agent 先根据当前运行环境确定自己的 agent 类型，并显式传入；无法可靠判断时向用户确认，不由安装脚本猜测。以 Codex 为例：
 
 ```bash
 node skills/install-arcforge/scripts/install-from-repo.mjs --agent codex --desktop install
@@ -99,7 +99,7 @@ node skills/install-arcforge/scripts/install-from-repo.mjs --verify
 
 ## Safety
 
-- 默认只安装到当前 Codex 用户级目录；用户明确指定其他 agent 时，才传 `--agent claude`、`--agent cursor` 或 `--agent codex,claude,cursor`。
+- `--agent` 必填。Agent 应传入当前运行环境；只有用户明确要求多目标时才传 `--agent codex,claude,cursor` 之类的列表。
 - CLI 和 Desktop launcher 必须写到普通新终端可用的持久用户级 bin 目录，默认优先 `~/.local/bin`；不要写到 agent 注入的临时 PATH 或 `node_modules` vendor 目录。
 - 安装脚本可以修复用户目录下可写、非临时、排在目标 shim 前方的旧 `arcforge` 或 `arcforge-desktop` wrapper；不要覆盖 agent 注入的临时 PATH wrapper、用户目录之外的命令或不可写命令。
 - `--update-path` 会修改 shell profile 或 Windows User PATH，只有用户明确允许时才使用。

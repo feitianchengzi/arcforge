@@ -37,30 +37,38 @@ arcforge-desktop
 - `arcforge scan [--root <dir>] [--source-dir <dir>]`
 - `arcforge audit [--root <dir>] [--source-dir <dir>]`
 - `arcforge project resolve --name <project-name-or-path> [--root <dir>]`
-- `arcforge workflow local-skill plan --root <project> --skill <name> --to <project-name-or-path> [--source-dir <dir>] [--install codex:user|claude:user|cursor:user|<dir>] [--share <remote-or-repo>]`
+- `arcforge project availability plan [--root <dir>] [--source-dir <dir>] [--default-mode <mode|none>] [--set <skill=mode,...>] [--aliases <skill=alias|alias,...>] [--remove <skill,...>]`
+- `arcforge workflow local-skill plan --root <project> --skill <name> --to <explicit-skill-project-path> [--source-dir <dir>] [--install codex:user|claude:user|cursor:user|<dir>] [--share <remote-or-repo>]`
 - `arcforge source status [--root <dir>]`：会 fetch upstream refs，可能写 `.git/FETCH_HEAD` 等 Git 元数据；不要在禁止写源码的真实 checkout 中运行。
 - `arcforge import plan --root <dir> --from <path-or-url> [--profile <name>] [--skills <a,b>] [--target-dir <dir>] [--target-profile <name>]`
 - `arcforge merge plan --root <dir> [--source-dir <dir>] --to <path-or-url> --target-path <dir> [--skills <a,b>] [--profile <name>] [--target <dir>]`
 - `arcforge applied list [--root <dir>]`
 - `arcforge applied drift [--root <dir>] [--id <record-id>]`
+- `arcforge apply plan [--root <dir>] [--from <path-or-url>] [--profile <name>] [--skills <a,b>] --agent-targets <codex,claude,cursor> [--project-targets <dir,dir>] [--availability <skill=mode,...>] [--project-assessments <json-file>]`
+- `arcforge drift [--root <dir>] [--from <path-or-url>] [--profile <name>] [--skills <a,b>] --agent-targets <codex,claude,cursor> [--project-targets <dir,dir>] [--availability <skill=mode,...>] [--project-assessments <json-file>]`
 - `arcforge drift [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir> [--skills <a,b>]`
-- `arcforge publish-plan [--root <dir>] [--visibility private|public]`
-- `arcforge share plan --root <dir> --repo <repo> [--profile <name>] [--skills <a,b>] [--visibility private|public] [--target-mode direct|namedProject] [--project-name <name>] [--delivery target-pr|fork-pr|direct-push|local-branch] [--branch <name>]`
-- `arcforge share plan --root <dir> --same-repository [--same-repository-remote <name>] [--profile <name>] [--skills <a,b>]`
+- `arcforge installed scan [--home <dir>] [--include-system] [--no-plugin-cache]`
+- `arcforge installed organize plan [--home <dir>] [--decisions <json-file>]`
+- `arcforge publish-plan [--root <dir>] [--visibility private|public] [--readiness-assessment <json-file>]`
+- `arcforge share plan --root <dir> --repo <repo> [--profile <name>] [--skills <a,b>] [--visibility private|public] [--target-mode direct|namedProject] [--project-name <name>] [--delivery target-pr|fork-pr|direct-push|local-branch] [--branch <name>] [--readiness-assessment <json-file>]`
+- `arcforge share plan --root <dir> --same-repository [--same-repository-remote <name>] [--profile <name>] [--skills <a,b>] [--readiness-assessment <json-file>]`
 - `arcforge doctor`
 
 写入或状态性命令：
 
 - `arcforge source update [--root <dir>] --confirm`
+- `arcforge project availability run [--root <dir>] [--source-dir <dir>] [--default-mode <mode|none>] [--set <skill=mode,...>] [--aliases <skill=alias|alias,...>] [--remove <skill,...>] --plan-digest <digest> --confirm`
 - `arcforge import run --root <dir> --from <path-or-url> [--profile <name>] [--skills <a,b>] [--target-dir <dir>] [--target-profile <name>] --confirm`
 - `arcforge merge run --root <dir> [--source-dir <dir>] --to <path-or-url> --target-path <dir> [--skills <a,b>] [--profile <name>] [--target <dir>] --confirm`
 - `arcforge merge cleanup-local --root <dir> [--source-dir <dir>] --skills <a,b> --confirm`
 - `arcforge applied add --root <dir> --from <path-or-url> --profile <name> --target <dir> [--skills <a,b>] [--allow-unrelated-root]`
 - `arcforge applied remove <record-id> [--root <dir>]`
 - `arcforge applied run [--root <dir>] [--id <record-id>] --confirm`
+- `arcforge apply run [--root <dir>] [--from <path-or-url>] [--profile <name>] [--skills <a,b>] --agent-targets <codex,claude,cursor> [--project-targets <dir,dir>] [--availability <skill=mode,...>] [--project-assessments <json-file>] [--cleanup-paths <dir,dir>] [--save] --confirm`
+- `arcforge installed organize run [--home <dir>] --decisions <json-file> --confirm`
 - `arcforge apply [--root <dir>] [--from <path-or-url>] [--profile <name>] --target <dir> [--skills <a,b>] [--save] [--allow-unrelated-root] --confirm`
-- `arcforge share run --root <dir> --repo <repo> [--profile <name>] [--skills <a,b>] --confirm`
-- `arcforge share run --root <dir> --same-repository [--same-repository-remote <name>] [--profile <name>] [--skills <a,b>] --confirm`
+- `arcforge share run --root <dir> --repo <repo> [--profile <name>] [--skills <a,b>] [--readiness-assessment <json-file>] --confirm`
+- `arcforge share run --root <dir> --same-repository [--same-repository-remote <name>] [--profile <name>] [--skills <a,b>] [--readiness-assessment <json-file>] --confirm`
 
 ## 最小项目结构和默认配置
 
@@ -99,17 +107,19 @@ business-project/
 | 发现 | `scan` | 不写项目文件 | 需要在项目列表中选择或查看健康度 |
 | 审计 | `audit` | 不写项目文件 | 需要定位 findings 并编辑文件 |
 | 维护源解析 | `project resolve` | 不写项目文件 | 需要在多个同名候选项目中选择 |
+| 来源类型策略 | `project availability plan/run --confirm` | plan 只读；run 原子写入来源 manifest | 需要批量选择、完整 diff 或冲突复核 |
 | 本地 skill 端到端计划 | `workflow local-skill plan` | 不写项目文件 | 需要视觉确认端点和阶段 |
 | Git 来源状态 | `source status` | 可能写 Git 元数据 | 需要用户理解 ahead/behind/dirty 后决定更新 |
 | Git 来源更新 | `source update --confirm` | 写 Git checkout | 需要用户先确认更新风险 |
 | 导入外部 skills | `import plan/run --confirm` | plan 不写；run 写当前项目维护源和应用关系 | 需要从远程源选择 skills、profile、目标目录或复核冲突 |
 | 正式化计划 | `merge plan` | 不写目标 | 有冲突或需要视觉复核 |
 | 正式化执行 | `merge run --confirm` | 写正式 Skill 项目和应用关系 | 有冲突时不要执行，转 Desktop 或手动 review |
-| 清理临时副本 | `merge cleanup-local --confirm` | 删除当前项目 sourceDir 中选定 skill 目录 | 删除前需要确认具体目录 |
+| 清理已选本地目录 | `merge cleanup-local --confirm` | 删除当前项目 sourceDir 中明确选定的 skill 目录 | Agent 先说明 provenance；核心不推断“临时”属性 |
 | 应用关系 | `applied list/add/remove/drift/run` | add/remove/run 会写状态或目标 | 需要查看多条关系或完整 diff |
 | 一次性应用 | `apply --confirm` | 写目标目录，`--save` 写应用关系 | 需要选择多个目标或确认覆盖 |
 | 漂移 | `drift` | 不写目标 | 需要完整文件级 diff |
-| 发布准备 | `publish-plan` | 不写远端 | 需要审查 checklist 和文件清单 |
+| 已安装副本整理 | `installed scan/organize plan/run` | scan/plan 只读；run 执行 decisions 中的动作 | Agent 根据事实生成 decisions；核心不选 canonical |
+| 发布准备 | `publish-plan` | 不写远端 | 核心输出事实；Agent 可提交 readiness assessment |
 | Git 共享 | `share plan/run` | run 可能写 Git、push、PR | 需要确认交付方式、权限或 PR 计划 |
 | 环境诊断 | `doctor` | 不写项目文件 | 需要安装 CLI shim 或查看 GUI 环境 |
 
@@ -117,6 +127,9 @@ business-project/
 
 - `--root` 是 ArcForge 工作区根目录，默认当前目录。
 - `--source-dir` 是 `--root` 内的相对 skill 来源目录，只覆盖本次扫描、审计或归并。
+- `project availability --source-dir` 只在创建 `arcforge.skill-project.json` 时确定持久来源目录；既有 manifest 不接受该覆盖。
+- `project availability run --plan-digest` 必须使用刚刚复核的 plan 返回值；digest 不匹配时重新检查 fresh plan，不能继续执行。
+- availability-aware `apply plan` 会在 plan item 中透传维护源的 `projectApplicability`。Agent 按 `project-applicability-policy.md` 结合目标项目实际证据生成 assessment JSON，并用 `--project-assessments` 传入；CLI 只校验结构、condition 绑定与项目根覆盖，不运行固定分类器。
 - 项目本地 agent skills 位于 `.codex/skills`、`.claude/skills`、`.cursor/skills` 时，`--root` 仍然是项目根目录，`--source-dir` 传 agent skill 目录。
 - `--profile` 是来源或目标 Skill 项目中的 profile 名，默认通常是 `default`。
 - `--skills <a,b>` 用逗号选择部分 skill。
@@ -175,21 +188,21 @@ arcforge merge plan --root . --source-dir <source-dir-if-needed> --to <formal-sk
 arcforge merge run --root . --source-dir <source-dir-if-needed> --to <formal-skill-project> --skills <skill-name> --target-path <parent-dir-inside-formal-project> --profile default --target <target-record-path> --confirm
 ```
 
-当前项目临时 skill 已进入维护源、应用目标和共享目标后，清理项目临时副本：
+只有在 Agent 已根据 provenance 判断某个本地目录可清理、且用户明确选择后，才单独执行：
 
 ```bash
 arcforge merge cleanup-local --root <project> --source-dir <source-dir-if-needed> --skills <skill-name> --confirm
 ```
 
-该命令只删除当前项目 `sourceDir` 下的选定 skill 目录，不删除正式维护源，也不删除 Codex/Claude/Cursor 用户级安装目录。
+该命令只删除当前项目 `sourceDir` 下的选定 skill 目录，不推断目录是临时副本，也不删除正式维护源或用户级安装目录。
 
-为本地临时 skill 生成只读端到端计划：
+为本地 skill 生成只读端到端治理计划（`--to` 必须是显式路径）：
 
 ```bash
-arcforge workflow local-skill plan --root <project> --skill <skill-name> --to <formal-skill-project-name-or-path> --install codex:user --share origin
+arcforge workflow local-skill plan --root <project> --skill <skill-name> --to <explicit-formal-skill-project-path> --install codex:user --share origin
 ```
 
-计划会拆分真实维护源解析、merge plan/run、apply drift/run、share plan 和 cleanup-local，并标明每个阶段是否写入、是否需要确认。
+计划会拆分显式维护源解析、merge plan/run、apply drift/run 和 share plan，并标明每个阶段是否写入、是否需要确认；不会自动追加 cleanup。
 
 从 GitHub/Git/本地 Skill 项目直接安装到 Codex/Claude/Cursor 或项目 agent 目录：
 
@@ -248,7 +261,7 @@ arcforge share plan --root <formal-skill-project> --repo <github-or-git-repo> --
 arcforge share plan --root <formal-skill-project> --same-repository --profile default
 ```
 
-`publish-plan` 不要求项目是 Git 仓库，会输出文件清单、安装命令提示和 checklist。`share plan --same-repository` 要求当前 Skill 项目位于带 remote 的 Git 仓库中；如果不是 Git 仓库，会失败并应提示用户先确认正式 Skill 项目的 Git 位置。当前同仓库共享主要基于本地 remote 推断，不等价于已验证远端写权限；真实执行前仍要让用户确认 remote、branch、delivery 和 push 风险。`share plan --repo github.com/<owner>/<repo>` 在 GitHub CLI 未登录或无写权限时仍可生成计划，通常会把推荐交付方式降级为 `localBranch`，并在 `access.unavailableReasons` 中说明原因。
+`publish-plan` 不要求项目是 Git 仓库，核心只输出文件、source manifest、显式 install reference 和已检测集成；默认 `assessmentStatus=not-supplied`。Agent 可先分析这些事实，再通过 `publish-plan` 或 `share plan/run` 的 `--readiness-assessment <json-file>` 提交 summary、evidence、unknowns、安装命令候选和 checklist。共享 README 与 PR 只渲染确定性事实和已提供 assessment，不按固定工具列表补造命令。`share plan --same-repository` 要求当前 Skill 项目位于带 remote 的 Git 仓库中；当前同仓库共享主要基于本地 remote 推断，不等价于已验证远端写权限，真实执行前仍要确认 remote、branch、delivery 和 push 风险。
 
 ## 确认边界
 

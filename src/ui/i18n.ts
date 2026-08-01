@@ -80,7 +80,7 @@ export interface Dictionary {
   cliRepairCopied: string;
   scanning: string;
   errorStatus: (message: string) => string;
-  foundStatus: (skills: number, score: number) => string;
+  foundStatus: (skills: number, findings: number) => string;
   language: string;
   english: string;
   simplifiedChinese: string;
@@ -125,10 +125,10 @@ export interface Dictionary {
   emptyExample: string;
   metrics: {
     skills: string;
-    auditScore: string;
+    auditCoverage: string;
     critical: string;
     warnings: string;
-    score: string;
+    filesChecked: string;
     criticalFindings: string;
   };
   skillsTitle: string;
@@ -190,7 +190,7 @@ export interface Dictionary {
   auditFindingMeta: (source?: string, confidence?: string) => string;
   runAgentAudit: string;
   runningAgentAudit: string;
-  agentAuditComplete: (score: number) => string;
+  agentAuditComplete: (findings: number) => string;
   agentAuditProxyTitle: string;
   agentAuditProxyNone: string;
   agentAuditProxyUse: string;
@@ -256,6 +256,13 @@ export interface Dictionary {
   sourceRecommendation: string;
   noSourceRecommendation: string;
   noAvailabilityDestinations: string;
+  projectApplicability: string;
+  applicabilityEvidenceGuidance: string;
+  applicabilityClarifyingQuestions: string;
+  projectAssessment: string;
+  projectAssessmentBy: string;
+  explicitProjectOverride: string;
+  explicitProjectOverrideHelp: string;
   onDemandLoaderTargets: string;
   onDemandLoaderHelp: string;
   loaderTargetStatus: (status: string) => string;
@@ -281,6 +288,16 @@ export interface Dictionary {
   driftEmpty: string;
   targetExtrasSummary: (managedStale: number, uncertain: number, unrelated: number) => string;
   publishHelp: string;
+  publishFacts: string;
+  publishFiles: (count: number) => string;
+  publishAssessment: string;
+  publishAssessmentNotSupplied: string;
+  publishInstallReference: string;
+  publishSourceManifest: string;
+  publishEvidence: string;
+  publishUnknowns: string;
+  publishInstallCommands: string;
+  publishChecklist: string;
   shareNow: string;
   shareTargets: string;
   newShareTarget: string;
@@ -360,13 +377,13 @@ export const dictionaries: Record<Language, Dictionary> = {
     installedSkillScanOptionsHelp: "Agent system skills are hidden by default. Codex plugin cache skills are included by default.",
     installedSkillIncludeSystem: "Include agent system skills",
     installedSkillIncludePluginCache: "Include Codex plugin cache skills",
-    installedSkillOrganize: "Smart organize",
+    installedSkillOrganize: "Review duplicate evidence",
     installedSkillOrganizing: "Organizing...",
     installedSkillOrganizeRun: "Run organize",
-    installedSkillOrganizePlan: "Smart organize plan",
-    installedSkillOrganizeActions: "Planned actions",
+    installedSkillOrganizePlan: "Duplicate evidence",
+    installedSkillOrganizeActions: "Evidence groups",
     installedSkillOrganizeConflicts: "To resolve",
-    installedSkillOrganizePlanSummary: (actions: number, conflicts: number) => `${actions} actions planned. ${conflicts} duplicate conflicts to resolve.`,
+    installedSkillOrganizePlanSummary: (groups: number, conflicts: number) => `${groups} duplicate evidence groups. ${conflicts} groups have differing content. Agent-authored decisions are required for changes.`,
     installedSkillOrganizeConflict: (name: string) => `Resolve duplicate: ${name}`,
     installedSkillOrganizeResult: (copied: number, linked: number, removed: number, skipped: number) => `Copied ${copied}, linked ${linked}, removed ${removed}, skipped ${skipped}.`,
     confirmInstalledSkillOrganize: (actions: number, conflicts: number) => `Run ${actions} organize actions? ${conflicts} conflicts will remain unresolved. This can copy skills, create directory links, and remove identical duplicate entries.`,
@@ -402,7 +419,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     cliRepairCopied: "Copied",
     scanning: "Scanning workspace...",
     errorStatus: (message: string) => `Error: ${message}`,
-    foundStatus: (skills: number, score: number) => `Found ${skills} skills. Audit score ${score}/100.`,
+    foundStatus: (skills: number, findings: number) => `Found ${skills} skills and ${findings} audit findings.`,
     language: "Language",
     english: "English",
     simplifiedChinese: "简体中文",
@@ -447,10 +464,10 @@ export const dictionaries: Record<Language, Dictionary> = {
     emptyExample: "Example:\nskills/\n  code-review/\n    SKILL.md\n\nSingle skill folder:\ncode-review/\n  SKILL.md",
     metrics: {
       skills: "Skills",
-      auditScore: "Audit score",
+      auditCoverage: "Files checked",
       critical: "Critical",
       warnings: "Warnings",
-      score: "Score",
+      filesChecked: "Files checked",
       criticalFindings: "Critical findings"
     },
     skillsTitle: "Skills",
@@ -512,7 +529,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     auditFindingMeta: (source?: string, confidence?: string) => `${source === "agent" ? "Agent" : "Rule"}${confidence ? ` / ${confidence} confidence` : ""}`,
     runAgentAudit: "Run Agent diagnosis",
     runningAgentAudit: "Running Agent diagnosis...",
-    agentAuditComplete: (score: number) => `Agent diagnosis complete. Audit score: ${score}/100.`,
+    agentAuditComplete: (findings: number) => `Agent diagnosis complete with ${findings} findings.`,
     agentAuditProxyTitle: "Agent CLI proxy",
     agentAuditProxyNone: "Do not use proxy",
     agentAuditProxyUse: "Use proxy",
@@ -574,10 +591,17 @@ export const dictionaries: Record<Language, Dictionary> = {
     planDiagnostics: "Plan diagnostics",
     skillAvailabilityDestinations: "Skill modes and destinations",
     availabilityMode: (mode: string) => mode === "user-ambient" ? "User · ambient" : mode === "project-ambient" ? "Project · ambient" : mode === "user-on-demand" ? "User · on demand" : mode,
-    availabilityPolicyOrigin: (origin: string) => ({ invocation: "This operation", "profile-skill": "Profile override", "profile-default": "Profile default", "source-skill": "Source recommendation", "source-default": "Source default", compatibility: "Compatibility rule" }[origin] ?? origin),
+    availabilityPolicyOrigin: (origin: string) => ({ invocation: "This operation", "profile-skill": "Profile override", "profile-default": "Profile default", "source-skill": "Source recommendation", "source-default": "Source default", unclassified: "Unclassified" }[origin] ?? origin),
     sourceRecommendation: "Source recommendation",
     noSourceRecommendation: "Not classified by source",
     noAvailabilityDestinations: "No destination resolved.",
+    projectApplicability: "Source-maintained applicability guidance",
+    applicabilityEvidenceGuidance: "Evidence guidance",
+    applicabilityClarifyingQuestions: "Clarifying questions",
+    projectAssessment: "Assessment bound to these project targets",
+    projectAssessmentBy: "Decided by",
+    explicitProjectOverride: "Explicitly approve for these project targets",
+    explicitProjectOverrideHelp: "ArcForge core will record this user decision without claiming it performed a semantic assessment.",
     onDemandLoaderTargets: "On-demand entry skill",
     onDemandLoaderHelp: "The fixed entry skill is installed in each selected agent's user-level discovery directory. On-demand target skills remain in the user catalog.",
     loaderTargetStatus: (status: string) => ({ missing: "New", same: "Same", "managed-update": "Managed update", conflict: "Conflict" }[status] ?? status),
@@ -603,6 +627,16 @@ export const dictionaries: Record<Language, Dictionary> = {
     driftEmpty: "Run drift check to compare selected profile with target directory.",
     targetExtrasSummary: (managedStale: number, uncertain: number, unrelated: number) => `${managedStale} stale managed / ${uncertain} other target skills / ${unrelated} other target items`,
     publishHelp: "Save reusable profile, repository, and target path combinations for GitHub-first sharing.",
+    publishFacts: "Deterministic publishing facts",
+    publishFiles: (count: number) => `${count} selected files`,
+    publishAssessment: "Agent-supplied readiness assessment",
+    publishAssessmentNotSupplied: "Not supplied. ArcForge core does not invent install commands or a generic checklist.",
+    publishInstallReference: "Install reference",
+    publishSourceManifest: "Source manifest",
+    publishEvidence: "Evidence",
+    publishUnknowns: "Unknowns",
+    publishInstallCommands: "Install command candidates",
+    publishChecklist: "Checklist",
     shareNow: "Share now",
     shareTargets: "Share targets",
     newShareTarget: "New share target",
@@ -680,13 +714,13 @@ export const dictionaries: Record<Language, Dictionary> = {
     installedSkillScanOptionsHelp: "各 Agent 的系统 skill 默认不扫描；Codex 插件缓存中的 skill 默认扫描。",
     installedSkillIncludeSystem: "扫描系统 skill",
     installedSkillIncludePluginCache: "扫描 Codex 插件缓存 skill",
-    installedSkillOrganize: "智能整理",
+    installedSkillOrganize: "复核重复证据",
     installedSkillOrganizing: "正在整理...",
     installedSkillOrganizeRun: "执行整理",
-    installedSkillOrganizePlan: "智能整理计划",
-    installedSkillOrganizeActions: "计划动作",
+    installedSkillOrganizePlan: "重复证据",
+    installedSkillOrganizeActions: "证据组",
     installedSkillOrganizeConflicts: "待解决",
-    installedSkillOrganizePlanSummary: (actions: number, conflicts: number) => `计划 ${actions} 个动作，${conflicts} 个重复冲突待解决。`,
+    installedSkillOrganizePlanSummary: (groups: number, conflicts: number) => `${groups} 组重复证据，${conflicts} 组内容不同；任何变更都需要 Agent 生成显式 decisions。`,
     installedSkillOrganizeConflict: (name: string) => `待解决重复项：${name}`,
     installedSkillOrganizeResult: (copied: number, linked: number, removed: number, skipped: number) => `已复制 ${copied}，已链接 ${linked}，已移除 ${removed}，跳过 ${skipped}。`,
     confirmInstalledSkillOrganize: (actions: number, conflicts: number) => `确认执行 ${actions} 个整理动作？${conflicts} 个冲突会保留为待解决。该操作可能复制 skill、创建目录链接，并移除内容完全一致的重复物理项。`,
@@ -722,7 +756,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     cliRepairCopied: "已复制",
     scanning: "正在扫描工作区...",
     errorStatus: (message: string) => `错误：${message}`,
-    foundStatus: (skills: number, score: number) => `发现 ${skills} 个技能，审计评分 ${score}/100。`,
+    foundStatus: (skills: number, findings: number) => `发现 ${skills} 个技能和 ${findings} 条审计发现。`,
     language: "语言",
     english: "English",
     simplifiedChinese: "简体中文",
@@ -767,10 +801,10 @@ export const dictionaries: Record<Language, Dictionary> = {
     emptyExample: "示例：\nskills/\n  code-review/\n    SKILL.md\n\n单个 skill 文件夹：\ncode-review/\n  SKILL.md",
     metrics: {
       skills: "技能数",
-      auditScore: "审计评分",
+      auditCoverage: "已检查文件",
       critical: "严重问题",
       warnings: "警告",
-      score: "评分",
+      filesChecked: "已检查文件",
       criticalFindings: "严重发现"
     },
     skillsTitle: "技能",
@@ -832,7 +866,7 @@ export const dictionaries: Record<Language, Dictionary> = {
     auditFindingMeta: (source?: string, confidence?: string) => `${source === "agent" ? "Agent" : "规则"}${confidence ? ` / ${confidence} 置信度` : ""}`,
     runAgentAudit: "运行 Agent 诊断",
     runningAgentAudit: "正在运行 Agent 诊断...",
-    agentAuditComplete: (score: number) => `Agent 诊断完成。审计评分：${score}/100。`,
+    agentAuditComplete: (findings: number) => `Agent 诊断完成，共 ${findings} 条发现。`,
     agentAuditProxyTitle: "Agent CLI 代理",
     agentAuditProxyNone: "不使用代理",
     agentAuditProxyUse: "使用代理",
@@ -894,10 +928,17 @@ export const dictionaries: Record<Language, Dictionary> = {
     planDiagnostics: "计划诊断",
     skillAvailabilityDestinations: "Skill 模式与目标位置",
     availabilityMode: (mode: string) => mode === "user-ambient" ? "用户级 · 常驻" : mode === "project-ambient" ? "项目级 · 常驻" : mode === "user-on-demand" ? "用户级 · 按需" : mode,
-    availabilityPolicyOrigin: (origin: string) => ({ invocation: "本次操作", "profile-skill": "配置组逐项覆盖", "profile-default": "配置组默认", "source-skill": "来源逐项推荐", "source-default": "来源默认", compatibility: "兼容规则" }[origin] ?? origin),
+    availabilityPolicyOrigin: (origin: string) => ({ invocation: "本次操作", "profile-skill": "配置组逐项覆盖", "profile-default": "配置组默认", "source-skill": "来源逐项推荐", "source-default": "来源默认", unclassified: "未分类" }[origin] ?? origin),
     sourceRecommendation: "来源推荐",
     noSourceRecommendation: "来源未分类",
     noAvailabilityDestinations: "未解析出目标位置。",
+    projectApplicability: "维护源提供的适用性说明",
+    applicabilityEvidenceGuidance: "证据指引",
+    applicabilityClarifyingQuestions: "澄清问题",
+    projectAssessment: "绑定当前项目目标的判断",
+    projectAssessmentBy: "决定方",
+    explicitProjectOverride: "明确批准用于这些项目目标",
+    explicitProjectOverrideHelp: "ArcForge 核心只记录这次用户决定，不会声称自己完成了语义判断。",
     onDemandLoaderTargets: "按需入口 skill",
     onDemandLoaderHelp: "固定入口会安装到所选 Agent 的用户级发现目录；按需目标 skill 仍只保存在用户 catalog。",
     loaderTargetStatus: (status: string) => ({ missing: "新增", same: "一致", "managed-update": "受管更新", conflict: "冲突" }[status] ?? status),
@@ -923,6 +964,16 @@ export const dictionaries: Record<Language, Dictionary> = {
     driftEmpty: "运行漂移检查，将当前配置组与目标目录进行比较。",
     targetExtrasSummary: (managedStale: number, uncertain: number, unrelated: number) => `${managedStale} 个旧 managed / ${uncertain} 个其它目标 skill / ${unrelated} 个其它目标项`,
     publishHelp: "保存配置组、远端仓库和目标路径组合，用于 GitHub 优先的共享执行。",
+    publishFacts: "确定性发布事实",
+    publishFiles: (count: number) => `已选择 ${count} 个文件`,
+    publishAssessment: "Agent 提供的 readiness assessment",
+    publishAssessmentNotSupplied: "未提供。ArcForge Core 不会补造安装命令或通用 checklist。",
+    publishInstallReference: "安装引用",
+    publishSourceManifest: "来源 manifest",
+    publishEvidence: "证据",
+    publishUnknowns: "未知项",
+    publishInstallCommands: "安装命令候选",
+    publishChecklist: "检查项",
     shareNow: "立即共享",
     shareTargets: "共享目标",
     newShareTarget: "新建共享目标",

@@ -30,7 +30,8 @@ if (hasHelpFlag(rawArgs)) {
   printHelp();
   process.exit(0);
 }
-const agents = parseAgents(args.agent ?? "codex");
+if (!args.agent) fail("Pass --agent codex, --agent claude, --agent cursor, or an explicit comma-separated list.");
+const agents = parseAgents(args.agent);
 const desktopMode = args.desktop ?? "install";
 const recommendedSkillsArg = args["recommended-skills"];
 const recommendedSkillSelection = parseRecommendedSkillSelection(recommendedSkillsArg ?? "prompt");
@@ -729,7 +730,7 @@ Usage:
   node skills/install-arcforge/scripts/install-from-repo.mjs [options]
 
 Options:
-  --agent <list>                 Agent targets: codex, claude, cursor. Default: codex.
+  --agent <list>                 Required agent targets: codex, claude, cursor, or a comma-separated list.
   --desktop <mode>               Desktop mode: install, build, package, skip. Default: install.
   --recommended-mode <mode>      prompt, quick, or governed. Default: prompt.
   --recommended-skills <value>   prompt, skip, all, arckit, arckit-code, or arckit,arckit-code. Default: prompt.

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ArcForge Skill Project Manifest",
+  "description": "Source-maintained recommendations for skill discovery, installation scope, and Agent-evaluated project applicability.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "availability"],
+  "properties": {
+    "version": { "const": 1 },
+    "sourceDir": { "$ref": "#/$defs/relativePathOrDot" },
+    "availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["skills"],
+      "properties": {
+        "defaultMode": { "$ref": "#/$defs/availabilityMode" },
+        "skills": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/skillPolicy" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "availabilityMode": {
+      "enum": ["user-ambient", "project-ambient", "user-on-demand"]
+    },
+    "relativePathOrDot": {
+      "type": "string",
+      "minLength": 1
+    },
+    "relativeSkillPath": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "const": "." }
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "nonEmptyUniqueStrings": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/nonEmptyString" }
+    },
+    "applicabilityCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "kind": {
+          "enum": ["required", "preferred", "excluded"]
+        },
+        "description": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "projectApplicability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "conditions"],
+      "properties": {
+        "summary": { "$ref": "#/$defs/nonEmptyString" },
+        "conditions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/applicabilityCondition" }
+        },
+        "evidenceGuidance": { "$ref": "#/$defs/nonEmptyUniqueStrings" },
+        "clarifyingQuestions": { "$ref": "#/$defs/nonEmptyUniqueStrings" }
+      }
+    },
+    "skillPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "mode"],
+      "properties": {
+        "path": { "$ref": "#/$defs/relativeSkillPath" },
+        "mode": { "$ref": "#/$defs/availabilityMode" },
+        "aliases": { "$ref": "#/$defs/nonEmptyUniqueStrings" },
+        "projectApplicability": { "$ref": "#/$defs/projectApplicability" }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["aliases"] },
+          "then": { "properties": { "mode": { "const": "user-on-demand" } } }
+        },
+        {
+          "if": { "required": ["projectApplicability"] },
+          "then": { "properties": { "mode": { "const": "project-ambient" } } }
+        }
+      ]
+    }
+  }
+}

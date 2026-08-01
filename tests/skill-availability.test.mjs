@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { access, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -32,6 +32,7 @@ async function compileProjectTypeScript() {
     "core/fs.ts",
     "core/profiles.ts",
     "core/skill-project-manifest.ts",
+    "core/skill-project-availability.ts",
     "core/publish.ts",
     "core/share-sync.ts",
     "core/skill-catalog.ts",
@@ -58,21 +59,40 @@ async function compileProjectTypeScript() {
 }
 
 test("skill project manifest accepts only the three legal availability modes", async () => {
-  const { parseSkillProjectManifest } = await importTypeScript("../src/core/skill-project-manifest.ts");
+  const { parseSkillProjectManifest, prepareSkillProjectManifestForShare } = await importTypeScript("../src/core/skill-project-manifest.ts");
   const valid = parseSkillProjectManifest(JSON.stringify({
     version: 1,
     sourceDir: "skills",
     availability: {
       defaultMode: "user-ambient",
       skills: [
-        { path: "skills/project-tool", mode: "project-ambient" },
+        {
+          path: "skills/project-tool",
+          mode: "project-ambient",
+          projectApplicability: {
+            summary: "Projects where this skill's workflow is relevant.",
+            conditions: [
+              { id: "has-relevant-workflow", kind: "required", description: "The project has the workflow governed by this skill." },
+              { id: "already-automated", kind: "excluded", description: "The project already has an equivalent governed workflow." }
+            ],
+            evidenceGuidance: ["Inspect the project's own documentation and operating artifacts."],
+            clarifyingQuestions: ["Does this project use the workflow this skill governs?"]
+          }
+        },
         { path: "skills/rare-tool", mode: "user-on-demand", aliases: ["rare"] }
       ]
     }
   }));
 
   assert.equal(valid.diagnostics.length, 0);
+  assert.equal(valid.manifest.availability.skills[0].projectApplicability.conditions[0].kind, "required");
   assert.equal(valid.manifest.availability.skills[1].mode, "user-on-demand");
+  const shared = prepareSkillProjectManifestForShare(valid.manifest, [{ relativePath: "skills/project-tool" }]);
+  assert.equal(shared.manifest.availability.skills[0].projectApplicability.summary, "Projects where this skill's workflow is relevant.");
+  assert.deepEqual(shared.manifest.availability.skills[0].projectApplicability.conditions.map((item) => item.id), [
+    "already-automated",
+    "has-relevant-workflow"
+  ]);
 
   const invalid = parseSkillProjectManifest(JSON.stringify({
     version: 1,
@@ -87,6 +107,43 @@ test("skill project manifest accepts only the three legal availability modes", a
 
   assert.ok(invalid.diagnostics.some((item) => item.code === "SKILL_PROJECT_MANIFEST_PATH_INVALID"));
   assert.ok(invalid.diagnostics.some((item) => item.code === "SKILL_PROJECT_MANIFEST_MODE_INVALID"));
+
+  const invalidAliases = parseSkillProjectManifest(JSON.stringify({
+    version: 1,
+    availability: {
+      skills: [{ path: "skills/global-tool", mode: "user-ambient", aliases: ["global"] }]
+    }
+  }));
+  assert.ok(invalidAliases.diagnostics.some((item) => item.code === "SKILL_PROJECT_MANIFEST_ALIASES_MODE_INVALID"));
+
+  const duplicateAliases = parseSkillProjectManifest(JSON.stringify({
+    version: 1,
+    unexpected: true,
+    availability: {
+      skills: [{ path: "skills/rare-tool", mode: "user-on-demand", aliases: ["Rare", "rare"] }]
+    }
+  }));
+  assert.ok(duplicateAliases.diagnostics.some((item) => item.code === "SKILL_PROJECT_MANIFEST_ALIASES_INVALID"));
+  assert.ok(duplicateAliases.diagnostics.some((item) => item.code === "SKILL_PROJECT_MANIFEST_UNKNOWN_FIELD"));
+
+  const invalidApplicability = parseSkillProjectManifest(JSON.stringify({
+    version: 1,
+    availability: {
+      skills: [{
+        path: "skills/global-tool",
+        mode: "user-ambient",
+        projectApplicability: {
+          summary: "Invalid placement",
+          conditions: [
+            { id: "Duplicate", kind: "sometimes", description: "Invalid condition." },
+            { id: "duplicate", kind: "required", description: "Duplicate condition." }
+          ]
+        }
+      }]
+    }
+  }));
+  assert.ok(invalidApplicability.diagnostics.some((item) => item.code === "SKILL_PROJECT_MANIFEST_APPLICABILITY_MODE_INVALID"));
+  assert.ok(invalidApplicability.diagnostics.some((item) => item.code === "SKILL_PROJECT_MANIFEST_APPLICABILITY_CONDITION_INVALID"));
 });
 
 test("manifest matching reports stale and unclassified skill paths", async () => {
@@ -96,17 +153,459 @@ test("manifest matching reports stale and unclassified skill paths", async () =>
     availability: {
       skills: [
         { path: "skills/stale", mode: "user-ambient" },
-        { path: "skills/configured", mode: "user-on-demand" }
+        { path: "skills/configured", mode: "user-on-demand", aliases: ["shared"] },
+        { path: "skills/other", mode: "user-on-demand", aliases: ["SHARED"] }
       ]
     }
   }));
   const diagnostics = validateSkillProjectManifestSkills(parsed.manifest, [
     { name: "configured", relativePath: "skills/configured" },
+    { name: "other", relativePath: "skills/other" },
     { name: "new-skill", relativePath: "skills/new-skill" }
   ], parsed.diagnostics);
 
   assert.ok(diagnostics.some((item) => item.code === "SKILL_PROJECT_MANIFEST_STALE_PATH" && item.path === "skills/stale"));
   assert.ok(diagnostics.some((item) => item.code === "UNCLASSIFIED_SKILL" && item.path === "skills/new-skill"));
+  assert.ok(diagnostics.some((item) => item.code === "SKILL_PROJECT_MANIFEST_ALIAS_CONFLICT" && item.path === "SHARED"));
+
+  const defaultOnDemand = parseSkillProjectManifest(JSON.stringify({
+    version: 1,
+    availability: {
+      defaultMode: "user-on-demand",
+      skills: [{ path: "skills/configured", mode: "user-on-demand", aliases: ["new-skill"] }]
+    }
+  }));
+  const defaultDiagnostics = validateSkillProjectManifestSkills(defaultOnDemand.manifest, [
+    { name: "configured", relativePath: "skills/configured" },
+    { name: "new-skill", relativePath: "skills/new-skill" }
+  ], defaultOnDemand.diagnostics);
+  assert.ok(defaultDiagnostics.some((item) => item.code === "SKILL_PROJECT_MANIFEST_ALIAS_CONFLICT" && item.path === "new-skill"));
+
+  const selfAlias = parseSkillProjectManifest(JSON.stringify({
+    version: 1,
+    availability: {
+      skills: [{ path: "skills/configured", mode: "user-on-demand", aliases: ["CONFIGURED"] }]
+    }
+  }));
+  const selfAliasDiagnostics = validateSkillProjectManifestSkills(selfAlias.manifest, [
+    { name: "configured", relativePath: "skills/configured" }
+  ], selfAlias.diagnostics);
+  assert.ok(selfAliasDiagnostics.some((item) => item.code === "SKILL_PROJECT_MANIFEST_ALIAS_CONFLICT" && item.path === "CONFIGURED"));
+});
+
+test("source availability plan and run maintain persistent skill type recommendations", async () => {
+  const compiled = await compileProjectTypeScript();
+  const root = await mkdtemp(path.join(tmpdir(), "arcforge-source-availability-"));
+  try {
+    const {
+      createSkillProjectAvailabilityPlan,
+      executeSkillProjectAvailabilityPlan
+    } = await compiled.importModule("core/skill-project-availability.ts");
+    const skills = [
+      { name: "global-tool", relativePath: "skills/global-tool" },
+      { name: "project-tool", relativePath: "skills/project-tool" },
+      { name: "rare-tool", relativePath: "skills/rare-tool" }
+    ];
+    const sourceOnlyRoot = path.join(root, "source-only");
+    const sourceOnlyPlan = createSkillProjectAvailabilityPlan({
+      root: sourceOnlyRoot,
+      sourceDir: "custom-skills",
+      skills: []
+    });
+    assert.deepEqual(sourceOnlyPlan.changes, [{
+      kind: "source-dir",
+      before: null,
+      after: "custom-skills"
+    }]);
+    assert.equal((await executeSkillProjectAvailabilityPlan(sourceOnlyPlan, true)).written, true);
+    assert.equal(JSON.parse(await readFile(path.join(sourceOnlyRoot, "arcforge.skill-project.json"), "utf8")).sourceDir, "custom-skills");
+
+    const concurrentRoot = path.join(root, "concurrent");
+    const concurrentPlan = createSkillProjectAvailabilityPlan({
+      root: concurrentRoot,
+      sourceDir: "skills",
+      skills: [],
+      defaultMode: "user-ambient"
+    });
+    await mkdir(concurrentRoot, { recursive: true });
+    const concurrentManifestPath = path.join(concurrentRoot, "arcforge.skill-project.json");
+    await writeFile(concurrentManifestPath, JSON.stringify({
+      version: 1,
+      sourceDir: "skills",
+      availability: { defaultMode: "project-ambient", skills: [] }
+    }), "utf8");
+    await assert.rejects(
+      executeSkillProjectAvailabilityPlan(concurrentPlan, true),
+      /SOURCE_MANIFEST_CHANGED/
+    );
+    assert.equal(JSON.parse(await readFile(concurrentManifestPath, "utf8")).availability.defaultMode, "project-ambient");
+
+    const plan = createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      defaultMode: "user-ambient",
+      set: [
+        { skill: "project-tool", mode: "project-ambient" },
+        { skill: "rare-tool", mode: "user-on-demand" }
+      ],
+      aliases: [{ skill: "rare-tool", aliases: ["rare", "rare-review"] }]
+    });
+
+    assert.equal(plan.blocked, false);
+    assert.equal(plan.existed, false);
+    assert.match(plan.planDigest, /^[a-f0-9]{64}$/);
+    assert.deepEqual(plan.proposed, {
+      version: 1,
+      sourceDir: "skills",
+      availability: {
+        defaultMode: "user-ambient",
+        skills: [
+          { path: "skills/project-tool", mode: "project-ambient" },
+          { path: "skills/rare-tool", mode: "user-on-demand", aliases: ["rare", "rare-review"] }
+        ]
+      }
+    });
+    await assert.rejects(access(path.join(root, "arcforge.skill-project.json")));
+    await assert.rejects(executeSkillProjectAvailabilityPlan(plan, false), /requires --confirm/);
+
+    const result = await executeSkillProjectAvailabilityPlan(plan, true);
+    assert.equal(result.written, true);
+    assert.deepEqual(JSON.parse(await readFile(result.manifestPath, "utf8")), plan.proposed);
+
+    const projectApplicability = {
+      summary: "Projects that use the workflow governed by this skill.",
+      conditions: [
+        { id: "equivalent-governance", kind: "excluded", description: "An equivalent governed capability already exists." },
+        { id: "workflow-present", kind: "required", description: "The target project uses this workflow." }
+      ],
+      evidenceGuidance: ["Inspect the target project's own artifacts and documentation."],
+      clarifyingQuestions: ["Is this workflow part of the target project?"]
+    };
+    const manifestWithApplicability = {
+      ...result.manifest,
+      availability: {
+        ...result.manifest.availability,
+        skills: result.manifest.availability.skills.map((item) => item.path === "skills/project-tool"
+          ? { ...item, projectApplicability }
+          : item)
+      }
+    };
+    await writeFile(result.manifestPath, `${JSON.stringify(manifestWithApplicability, null, 2)}\n`, "utf8");
+
+    const noOpPlan = createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      currentManifest: manifestWithApplicability
+    });
+    assert.deepEqual(noOpPlan.changes, []);
+    assert.equal((await executeSkillProjectAvailabilityPlan(noOpPlan, true)).written, false);
+
+    const aliasClearPlan = createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      currentManifest: manifestWithApplicability,
+      aliases: [{ skill: "rare-tool", aliases: [] }]
+    });
+    assert.deepEqual(aliasClearPlan.proposed.availability.skills[1], {
+      path: "skills/rare-tool",
+      mode: "user-on-demand"
+    });
+
+    const cleanupPlan = createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      currentManifest: manifestWithApplicability,
+      defaultMode: null,
+      remove: ["rare-tool"]
+    });
+    assert.equal(cleanupPlan.blocked, false);
+    assert.equal(cleanupPlan.proposed.availability.defaultMode, undefined);
+    assert.deepEqual(cleanupPlan.proposed.availability.skills, [
+      {
+        path: "skills/project-tool",
+        mode: "project-ambient",
+        projectApplicability
+      }
+    ]);
+
+    const ambientPlan = createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      currentManifest: manifestWithApplicability,
+      set: [{ skill: "project-tool", mode: "user-ambient" }]
+    });
+    assert.deepEqual(ambientPlan.proposed.availability.skills[0], {
+      path: "skills/project-tool",
+      mode: "user-ambient"
+    });
+
+    assert.throws(() => createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      set: [{ skill: "missing", mode: "user-ambient" }]
+    }), /was not discovered/);
+    assert.throws(() => createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      set: [{ skill: "project-tool", mode: "project-ambient" }],
+      aliases: [{ skill: "project-tool", aliases: ["project"] }]
+    }), /only valid for user-on-demand/);
+    assert.throws(() => createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      currentManifest: result.manifest,
+      sourceDirOverrideProvided: true
+    }), /--source-dir can only be used when creating/);
+    assert.throws(() => createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      set: [
+        { skill: "rare-tool", mode: "user-ambient" },
+        { skill: "skills/rare-tool", mode: "user-on-demand" }
+      ]
+    }), /resolves to the same skill/);
+    assert.throws(() => createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      set: [{ skill: "rare-tool", mode: "user-on-demand" }],
+      remove: ["skills/rare-tool"]
+    }), /cannot remove and update the same skill/);
+    assert.throws(() => createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      set: [{ skill: "rare-tool", mode: "user-on-demand" }],
+      aliases: [{ skill: "rare-tool", aliases: ["Rare", "rare"] }]
+    }), /Duplicate or empty value in aliases/);
+
+    const aliasModeRepair = createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      currentManifest: {
+        version: 1,
+        sourceDir: "skills",
+        availability: {
+          skills: [{ path: "skills/global-tool", mode: "user-ambient", aliases: ["global"] }]
+        }
+      },
+      currentDiagnostics: [{
+        severity: "error",
+        code: "SKILL_PROJECT_MANIFEST_ALIASES_MODE_INVALID",
+        path: "availability.skills[0].aliases",
+        message: "invalid mode"
+      }],
+      set: [{ skill: "global-tool", mode: "user-on-demand" }]
+    });
+    assert.equal(aliasModeRepair.blocked, false);
+    assert.deepEqual(aliasModeRepair.proposed.availability.skills[0], {
+      path: "skills/global-tool",
+      mode: "user-on-demand",
+      aliases: ["global"]
+    });
+
+    const aliasModeClear = createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      currentManifest: {
+        version: 1,
+        sourceDir: "skills",
+        availability: {
+          skills: [{ path: "skills/global-tool", mode: "user-ambient", aliases: ["global"] }]
+        }
+      },
+      currentDiagnostics: [{
+        severity: "error",
+        code: "SKILL_PROJECT_MANIFEST_ALIASES_MODE_INVALID",
+        path: "availability.skills[0].aliases",
+        message: "invalid mode"
+      }],
+      aliases: [{ skill: "global-tool", aliases: [] }]
+    });
+    assert.equal(aliasModeClear.blocked, false);
+    assert.deepEqual(aliasModeClear.proposed.availability.skills[0], {
+      path: "skills/global-tool",
+      mode: "user-ambient"
+    });
+
+    const aliasConflictRepair = createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      currentManifest: {
+        version: 1,
+        sourceDir: "skills",
+        availability: {
+          skills: [
+            { path: "skills/global-tool", mode: "user-on-demand", aliases: ["shared"] },
+            { path: "skills/rare-tool", mode: "user-on-demand", aliases: ["SHARED"] }
+          ]
+        }
+      },
+      currentDiagnostics: [{
+        severity: "error",
+        code: "SKILL_PROJECT_MANIFEST_ALIAS_CONFLICT",
+        path: "SHARED",
+        message: "conflict"
+      }],
+      aliases: [{ skill: "rare-tool", aliases: ["rare-review"] }]
+    });
+    assert.equal(aliasConflictRepair.blocked, false);
+
+    const staleRepair = createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      currentManifest: {
+        version: 1,
+        sourceDir: "skills",
+        availability: {
+          defaultMode: "user-ambient",
+          skills: [{ path: "skills/stale", mode: "user-on-demand" }]
+        }
+      },
+      currentDiagnostics: [{
+        severity: "error",
+        code: "SKILL_PROJECT_MANIFEST_STALE_PATH",
+        path: "skills/stale",
+        message: "stale"
+      }],
+      remove: ["skills/stale"]
+    });
+    assert.equal(staleRepair.blocked, false);
+    assert.deepEqual(staleRepair.proposed.availability.skills, []);
+
+    const blockedPlan = createSkillProjectAvailabilityPlan({
+      root,
+      sourceDir: "skills",
+      skills,
+      currentManifest: result.manifest,
+      currentDiagnostics: [{
+        severity: "error",
+        code: "SKILL_PROJECT_MANIFEST_SCHEMA_INVALID",
+        message: "invalid"
+      }]
+    });
+    assert.equal(blockedPlan.blocked, true);
+    await assert.rejects(executeSkillProjectAvailabilityPlan(blockedPlan, true), /SOURCE_MANIFEST_INVALID/);
+  } finally {
+    await compiled.cleanup();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("project availability CLI enforces plan, confirmation, and existing sourceDir boundaries", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "arcforge-source-availability-cli-"));
+  const compiledRoot = path.join(root, "compiled");
+  const sourceRoot = path.join(root, "source");
+  const homeRoot = path.join(root, "home");
+  const repoRoot = fileURLToPath(new URL("..", import.meta.url));
+  try {
+    for (const skill of ["global-tool", "rare-tool"]) {
+      const skillRoot = path.join(sourceRoot, "skills", skill);
+      await mkdir(skillRoot, { recursive: true });
+      await writeFile(path.join(skillRoot, "SKILL.md"), `---\nname: ${skill}\ndescription: Validation skill for ${skill}.\n---\n\n# ${skill}\n`, "utf8");
+    }
+    const legacyConfigPath = path.join(sourceRoot, "arcforge.config.json");
+    const legacyConfig = `${JSON.stringify({ version: 1, sourceDir: "skills", profiles: [] }, null, 2)}\n`;
+    await writeFile(legacyConfigPath, legacyConfig, "utf8");
+    await execFileAsync(process.execPath, [
+      path.join(repoRoot, "node_modules", "typescript", "bin", "tsc"),
+      "-p",
+      path.join(repoRoot, "tsconfig.cli.json"),
+      "--outDir",
+      compiledRoot
+    ], { cwd: repoRoot });
+    const cliPath = path.join(compiledRoot, "cli", "index.js");
+    const runCli = (args) => execFileAsync(process.execPath, [cliPath, ...args], {
+      cwd: repoRoot,
+      env: { ...process.env, ARCFORGE_HOME: homeRoot }
+    });
+    const availabilityArgs = [
+      "--root", sourceRoot,
+      "--default-mode", "user-ambient",
+      "--set", "rare-tool=user-on-demand",
+      "--aliases", "rare-tool=rare|special-review"
+    ];
+
+    const planned = JSON.parse((await runCli(["project", "availability", "plan", ...availabilityArgs])).stdout);
+    assert.equal(planned.blocked, false);
+    assert.match(planned.planDigest, /^[a-f0-9]{64}$/);
+    await assert.rejects(access(path.join(sourceRoot, "arcforge.skill-project.json")));
+    assert.equal(await readFile(legacyConfigPath, "utf8"), legacyConfig);
+    await assert.rejects(access(homeRoot));
+    await assert.rejects(
+      runCli(["project", "availability", "run", ...availabilityArgs]),
+      (error) => error.code === 1 && /requires --confirm/.test(error.stdout)
+    );
+    await assert.rejects(
+      runCli(["project", "availability", "run", ...availabilityArgs, "--confirm"]),
+      (error) => error.code === 1 && /requires --plan-digest/.test(error.stdout)
+    );
+    await assert.rejects(
+      runCli(["project", "availability", "run", ...availabilityArgs, "--plan-digest", "0".repeat(64), "--confirm"]),
+      (error) => error.code === 1 && /plan changed/.test(error.stdout)
+    );
+    await assert.rejects(access(path.join(sourceRoot, "arcforge.skill-project.json")));
+
+    const applied = JSON.parse((await runCli([
+      "project", "availability", "run", ...availabilityArgs,
+      "--plan-digest", planned.planDigest,
+      "--confirm"
+    ])).stdout);
+    assert.equal(applied.written, true);
+    assert.equal(JSON.parse(await readFile(applied.manifestPath, "utf8")).availability.skills[0].mode, "user-on-demand");
+    await assert.rejects(
+      runCli(["project", "availability", "plan", "--root", sourceRoot, "--source-dir", "other"]),
+      (error) => error.code === 1 && /--source-dir can only be used when creating/.test(error.stderr)
+    );
+
+    const unsafeSourceRoot = path.join(root, "unsafe-source");
+    await mkdir(unsafeSourceRoot, { recursive: true });
+    await writeFile(path.join(unsafeSourceRoot, "arcforge.config.json"), JSON.stringify({
+      version: 1,
+      sourceDir: "../outside",
+      profiles: []
+    }), "utf8");
+    await assert.rejects(
+      runCli(["project", "availability", "plan", "--root", unsafeSourceRoot]),
+      (error) => error.code === 1 && /normalized relative path inside the workspace root/.test(error.stderr)
+    );
+
+    if (process.platform !== "win32") {
+      const outsideRoot = path.join(root, "outside-source");
+      const linkedSourceRoot = path.join(root, "linked-source");
+      await mkdir(path.join(outsideRoot, "rare-tool"), { recursive: true });
+      await mkdir(linkedSourceRoot, { recursive: true });
+      await writeFile(path.join(outsideRoot, "rare-tool", "SKILL.md"), "---\nname: rare-tool\ndescription: Outside.\n---\n", "utf8");
+      await symlink(outsideRoot, path.join(linkedSourceRoot, "skills"), "dir");
+      await assert.rejects(
+        runCli(["project", "availability", "plan", "--root", linkedSourceRoot, "--source-dir", "skills"]),
+        (error) => error.code === 1 && /resolves outside the maintenance source root/.test(error.stderr)
+      );
+
+      const brokenLinkedSourceRoot = path.join(root, "broken-linked-source");
+      await mkdir(brokenLinkedSourceRoot, { recursive: true });
+      await symlink(path.join(root, "missing-outside-source"), path.join(brokenLinkedSourceRoot, "skills"), "dir");
+      await assert.rejects(
+        runCli(["project", "availability", "plan", "--root", brokenLinkedSourceRoot, "--source-dir", "skills"]),
+        (error) => error.code === 1 && /resolves outside the maintenance source root/.test(error.stderr)
+      );
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("sharing publishes a normalized source manifest for only the selected skills", async () => {
@@ -156,6 +655,7 @@ test("sharing publishes a normalized source manifest for only the selected skill
     assert.deepEqual(plan.sourceManifest.selectedSkillPaths, ["skills/rare"]);
     assert.match(plan.sourceManifest.policyDigest, /^[a-f0-9]{64}$/);
     assert.match(plan.sourceManifest.diagnostics[0], /TEST_WARNING/);
+    assert.equal(plan.assessmentStatus, "not-supplied");
 
     await syncProjectToShareTarget(sourceRoot, targetRoot, config, selectedSkills, [], "private", "Source", "source", manifest, diagnostics);
     const sharedManifest = JSON.parse(await readFile(path.join(targetRoot, "arcforge.skill-project.json"), "utf8"));
@@ -168,6 +668,24 @@ test("sharing publishes a normalized source manifest for only the selected skill
     assert.equal(await readFile(path.join(targetRoot, "skills", "rare", "SKILL.md"), "utf8"), "rare");
     await assert.rejects(access(path.join(targetRoot, "skills", "ambient")));
     await assert.rejects(access(path.join(targetRoot, "arcforge.config.json")));
+    const factualReadme = await readFile(path.join(targetRoot, "README.md"), "utf8");
+    assert.doesNotMatch(factualReadme, /skillshare install|npx skills add|generic checklist/i);
+
+    const assessedTargetRoot = path.join(root, "assessed-target");
+    const readinessAssessment = {
+      summary: "Agent judged this source ready for the selected consumer.",
+      evidence: ["The consumer contract was reviewed."],
+      unknowns: ["Registry publication remains external."],
+      installCommandCandidates: ["consumer-specific install command"],
+      checklist: ["Confirm the external release target."]
+    };
+    const assessedPlan = await createPublishPlan(sourceRoot, config, selectedSkills, "private", manifest, diagnostics, readinessAssessment);
+    assert.equal(assessedPlan.assessmentStatus, "supplied");
+    assert.deepEqual(assessedPlan.readinessAssessment, readinessAssessment);
+    await syncProjectToShareTarget(sourceRoot, assessedTargetRoot, config, selectedSkills, [], "private", "Source", "source-assessed", manifest, diagnostics, readinessAssessment);
+    const assessedReadme = await readFile(path.join(assessedTargetRoot, "README.md"), "utf8");
+    assert.match(assessedReadme, /Agent-supplied readiness assessment/);
+    assert.match(assessedReadme, /consumer-specific install command/);
 
     await execFileAsync("git", ["init", targetRoot]);
     await execFileAsync("git", ["-C", targetRoot, "add", "--", "skills", "README.md", "arcforge.skill-project.json"]);
@@ -206,7 +724,7 @@ test("sharing rejects invalid source manifest diagnostics before creating the ta
   }
 });
 
-test("availability resolution follows invocation, profile, source, and compatibility precedence", async () => {
+test("availability resolution follows invocation, profile, and source precedence and leaves gaps unclassified", async () => {
   const { resolveSkillAvailability } = await importTypeScript("../src/core/skill-availability.ts");
   const result = resolveSkillAvailability({
     skills: [
@@ -227,16 +745,112 @@ test("availability resolution follows invocation, profile, source, and compatibi
         skills: [{ path: "skills/sourced", mode: "user-ambient" }]
       }
     },
-    compatibilityMode: "project-ambient"
+    projectAssessments: [{
+      skill: "profiled",
+      projectRoots: ["/example/project"],
+      status: "suitable",
+      decidedBy: "agent",
+      summary: "Assessment supplied by the caller.",
+      conditionResults: [],
+      evidence: ["Caller evidence"],
+      unknowns: []
+    }]
   });
 
   assert.deepEqual(result.items.map((item) => [item.skill, item.effectiveMode, item.policyOrigin]), [
     ["invoked", "user-on-demand", "invocation"],
     ["profiled", "project-ambient", "profile-skill"],
     ["sourced", "user-ambient", "source-skill"],
-    ["fallback", "project-ambient", "compatibility"]
+    ["fallback", undefined, "unclassified"]
   ]);
-  assert.equal(result.diagnostics.length, 0);
+  assert.deepEqual(result.diagnostics.filter((item) => item.severity === "error").map((item) => item.code), ["UNCLASSIFIED_SKILL"]);
+});
+
+test("project assessments require evidence and resolve relative roots from the consumer project", async () => {
+  const compiled = await compileProjectTypeScript();
+  const root = await mkdtemp(path.join(tmpdir(), "arcforge-assessment-roots-"));
+  try {
+    const skillPath = path.join(root, "skills", "project-tool");
+    await mkdir(skillPath, { recursive: true });
+    await writeFile(path.join(skillPath, "SKILL.md"), "---\nname: project-tool\ndescription: test\n---\n", "utf8");
+    const { createSkillAvailabilityPlan, resolveSkillAvailability } = await compiled.importModule("core/skill-availability.ts");
+    const manifest = {
+      version: 1,
+      availability: {
+        skills: [{
+          path: "skills/project-tool",
+          mode: "project-ambient",
+          projectApplicability: {
+            summary: "Caller-evaluated guidance.",
+            conditions: [{ id: "relevant", kind: "required", description: "The workflow is relevant." }]
+          }
+        }]
+      }
+    };
+    const missingConditionEvidence = resolveSkillAvailability({
+      skills: [{ name: "project-tool", relativePath: "skills/project-tool" }],
+      sourceManifest: manifest,
+      projectAssessments: [{
+        skill: "project-tool",
+        projectRoots: ["app"],
+        status: "suitable",
+        decidedBy: "agent",
+        summary: "No evidence was supplied.",
+        conditionResults: [{ conditionId: "relevant", outcome: "met", evidence: [] }],
+        evidence: ["Overall evidence"],
+        unknowns: []
+      }]
+    });
+    assert.ok(missingConditionEvidence.diagnostics.some((item) => item.code === "PROJECT_ASSESSMENT_RESULT_INVALID"));
+
+    const missingOverallEvidence = resolveSkillAvailability({
+      skills: [{ name: "project-tool", relativePath: "skills/project-tool" }],
+      sourceManifest: manifest,
+      projectAssessments: [{
+        skill: "project-tool",
+        projectRoots: ["app"],
+        status: "suitable",
+        decidedBy: "agent",
+        summary: "No overall evidence was supplied.",
+        conditionResults: [{ conditionId: "relevant", outcome: "met", evidence: ["Condition evidence"] }],
+        evidence: [],
+        unknowns: []
+      }]
+    });
+    assert.ok(missingOverallEvidence.diagnostics.some((item) => item.code === "PROJECT_ASSESSMENT_INVALID"));
+
+    const consumerRoot = path.join(root, "consumer");
+    const plan = await createSkillAvailabilityPlan({
+      source: {
+        root,
+        config: { version: 1, sourceDir: "skills", profiles: [{ name: "default", skills: ["*"], targets: ["codex"] }] },
+        sourceManifest: manifest,
+        sourceManifestDiagnostics: [],
+        skills: [{ name: "project-tool", description: "test", path: skillPath, relativePath: "skills/project-tool", targets: [], hasReferences: false, hasScripts: false }],
+        assets: [],
+        audit: { root, generatedAt: "", skills: [], findings: [], coverage: { skillsChecked: 0, filesChecked: 0, ruleCategories: [], findingCounts: { info: 0, warning: 0, critical: 0 } }, disclaimer: "", feedbackUrl: "" }
+      },
+      consumerRoot,
+      profileName: "default",
+      agentTargetIds: ["codex"],
+      projectTargetDirs: ["app"],
+      projectAssessments: [{
+        skill: "project-tool",
+        projectRoots: ["app"],
+        status: "suitable",
+        decidedBy: "agent",
+        summary: "Evidence supports applicability.",
+        conditionResults: [{ conditionId: "relevant", outcome: "met", evidence: ["Observed workflow evidence."] }],
+        evidence: ["Observed project evidence."],
+        unknowns: []
+      }]
+    });
+    assert.equal(plan.diagnostics.filter((item) => item.severity === "error").length, 0);
+    assert.deepEqual(plan.items[0].projectAssessment.projectRoots, [path.join(consumerRoot, "app")]);
+  } finally {
+    await compiled.cleanup();
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("workspace scan exposes source manifest diagnostics without merging them into local config", async () => {
@@ -288,8 +902,19 @@ test("availability plan maps all three modes without writing destinations", asyn
       availability: {
         skills: [
           { path: "skills/global-tool", mode: "user-ambient" },
-          { path: "skills/project-tool", mode: "project-ambient" },
-          { path: "skills/rare-tool", mode: "user-on-demand", aliases: ["rare"] }
+          {
+            path: "skills/project-tool",
+            mode: "project-ambient",
+            projectApplicability: {
+              summary: "Projects where the skill's workflow is relevant.",
+              conditions: [
+                { id: "workflow-present", kind: "required", description: "The target project uses this workflow." }
+              ],
+              evidenceGuidance: ["Inspect the target project's own context."]
+            }
+          },
+          { path: "skills/rare-tool", mode: "user-on-demand", aliases: ["rare"] },
+          { path: "skills/fallback-tool", mode: "project-ambient" }
         ]
       }
     };
@@ -308,7 +933,7 @@ test("availability plan maps all three modes without writing destinations", asyn
       sourceManifestDiagnostics: [],
       skills,
       assets: [],
-      audit: { root, generatedAt: "", skills: [], findings: [], score: 100, disclaimer: "", feedbackUrl: "" },
+      audit: { root, generatedAt: "", skills: [], findings: [], coverage: { skillsChecked: 0, filesChecked: 0, ruleCategories: [], findingCounts: { info: 0, warning: 0, critical: 0 } }, disclaimer: "", feedbackUrl: "" },
       localGit: {
         root,
         relativePath: ".",
@@ -322,6 +947,28 @@ test("availability plan maps all three modes without writing destinations", asyn
       profileName: "default",
       agentTargetIds: ["codex", "claude", "codex"],
       projectTargetDirs: ["app-a", "app-b"],
+      projectAssessments: [
+        {
+          skill: "project-tool",
+          projectRoots: [path.join(consumerRoot, "app-a"), path.join(consumerRoot, "app-b")],
+          status: "suitable",
+          decidedBy: "agent",
+          summary: "The workflow is present.",
+          conditionResults: [{ conditionId: "workflow-present", outcome: "met", evidence: ["Observed workflow material."] }],
+          evidence: ["Project evidence"],
+          unknowns: []
+        },
+        {
+          skill: "fallback-tool",
+          projectRoots: [path.join(consumerRoot, "app-a"), path.join(consumerRoot, "app-b")],
+          status: "suitable",
+          decidedBy: "agent",
+          summary: "Caller assessed the selected project roots.",
+          conditionResults: [],
+          evidence: ["Project evidence"],
+          unknowns: []
+        }
+      ],
       homeDir,
       loaderSourcePath,
       appliedRecords: [{
@@ -351,7 +998,8 @@ test("availability plan maps all three modes without writing destinations", asyn
       ["rare-tool", "user-on-demand", 1],
       ["fallback-tool", "project-ambient", 4]
     ]);
-    assert.equal(plan.items.find((item) => item.skill === "fallback-tool").policyOrigin, "compatibility");
+    assert.equal(plan.items.find((item) => item.skill === "fallback-tool").policyOrigin, "source-skill");
+    assert.equal(plan.items.find((item) => item.skill === "project-tool").projectApplicability.conditions[0].id, "workflow-present");
     assert.equal(plan.items.some((item) => item.skill === ARCFORGE_ON_DEMAND_SKILL_NAME), false);
     assert.deepEqual(plan.loaderTargets.map((item) => item.agentId), ["claude", "codex"]);
     assert.ok(plan.loaderTargets.every((item) => item.path.endsWith(ARCFORGE_ON_DEMAND_SKILL_NAME)));
@@ -393,7 +1041,7 @@ test("availability plan reports missing or unknown target context as blocking di
         hasScripts: false
       }],
       assets: [],
-      audit: { root, generatedAt: "", skills: [], findings: [], score: 100, disclaimer: "", feedbackUrl: "" }
+      audit: { root, generatedAt: "", skills: [], findings: [], coverage: { skillsChecked: 0, filesChecked: 0, ruleCategories: [], findingCounts: { info: 0, warning: 0, critical: 0 } }, disclaimer: "", feedbackUrl: "" }
     };
     const plan = await createSkillAvailabilityPlan({
       source,
@@ -451,7 +1099,7 @@ test("on-demand loader planning distinguishes same, managed update, conflict, an
         hasScripts: false
       }],
       assets: [],
-      audit: { root, generatedAt: "", skills: [], findings: [], score: 100, disclaimer: "", feedbackUrl: "" }
+      audit: { root, generatedAt: "", skills: [], findings: [], coverage: { skillsChecked: 0, filesChecked: 0, ruleCategories: [], findingCounts: { info: 0, warning: 0, critical: 0 } }, disclaimer: "", feedbackUrl: "" }
     };
     const planOptions = {
       source,
@@ -532,11 +1180,15 @@ test("availability planning is exposed through source, CLI, and Electron read-on
 
   assert.match(sources, /createAvailabilityPlanFromSource/);
   assert.match(sources, /createSkillAvailabilityPlan/);
-  assert.match(sources, /appliedRecords: await listAppliedSources/);
+  assert.match(sources, /const records = await listAppliedSources/);
+  assert.match(sources, /reusableProjectAssessments\(records, sourceRoot, consumerRoot/);
+  assert.match(sources, /record\.sourcePolicyDigest === currentPolicyDigest/);
+  assert.match(sources, /projectAssessments: plan\.items\.flatMap/);
   assert.match(commands, /arcforge apply plan/);
   assert.match(commands, /--agent-targets/);
   assert.match(commands, /--project-targets/);
   assert.match(commands, /--availability/);
+  assert.match(commands, /--project-assessments/);
   assert.match(electronMain, /ipcMain\.handle\("apply:plan"/);
   assert.match(preload, /ipcRenderer\.invoke\("apply:plan"/);
   assert.match(uiTypes, /createSkillAvailabilityPlan/);
@@ -563,6 +1215,10 @@ test("desktop target groups review standard agent availability plans and keep cu
   assert.match(destinations, /sourceRecommendation/);
   assert.match(destinations, /effectiveMode/);
   assert.match(destinations, /policyOrigin/);
+  assert.match(destinations, /item\.projectAssessment\.summary/);
+  assert.match(destinations, /PROJECT_ASSESSMENT_NEEDS_INPUT/);
+  assert.match(destinations, /PROJECT_ASSESSMENT_TARGET_MISMATCH/);
+  assert.match(destinations, /projectRootsForItem/);
   assert.match(destinations, /loaderTargets/);
   assert.match(destinations, /loaderTargetStatus\(target\.status\)/);
   assert.match(destinations, /plan\.cleanup\.map/);
@@ -1025,7 +1681,7 @@ function availabilityApplySource(sourceRoot, ambientSource, onDemandSource) {
       { name: "rare", description: "rare summary", path: onDemandSource, relativePath: "skills/rare", targets: [], hasReferences: false, hasScripts: false }
     ],
     assets: [],
-    audit: { root: sourceRoot, generatedAt: "", skills: [], findings: [], score: 100, disclaimer: "", feedbackUrl: "" }
+    audit: { root: sourceRoot, generatedAt: "", skills: [], findings: [], coverage: { skillsChecked: 0, filesChecked: 0, ruleCategories: [], findingCounts: { info: 0, warning: 0, critical: 0 } }, disclaimer: "", feedbackUrl: "" }
   };
 }
 
@@ -1041,7 +1697,7 @@ async function availabilityApplyPlan(catalogDirectoryDigest, ambientSource, onDe
         sourcePath: "skills/ambient",
         sourceRecommendationOrigin: "none",
         effectiveMode: "user-ambient",
-        policyOrigin: "compatibility",
+        policyOrigin: "invocation",
         destinations: [{ kind: "user-agent", agentId: "codex", path: ambientTarget }],
         contentDigest: await catalogDirectoryDigest(ambientSource)
       },

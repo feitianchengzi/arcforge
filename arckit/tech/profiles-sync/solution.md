@@ -24,7 +24,9 @@
 
 正式 Skill 项目根目录使用 `arcforge.skill-project.json` 保存 `SkillProjectManifest`。该文件属于 Git 跟踪的维护源事实，与用户级 `ArcForgeConfig` 分离。
 
-清单版本为 1，可声明仓库相对 `sourceDir`、项目级 `defaultMode` 和按 skill 路径维护的推荐模式与别名。Skill 路径使用相对项目根目录的 POSIX 路径；绝对路径、父目录跳转、重复路径和未命中已发现 skill 的路径产生诊断。
+清单版本为 1，可声明仓库相对 `sourceDir`、项目级 `defaultMode` 和按 skill 路径维护的推荐模式、别名与项目适用性条件。Skill 路径使用相对项目根目录的 POSIX 路径；绝对路径、父目录跳转、重复路径和未命中已发现 skill 的路径产生诊断。
+
+项目适用性条件由自然语言摘要、带稳定 ID 的 `required`、`preferred`、`excluded` 条件、证据指引和澄清问题组成。Core 只校验结构、字符串和 ID 唯一性，不解释条件内容，也不根据文件名、语言、框架或其它预置业务信号判断条件是否满足。
 
 推荐模式是封闭枚举：
 
@@ -34,7 +36,7 @@
 
 枚举不表达 `project-on-demand`，因此该非法组合不能进入清单、消费端覆盖或应用计划。
 
-清单缺失时工作区保持可扫描。Skill 没有逐项推荐且项目没有默认推荐时产生 `UNCLASSIFIED_SKILL` warning，并在最终策略解析时进入兼容规则。清单语法错误、路径越界或重复路径产生 error，阻止 availability-aware apply，但不阻止用户打开工作区修复清单。
+清单缺失时工作区保持可扫描。Skill 没有逐项推荐且项目没有默认推荐时产生 `UNCLASSIFIED_SKILL` error，且 availability-aware 计划中的 `effectiveMode` 保持空值。清单语法错误、路径越界或重复路径产生 error，阻止 availability-aware apply，但不阻止用户打开工作区修复清单。
 
 ## 消费端覆盖
 
@@ -49,9 +51,9 @@
 3. 消费端 profile 默认模式。
 4. 维护源逐路径推荐。
 5. 维护源项目默认推荐。
-6. 既有直接目标推导出的 ambient 兼容模式。
+如果五级来源都不存在，解析结果记录 `policyOrigin: unclassified`，不根据 target 参数补造模式。
 
-解析结果记录 `sourceRecommendation`、`consumerOverride`、`effectiveMode` 和 `policyOrigin`。来源推荐与最终策略不同是显式覆盖，不属于 skill 文件内容漂移。
+解析结果记录 `sourceRecommendation`、`consumerOverride`、可选 `effectiveMode` 和 `policyOrigin`。来源推荐与最终策略不同是显式覆盖，不属于 skill 文件内容漂移。Legacy direct target 仍保留独立复制语义，不进入 availability resolver。
 
 ## 来源身份
 
@@ -65,7 +67,11 @@
 
 `createSkillAvailabilityPlan` 是所有 availability-aware apply 和 drift 的只读入口，返回 `SkillAvailabilityPlan`。
 
-计划输入包括来源、profile、可选 skills、agent targets、project targets 和一次性覆盖。计划对每个 skill 记录策略来源、最终模式、内容摘要和全部目标，并列出 loader targets、diagnostics 与 cleanup。
+计划输入包括来源、profile、可选 skills、agent targets、project targets、一次性覆盖和可选 `projectAssessments`。计划对每个 skill 记录策略来源、可选最终模式、项目适用性条件、Agent 或用户提供的评估、内容摘要和全部目标，并列出 loader targets、diagnostics 与 cleanup。
+
+`projectAssessments` 是调用方提供的语义决定，不由 core 生成。评估包含状态、决定者、摘要、逐条件结果、证据和未决项。Core 校验 skill 名、condition ID、非空证据、字段结构和目标上下文；相对项目根以 consumer root 为基准规范化。`project-ambient` skill 没有评估或显式人工覆盖时产生待评估诊断，评估为不适合或仍需输入时阻止执行。
+
+保存应用关系时，从已验证的计划项持久化实际采用的 assessment，而不是只保存本次调用参数；因此复用既有 assessment 的 reapply 不会丢失它。自动复用只发生在来源、来源策略摘要、profile、Agent 目标和规范化项目根全部一致时；来源策略变化后必须由 Agent 重新判断或由用户显式覆盖。
 
 目标映射规则为：
 
@@ -73,7 +79,7 @@
 - `project-ambient`：每个选中 agent 与每个项目根目录组成的项目级原生 skill 目录。
 - `user-on-demand`：`~/.arcforge/catalog/<sourceKey>/<skill-name>/`。
 
-`project-ambient` 没有项目目标、常驻模式没有 agent target、同一来源出现重复 skill 名、别名无法唯一解析或清单含 error 时，计划包含阻塞诊断。包含 error 的计划不能执行。
+未分类、`project-ambient` 没有项目目标、常驻模式没有 agent target、同一来源出现重复 skill 名、别名无法唯一解析、项目适用性未通过或清单含 error 时，计划包含阻塞诊断。包含 error 的计划不能执行。
 
 计划始终返回 `requiresConfirm: true`。Plan 不创建目录、不写 catalog、不安装 loader，也不删除旧目标。
 
@@ -85,7 +91,15 @@ CLI 传入单一 `targetDir` 时进入 legacy direct 模式。Direct 模式保�
 
 桌面端 availability-aware 模式使用 agent target 和 project target 组合。自定义目录仍属于 direct 模式，不被推断为用户级、项目级或按需目标。
 
-归并生成的旧应用关系默认目标路径仍可为 `.arcforge/skills`，并在首次 availability-aware apply 后补齐逐 skill 模式与目标历史。
+归并生成的旧应用关系默认目标路径仍可为 `.arcforge/skills`。首次 availability-aware apply 必须通过来源策略或显式覆盖补齐逐 skill 模式，不能从旧目标路径反向生成来源推荐。
+
+## 已安装 Skill 整理
+
+`scanInstalledSkills` 只输出根目录、skill 元数据、文件摘要、同名分组、插件信息和不可修改标记。
+
+`createInstalledSkillOrganizePlan` 接收调用方显式提供的 decisions。每个 decision 包含 skill 名、canonical path、动作、理由和证据。Core 校验 canonical 与动作路径都来自最新库存、摘要未变化、动作目标位于允许根目录、插件缓存与系统 skill 不可修改，并拒绝循环链接、跨 skill 动作和未确认删除。
+
+没有 decisions 时计划只返回 inventory evidence、内容冲突和 `decision-required` 信息，actions 为空。Core 不维护目录优先级评分，不默认使用 `~/.agents/skills`，也不向所有发现的 Agent 根生成链接。
 
 ## 应用配置组
 
@@ -159,7 +173,7 @@ Availability-aware 关系同时保存标准化的 agent targets、project target
 
 - `same`：记录模式和目标集合与当前计划一致。
 - `changed`：最终模式或目标集合不同。
-- `unclassified`：当前策略只能通过兼容规则得出，维护源和消费端均未声明。
+- `unclassified`：维护源、profile 和本次调用均未声明有效模式；该状态阻断写入，不再通过兼容规则推断。
 
 从 ambient 改为 on-demand、从 on-demand 改为 ambient 或改变常驻作用域时，旧路径进入计划 cleanup。Drift 只报告；apply 只有收到精确 cleanup 确认后删除。
 

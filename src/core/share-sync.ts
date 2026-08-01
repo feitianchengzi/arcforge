@@ -1,9 +1,10 @@
 import path from "node:path";
 import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
-import type { SharedAssetSummary, ArcForgeConfig, SkillProjectManifest, SkillProjectManifestDiagnostic, SkillSummary } from "../shared/types.js";
+import type { SharedAssetSummary, ArcForgeConfig, PublishPlan, SkillProjectManifest, SkillProjectManifestDiagnostic, SkillSummary } from "../shared/types.js";
 import { copyDirectory, pathExists } from "./fs.js";
 import { SKILL_PROJECT_MANIFEST_FILE, prepareSkillProjectManifestForShare } from "./skill-project-manifest.js";
+import { validateReadinessAssessment } from "./publish.js";
 
 export function resolveShareProfile(config: ArcForgeConfig, profileName?: string, skillNames?: string[]): ArcForgeConfig["profiles"][number] {
   const selectedProfile = profileName
@@ -30,7 +31,8 @@ export function selectProfileSkills(skills: SkillSummary[], names: string[], str
   return selected;
 }
 
-export async function syncProjectToShareTarget(root: string, targetRoot: string, config: ArcForgeConfig, skills: SkillSummary[], assets: SharedAssetSummary[], visibility: "private" | "public", sectionName: string, namespace: string, sourceManifest?: SkillProjectManifest, sourceManifestDiagnostics: SkillProjectManifestDiagnostic[] = []): Promise<void> {
+export async function syncProjectToShareTarget(root: string, targetRoot: string, config: ArcForgeConfig, skills: SkillSummary[], assets: SharedAssetSummary[], visibility: "private" | "public", sectionName: string, namespace: string, sourceManifest?: SkillProjectManifest, sourceManifestDiagnostics: SkillProjectManifestDiagnostic[] = [], readinessAssessment?: PublishPlan["readinessAssessment"]): Promise<void> {
+  const validatedAssessment = validateReadinessAssessment(readinessAssessment);
   const sharedManifest = prepareSkillProjectManifestForShare(sourceManifest, skills, sourceManifestDiagnostics);
   await fs.mkdir(targetRoot, { recursive: true });
   const sourceRoot = path.resolve(root, config.sourceDir);
@@ -56,7 +58,7 @@ export async function syncProjectToShareTarget(root: string, targetRoot: string,
   } else if (!(await pathExists(targetReadme))) {
     await fs.writeFile(targetReadme, `# ${path.basename(root)}\n`, "utf8");
   }
-  await writeSharingReadme(targetRoot, config, visibility, sectionName);
+  await writeSharingReadme(targetRoot, config, visibility, sectionName, validatedAssessment);
 }
 
 async function writeJsonAtomic(target: string, value: unknown): Promise<void> {
@@ -82,12 +84,13 @@ function relativeSharedEntryPath(sourceRoot: string, entryPath: string, fallback
   return relativePath || fallbackName;
 }
 
-export async function syncProjectMetadata(targetRoot: string, config: ArcForgeConfig, visibility: "private" | "public", sectionName: string): Promise<void> {
+export async function syncProjectMetadata(targetRoot: string, config: ArcForgeConfig, visibility: "private" | "public", sectionName: string, readinessAssessment?: PublishPlan["readinessAssessment"]): Promise<void> {
+  const validatedAssessment = validateReadinessAssessment(readinessAssessment);
   const targetReadme = path.join(targetRoot, "README.md");
   if (!(await pathExists(targetReadme))) {
     await fs.writeFile(targetReadme, `# ${path.basename(targetRoot)}\n`, "utf8");
   }
-  await writeSharingReadme(targetRoot, config, visibility, sectionName);
+  await writeSharingReadme(targetRoot, config, visibility, sectionName, validatedAssessment);
 }
 
 export function namespaceProfiles(config: ArcForgeConfig, namespace: string): ArcForgeConfig {
@@ -191,11 +194,11 @@ async function replaceDirectoryAtomic(source: string, target: string): Promise<v
 }
 
 
-async function writeSharingReadme(root: string, config: ArcForgeConfig, visibility: "private" | "public", sectionName: string): Promise<void> {
+async function writeSharingReadme(root: string, config: ArcForgeConfig, visibility: "private" | "public", sectionName: string, readinessAssessment?: PublishPlan["readinessAssessment"]): Promise<void> {
   const readmePath = path.join(root, "README.md");
   const existing = await pathExists(readmePath) ? await fs.readFile(readmePath, "utf8") : `# ${path.basename(root)}\n`;
   const sectionId = slug(sectionName || path.basename(root));
-  const section = sharingSection(config, visibility, sectionName || path.basename(root), sectionId);
+  const section = sharingSection(config, visibility, sectionName || path.basename(root), sectionId, readinessAssessment);
   const start = `<!-- arcforge:share:start:${sectionId} -->`;
   const end = `<!-- arcforge:share:end:${sectionId} -->`;
   const pattern = new RegExp(`${escapeRegExp(start)}[\\s\\S]*?${escapeRegExp(end)}`);
@@ -208,31 +211,28 @@ async function writeSharingReadme(root: string, config: ArcForgeConfig, visibili
   await fs.writeFile(readmePath, next, "utf8");
 }
 
-function sharingSection(config: ArcForgeConfig, visibility: "private" | "public", sectionName: string, sectionId: string): string {
-  const installRef = config.teamRepo || "github.com/<owner>/<repo>";
+function sharingSection(config: ArcForgeConfig, visibility: "private" | "public", sectionName: string, sectionId: string, readinessAssessment?: PublishPlan["readinessAssessment"]): string {
+  const installReference = config.teamRepo?.trim();
   const profiles = config.profiles.map((profile) => `- \`${profile.name || "unnamed"}\`: ${profile.skills.includes("*") ? "all skills" : profile.skills.join(", ") || "no skills selected"}`).join("\n");
+  const assessment = readinessAssessment ? `
+
+### Agent-supplied readiness assessment
+
+${readinessAssessment.summary}
+${readinessAssessment.evidence.length ? `\nEvidence:\n${readinessAssessment.evidence.map((item) => `- ${item}`).join("\n")}` : ""}
+${readinessAssessment.unknowns.length ? `\nUnknowns:\n${readinessAssessment.unknowns.map((item) => `- ${item}`).join("\n")}` : ""}
+${readinessAssessment.installCommandCandidates.length ? `\nInstall command candidates:\n${readinessAssessment.installCommandCandidates.map((item) => `- \`${item}\``).join("\n")}` : ""}
+${readinessAssessment.checklist.length ? `\nChecklist:\n${readinessAssessment.checklist.map((item) => `- ${item}`).join("\n")}` : ""}` : "";
   return `<!-- arcforge:share:start:${sectionId} -->
 ## ArcForge: ${sectionName}
 
 Visibility: \`${visibility}\`
-
-### Use in ArcForge Desktop
-
-1. Open ArcForge.
-2. Click **Add Skill project**.
-3. Enter \`${installRef}\` as the GitHub source.
-4. Choose a profile and add an application target.
+${installReference ? `\nInstall reference: \`${installReference}\`\n` : ""}
 
 ### Profiles
 
 ${profiles || "- No profiles configured."}
-
-### CLI
-
-\`\`\`bash
-skillshare install ${installRef} --track --all && skillshare sync
-npx skills add ${installRef}
-\`\`\`
+${assessment}
 <!-- arcforge:share:end:${sectionId} -->`;
 }
 

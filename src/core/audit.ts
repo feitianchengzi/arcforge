@@ -36,42 +36,52 @@ export interface AuditWorkspaceOptions extends AgentAuditOptions {
 export async function auditWorkspace(root: string, skills: SkillSummary[], options: AuditWorkspaceOptions = {}): Promise<AuditReport> {
   const mode = options.mode ?? "rule";
   const findings: AuditFinding[] = [];
+  const checkedFiles = new Set<string>();
+  const ruleCategories: string[] = [];
 
   if (mode === "rule" || mode === "hybrid") {
+    ruleCategories.push("secret-patterns", "risky-instructions", "skill-structure");
     for (const skill of skills) {
       const skillFile = await findSkillMarkdownFile(skill.path);
       if (!skillFile) continue;
       const content = await readText(skillFile);
+      checkedFiles.add(path.resolve(skillFile));
       findings.push(...auditSkillMarkdown(root, skillFile, content));
-
-      if (!skill.description || skill.description.length < 24) {
-        findings.push(ruleFinding({
-          severity: "warning",
-          code: "quality.description_short",
-          message: "Skill description is missing or too short for reliable triggering.",
-          file: path.relative(root, skillFile)
-        }));
-      }
 
       const files = await listFiles(skill.path);
       for (const file of files) {
         if (isSkillMarkdownName(path.basename(file))) continue;
         const text = await maybeReadText(file);
         if (!text) continue;
+        checkedFiles.add(path.resolve(file));
         findings.push(...auditSecrets(root, file, text));
       }
     }
   }
 
   const agent = mode === "agent" || mode === "hybrid" ? await runAgentAudit(root, skills, options) : undefined;
-  if (agent) findings.push(...agent.findings);
+  if (agent) {
+    ruleCategories.push("agent-semantic-diagnosis");
+    findings.push(...agent.findings);
+  }
+
+  const findingCounts = {
+    info: findings.filter((item) => item.severity === "info").length,
+    warning: findings.filter((item) => item.severity === "warning").length,
+    critical: findings.filter((item) => item.severity === "critical").length
+  };
 
   return {
     root,
     generatedAt: new Date().toISOString(),
     skills,
     findings,
-    score: score(findings),
+    coverage: {
+      skillsChecked: skills.length,
+      filesChecked: checkedFiles.size,
+      ruleCategories,
+      findingCounts
+    },
     disclaimer: AUDIT_DISCLAIMER,
     feedbackUrl: GITHUB_ISSUE_URL,
     mode,
@@ -139,7 +149,7 @@ function auditStructure(root: string, file: string, content: string): AuditFindi
       file: path.relative(root, file)
     }));
   }
-  if (!/^description:\s*[\s\S]{24,}/m.test(content)) {
+  if (!/^description:\s*\S.*$/m.test(content)) {
     findings.push(ruleFinding({
       severity: "warning",
       code: "quality.description_missing",
@@ -168,13 +178,4 @@ async function maybeReadText(file: string): Promise<string | undefined> {
   } catch {
     return undefined;
   }
-}
-
-function score(findings: AuditFinding[]): number {
-  const penalty = findings.reduce((total, finding) => {
-    if (finding.severity === "critical") return total + 25;
-    if (finding.severity === "warning") return total + 8;
-    return total + 2;
-  }, 0);
-  return Math.max(0, 100 - penalty);
 }

@@ -244,23 +244,7 @@ function App() {
     try {
       const plan = await window.arcforge.createInstalledSkillOrganizePlan(installedScanOptions);
       setInstalledOrganizePlan(plan);
-      setStatus(t.installedSkillOrganizePlanSummary(plan.actions.length, plan.conflicts.length));
-    } catch (error) {
-      setStatus(t.errorStatus(errorMessage(error)));
-    } finally {
-      setIsOrganizingInstalledSkills(false);
-    }
-  }
-
-  async function runInstalledOrganizePlan() {
-    if (!window.arcforge || !installedOrganizePlan) return;
-    if (!window.confirm(t.confirmInstalledSkillOrganize(installedOrganizePlan.actions.length, installedOrganizePlan.conflicts.length))) return;
-    setIsOrganizingInstalledSkills(true);
-    try {
-      const result = await window.arcforge.organizeInstalledSkills(installedScanOptions, true);
-      setInstalledOrganizePlan(result.plan);
-      await refreshInstalledSkills(installedScanOptions);
-      setStatus(t.installedSkillOrganizeResult(result.copied.length, result.linked.length, result.removed.length, result.skipped.length));
+      setStatus(t.installedSkillOrganizePlanSummary(plan.evidenceGroups.length, plan.conflicts.length));
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     } finally {
@@ -406,7 +390,7 @@ function App() {
       name: projectNameFromSource(sourceUrl),
       lastOpenedAt: new Date().toISOString(),
       skillCount: 0,
-      auditScore: 0,
+      criticalFindings: 0,
       status: "downloading",
       sourceKind: "github",
       githubSourceUrl: sourceUrl
@@ -461,7 +445,7 @@ function App() {
       const result = await window.arcforge.scanWorkspace(nextRoot);
       if (requestId !== workspaceRequestRef.current) return;
       applySnapshot(result);
-      setStatus(t.foundStatus(result.skills.length, result.audit.score));
+      setStatus(t.foundStatus(result.skills.length, result.audit.findings.length));
     } catch (error) {
       if (requestId !== workspaceRequestRef.current) return;
       setSnapshot(undefined);
@@ -489,7 +473,7 @@ function App() {
         timeoutMs: 120000
       });
       applySnapshot(result);
-      setStatus(t.agentAuditComplete(result.audit.score));
+      setStatus(t.agentAuditComplete(result.audit.findings.length));
     } catch (error) {
       setStatus(t.errorStatus(errorMessage(error)));
     } finally {
@@ -647,7 +631,7 @@ function App() {
       if (requestId !== workspaceRequestRef.current) return;
       applySnapshot(result, undefined, options.projectStates);
       rememberWorkspace(result, { moveToTop: options.moveToTop ?? true, source: options.source });
-      setStatus(t.foundStatus(result.skills.length, result.audit.score));
+      setStatus(t.foundStatus(result.skills.length, result.audit.findings.length));
       await refreshAppliedSources(result.root);
     } catch (error) {
       if (requestId !== workspaceRequestRef.current) return;
@@ -727,7 +711,7 @@ function App() {
     }
   }
 
-  async function confirmAvailabilityApply(cleanupPaths: string[], save: boolean) {
+  async function confirmAvailabilityApply(cleanupPaths: string[], save: boolean, projectAssessments: import("../shared/types").SkillProjectApplicabilityAssessment[]) {
     if (!root || !availabilityPreview || !window.arcforge) return;
     const { group } = availabilityPreview;
     setIsApplyingAvailability(true);
@@ -738,6 +722,7 @@ function App() {
         profile: group.profile,
         agentTargetIds: group.agentTargetIds,
         projectTargetDirs: group.projectTargetDirs,
+        projectAssessments,
         cleanupPaths,
         save,
         confirm: true
@@ -747,7 +732,8 @@ function App() {
         from: root,
         profile: group.profile,
         agentTargetIds: group.agentTargetIds,
-        projectTargetDirs: group.projectTargetDirs
+        projectTargetDirs: group.projectTargetDirs,
+        projectAssessments
       });
       setApplyResults([execution.result]);
       setDriftReports([report]);
@@ -933,7 +919,7 @@ function App() {
         name: basename(result.root),
         lastOpenedAt: new Date().toISOString(),
         skillCount: result.skills.length,
-        auditScore: result.audit.score,
+        criticalFindings: result.audit.coverage.findingCounts.critical,
         ...projectSourceForRecord(result.root, options.source, existing)
       };
       const exists = current.some((item) => item.path === result.root);
@@ -1117,7 +1103,7 @@ function App() {
                     void openWorkspace(item.path, { moveToTop: false });
                   }}>
                     <strong>{item.name}</strong>
-                    <span>{item.status === "downloading" ? t.downloadingSource : item.status === "error" ? t.projectDownloadFailed : `${item.skillCount} skills / ${item.auditScore}/100`}</span>
+                    <span>{item.status === "downloading" ? t.downloadingSource : item.status === "error" ? t.projectDownloadFailed : `${item.skillCount} skills / ${item.criticalFindings} critical`}</span>
                   </button>
                 </div>
               ))}
@@ -1173,7 +1159,6 @@ function App() {
               error={installedError}
               onScanOptionsChange={updateInstalledScanOptions}
               onCreateOrganizePlan={createInstalledOrganizePlan}
-              onRunOrganizePlan={runInstalledOrganizePlan}
             />
           ) : !snapshot ? (
             isPendingProject && activeProject ? <PendingProject t={t} project={activeProject} /> : <EmptyState t={t} />

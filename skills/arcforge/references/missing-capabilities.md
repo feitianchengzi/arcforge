@@ -19,7 +19,15 @@ arcforge current --root <dir>
 - 列出 applied source records。
 - 推荐下一步 workflow。
 
-Fallback：分别运行 `scan`、`applied list` 和 `source status`。
+Fallback：分别运行 `scan`、`applied list` 和 `source status`。这里的“分类”只识别 ArcForge 工作区结构，不负责判断任意 skill 是否适合目标项目；项目适用性始终由 Agent 按来源自然语言条件和实际证据动态分析。
+
+### 项目适用性专用编辑入口
+
+`arcforge.skill-project.json` 已支持通用 `projectApplicability` 结构、校验、共享保留及 availability-aware plan 透传，但 `project availability plan/run` 目前只编辑 mode 与 aliases，不生成或编辑业务条件。
+
+需要能力：提供只读 diff 与确认写入入口，接收 Agent 已经阅读 skill 后拟定的通用 JSON，而不是在 CLI 中增加技术栈枚举、项目类型词表或自动探测器。
+
+Fallback：Agent 按 `project-applicability-policy.md` 拟定 manifest diff，向用户展示依据并确认后编辑，再运行 `scan` 校验和 `apply plan` 复核透传结果。
 
 ### 目标目录解析器
 
@@ -184,11 +192,11 @@ arcforge project resolve --name <project-name-or-path> --use-index
 用途：
 
 - 维护一个本地 Skill 项目索引，避免只从当前目录邻近路径猜测候选。
-- 记录用户级或项目级推荐维护源目录。
+- 记录用户明确确认的维护源绑定及其 provenance，不从目录名或扫描结果生成推荐所有权。
 - 让 Desktop 中选择的维护源回填到后续 CLI plan/run。
 - 当多个同名候选都是真实 Skill 项目时，给出稳定排序和解释。
 
-Fallback：基础场景先用 `project resolve`；没有推荐候选或多个候选并列时检查 applied source records，或请用户选择正式 Skill 项目。
+Fallback：基础场景先用 `project resolve` 收集候选事实；名称查询不进入写入计划，Agent 或用户必须提供显式 Skill 项目路径。
 
 ### 多项目批量同步
 

@@ -2,9 +2,9 @@ metadata:
   path: tech/_shared/contracts/apply-run.yaml
   domain: profiles-sync
   owner: electron/main
-  version: 5
+  version: 6
   created: 2026-06-01
-  updated: 2026-07-31
+  updated: 2026-08-01
 endpoint:
   transport: electron-ipc-and-cli
   channel: apply:run
@@ -35,6 +35,10 @@ request:
     - name: availabilityOverrides
       type: object[]
       required: false
+    - name: projectAssessments
+      type: object[]
+      required: false
+      description: Caller-supplied Agent or user applicability decisions revalidated by the fresh plan.
     - name: cleanupPaths
       type: string[]
       required: false
@@ -77,7 +81,7 @@ business_logic:
   flow:
     - Resolve from to a local Skill project root when provided; otherwise use the current workspace.
     - When targetDir is the only target input, preserve legacy direct application semantics and do not create catalog entries.
-    - Otherwise recompute apply-plan from the current source manifest, local profile, invocation overrides, targets, and saved relationship state.
+    - Otherwise recompute apply-plan from the current source manifest, local profile, invocation overrides, caller-supplied project assessments, targets, and saved relationship state.
     - Reject blocking diagnostics or missing confirmation before creating directories.
     - Before committing any prepared directory, verify every loader target still matches its planned missing or existing-content state; reject post-plan replacement or mutation.
     - Replace planned skill, loader, and catalog directories through sibling temporary copies and atomic rename.

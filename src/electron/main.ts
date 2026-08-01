@@ -15,7 +15,7 @@ import { hideLocalProjectInList, listLocalProjectStates, saveLocalProjectListMet
 import { defaultSkillFile, listSkillFiles, listWorkspaceFiles, readSkillFile, writeSkillFile } from "../core/skill-files.js";
 import { applyAvailabilityFromSource, applyFromSource, createAvailabilityPlanFromSource, createImportSkillsPlan, createMergePlan, driftAppliedSources, driftAvailabilityFromSource, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, resolveSkillProjectRoot, runAppliedSources, type AvailabilityApplyFromSourceOptions, type AvailabilityDriftFromSourceOptions, type AvailabilityPlanFromSourceOptions, type ImportSkillsOptions, type MergeOptions } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
-import type { AgentAuditProxyConfig, AppState, ApplyDriftCheckRecord, AuditMode, DriftFileDiff, DriftReport, InstalledSkillsScanOptions, ProjectUiState, RecentWorkspace, ShareDeliveryMethod, ShareDriftCheckRecord, ShareTargetMode, SkillEditorWindowContext, ArcForgeConfig, TargetRecord } from "../shared/types.js";
+import type { AgentAuditProxyConfig, AppState, ApplyDriftCheckRecord, AuditMode, DriftFileDiff, DriftReport, InstalledSkillsScanOptions, ProjectUiState, PublishPlan, RecentWorkspace, ShareDeliveryMethod, ShareDriftCheckRecord, ShareTargetMode, SkillEditorWindowContext, ArcForgeConfig, TargetRecord } from "../shared/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cliMarkerIndex = process.argv.indexOf("--cli");
@@ -204,7 +204,7 @@ ipcMain.handle("apply:drift", (_event, rootOrOptions: string | AvailabilityDrift
     ? driftFromSource(rootOrOptions, from, profile ?? "default", targetDir ?? "", skills, cacheRoot())
     : driftAvailabilityFromSource({ ...rootOrOptions, cacheDir: cacheRoot() })
 );
-ipcMain.handle("share:plan", (_event, root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, message?: string, delivery?: ShareDeliveryMethod, branch?: string, sameRepository?: boolean, sameRepositoryRemote?: string) => createSharePlanCommand({
+ipcMain.handle("share:plan", (_event, root: string, remoteUrl: string, visibility: "private" | "public", targetMode: ShareTargetMode, projectName: string, profileName: string, message?: string, delivery?: ShareDeliveryMethod, branch?: string, sameRepository?: boolean, sameRepositoryRemote?: string, readinessAssessment?: PublishPlan["readinessAssessment"]) => createSharePlanCommand({
   root,
   remoteUrl,
   visibility,
@@ -216,9 +216,10 @@ ipcMain.handle("share:plan", (_event, root: string, remoteUrl: string, visibilit
   shareBranch: branch,
   sameRepository,
   sameRepositoryRemote,
+  readinessAssessment,
   cacheDir: cacheRoot()
 }));
-ipcMain.handle("share:run", (_event, root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, confirm?: boolean, sameRepository?: boolean, sameRepositoryRemote?: string) => shareProjectCommand({
+ipcMain.handle("share:run", (_event, root: string, remoteUrl: string, visibility: "private" | "public", message: string, targetMode: ShareTargetMode, projectName: string, profileName: string, delivery?: ShareDeliveryMethod, branch?: string, confirm?: boolean, sameRepository?: boolean, sameRepositoryRemote?: string, readinessAssessment?: PublishPlan["readinessAssessment"]) => shareProjectCommand({
   root,
   remoteUrl,
   visibility,
@@ -231,6 +232,7 @@ ipcMain.handle("share:run", (_event, root: string, remoteUrl: string, visibility
   confirm,
   sameRepository,
   sameRepositoryRemote,
+  readinessAssessment,
   cacheDir: cacheRoot()
 }));
 ipcMain.handle("share:drift", (_event, root: string, remoteUrl: string, targetMode: ShareTargetMode, projectName: string, profileName: string, sameRepository?: boolean, sameRepositoryRemote?: string) => shareDriftReportCommand({
@@ -456,7 +458,7 @@ async function recentWorkspaceFromProjectState(state: LocalProjectState): Promis
       name: path.basename(snapshot.root),
       lastOpenedAt,
       skillCount: snapshot.skills.length,
-      auditScore: snapshot.audit.score,
+      criticalFindings: snapshot.audit.coverage.findingCounts.critical,
       sourceKind,
       localSourcePath: sourceKind === "local" ? cleanString(list.localSourcePath) ?? snapshot.root : undefined,
       githubSourceUrl: sourceKind === "github" ? cleanString(list.githubSourceUrl) : undefined
@@ -467,7 +469,7 @@ async function recentWorkspaceFromProjectState(state: LocalProjectState): Promis
       name: path.basename(root),
       lastOpenedAt,
       skillCount: 0,
-      auditScore: 0,
+      criticalFindings: 0,
       status: "error",
       sourceKind,
       localSourcePath: sourceKind === "local" ? cleanString(list.localSourcePath) ?? root : undefined,
@@ -564,7 +566,7 @@ function normalizeRecentWorkspace(item: RecentWorkspace): RecentWorkspace {
     name: cleanString(item.name) ?? cleanString(item.path)?.split(/[\\/]/).filter(Boolean).pop() ?? "Skill project",
     lastOpenedAt: cleanString(item.lastOpenedAt) ?? new Date().toISOString(),
     skillCount: Number.isFinite(item.skillCount) ? item.skillCount : 0,
-    auditScore: Number.isFinite(item.auditScore) ? item.auditScore : 0,
+    criticalFindings: Number.isFinite(item.criticalFindings) ? item.criticalFindings : 0,
     status: item.status === "downloading" || item.status === "error" || item.status === "ready" ? item.status : undefined,
     sourceKind,
     localSourcePath: sourceKind === "local" ? cleanString(item.localSourcePath) ?? pathValue : undefined,

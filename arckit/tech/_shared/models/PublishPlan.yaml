@@ -4,17 +4,17 @@ metadata:
   entity_name: PublishPlan
   storage: in_memory
   owner: core/publish
-  version: 2
+  version: 3
   created: 2026-05-21
-  updated: 2026-07-30
+  updated: 2026-08-01
 type: object
 required:
   - root
   - repositoryName
   - visibility
   - files
-  - installCommands
-  - checklist
+  - detectedIntegrations
+  - assessmentStatus
 properties:
   root:
     type: string
@@ -31,15 +31,49 @@ properties:
     items:
       type: string
     description: Workspace-relative files under the configured sourceDir.
-  installCommands:
+  installReference:
+    type: string
+    nullable: true
+    description: Explicit team repository install reference when configured; missing values remain unconfigured.
+  detectedIntegrations:
     type: array
     items:
       type: string
-    description: Commands for skillshare and npx skills installation.
-  checklist:
-    type: array
-    items:
-      type: string
+    description: Delivery integrations detected from repository facts; no fixed installer is assumed.
+  assessmentStatus:
+    type: string
+    enum:
+      - not-supplied
+      - supplied
+  readinessAssessment:
+    type: object
+    nullable: true
+    description: Optional Agent-produced assessment passed by the caller and preserved without semantic inference.
+    required:
+      - summary
+      - evidence
+      - unknowns
+      - installCommandCandidates
+      - checklist
+    properties:
+      summary:
+        type: string
+      evidence:
+        type: array
+        items:
+          type: string
+      unknowns:
+        type: array
+        items:
+          type: string
+      installCommandCandidates:
+        type: array
+        items:
+          type: string
+      checklist:
+        type: array
+        items:
+          type: string
   sourceManifest:
     type: object
     nullable: true
@@ -60,8 +94,8 @@ properties:
           type: string
 validation:
   install_reference:
-    description: Uses config.teamRepo when present, otherwise github.com/<owner>/<repositoryName>.
-  visibility_check:
-    description: Public visibility includes private information removal guidance; private visibility includes permissions guidance.
+    description: Uses config.teamRepo when present and otherwise remains absent; core does not invent an owner or installer command.
+  readiness_boundary:
+    description: Core emits repository facts and structurally validates an optional caller-supplied assessment without generating semantic release advice.
   manifest_selection:
     description: When present, the published manifest retains the source defaultMode and only per-skill entries whose paths are included in files; local profiles, targets, and applied history are never serialized.

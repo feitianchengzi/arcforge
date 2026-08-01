@@ -173,4 +173,4 @@ validation:
   availability_override:
     description: Profile skill overrides use selected skill names, are unique per profile, and accept only the three legal availability modes.
   backward_compatibility:
-    description: Missing profile availability does not override source recommendations; when both source and consumer policy are absent, legacy target selection resolves to ambient mode.
+    description: Missing profile availability does not override source recommendations. Legacy direct target operations retain ambient copy semantics, while availability-aware plans keep missing source and consumer policy unclassified.

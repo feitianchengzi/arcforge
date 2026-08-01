@@ -4,16 +4,16 @@ metadata:
   entity_name: AuditReport
   storage: in_memory
   owner: core/audit
-  version: 1
+  version: 2
   created: 2026-05-21
-  updated: 2026-06-13
+  updated: 2026-08-01
 type: object
 required:
   - root
   - generatedAt
   - skills
   - findings
-  - score
+  - coverage
   - disclaimer
   - feedbackUrl
 properties:
@@ -75,10 +75,40 @@ properties:
             - medium
             - high
           description: Confidence level for Agent-assisted findings.
-  score:
-    type: integer
-    minimum: 0
-    maximum: 100
+  coverage:
+    type: object
+    required:
+      - skillsChecked
+      - filesChecked
+      - ruleCategories
+      - findingCounts
+    properties:
+      skillsChecked:
+        type: integer
+        minimum: 0
+      filesChecked:
+        type: integer
+        minimum: 0
+      ruleCategories:
+        type: array
+        items:
+          type: string
+      findingCounts:
+        type: object
+        required:
+          - info
+          - warning
+          - critical
+        properties:
+          info:
+            type: integer
+            minimum: 0
+          warning:
+            type: integer
+            minimum: 0
+          critical:
+            type: integer
+            minimum: 0
   disclaimer:
     type: string
     description: User-facing explanation that audit combines local rule checks with optional Agent-assisted diagnosis and can miss issues or report false positives.
@@ -113,14 +143,8 @@ properties:
         type: string
       error:
         type: string
-state_machine:
-  scoring:
-    initial: 100
-    penalties:
-      critical: 25
-      warning: 8
-      info: 2
-    floor: 0
 validation:
+  factual_coverage:
+    description: Coverage reports deterministic counts and enabled rule categories; it does not represent project health or absolute safety.
   severe_cli_exit:
     description: CLI audit exits with code 2 when any finding has severity critical.

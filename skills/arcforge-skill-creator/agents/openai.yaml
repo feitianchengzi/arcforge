@@ -2,4 +2,4 @@ interface:
   display_name: "ArcForge Skill Creator"
   short_description: "创建、维护、拆分和修复 ArcForge skill。"
   default_prompt: >-
-    使用 $arcforge-skill-creator 创建、维护、拆分或修复 ArcForge skill。先建模真实场景和能力承载，再做内容表面积预算；本地校验后输出 post_maintenance_handoff。不要执行写入治理动作；验证交给 $arcforge-skill-first，治理交给 $arcforge。
+    使用 $arcforge-skill-creator 创建、维护、拆分或修复 ArcForge skill。先由 Agent 判断它是知识、方法、内容、工具集成、软件支撑还是混合能力，再选择最小承载；安装目录只作来源线索，维护源需 provenance、Git、manifest 或用户指定。完成内容预算和本地校验后输出 post_maintenance_handoff。不要执行写入治理动作；需要验证时交给 $arcforge-skill-first，需要治理时交给 $arcforge。

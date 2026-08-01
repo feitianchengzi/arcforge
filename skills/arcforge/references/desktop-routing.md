@@ -34,12 +34,12 @@
 
 Desktop 通过 Electron 主进程调用同一套 core 能力。当前 UI 页签：
 
-- Overview：项目摘要、skill 数、共享资产数、audit 分数、critical/warning 数、最近目标历史、Git 来源状态检查和 fast-forward 更新确认。
+- Overview：项目摘要、skill 数、共享资产数、audit coverage、critical/warning 数、最近目标历史、Git 来源状态检查和 fast-forward 更新确认。
 - Skills：按 `sourceDir` 展示文件树，按 profile 过滤，读取、编辑、保存 skill 文件，打开独立文件编辑窗口，预览归并、安装或导入相关上下文；导入时承载远程/本地来源、source profile、skills、本地维护目录和目标 profile 的选择。
 - Profiles：新增、删除、命名、描述 profile，选择全部或部分 skills，选择 Codex、Claude、Cursor 目标。
 - Destinations：维护应用目标组合，选择用户级 agent 目标、项目内 agent 目标或自定义目标，检查 drift，应用 profile，查看 applied source records，基于 applied source 检查和重新应用。
 - Share：维护共享目标，选择远程仓库或同仓库共享，选择 direct/namedProject target mode，检查共享 drift，生成共享计划，确认 PR、fork PR、direct push 或 local branch 交付。
-- Audit：展示 audit score、findings、规则代码、文件路径、行号和审计能力边界说明。
+- Audit：展示 coverage、findings、规则类别与来源、文件路径、行号和审计能力边界说明；不把启发式规则结果压缩成质量分数。
 
 主进程还支持：
 

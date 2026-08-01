@@ -17,11 +17,11 @@
 - AppliedSourceRecord.yaml 保存当前项目对来源 Skill 项目配置组的应用关系、来源策略摘要、最终模式和受管理目标历史。
 - AuditReport.yaml 嵌入技能摘要结构，并由 workspace-scan 返回。
 - SkillProjectManifest.yaml 是 Git 跟踪的维护源推荐事实，由 workspace-scan 读取，并由共享流程按所选 skill 归一化交付。
-- SkillAvailabilityPlan.yaml 是 apply-plan、apply-run 和 availability-aware drift 共用的只读解析结果。
+- SkillProjectApplicabilityAssessment.yaml 是 Agent 或用户提供的项目适用性决定；SkillAvailabilityPlan.yaml 引用它，并由 apply-plan、apply-run 和 availability-aware drift 共用。
 - UserSkillCatalog.yaml 是用户级按需安装索引，由 apply-run 原子更新并由 catalog-resolve 只读解析。
 - DriftReport.yaml 由 apply-drift、applied drift 和 share-drift 返回，并区分内容漂移和策略漂移，供主进程渲染差异窗口。
 - ApplyProfileResult.yaml 由 apply-run 和 applied run 返回，包含实际应用计划、目标写入、catalog 更新与确认清理结果。
-- PublishPlan.yaml 可携带归一化维护源清单摘要并嵌入 SharePlanResult.yaml，SharePlanResult.yaml 由 share-plan 返回，ShareResult.yaml 由 share-run 返回。
+- PublishPlan.yaml 携带发布事实、归一化维护源清单摘要和可选 Agent readiness assessment，并嵌入 SharePlanResult.yaml；SharePlanResult.yaml 由 share-plan 返回，ShareResult.yaml 由 share-run 返回。
 - SourceUpdateStatus.yaml 由独立 Git checkout 状态检查返回，SourceUpdateResult.yaml 由确认后的 fast-forward 更新返回。
 - EnvironmentStatus.yaml 由 system-environment 返回。
 - ArcForgeConfig.yaml 包含用户级项目状态中的应用目标组合和共享目标组合。

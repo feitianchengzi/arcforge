@@ -10,6 +10,7 @@
 - profile/skill-availability.md 从正式 Skill 项目读取可版本控制的推荐策略，由 profile/profile-management.md 提供消费端覆盖，并复用 profile/destination-sync.md 的应用关系、目标解析、确认和漂移语义。
 - share/github-sharing.md 依赖 workspace/discovery.md 的工作区快照，并复用 profile/profile-management.md 中的配置组信息生成 README 使用说明。
 - interface/agent-skill.md 通过 coding agent 解释用户意图，并编排 interface/cli.md 的结构化执行结果与 interface/desktop-app.md 的上下文 UI。
+- interface/agent-skill.md 负责维护源角色、项目适用性、canonical ownership、清理语义、验证 transport 和发布准备的运行时判断；workspace、profile、sources、audit、share 与 CLI 只提供事实、结构校验和显式计划执行。
 - interface/agent-skill.md 使用 Skill First 模型创建、更新和验证目标 skill；Skill First 验证通过后只建议进入 ArcForge 治理阶段，不自动执行归并、应用、漂移、共享或远程写入。
 - interface/agent-skill.md 定义正向 skill 写作质量模型；audit/rule-audit.md 在审计、正式化、共享或发布准备前把边界后置、纠错泄漏、业务耦合和正文负向补救报告为质量风险。
 - interface/desktop-app.md 通过 Electron 桥接调用 workspace、audit、profile、share 和技能文件编辑功能，并可作为 Agent Skill 调度的本地 UI 层。
