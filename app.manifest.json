@@ -3,7 +3,7 @@
   "packageName": "arcforge",
   "productName": "ArcForge",
   "executableName": "arcforge",
-  "version": "0.1.0",
+  "version": "0.1.8",
   "description": "GitHub-first ArcForge workspace for indie developers and small teams.",
   "copyright": "Copyright © 2026 ArcForge contributors",
   "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
