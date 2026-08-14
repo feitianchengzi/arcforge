@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, FolderOpen, HardDrive, Pencil, Plus, Trash2 } from "lucide-react";
-import type { AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, DriftReport, SkillAvailabilityPlan, SkillProjectApplicabilityAssessment, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
+import type { AppliedSourceRecord, ApplyDriftCheckRecord, ApplyProfileResult, ApplyTargetGroup, CatalogSourceSelection, DriftReport, SkillAvailabilityPlan, SkillProjectApplicabilityAssessment, TargetRecord, WorkspaceSnapshot } from "../../shared/types";
 import type { Dictionary } from "../i18n";
 import type { DefaultTarget } from "../types";
 import { basename, createApplyTargetGroup, formatDate, formatTimeAgo, hasMixedApplyTargetModes, resolveApplyTargetEntries, selectedSkillCount, summarizeApplyResults, usesAvailabilityPlanning } from "../utils";
@@ -32,7 +32,7 @@ export function ApplySkills(props: {
   targetHistory: TargetRecord[];
   checkTargetGroupDrift: (group: ApplyTargetGroup) => void;
   applyTargetGroup: (group: ApplyTargetGroup) => void;
-  confirmAvailabilityApply: (cleanupPaths: string[], save: boolean, projectAssessments: SkillProjectApplicabilityAssessment[]) => void;
+  confirmAvailabilityApply: (cleanupPaths: string[], save: boolean, projectAssessments: SkillProjectApplicabilityAssessment[], catalogSourceSelections: CatalogSourceSelection[]) => void;
   cancelAvailabilityPlan: () => void;
   checkAppliedSourceDrift: (id?: string) => void;
   runAppliedSource: (id?: string) => void;
@@ -391,18 +391,20 @@ function AvailabilityPlanDialog(props: {
   group: ApplyTargetGroup;
   plan: SkillAvailabilityPlan;
   isApplying: boolean;
-  onConfirm: (cleanupPaths: string[], save: boolean, projectAssessments: SkillProjectApplicabilityAssessment[]) => void;
+  onConfirm: (cleanupPaths: string[], save: boolean, projectAssessments: SkillProjectApplicabilityAssessment[], catalogSourceSelections: CatalogSourceSelection[]) => void;
   onClose: () => void;
 }) {
   const { t, plan } = props;
   const [cleanupPaths, setCleanupPaths] = useState<string[]>([]);
   const [saveRelationship, setSaveRelationship] = useState(true);
   const [projectOverrides, setProjectOverrides] = useState<string[]>([]);
+  const [catalogSourceSelections, setCatalogSourceSelections] = useState<CatalogSourceSelection[]>([]);
 
   useEffect(() => {
     setCleanupPaths([]);
     setSaveRelationship(true);
     setProjectOverrides([]);
+    setCatalogSourceSelections([]);
   }, [plan.sourceKey, plan.profile, plan.sourcePolicyDigest]);
 
   const overridableAssessmentCodes = new Set([
@@ -415,9 +417,12 @@ function AvailabilityPlanDialog(props: {
     && plan.diagnostics.some((diagnostic) => diagnostic.severity === "error"
       && diagnostic.path === item.skill
       && overridableAssessmentCodes.has(diagnostic.code))).map((item) => item.skill);
-  const visibleDiagnostics = plan.diagnostics.filter((item) => !(overridableAssessmentCodes.has(item.code)
+  const selectedCatalogSkills = new Set(catalogSourceSelections.map((item) => item.skill));
+  const overridableCatalogCodes = new Set(["CATALOG_DOWNGRADE_BLOCKED", "CATALOG_VERSION_CONFLICT"]);
+  const visibleDiagnostics = plan.diagnostics.filter((item) => !((overridableAssessmentCodes.has(item.code)
     && item.path
-    && projectOverrides.includes(item.path)));
+    && projectOverrides.includes(item.path))
+    || (overridableCatalogCodes.has(item.code) && item.path && selectedCatalogSkills.has(item.path))));
   const blockingDiagnostics = visibleDiagnostics.filter((item) => item.severity === "error");
   const allCleanupSelected = plan.cleanup.every((item) => cleanupPaths.includes(item.path));
   const allProjectOverridesSelected = projectAssessmentSkills.every((skill) => projectOverrides.includes(skill));
@@ -437,6 +442,19 @@ function AvailabilityPlanDialog(props: {
     setProjectOverrides((current) => current.includes(skill)
       ? current.filter((item) => item !== skill)
       : [...current, skill]);
+  }
+
+  function toggleCatalogSourceSelection(item: SkillAvailabilityPlan["items"][number]) {
+    const decision = item.catalogDecision;
+    if (!decision?.incomingSourceKey || !decision.currentDigest) return;
+    setCatalogSourceSelections((current) => current.some((selection) => selection.skill === item.skill)
+      ? current.filter((selection) => selection.skill !== item.skill)
+      : [...current, {
+        skill: item.skill,
+        sourceKey: decision.incomingSourceKey as string,
+        contentDigest: decision.incomingDigest,
+        expectedCurrentDigest: decision.currentDigest as string
+      }]);
   }
 
   function projectAssessments(): SkillProjectApplicabilityAssessment[] {
@@ -501,6 +519,21 @@ function AvailabilityPlanDialog(props: {
                   </div>
                 </div>
                 <p>{t.sourceRecommendation}: {item.sourceRecommendation ? t.availabilityMode(item.sourceRecommendation) : t.noSourceRecommendation}</p>
+                {item.catalogDecision && (
+                  <div className="availability-applicability">
+                    <strong>{t.catalogDecision}: <span className={`badge ${["conflict", "downgrade-blocked"].includes(item.catalogDecision.action) ? "danger" : "good"}`}>{t.catalogDecisionAction(item.catalogDecision.action)}</span></strong>
+                    <p>{t.catalogVersionPair(item.catalogDecision.currentVersion ?? "unknown", item.catalogDecision.incomingVersion ?? "unknown")}</p>
+                    <p>{t.catalogSourceEvidence(item.catalogDecision.currentSourceKey ?? "unknown", item.catalogDecision.currentDigest ?? "unknown", item.catalogDecision.currentSourceCommit ?? "unknown")}</p>
+                    <p>{t.catalogSourceEvidence(item.catalogDecision.incomingSourceKey ?? "unknown", item.catalogDecision.incomingDigest, item.catalogDecision.incomingSourceCommit ?? "unknown")}</p>
+                    <p>{item.catalogDecision.reason}</p>
+                    {["conflict", "downgrade-blocked"].includes(item.catalogDecision.action) && item.catalogDecision.incomingSourceKey && item.catalogDecision.currentDigest && (
+                      <label className="check-row">
+                        <input type="checkbox" checked={selectedCatalogSkills.has(item.skill)} onChange={() => toggleCatalogSourceSelection(item)} />
+                        <span><strong>{t.explicitCatalogSourceSelection}</strong><small>{t.explicitCatalogSourceSelectionHelp}</small></span>
+                      </label>
+                    )}
+                  </div>
+                )}
                 {item.projectApplicability && (
                   <div className="availability-applicability">
                     <strong>{t.projectApplicability}</strong>
@@ -577,7 +610,7 @@ function AvailabilityPlanDialog(props: {
 
         <div className="actions modal-actions">
           <button onClick={props.onClose} disabled={props.isApplying}>{t.cancel}</button>
-          <button className="primary" onClick={() => props.onConfirm(cleanupPaths, saveRelationship, projectAssessments())} disabled={!canConfirm}>
+          <button className="primary" onClick={() => props.onConfirm(cleanupPaths, saveRelationship, projectAssessments(), catalogSourceSelections)} disabled={!canConfirm}>
             {props.isApplying ? t.applyingAvailability : t.confirmAvailabilityApply}
           </button>
         </div>

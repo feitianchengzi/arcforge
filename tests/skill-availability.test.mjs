@@ -725,7 +725,8 @@ test("sharing rejects invalid source manifest diagnostics before creating the ta
 });
 
 test("availability resolution follows invocation, profile, and source precedence and leaves gaps unclassified", async () => {
-  const { resolveSkillAvailability } = await importTypeScript("../src/core/skill-availability.ts");
+  const compiled = await compileProjectTypeScript();
+  const { resolveSkillAvailability } = await compiled.importModule("core/skill-availability.ts");
   const result = resolveSkillAvailability({
     skills: [
       { name: "invoked", relativePath: "skills/invoked" },
@@ -764,6 +765,7 @@ test("availability resolution follows invocation, profile, and source precedence
     ["fallback", undefined, "unclassified"]
   ]);
   assert.deepEqual(result.diagnostics.filter((item) => item.severity === "error").map((item) => item.code), ["UNCLASSIFIED_SKILL"]);
+  await compiled.cleanup();
 });
 
 test("project assessments require evidence and resolve relative roots from the consumer project", async () => {
@@ -866,7 +868,8 @@ test("workspace scan exposes source manifest diagnostics without merging them in
 });
 
 test("availability plan maps all three modes without writing destinations", async () => {
-  const { createSkillAvailabilityPlan, ARCFORGE_ON_DEMAND_SKILL_NAME } = await importTypeScript("../src/core/skill-availability.ts");
+  const compiled = await compileProjectTypeScript();
+  const { createSkillAvailabilityPlan, ARCFORGE_ON_DEMAND_SKILL_NAME } = await compiled.importModule("core/skill-availability.ts");
   const root = await mkdtemp(path.join(tmpdir(), "arcforge-availability-plan-"));
   try {
     const skillInputs = [
@@ -1001,6 +1004,8 @@ test("availability plan maps all three modes without writing destinations", asyn
     assert.equal(plan.items.find((item) => item.skill === "fallback-tool").policyOrigin, "source-skill");
     assert.equal(plan.items.find((item) => item.skill === "project-tool").projectApplicability.conditions[0].id, "workflow-present");
     assert.equal(plan.items.some((item) => item.skill === ARCFORGE_ON_DEMAND_SKILL_NAME), false);
+    assert.equal(plan.items.find((item) => item.skill === "rare-tool").destinations[0].path, path.join(homeDir, ".arcforge", "catalog", "rare-tool"));
+    assert.equal(plan.items.find((item) => item.skill === "rare-tool").catalogDecision.action, "install");
     assert.deepEqual(plan.loaderTargets.map((item) => item.agentId), ["claude", "codex"]);
     assert.ok(plan.loaderTargets.every((item) => item.path.endsWith(ARCFORGE_ON_DEMAND_SKILL_NAME)));
     assert.ok(plan.loaderTargets.every((item) => item.status === "missing"));
@@ -1008,12 +1013,14 @@ test("availability plan maps all three modes without writing destinations", asyn
     assert.equal(plan.cleanup[0].path, oldDestination);
     await assert.rejects(access(homeDir));
   } finally {
+    await compiled.cleanup();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("availability plan reports missing or unknown target context as blocking diagnostics", async () => {
-  const { createSkillAvailabilityPlan } = await importTypeScript("../src/core/skill-availability.ts");
+  const compiled = await compileProjectTypeScript();
+  const { createSkillAvailabilityPlan } = await compiled.importModule("core/skill-availability.ts");
   const root = await mkdtemp(path.join(tmpdir(), "arcforge-availability-diagnostics-"));
   try {
     const skillPath = path.join(root, "skills", "project-tool");
@@ -1056,6 +1063,7 @@ test("availability plan reports missing or unknown target context as blocking di
     assert.ok(codes.has("PROJECT_TARGET_REQUIRED"));
     assert.equal(plan.items[0].destinations.length, 0);
   } finally {
+    await compiled.cleanup();
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -1242,19 +1250,28 @@ test("user skill catalog saves atomically and resolves exact, alias, qualified, 
   const root = await mkdtemp(path.join(tmpdir(), "arcforge-skill-catalog-"));
   try {
     const sourceKey = "a".repeat(24);
-    const skillPath = path.join(root, sourceKey, "review");
+    const skillPath = path.join(root, "review");
     await mkdir(skillPath, { recursive: true });
     await writeFile(path.join(skillPath, "SKILL.md"), "review skill", "utf8");
     const entry = {
-      qualifiedName: catalogQualifiedName(sourceKey, "review"),
-      sourceKey,
+      qualifiedName: catalogQualifiedName("review"),
       skillName: "review",
+      version: "1.2.0",
+      status: "ready",
+      activeSourceKey: sourceKey,
       aliases: ["code-review"],
       summary: "Review a code change",
-      sourceRoot: "/maintenance/review-skills",
-      skillPath: "skills/review",
       installedPath: skillPath,
       contentDigest: await catalogDirectoryDigest(skillPath),
+      sourceClaims: [{
+        sourceKey,
+        sourceRoot: "/maintenance/review-skills",
+        skillPath: "skills/review",
+        version: "1.2.0",
+        contentDigest: await catalogDirectoryDigest(skillPath),
+        appliedRecordIds: ["team-default"],
+        observedAt: "2026-07-30T00:00:00.000Z"
+      }],
       appliedRecordIds: ["team-default"],
       installedAt: "2026-07-30T00:00:00.000Z"
     };
@@ -1271,17 +1288,225 @@ test("user skill catalog saves atomically and resolves exact, alias, qualified, 
       candidates: [{
         skillName: "review",
         qualifiedName: entry.qualifiedName,
-        sourceKey,
+        version: "1.2.0",
+        status: "ready",
         summary: "Review a code change"
       }]
     });
-    for (const [query, mode] of [["review", "exact"], ["code-review", "exact"], [entry.qualifiedName, "exact"], ["code change", "search"]]) {
+    for (const [query, mode] of [["review", "exact"], ["code-review", "exact"], [`${sourceKey}:review`, "exact"], ["code change", "search"]]) {
       const result = await resolveCatalogSkill(query, mode, { catalogRoot: root });
       assert.equal(result.status, "resolved");
       assert.equal(result.resolved.qualifiedName, entry.qualifiedName);
-      assert.deepEqual(Object.keys(result.candidates[0]).sort(), ["qualifiedName", "skillName", "sourceKey", "summary"]);
+      assert.deepEqual(Object.keys(result.candidates[0]).sort(), ["qualifiedName", "skillName", "status", "summary", "version"]);
     }
   } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("v1 catalog migration groups direct and provider copies and uses SemVer without silently deleting legacy paths", async () => {
+  const {
+    catalogDirectoryDigest,
+    decideCatalogVersion,
+    listCatalogSkills,
+    loadUserSkillCatalog,
+    resolveCatalogSkill
+  } = await importTypeScript("../src/core/skill-catalog.ts");
+  const root = await mkdtemp(path.join(tmpdir(), "arcforge-skill-catalog-v1-migration-"));
+  try {
+    const skillName = "arckit-git-branching";
+    const directKey = "a".repeat(24);
+    const providerKey = "b".repeat(24);
+    const directPath = path.join(root, directKey, skillName);
+    const providerPath = path.join(root, providerKey, skillName);
+    await mkdir(directPath, { recursive: true });
+    await mkdir(providerPath, { recursive: true });
+    await writeFile(path.join(directPath, "SKILL.md"), "direct", "utf8");
+    await writeFile(path.join(providerPath, "SKILL.md"), "provider", "utf8");
+    const directDigest = await catalogDirectoryDigest(directPath);
+    const providerDigest = await catalogDirectoryDigest(providerPath);
+    const legacyEntry = (sourceKey, sourceRoot, installedPath, contentDigest, version) => ({
+      qualifiedName: `${sourceKey}:${skillName}`,
+      sourceKey,
+      skillName,
+      sourceRoot,
+      sourceCommit: sourceKey === providerKey ? "0123456789abcdef0123456789abcdef01234567" : undefined,
+      skillPath: `delivery/skills/${skillName}`,
+      version,
+      installedPath,
+      contentDigest,
+      appliedRecordIds: [sourceKey === providerKey ? "provider-record" : "direct-record"],
+      installedAt: "2026-08-14T00:00:00.000Z"
+    });
+    const writeLegacy = async (directVersion, providerVersion) => writeFile(path.join(root, "index.json"), `${JSON.stringify({
+      version: 1,
+      updatedAt: "2026-08-14T00:00:00.000Z",
+      entries: [
+        legacyEntry(directKey, "/maintenance/direct", directPath, directDigest, directVersion),
+        legacyEntry(providerKey, "/app/provider", providerPath, providerDigest, providerVersion)
+      ]
+    }, null, 2)}\n`);
+
+    await writeLegacy(undefined, undefined);
+    const conflicted = await loadUserSkillCatalog({ catalogRoot: root });
+    assert.equal(conflicted.version, 2);
+    assert.equal(conflicted.migratedFromVersion, 1);
+    assert.equal(conflicted.entries.length, 1);
+    assert.equal(conflicted.entries[0].status, "conflict");
+    assert.equal(conflicted.entries[0].sourceClaims.length, 2);
+    assert.equal(decideCatalogVersion(conflicted.entries[0], undefined, providerDigest, {
+      incomingSourceKey: providerKey,
+      selection: {
+        skill: skillName,
+        sourceKey: providerKey,
+        contentDigest: providerDigest,
+        expectedCurrentDigest: conflicted.entries[0].contentDigest
+      }
+    }).action, "source-selected");
+    assert.deepEqual(await listCatalogSkills({ catalogRoot: root }), {
+      status: "available",
+      candidates: [{ skillName, qualifiedName: skillName, version: null, status: "conflict", summary: undefined }]
+    });
+    await assert.rejects(resolveCatalogSkill(skillName, "exact", { catalogRoot: root }), (error) => error.code === "CATALOG_VERSION_CONFLICT");
+    await access(directPath);
+    await access(providerPath);
+
+    await writeLegacy("1.0.0", "2.0.0");
+    const flatPath = path.join(root, skillName);
+    await mkdir(flatPath, { recursive: true });
+    await writeFile(path.join(flatPath, "SKILL.md"), "provider", "utf8");
+    const migrated = await loadUserSkillCatalog({ catalogRoot: root });
+    const active = migrated.entries[0];
+    assert.equal(active.status, "ready");
+    assert.equal(active.version, "2.0.0");
+    assert.equal(active.activeSourceKey, providerKey);
+    assert.equal((await resolveCatalogSkill(`${directKey}:${skillName}`, "exact", { catalogRoot: root })).resolved.activeSourceKey, providerKey);
+    assert.equal(decideCatalogVersion(active, "0.5.0", providerDigest).action, "merge-provenance");
+    assert.equal(decideCatalogVersion(active, "3.0.0", directDigest).action, "upgrade");
+    assert.equal(decideCatalogVersion(active, "1.0.0", directDigest).action, "downgrade-blocked");
+    assert.equal(decideCatalogVersion(active, "2.0.0", directDigest).action, "conflict");
+    assert.equal(decideCatalogVersion(active, undefined, directDigest).action, "conflict");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("availability plan orders SemVer and applies only a fresh explicit source selection for blocked content", async () => {
+  const compiled = await compileProjectTypeScript();
+  const root = await mkdtemp(path.join(tmpdir(), "arcforge-catalog-version-plan-"));
+  try {
+    const { createSkillAvailabilityPlan } = await compiled.importModule("core/skill-availability.ts");
+    const { executeSkillAvailabilityPlan } = await compiled.importModule("core/skill-availability-apply.ts");
+    const { catalogDirectoryDigest, loadUserSkillCatalog, saveUserSkillCatalog } = await compiled.importModule("core/skill-catalog.ts");
+    const skillName = "arckit-git-branching";
+    const catalogRoot = path.join(root, "home", ".arcforge", "catalog");
+    const installedPath = path.join(catalogRoot, skillName);
+    const incomingPath = path.join(root, "provider", "skills", skillName);
+    const loaderSourcePath = path.join(root, "loader");
+    for (const directory of [installedPath, incomingPath, loaderSourcePath]) await mkdir(directory, { recursive: true });
+    await writeFile(path.join(installedPath, "SKILL.md"), "---\nname: arckit-git-branching\nversion: 2.0.0\n---\ncurrent\n", "utf8");
+    await writeFile(path.join(incomingPath, "SKILL.md"), "---\nname: arckit-git-branching\nversion: 3.0.0\n---\nincoming\n", "utf8");
+    await writeFile(path.join(loaderSourcePath, "SKILL.md"), "loader", "utf8");
+    const currentDigest = await catalogDirectoryDigest(installedPath);
+    const currentSourceKey = "a".repeat(24);
+    const legacyPath = path.join(catalogRoot, currentSourceKey, skillName);
+    await mkdir(legacyPath, { recursive: true });
+    await writeFile(path.join(legacyPath, "SKILL.md"), "legacy v1 directory", "utf8");
+    await saveUserSkillCatalog([{
+      qualifiedName: skillName,
+      skillName,
+      version: "2.0.0",
+      status: "ready",
+      activeSourceKey: currentSourceKey,
+      installedPath,
+      contentDigest: currentDigest,
+      sourceClaims: [{
+        sourceKey: currentSourceKey,
+        sourceRoot: "/direct/source",
+        skillPath: `skills/${skillName}`,
+        version: "2.0.0",
+        contentDigest: currentDigest,
+        appliedRecordIds: ["direct-record"],
+        observedAt: "2026-08-14T00:00:00.000Z"
+      }],
+      appliedRecordIds: ["direct-record"],
+      installedAt: "2026-08-14T00:00:00.000Z"
+    }], { catalogRoot });
+    const source = {
+      root: path.join(root, "provider"),
+      config: { version: 1, sourceDir: "skills", profiles: [{ name: "default", skills: [skillName], targets: ["codex"] }] },
+      sourceManifest: { version: 1, availability: { skills: [{ path: `skills/${skillName}`, mode: "user-on-demand" }] } },
+      sourceManifestDiagnostics: [],
+      skills: [{ name: skillName, version: "3.0.0", description: "Branch governance", path: incomingPath, relativePath: `skills/${skillName}`, targets: [], hasReferences: false, hasScripts: false }],
+      assets: [],
+      audit: { root, generatedAt: "", skills: [], findings: [], coverage: { skillsChecked: 0, filesChecked: 0, ruleCategories: [], findingCounts: { info: 0, warning: 0, critical: 0 } }, disclaimer: "", feedbackUrl: "" }
+    };
+    const createPlan = async (version, catalogSourceSelections) => {
+      source.skills[0].version = version;
+      return createSkillAvailabilityPlan({
+        source,
+        profileName: "default",
+        agentTargetIds: ["codex"],
+        homeDir: path.join(root, "home"),
+        catalogRoot,
+        loaderSourcePath,
+        sourceProvenance: {
+          sourceIdentity: "provider:arckit@0123456789abcdef0123456789abcdef01234567",
+          sourceCommit: "0123456789abcdef0123456789abcdef01234567"
+        },
+        catalogSourceSelections
+      });
+    };
+
+    const downgrade = await createPlan("1.0.0");
+    assert.equal(downgrade.items[0].catalogDecision.action, "downgrade-blocked");
+    assert.ok(downgrade.diagnostics.some((item) => item.code === "CATALOG_DOWNGRADE_BLOCKED"));
+    assert.ok(downgrade.cleanup.some((item) => item.path === legacyPath));
+    const divergence = await createPlan("2.0.0");
+    assert.equal(divergence.items[0].catalogDecision.action, "conflict");
+    assert.ok(divergence.diagnostics.some((item) => item.code === "CATALOG_VERSION_CONFLICT"));
+    const upgrade = await createPlan("3.0.0");
+    assert.equal(upgrade.items[0].catalogDecision.action, "upgrade");
+    assert.equal(upgrade.diagnostics.some((item) => item.severity === "error"), false);
+
+    await writeFile(path.join(incomingPath, "SKILL.md"), "---\nname: arckit-git-branching\nversion: 1.0.0\n---\nexplicitly selected incoming\n", "utf8");
+    const blocked = await createPlan("1.0.0");
+    const beforeSelection = await loadUserSkillCatalog({ catalogRoot });
+    await saveUserSkillCatalog([{
+      ...beforeSelection.entries[0],
+      sourceClaims: [...beforeSelection.entries[0].sourceClaims, {
+        sourceKey: blocked.sourceKey,
+        sourceRoot: source.root,
+        skillPath: `skills/old-${skillName}`,
+        version: "0.5.0",
+        contentDigest: "f".repeat(64),
+        appliedRecordIds: [],
+        observedAt: "2026-08-14T00:30:00.000Z"
+      }]
+    }], { catalogRoot });
+    const selection = {
+      skill: skillName,
+      sourceKey: blocked.sourceKey,
+      contentDigest: blocked.items[0].contentDigest,
+      expectedCurrentDigest: blocked.items[0].catalogDecision.currentDigest
+    };
+    const stale = await createPlan("1.0.0", [{ ...selection, expectedCurrentDigest: "0".repeat(64) }]);
+    assert.equal(stale.items[0].catalogDecision.action, "downgrade-blocked");
+    assert.ok(stale.diagnostics.some((item) => item.code === "CATALOG_SOURCE_SELECTION_STALE"));
+    const selected = await createPlan("1.0.0", [selection]);
+    assert.equal(selected.items[0].catalogDecision.action, "source-selected");
+    assert.equal(selected.diagnostics.some((item) => item.severity === "error"), false);
+
+    await executeSkillAvailabilityPlan({ source, plan: selected, catalogRoot, loaderSourcePath, now: new Date("2026-08-14T01:00:00.000Z") });
+    const updated = await loadUserSkillCatalog({ catalogRoot });
+    assert.equal(updated.entries.length, 1);
+    assert.equal(updated.entries[0].version, "1.0.0");
+    assert.equal(updated.entries[0].sourceClaims.length, 3);
+    assert.equal(updated.entries[0].sourceClaims.find((claim) => claim.sourceKey === selected.sourceKey && claim.skillPath === `skills/${skillName}`)?.version, "1.0.0");
+    assert.equal(updated.entries[0].sourceClaims.find((claim) => claim.sourceCommit)?.sourceCommit, "0123456789abcdef0123456789abcdef01234567");
+    assert.match(await readFile(path.join(installedPath, "SKILL.md"), "utf8"), /explicitly selected incoming/);
+  } finally {
+    await compiled.cleanup();
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -1297,28 +1522,40 @@ test("catalog resolver reports ambiguous names and rejects path escape or conten
   const outside = await mkdtemp(path.join(tmpdir(), "arcforge-skill-catalog-outside-"));
   try {
     const entries = [];
-    for (const sourceKey of ["a".repeat(24), "b".repeat(24)]) {
-      const installedPath = path.join(root, sourceKey, "review");
+    for (const [index, skillName] of ["review", "audit"].entries()) {
+      const sourceKey = String.fromCharCode(97 + index).repeat(24);
+      const installedPath = path.join(root, skillName);
       await mkdir(installedPath, { recursive: true });
       await writeFile(path.join(installedPath, "SKILL.md"), sourceKey, "utf8");
+      const contentDigest = await catalogDirectoryDigest(installedPath);
       entries.push({
-        qualifiedName: catalogQualifiedName(sourceKey, "review"),
-        sourceKey,
-        skillName: "review",
+        qualifiedName: catalogQualifiedName(skillName),
+        skillName,
+        version: "1.0.0",
+        status: "ready",
+        activeSourceKey: sourceKey,
+        aliases: ["shared"],
         summary: `Review from ${sourceKey[0]}`,
-        sourceRoot: `/maintenance/${sourceKey[0]}`,
-        skillPath: "skills/review",
         installedPath,
-        contentDigest: await catalogDirectoryDigest(installedPath),
+        contentDigest,
+        sourceClaims: [{
+          sourceKey,
+          sourceRoot: `/maintenance/${sourceKey[0]}`,
+          skillPath: `skills/${skillName}`,
+          version: "1.0.0",
+          contentDigest,
+          appliedRecordIds: [],
+          observedAt: "2026-07-30T00:00:00.000Z"
+        }],
         appliedRecordIds: [],
         installedAt: "2026-07-30T00:00:00.000Z"
       });
     }
     await saveUserSkillCatalog(entries, { catalogRoot: root });
 
-    const ambiguous = await resolveCatalogSkill("review", "exact", { catalogRoot: root });
+    const ambiguous = await resolveCatalogSkill("shared", "exact", { catalogRoot: root });
     assert.equal(ambiguous.status, "ambiguous");
-    assert.deepEqual(ambiguous.candidates.map((item) => item.sourceKey), ["a".repeat(24), "b".repeat(24)]);
+    assert.deepEqual(ambiguous.candidates.map((item) => item.skillName), ["audit", "review"]);
 
     await writeFile(path.join(entries[0].installedPath, "SKILL.md"), "changed", "utf8");
     await assert.rejects(
@@ -1332,7 +1569,11 @@ test("catalog resolver reports ambiguous names and rejects path escape or conten
     const escaped = {
       ...entries[0],
       installedPath: outsideSkill,
-      contentDigest: await catalogDirectoryDigest(outsideSkill)
+      contentDigest: await catalogDirectoryDigest(outsideSkill),
+      sourceClaims: [{
+        ...entries[0].sourceClaims[0],
+        contentDigest: await catalogDirectoryDigest(outsideSkill)
+      }]
     };
     await saveUserSkillCatalog([escaped], { catalogRoot: root });
     await assert.rejects(
@@ -1479,7 +1720,7 @@ test("availability apply commits destinations, catalog, cleanup, and record as o
     const ambientSource = path.join(sourceRoot, "skills", "ambient");
     const onDemandSource = path.join(sourceRoot, "skills", "rare");
     const ambientTarget = path.join(root, "home", ".codex", "skills", "ambient");
-    const catalogTarget = path.join(root, "home", ".arcforge", "catalog", "a".repeat(24), "rare");
+    const catalogTarget = path.join(root, "home", ".arcforge", "catalog", "rare");
     const loaderSource = path.join(root, "bundled-loader");
     const loaderTarget = path.join(path.dirname(ambientTarget), "arcforge-on-demand");
     const cleanupTarget = path.join(root, "stale", "rare");
@@ -1535,7 +1776,7 @@ test("availability apply removes a shared catalog directory only after its last 
     const ambientSource = path.join(sourceRoot, "skills", "ambient");
     const rareSource = path.join(sourceRoot, "skills", "rare");
     const catalogRoot = path.join(root, "home", ".arcforge", "catalog");
-    const catalogTarget = path.join(catalogRoot, "a".repeat(24), "rare");
+    const catalogTarget = path.join(catalogRoot, "rare");
     const ambientTarget = path.join(root, "home", ".codex", "skills", "rare");
     for (const directory of [ambientSource, rareSource, catalogTarget]) await mkdir(directory, { recursive: true });
     await writeFile(path.join(ambientSource, "SKILL.md"), "ambient", "utf8");
@@ -1546,13 +1787,20 @@ test("availability apply removes a shared catalog directory only after its last 
     const sourceKey = "a".repeat(24);
     const contentDigest = await catalogDirectoryDigest(rareSource);
     await saveUserSkillCatalog([{
-      qualifiedName: `${sourceKey}:rare`,
-      sourceKey,
+      qualifiedName: "rare",
       skillName: "rare",
-      sourceRoot,
-      skillPath: "skills/rare",
+      status: "ready",
+      activeSourceKey: sourceKey,
       installedPath: catalogTarget,
       contentDigest,
+      sourceClaims: [{
+        sourceKey,
+        sourceRoot,
+        skillPath: "skills/rare",
+        contentDigest,
+        appliedRecordIds: ["profile-a", "profile-b"],
+        observedAt: "2026-07-30T00:00:00.000Z"
+      }],
       appliedRecordIds: ["profile-a", "profile-b"],
       installedAt: "2026-07-30T00:00:00.000Z"
     }], { catalogRoot, now: new Date("2026-07-30T00:00:00.000Z") });
@@ -1622,7 +1870,7 @@ test("availability apply rolls back directories, cleanup, catalog, and record af
     const ambientSource = path.join(sourceRoot, "skills", "ambient");
     const onDemandSource = path.join(sourceRoot, "skills", "rare");
     const ambientTarget = path.join(root, "home", ".codex", "skills", "ambient");
-    const catalogTarget = path.join(root, "home", ".arcforge", "catalog", "a".repeat(24), "rare");
+    const catalogTarget = path.join(root, "home", ".arcforge", "catalog", "rare");
     const loaderSource = path.join(root, "bundled-loader");
     const loaderTarget = path.join(path.dirname(ambientTarget), "arcforge-on-demand");
     const cleanupTarget = path.join(root, "stale", "rare");
@@ -1669,6 +1917,7 @@ test("availability-aware apply run is wired through CLI and compatible Electron 
   const sources = await readFile(new URL("../src/core/sources.ts", import.meta.url), "utf8");
   const electronMain = await readFile(new URL("../src/electron/main.ts", import.meta.url), "utf8");
   const preload = await readFile(new URL("../src/electron/preload.cts", import.meta.url), "utf8");
+  const destinations = await readFile(new URL("../src/ui/views/destinations.tsx", import.meta.url), "utf8");
 
   assert.match(commands, /applyAvailabilityFromSource/);
   assert.match(commands, /driftAvailabilityFromSource/);
@@ -1679,6 +1928,9 @@ test("availability-aware apply run is wired through CLI and compatible Electron 
   assert.match(sources, /driftAvailabilityFromSource/);
   assert.match(sources, /cacheDirForInput/);
   assert.match(sources, /Saving this availability relationship requires explicit confirmation/);
+  assert.match(sources, /catalogSourceSelections/);
+  assert.match(destinations, /explicitCatalogSourceSelection/);
+  assert.match(destinations, /expectedCurrentDigest/);
   assert.match(electronMain, /typeof rootOrOptions === "string"/);
   assert.match(preload, /applySkillAvailabilityPlan/);
   assert.match(preload, /driftSkillAvailability/);
@@ -1725,7 +1977,12 @@ async function availabilityApplyPlan(catalogDirectoryDigest, ambientSource, onDe
         effectiveMode: "user-on-demand",
         policyOrigin: "source-skill",
         destinations: [{ kind: "user-catalog", path: catalogTarget }],
-        contentDigest: await catalogDirectoryDigest(onDemandSource)
+        contentDigest: await catalogDirectoryDigest(onDemandSource),
+        catalogDecision: {
+          action: "install",
+          incomingDigest: await catalogDirectoryDigest(onDemandSource),
+          reason: "No logical catalog entry exists for this skill."
+        }
       }
     ],
     loaderTargets: [{

@@ -2,9 +2,9 @@ metadata:
   path: tech/_shared/contracts/apply-drift.yaml
   domain: profiles-sync
   owner: electron/main
-  version: 4
+  version: 5
   created: 2026-06-01
-  updated: 2026-07-30
+  updated: 2026-08-14
 endpoint:
   transport: electron-ipc
   channel: apply:drift
@@ -63,5 +63,6 @@ business_logic:
     - Build SHA-256 directory signatures.
     - Scan direct target-root entries outside the current source selection and return them as targetExtras.
     - Compare recorded effective modes and destinations with the current plan and return policyDrift separately from content status.
+    - For user-on-demand items, report current and incoming versions plus install, merge-provenance, upgrade, downgrade-blocked, or conflict decisions without creating another same-name catalog candidate.
     - Compare the fixed on-demand loader at every planned user-agent loader target and expose confirmation-gated cleanup candidates through the fresh availabilityPlan.
     - Return missing, changed, extra, and same content statuses without deleting or relocating any target.

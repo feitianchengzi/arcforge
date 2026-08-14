@@ -4,9 +4,9 @@ metadata:
   entity_name: UserSkillCatalog
   storage: ~/.arcforge/catalog/index.json
   owner: core/skill-catalog
-  version: 1
+  version: 2
   created: 2026-07-30
-  updated: 2026-07-30
+  updated: 2026-08-14
 type: object
 required:
   - version
@@ -15,7 +15,7 @@ required:
 properties:
   version:
     type: integer
-    const: 1
+    const: 2
   updatedAt:
     type: string
     format: date-time
@@ -25,22 +25,39 @@ properties:
       type: object
       required:
         - qualifiedName
-        - sourceKey
         - skillName
-        - sourceRoot
-        - skillPath
+        - status
+        - activeSourceKey
         - installedPath
         - contentDigest
+        - sourceClaims
         - appliedRecordIds
         - installedAt
       properties:
         qualifiedName:
           type: string
-          description: Stable local identifier formed from sourceKey and skillName.
-        sourceKey:
-          type: string
+          description: Stable local catalog name equal to the canonical skillName; it never encodes sourceKey.
         skillName:
           type: string
+          description: Canonical path-safe name and logical catalog identity, unique under normalized case-insensitive comparison.
+        version:
+          type: string
+          nullable: true
+          description: Active Semantic Version read from SKILL.md frontmatter; absent is allowed until differing same-name content requires comparison.
+        status:
+          type: string
+          enum:
+            - ready
+            - conflict
+        conflictReason:
+          type: string
+          nullable: true
+          enum:
+            - same-version-content-conflict
+            - version-unknown-conflict
+        activeSourceKey:
+          type: string
+          description: Provenance key for the active copy; it is not part of logical identity or the installed directory.
         aliases:
           type: array
           nullable: true
@@ -50,23 +67,50 @@ properties:
           type: string
           nullable: true
           description: Short source description exposed with minimal candidate metadata only after the on-demand entry is explicitly invoked, for Agent-owned semantic selection.
-        sourceRoot:
-          type: string
-          description: Last resolved maintenance source root.
-        sourceRemoteUrl:
-          type: string
-          nullable: true
-        sourceCommit:
-          type: string
-          nullable: true
-        skillPath:
-          type: string
-          description: Skill directory path relative to the source project root.
         installedPath:
           type: string
-          description: Absolute directory under ~/.arcforge/catalog/<sourceKey>/.
+          description: Absolute directory equal to ~/.arcforge/catalog/<skillName>/.
         contentDigest:
           type: string
+          description: Digest of the active copy; conflict status prevents resolver use even when an existing active digest remains recorded.
+        sourceClaims:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required:
+              - sourceKey
+              - sourceRoot
+              - skillPath
+              - contentDigest
+              - appliedRecordIds
+              - observedAt
+            properties:
+              sourceKey:
+                type: string
+              sourceRoot:
+                type: string
+              sourceRemoteUrl:
+                type: string
+                nullable: true
+              sourceCommit:
+                type: string
+                nullable: true
+              skillPath:
+                type: string
+                description: Skill directory path relative to the source project root.
+              version:
+                type: string
+                nullable: true
+              contentDigest:
+                type: string
+              appliedRecordIds:
+                type: array
+                items:
+                  type: string
+              observedAt:
+                type: string
+                format: date-time
         appliedRecordIds:
           type: array
           items:
@@ -77,13 +121,17 @@ properties:
           format: date-time
 validation:
   candidate_projection:
-    description: Catalog list returns only skillName, qualifiedName, sourceKey, and summary in stable qualified-name order; it does not expose local source or installation paths and does not rank candidates.
+    description: Catalog list returns only skillName, qualifiedName, version, status, and summary in stable skill-name order; it does not expose local source or installation paths and does not rank candidates.
   unique_entry:
-    description: qualifiedName and the pair sourceKey plus skillPath are unique.
+    description: Normalized case-insensitive skillName and qualifiedName are unique; sourceKey may repeat only inside provenance claims and never creates another logical entry.
+  version_resolution:
+    description: Equal content merges provenance; differing content upgrades only when both versions are valid and unequal, blocks downgrade, and records conflict for equal or unknown versions.
   contained_path:
-    description: installedPath realpath must remain inside ~/.arcforge/catalog/<sourceKey>/ and must not resolve through an escaping symbolic link.
+    description: installedPath realpath must equal the canonical ~/.arcforge/catalog/<skillName>/ path and must not resolve through an escaping symbolic link.
   digest_match:
-    description: Resolver returns an entry only when the installed directory digest equals contentDigest.
+    description: Resolver returns a ready entry only when the installed directory digest equals contentDigest; conflict entries fail closed.
+  migration:
+    description: Version 1 entries are grouped by normalized skillName; identical content merges, deterministically newer valid versions win, and unresolved differences become one conflict record; every later plan keeps reporting extant sourceKey directories until confirmed cleanup.
   managed_removal:
     description: An entry can be removed only when no appliedRecordIds remain and cleanup was explicitly confirmed.
   atomic_write:

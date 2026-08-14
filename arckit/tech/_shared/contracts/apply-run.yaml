@@ -2,9 +2,9 @@ metadata:
   path: tech/_shared/contracts/apply-run.yaml
   domain: profiles-sync
   owner: electron/main
-  version: 6
+  version: 7
   created: 2026-06-01
-  updated: 2026-08-01
+  updated: 2026-08-14
 endpoint:
   transport: electron-ipc-and-cli
   channel: apply:run
@@ -39,6 +39,10 @@ request:
       type: object[]
       required: false
       description: Caller-supplied Agent or user applicability decisions revalidated by the fresh plan.
+    - name: catalogSourceSelections
+      type: object[]
+      required: false
+      description: Explicit incoming-source choices copied from reviewed conflict or downgrade decisions and rebound to the fresh catalog digest.
     - name: cleanupPaths
       type: string[]
       required: false
@@ -77,6 +81,10 @@ responses:
       message: A requested cleanup path is absent from the fresh plan.
     - code: CATALOG_WRITE_FAILED
       message: The user-level catalog directory or index cannot be atomically updated.
+    - code: CATALOG_VERSION_CONFLICT
+      message: Differing same-name catalog content cannot be selected from trustworthy version evidence.
+    - code: CATALOG_SOURCE_SELECTION_STALE
+      message: Explicit source-selection evidence does not match the recomputed source or catalog state.
 business_logic:
   flow:
     - Resolve from to a local Skill project root when provided; otherwise use the current workspace.
@@ -84,7 +92,8 @@ business_logic:
     - Otherwise recompute apply-plan from the current source manifest, local profile, invocation overrides, caller-supplied project assessments, targets, and saved relationship state.
     - Reject blocking diagnostics or missing confirmation before creating directories.
     - Before committing any prepared directory, verify every loader target still matches its planned missing or existing-content state; reject post-plan replacement or mutation.
-    - Replace planned skill, loader, and catalog directories through sibling temporary copies and atomic rename.
+    - Replace planned skill, loader, and flat catalog directories through sibling temporary copies and atomic rename; sourceKey is retained only in provenance records.
+    - Never overwrite a higher catalog version with a lower one and never apply an unresolved same-name version conflict unless the caller explicitly selected the fresh incoming source against the observed current digest.
     - Update ~/.arcforge/catalog/index.json only after every planned user-on-demand directory is ready; rollback preserves the previous valid index and directories.
     - Remove only cleanupPaths that exactly match confirmation-gated cleanup items in the fresh plan.
     - When save is true, require exact confirmation for every cleanup item before replacing the saved availability relationship, so stale managed paths cannot lose their cleanup provenance.

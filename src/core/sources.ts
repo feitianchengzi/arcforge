@@ -5,7 +5,7 @@ import os from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
-import type { AppliedSourceRecord, ApplyFromSourceResult, CleanupLocalSkillPlan, CleanupLocalSkillResult, DriftReport, ImportSkillsPlan, ImportSkillsResult, LocalSkillWorkflowPlan, MergePlan, MergeResult, ProjectResolveCandidate, ProjectResolveResult, ArcForgeConfig, SkillAvailabilityOverride, SkillAvailabilityPlan, SkillProjectApplicabilityAssessment, SkillSummary, WorkspaceSnapshot } from "../shared/types.js";
+import type { AppliedSourceRecord, ApplyFromSourceResult, CatalogSourceSelection, CleanupLocalSkillPlan, CleanupLocalSkillResult, DriftReport, ImportSkillsPlan, ImportSkillsResult, LocalSkillWorkflowPlan, MergePlan, MergeResult, ProjectResolveCandidate, ProjectResolveResult, ArcForgeConfig, SkillAvailabilityOverride, SkillAvailabilityPlan, SkillProjectApplicabilityAssessment, SkillSourceProvenance, SkillSummary, WorkspaceSnapshot } from "../shared/types.js";
 import { defaultConfigForRoot, loadConfig, saveConfig } from "./config.js";
 import { copyDirectory, pathExists } from "./fs.js";
 import { applyProfile, compareDirectory, driftReport } from "./profiles.js";
@@ -89,6 +89,8 @@ export interface AvailabilityPlanFromSourceOptions {
   cacheDir?: string;
   homeDir?: string;
   stateRoot?: string;
+  sourceProvenance?: SkillSourceProvenance;
+  catalogSourceSelections?: CatalogSourceSelection[];
 }
 
 export interface AvailabilityApplyFromSourceOptions extends AvailabilityPlanFromSourceOptions {
@@ -132,7 +134,9 @@ export async function createAvailabilityPlanFromSource(options: AvailabilityPlan
     appliedRecords: records,
     homeDir: options.homeDir,
     catalogRoot: path.join(arcForgeHome(options.stateRoot), "catalog"),
-    loaderSourcePath
+    loaderSourcePath,
+    sourceProvenance: options.sourceProvenance,
+    catalogSourceSelections: options.catalogSourceSelections
   });
 }
 
@@ -156,7 +160,9 @@ export async function driftAvailabilityFromSource(options: AvailabilityDriftFrom
     appliedRecords: records,
     homeDir: options.homeDir,
     catalogRoot: path.join(arcForgeHome(options.stateRoot), "catalog"),
-    loaderSourcePath
+    loaderSourcePath,
+    sourceProvenance: options.sourceProvenance,
+    catalogSourceSelections: options.catalogSourceSelections
   });
   const record = availabilityRecordFor(records, sourceRoot, plan);
   return createSkillAvailabilityDriftReport({
@@ -187,7 +193,9 @@ export async function applyAvailabilityFromSource(options: AvailabilityApplyFrom
     appliedRecords: previousRecords,
     homeDir: options.homeDir,
     catalogRoot: path.join(arcForgeHome(options.stateRoot), "catalog"),
-    loaderSourcePath
+    loaderSourcePath,
+    sourceProvenance: options.sourceProvenance,
+    catalogSourceSelections: options.catalogSourceSelections
   });
   if (!options.confirm) {
     throw new AvailabilityApplyError("APPLY_CONFIRM_REQUIRED", "Availability-aware apply requires --confirm after reviewing a fresh plan.");
@@ -697,7 +705,7 @@ async function availabilityAppliedRecordFor(
     relationKind: "profileApply",
     sourceRoot: normalizedSourceRoot,
     sourceName: path.basename(normalizedSourceRoot),
-    sourceRemoteUrl: isRemoteInput(from) ? from : existing?.sourceRemoteUrl,
+    sourceRemoteUrl: context.sourceProvenance?.sourceRemoteUrl ?? (isRemoteInput(from) ? from : existing?.sourceRemoteUrl),
     sourceKey: plan.sourceKey,
     sourcePolicyDigest: plan.sourcePolicyDigest,
     profile: plan.profile,
@@ -723,7 +731,7 @@ async function availabilityAppliedRecordFor(
       }] : []),
       homeDir: path.resolve(context.homeDir ?? os.homedir())
     },
-    sourceCommit: await sourceCommit(normalizedSourceRoot),
+    sourceCommit: context.sourceProvenance?.sourceCommit ?? await sourceCommit(normalizedSourceRoot),
     appliedAt: now,
     updatedAt: now
   };

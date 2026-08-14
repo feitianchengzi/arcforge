@@ -5,10 +5,12 @@ import { fileURLToPath } from "node:url";
 import type {
   AppliedSourceRecord,
   ApplyFromSourceResult,
+  CatalogSourceSelection,
   DriftReport,
   SkillAvailabilityOverride,
   SkillAvailabilityPlan,
   SkillProjectApplicabilityAssessment,
+  SkillSourceProvenance,
   UserSkillCatalogEntry
 } from "../shared/types.js";
 import {
@@ -17,7 +19,7 @@ import {
   driftAvailabilityFromSource,
   listAppliedSources
 } from "../core/sources.js";
-import { catalogDirectoryDigest, loadUserSkillCatalog, saveUserSkillCatalog } from "../core/skill-catalog.js";
+import { catalogDirectoryDigest, loadUserSkillCatalog, readUserSkillCatalogIndex, restoreUserSkillCatalogIndex, saveUserSkillCatalog } from "../core/skill-catalog.js";
 import { saveLocalProjectAppliedSources } from "../core/project-store.js";
 import { pathExists } from "../core/fs.js";
 
@@ -34,6 +36,8 @@ export interface ProvisioningOptions {
   projectTargetDirs?: string[];
   availabilityOverrides?: SkillAvailabilityOverride[];
   projectAssessments?: SkillProjectApplicabilityAssessment[];
+  sourceProvenance?: SkillSourceProvenance;
+  catalogSourceSelections?: CatalogSourceSelection[];
 }
 
 export interface ProvisioningPlanEnvelope {
@@ -104,13 +108,13 @@ export async function inspectProvider(): Promise<{
 
 export async function createProvisioningPlan(options: ProvisioningOptions): Promise<ProvisioningPlanEnvelope> {
   assertProvisioningRoots(options);
-  const plan = await createAvailabilityPlanFromSource(toAvailabilityOptions(options));
+  const plan = await createAvailabilityPlanFromSource(await toAvailabilityOptions(options));
   return envelope(plan, await inspectPaths(plan.items.flatMap((item) => item.destinations.map((destination) => destination.path))));
 }
 
 export async function driftProvisioningPlan(options: ProvisioningOptions): Promise<DriftReport> {
   assertProvisioningRoots(options);
-  return driftAvailabilityFromSource(toAvailabilityOptions(options));
+  return driftAvailabilityFromSource(await toAvailabilityOptions(options));
 }
 
 export async function applyProvisioningPlan(options: ApplyProvisioningOptions): Promise<ApplyFromSourceResult> {
@@ -121,7 +125,7 @@ export async function applyProvisioningPlan(options: ApplyProvisioningOptions): 
     throw new Error("Embedded provider plan changed after confirmation; create and review a fresh plan.");
   }
   return applyAvailabilityFromSource({
-    ...toAvailabilityOptions(options),
+    ...await toAvailabilityOptions(options),
     confirm: true,
     save: true,
     cleanupPaths: options.cleanupPaths,
@@ -151,8 +155,9 @@ export async function removeManagedProvisioning(options: RemoveManagedProvisioni
   const selectedIds = new Set(plan.relationIds);
   const selectedPaths = new Set(plan.managedPaths);
   const nextRecords = previousRecords.map((record) => selectedIds.has(record.id) ? withoutManagedPaths(record, selectedPaths) : record);
+  const previousCatalogRaw = await readUserSkillCatalogIndex({ catalogRoot });
   const previousCatalog = await loadUserSkillCatalog({ catalogRoot });
-  const nextCatalogEntries = updateCatalogEntries(previousCatalog.entries, selectedIds, selectedPaths);
+  const nextCatalogEntries = updateCatalogEntries(previousCatalog.entries, selectedIds, selectedPaths, catalogRoot);
   const catalogChanged = stableJson(previousCatalog.entries) !== stableJson(nextCatalogEntries);
   const retainedSharedPaths = new Set(nextCatalogEntries.map((entry) => path.resolve(entry.installedPath)));
   const removablePaths = plan.managedPaths.filter((managedPath) => !retainedSharedPaths.has(managedPath));
@@ -176,7 +181,7 @@ export async function removeManagedProvisioning(options: RemoveManagedProvisioni
   } catch (error) {
     const rollbackErrors: unknown[] = [];
     if (recordsWritten) await saveLocalProjectAppliedSources(consumerRoot, previousRecords, { stateRoot }).catch((item) => rollbackErrors.push(item));
-    if (catalogWritten) await saveUserSkillCatalog(previousCatalog.entries, { catalogRoot, now: new Date(previousCatalog.updatedAt) }).catch((item) => rollbackErrors.push(item));
+    if (catalogWritten) await restoreUserSkillCatalogIndex(previousCatalogRaw, { catalogRoot }).catch((item) => rollbackErrors.push(item));
     for (const item of staged.reverse()) {
       if (await pathExists(item.backup)) await fs.rename(item.backup, item.target).catch((rollbackError) => rollbackErrors.push(rollbackError));
     }
@@ -231,15 +236,36 @@ function withoutManagedPaths(record: AppliedSourceRecord, removed: Set<string>):
   };
 }
 
-function updateCatalogEntries(entries: UserSkillCatalogEntry[], relationIds: Set<string>, removed: Set<string>): UserSkillCatalogEntry[] {
+function updateCatalogEntries(entries: UserSkillCatalogEntry[], relationIds: Set<string>, removed: Set<string>, catalogRoot: string): UserSkillCatalogEntry[] {
   return entries.flatMap((entry) => {
-    if (!removed.has(path.resolve(entry.installedPath))) return [entry];
-    const appliedRecordIds = entry.appliedRecordIds.filter((id) => !relationIds.has(id));
-    return appliedRecordIds.length ? [{ ...entry, appliedRecordIds }] : [];
+    const associatedPaths = [
+      path.resolve(entry.installedPath),
+      ...entry.sourceClaims.map((claim) => path.resolve(catalogRoot, claim.sourceKey, entry.skillName))
+    ];
+    if (!associatedPaths.some((candidate) => removed.has(candidate))) return [entry];
+    const sourceClaims = entry.sourceClaims.map((claim) => ({
+      ...claim,
+      appliedRecordIds: claim.appliedRecordIds.filter((id) => !relationIds.has(id))
+    }));
+    const appliedRecordIds = [...new Set(sourceClaims.flatMap((claim) => claim.appliedRecordIds))].sort();
+    return appliedRecordIds.length ? [{ ...entry, sourceClaims, appliedRecordIds }] : [];
   });
 }
 
-function toAvailabilityOptions(options: ProvisioningOptions) {
+async function toAvailabilityOptions(options: ProvisioningOptions) {
+  const payloadManifest = await readJsonIfPresent(path.join(options.sourceRoot, "payload.manifest.json"));
+  const sourceCommit = options.sourceProvenance?.sourceCommit ?? (stringValue(payloadManifest?.sourceCommit) || undefined);
+  const sourceManifestDigest = stringValue(payloadManifest?.sourceManifestDigest);
+  const schemaVersion = stringValue(payloadManifest?.schemaVersion);
+  const inferredIdentity = sourceCommit && sourceManifestDigest
+    ? `payload:${schemaVersion || "unknown"}:${sourceCommit}:${sourceManifestDigest}`
+    : undefined;
+  const sourceProvenance: SkillSourceProvenance | undefined = options.sourceProvenance || payloadManifest ? {
+    sourceIdentity: options.sourceProvenance?.sourceIdentity ?? inferredIdentity,
+    sourceRemoteUrl: options.sourceProvenance?.sourceRemoteUrl ?? (stringValue(payloadManifest?.sourceRemoteUrl) || undefined),
+    sourceCommit,
+    payloadVersion: options.sourceProvenance?.payloadVersion ?? (stringValue(payloadManifest?.payloadVersion ?? payloadManifest?.version) || undefined)
+  } : undefined;
   return {
     root: path.resolve(options.consumerRoot),
     from: path.resolve(options.sourceRoot),
@@ -250,7 +276,9 @@ function toAvailabilityOptions(options: ProvisioningOptions) {
     availabilityOverrides: options.availabilityOverrides,
     projectAssessments: options.projectAssessments,
     homeDir: path.resolve(options.homeDir),
-    stateRoot: path.resolve(options.stateRoot)
+    stateRoot: path.resolve(options.stateRoot),
+    sourceProvenance,
+    catalogSourceSelections: options.catalogSourceSelections
   };
 }
 

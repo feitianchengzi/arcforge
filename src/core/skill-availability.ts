@@ -11,16 +11,21 @@ import type {
   SkillAvailabilityOverride,
   SkillAvailabilityPolicyOrigin,
   SkillAvailabilityResolution,
+  CatalogSourceSelection,
   ResolvedSkillAvailability,
   SkillProjectApplicabilityAssessment,
   SkillProjectManifest,
   SkillProjectManifestDiagnostic,
+  SkillSourceProvenance,
   SkillSummary,
+  UserSkillCatalog,
   WorkspaceSnapshot
 } from "../shared/types.js";
+import { pathExists } from "./fs.js";
+import { decideCatalogVersion, loadUserSkillCatalog } from "./skill-catalog.js";
 
 export interface ResolveSkillAvailabilityOptions {
-  skills: Pick<SkillSummary, "name" | "relativePath">[];
+  skills: Pick<SkillSummary, "name" | "relativePath" | "version">[];
   profile?: Pick<ArcForgeProfile, "availability">;
   sourceManifest?: SkillProjectManifest;
   invocationOverrides?: SkillAvailabilityOverride[];
@@ -40,6 +45,8 @@ export interface CreateSkillAvailabilityPlanOptions {
   homeDir?: string;
   catalogRoot?: string;
   loaderSourcePath?: string;
+  sourceProvenance?: SkillSourceProvenance;
+  catalogSourceSelections?: CatalogSourceSelection[];
 }
 
 export const ARCFORGE_ON_DEMAND_SKILL_NAME = "arcforge-on-demand";
@@ -106,6 +113,7 @@ export function resolveSkillAvailability(options: ResolveSkillAvailabilityOption
     return {
       skill: skill.name,
       sourcePath: toPosixPath(skill.relativePath),
+      ...(skill.version ? { version: skill.version } : {}),
       sourceRecommendation,
       sourceRecommendationOrigin,
       consumerOverride,
@@ -149,7 +157,7 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
   });
   diagnostics.push(...resolution.diagnostics);
 
-  const sourceIdentity = await resolveSourceIdentity(options.source);
+  const sourceIdentity = await resolveSourceIdentity(options.source, options.sourceProvenance);
   const sourceKey = crypto.createHash("sha256").update(sourceIdentity).digest("hex").slice(0, 24);
   const agentTargetIds = normalizeAgentTargets(options.agentTargetIds, diagnostics);
   const projectRoots = normalizeProjectRoots(consumerRoot, options.projectTargetDirs);
@@ -157,13 +165,36 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
   validateAssessmentProjectRoots(resolution.items, projectRoots, diagnostics);
   validateCatalogAliases(selectedSkills, resolution.items, options.source.sourceManifest, diagnostics);
 
+  const catalogRoot = path.resolve(options.catalogRoot ?? path.join(homeDir, ".arcforge", "catalog"));
+  const catalog = resolution.items.some((item) => item.effectiveMode === "user-on-demand")
+    ? await loadUserSkillCatalog({ catalogRoot })
+    : undefined;
+  const catalogByName = new Map(catalog?.entries.map((entry) => [normalizeCatalogName(entry.skillName), entry]) ?? []);
+  const catalogSelections = catalogSelectionMap(options.catalogSourceSelections, resolution.items, diagnostics);
   const planItems = await Promise.all(resolution.items.map(async (item) => {
     const skill = selectedSkills.find((candidate) => candidate.name === item.skill && toPosixPath(candidate.relativePath) === item.sourcePath);
     if (!skill) throw new Error(`Resolved availability item has no source skill: ${item.skill}`);
+    const contentDigest = await directoryDigest(skill.path);
+    const selection = catalogSelections.get(normalizeCatalogName(item.skill));
+    const catalogDecision = item.effectiveMode === "user-on-demand"
+      ? decideCatalogVersion(catalogByName.get(normalizeCatalogName(item.skill)), skill.version, contentDigest, {
+        incomingSourceKey: sourceKey,
+        incomingSourceCommit: options.sourceProvenance?.sourceCommit,
+        selection
+      })
+      : undefined;
+    if (selection && catalogDecision?.action !== "source-selected") {
+      diagnostics.push({ severity: "error", code: "CATALOG_SOURCE_SELECTION_STALE", path: item.skill, message: "The selected catalog source no longer matches the fresh source or current catalog digest; review the new plan and select again." });
+    } else if (catalogDecision?.action === "downgrade-blocked") {
+      diagnostics.push({ severity: "error", code: "CATALOG_DOWNGRADE_BLOCKED", path: item.skill, message: catalogDecision.reason });
+    } else if (catalogDecision?.action === "conflict") {
+      diagnostics.push({ severity: "error", code: "CATALOG_VERSION_CONFLICT", path: item.skill, message: catalogDecision.reason });
+    }
     return {
       ...item,
-      destinations: availabilityDestinations(item.effectiveMode, item.skill, sourceKey, homeDir, agentTargetIds, projectRoots, options.catalogRoot),
-      contentDigest: await directoryDigest(skill.path)
+      destinations: availabilityDestinations(item.effectiveMode, item.skill, homeDir, agentTargetIds, projectRoots, catalogRoot),
+      contentDigest,
+      ...(catalogDecision ? { catalogDecision } : {})
     };
   }));
 
@@ -176,17 +207,21 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
       diagnostics
     )
     : [];
-  const cleanup = cleanupItems(
+  const cleanup = dedupeCleanupItems([
+    ...cleanupItems(
     options.source.root,
     options.profileName,
     sourceKey,
     planItems,
     options.appliedRecords ?? []
-  );
+    ),
+    ...await legacyCatalogCleanupItems(catalog, planItems, catalogRoot)
+  ]);
 
   return {
     sourceKey,
     sourceIdentity,
+    ...(options.sourceProvenance ? { sourceProvenance: options.sourceProvenance } : {}),
     profile: options.profileName,
     sourcePolicyDigest: skillAvailabilitySourcePolicyDigest(options.source.sourceManifest),
     items: planItems,
@@ -274,7 +309,8 @@ function isManagedLoaderTarget(agentId: string, targetPath: string, records: App
   });
 }
 
-async function resolveSourceIdentity(source: WorkspaceSnapshot): Promise<string> {
+async function resolveSourceIdentity(source: WorkspaceSnapshot, provenance?: SkillSourceProvenance): Promise<string> {
+  if (provenance?.sourceIdentity?.trim()) return provenance.sourceIdentity.trim();
   const remote = source.localGit?.remotes.find((item) => item.name === "origin")
     ?? [...(source.localGit?.remotes ?? [])].sort((left, right) => left.name.localeCompare(right.name))[0];
   if (remote?.canonicalKey) {
@@ -357,7 +393,6 @@ function validateTargetContext(
 function availabilityDestinations(
   mode: SkillAvailabilityMode | undefined,
   skillName: string,
-  sourceKey: string,
   homeDir: string,
   agentTargetIds: string[],
   projectRoots: string[],
@@ -366,7 +401,7 @@ function availabilityDestinations(
   if (!mode) return [];
   if (!isSafePathSegment(skillName)) return [];
   if (mode === "user-on-demand") {
-    return [{ kind: "user-catalog", path: path.join(path.resolve(catalogRoot ?? path.join(homeDir, ".arcforge", "catalog")), sourceKey, skillName) }];
+    return [{ kind: "user-catalog", path: path.join(path.resolve(catalogRoot ?? path.join(homeDir, ".arcforge", "catalog")), skillName) }];
   }
   if (mode === "user-ambient") {
     return agentTargetIds.map((agentId) => ({
@@ -450,6 +485,65 @@ function cleanupItems(
     }
   }
   return [...cleanup.values()].sort((left, right) => left.path.localeCompare(right.path));
+}
+
+async function legacyCatalogCleanupItems(
+  catalog: UserSkillCatalog | undefined,
+  items: SkillAvailabilityPlan["items"],
+  catalogRoot: string
+): Promise<SkillAvailabilityPlan["cleanup"]> {
+  if (!catalog) return [];
+  const selected = new Set(items.filter((item) => item.effectiveMode === "user-on-demand").map((item) => normalizeCatalogName(item.skill)));
+  const cleanup: SkillAvailabilityPlan["cleanup"] = [];
+  for (const entry of catalog.entries) {
+    if (!selected.has(normalizeCatalogName(entry.skillName))) continue;
+    for (const claim of entry.sourceClaims) {
+      const legacyPath = path.join(catalogRoot, claim.sourceKey, entry.skillName);
+      if (!(await pathExists(legacyPath))) continue;
+      cleanup.push({
+        skill: entry.skillName,
+        path: legacyPath,
+        reason: "Legacy sourceKey catalog directory requires explicit cleanup after the flat logical entry is materialized.",
+        requiresConfirm: true
+      });
+    }
+  }
+  return cleanup;
+}
+
+function dedupeCleanupItems(items: SkillAvailabilityPlan["cleanup"]): SkillAvailabilityPlan["cleanup"] {
+  const unique = new Map(items.map((item) => [path.resolve(item.path), { ...item, path: path.resolve(item.path) }]));
+  return [...unique.values()].sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function normalizeCatalogName(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function catalogSelectionMap(
+  selections: CatalogSourceSelection[] | undefined,
+  items: SkillAvailabilityResolution["items"],
+  diagnostics: SkillProjectManifestDiagnostic[]
+): Map<string, CatalogSourceSelection> {
+  const onDemand = new Set(items.filter((item) => item.effectiveMode === "user-on-demand").map((item) => normalizeCatalogName(item.skill)));
+  const result = new Map<string, CatalogSourceSelection>();
+  for (const selection of selections ?? []) {
+    const key = normalizeCatalogName(selection.skill);
+    if (!key || !onDemand.has(key) || result.has(key)
+      || !/^[a-f0-9]{24}$/.test(selection.sourceKey)
+      || !/^[a-f0-9]{64}$/.test(selection.contentDigest)
+      || !/^[a-f0-9]{64}$/.test(selection.expectedCurrentDigest)) {
+      diagnostics.push({
+        severity: "error",
+        code: "CATALOG_SOURCE_SELECTION_INVALID",
+        path: selection.skill,
+        message: `Catalog source selection is malformed, duplicated, or does not target a selected on-demand skill: ${selection.skill}`
+      });
+      continue;
+    }
+    result.set(key, selection);
+  }
+  return result;
 }
 
 async function directoryDigest(root: string): Promise<string> {

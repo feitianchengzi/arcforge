@@ -26,7 +26,7 @@ Git 更新检查由 `src/core/source-update.ts` 承载，是独立 Git helper。
 
 Skill 项目可以提交 `arcforge.skill-project.json` 维护 sourceDir 和可用性推荐。该清单描述来源内容，不注册来源；远程 URL 和 Git checkout 仍是 review、版本和访问控制事实。
 
-Profiles-sync 对 source identity 计算 SHA-256 并取前 24 个十六进制字符作为本机 `sourceKey`。该 key 隔离 catalog 路径和同名 skill，不替代应用关系中的 sourceRoot、remote 或 commit。
+Profiles-sync 对 source identity 计算 SHA-256 并取前 24 个十六进制字符作为本机 `sourceKey`。该 key 只标识 provenance 和应用关系，不隔离 catalog 逻辑路径，也不替代应用关系中的 sourceRoot、remote 或 commit。同名 skill 跨来源仍使用一个规范化名称身份。
 
 ## 归并计划
 

@@ -44,9 +44,10 @@ arcforge catalog resolve --query <名称、别名或限定名称>
 arcforge catalog list
 ```
 
-将完整用户意图与每个候选的 `skillName`、`qualifiedName` 和 `summary` 做语义比较：
+将完整用户意图与每个候选的 `skillName`、`qualifiedName`、`version`、`status` 和 `summary` 做语义比较：
 
-- 唯一候选充分覆盖任务领域、工作流、输入输出和关键边界时，选定其 `qualifiedName`。
+- 只有 `status: ready` 的唯一候选充分覆盖任务领域、工作流、输入输出和关键边界时，才选定其 `qualifiedName`。
+- `status: conflict` 的候选只用于说明本地治理冲突，不得选择或加载；建议先回到 ArcForge 查看版本与来源证据并显式解决。
 - 无候选充分匹配时，停止加载并说明 catalog 中没有适合当前意图的 skill。
 - 多个候选都可能适合且现有语义无法可信区分时，只展示它们的最小 metadata 并请用户选择。
 - 不使用关键词计分、固定领域枚举或目录顺序代替 Agent 判断。
@@ -61,7 +62,7 @@ arcforge catalog resolve --query <qualifiedName>
 
 - `not-found`：说明用户级 catalog 中没有匹配项，并建议先通过 ArcForge 应用包含该 skill 的 profile。
 - `ambiguous`：仅展示返回的最小 metadata，请用户明确一个限定名称后重新 exact 解析。
-- 命令失败或报告 catalog 损坏、路径逃逸、内容漂移：停止加载，原样保留错误类别，并建议执行 ArcForge drift 或重新 apply。
+- 命令失败或报告版本冲突、catalog 损坏、路径逃逸、内容漂移：停止加载，原样保留错误类别；版本冲突建议先在 ArcForge 显式解决来源，其它完整性错误建议执行 drift 或重新 apply。
 - `resolved`：进入下一步。
 
 退出条件：获得唯一且已校验的 `resolved.installedPath`；其它状态均不加载目标 skill。

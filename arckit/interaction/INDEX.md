@@ -14,9 +14,9 @@
 - profiles/ 配置组页：配置组列表、技能选择、草稿保存与删除影响确认。✅
   - default.html 配置组线框：配置组编辑、技能勾选、影响摘要和删除确认。✅ (67行)
   - interaction.md 配置组交互：新建、保存、删除、未保存保护和目标影响。✅ (72行)
-- destinations/ 应用目标页：目标组合、三类 skill 可用性计划、项目适用性判断、漂移检查与确认恢复。✅
-  - default.html 应用目标线框：目标路由、模式计划、assessment/override、阻断诊断、cleanup 确认和应用恢复。✅ (166行)
-  - interaction.md 应用目标交互：availability-aware 审查、项目适用性、direct 边界、关系保存和失败恢复。✅ (95行)
+- destinations/ 应用目标页：目标组合、单一 catalog 候选与版本决策、项目适用性判断、漂移检查与确认恢复。✅
+  - default.html 应用目标线框：目标路由、版本升级、同名冲突/降级阻断、assessment/override、旧目录 cleanup 和应用恢复。✅ (190行)
+  - interaction.md 应用目标交互：availability-aware 审查、catalog 身份/版本冲突、项目适用性、direct 边界、关系保存和失败恢复。✅ (106行)
 - share/ 共享页：共享范围、确定性事实、Agent assessment、执行确认与结果提示。✅
   - default.html 共享线框：范围选择、事实/assessment、确认执行和失败恢复。✅ (68行)
   - interaction.md 共享交互：共享计划、权限/审计阻断、外部发布提示和重试。✅ (73行)

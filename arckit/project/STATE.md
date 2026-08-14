@@ -1,8 +1,8 @@
 # ArcForge Project State
 
 Status: active
-Revision: 1
-Updated: 2026-08-14T06:47:16.799Z
+Revision: 3
+Updated: 2026-08-14T12:36:22.011Z
 Canonical Record: state.record.json
 
 ## Project Intent
@@ -11,7 +11,7 @@ Local-first, GitHub-first governance workspace for AI agent skills
 
 ## Current Focus
 
-Correct arcforge-on-demand so an arbitrary user action prompt is semantically matched to the most suitable validated on-demand skill instead of being treated as a literal catalog query.
+Analyze why ArcForge catalog exposes two arckit-git-branching entries from different installation paths, then optimize catalog storage and identity so one logical skill is shown while version evidence helps select the newest differing copy.
 
 ## Active Work
 

@@ -89,6 +89,7 @@ export type SkillAvailabilityPolicyOrigin =
 export interface ResolvedSkillAvailability {
   skill: string;
   sourcePath: string;
+  version?: string;
   sourceRecommendation?: SkillAvailabilityMode;
   sourceRecommendationOrigin: "skill" | "project" | "none";
   consumerOverride?: SkillAvailabilityMode;
@@ -115,6 +116,29 @@ export interface SkillAvailabilityDestination {
 export interface SkillAvailabilityPlanItem extends ResolvedSkillAvailability {
   destinations: SkillAvailabilityDestination[];
   contentDigest: string;
+  catalogDecision?: CatalogVersionDecision;
+}
+
+export type CatalogVersionDecisionAction = "install" | "merge-provenance" | "upgrade" | "source-selected" | "downgrade-blocked" | "conflict";
+
+export interface CatalogSourceSelection {
+  skill: string;
+  sourceKey: string;
+  contentDigest: string;
+  expectedCurrentDigest: string;
+}
+
+export interface CatalogVersionDecision {
+  action: CatalogVersionDecisionAction;
+  currentVersion?: string;
+  incomingVersion?: string;
+  currentDigest?: string;
+  incomingDigest: string;
+  currentSourceKey?: string;
+  incomingSourceKey?: string;
+  currentSourceCommit?: string;
+  incomingSourceCommit?: string;
+  reason: string;
 }
 
 export interface SkillAvailabilityLoaderTarget {
@@ -132,9 +156,17 @@ export interface SkillAvailabilityCleanupItem {
   requiresConfirm: true;
 }
 
+export interface SkillSourceProvenance {
+  sourceIdentity?: string;
+  sourceRemoteUrl?: string;
+  sourceCommit?: string;
+  payloadVersion?: string;
+}
+
 export interface SkillAvailabilityPlan {
   sourceKey: string;
   sourceIdentity: string;
+  sourceProvenance?: SkillSourceProvenance;
   profile: string;
   sourcePolicyDigest?: string;
   items: SkillAvailabilityPlanItem[];
@@ -144,26 +176,42 @@ export interface SkillAvailabilityPlan {
   requiresConfirm: true;
 }
 
-export interface UserSkillCatalogEntry {
-  qualifiedName: string;
+export interface UserSkillCatalogSourceClaim {
   sourceKey: string;
-  skillName: string;
-  aliases?: string[];
-  summary?: string;
   sourceRoot: string;
   sourceRemoteUrl?: string;
   sourceCommit?: string;
   skillPath: string;
+  version?: string;
+  contentDigest: string;
+  appliedRecordIds: string[];
+  observedAt: string;
+}
+
+export type UserSkillCatalogConflictReason = "same-version-content-conflict" | "version-unknown-conflict";
+
+export interface UserSkillCatalogEntry {
+  qualifiedName: string;
+  skillName: string;
+  version?: string;
+  status: "ready" | "conflict";
+  conflictReason?: UserSkillCatalogConflictReason;
+  activeSourceKey: string;
+  aliases?: string[];
+  summary?: string;
   installedPath: string;
   contentDigest: string;
+  sourceClaims: UserSkillCatalogSourceClaim[];
   appliedRecordIds: string[];
   installedAt: string;
 }
 
 export interface UserSkillCatalog {
-  version: 1;
+  version: 2;
   updatedAt: string;
   entries: UserSkillCatalogEntry[];
+  /** Transient load result used to plan confirmed cleanup of v1 sourceKey directories. */
+  migratedFromVersion?: 1;
 }
 
 export type CatalogResolveMode = "exact" | "search";
@@ -171,7 +219,8 @@ export type CatalogResolveMode = "exact" | "search";
 export interface CatalogResolveCandidate {
   skillName: string;
   qualifiedName: string;
-  sourceKey: string;
+  version: string | null;
+  status: "ready" | "conflict";
   summary?: string;
 }
 

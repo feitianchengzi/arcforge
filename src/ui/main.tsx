@@ -711,7 +711,7 @@ function App() {
     }
   }
 
-  async function confirmAvailabilityApply(cleanupPaths: string[], save: boolean, projectAssessments: import("../shared/types").SkillProjectApplicabilityAssessment[]) {
+  async function confirmAvailabilityApply(cleanupPaths: string[], save: boolean, projectAssessments: import("../shared/types").SkillProjectApplicabilityAssessment[], catalogSourceSelections: import("../shared/types").CatalogSourceSelection[]) {
     if (!root || !availabilityPreview || !window.arcforge) return;
     const { group } = availabilityPreview;
     setIsApplyingAvailability(true);
@@ -723,6 +723,7 @@ function App() {
         agentTargetIds: group.agentTargetIds,
         projectTargetDirs: group.projectTargetDirs,
         projectAssessments,
+        catalogSourceSelections,
         cleanupPaths,
         save,
         confirm: true

@@ -1,0 +1,58 @@
+metadata:
+  path: tech/_shared/models/CatalogVersionDecision.yaml
+  domain: profiles-sync
+  entity_name: CatalogVersionDecision
+  storage: in_memory
+  owner: core/skill-availability
+  version: 1
+  created: 2026-08-14
+  updated: 2026-08-14
+type: object
+required:
+  - action
+  - incomingDigest
+  - reason
+properties:
+  action:
+    type: string
+    enum:
+      - install
+      - merge-provenance
+      - upgrade
+      - source-selected
+      - downgrade-blocked
+      - conflict
+  currentVersion:
+    type: string
+    nullable: true
+  incomingVersion:
+    type: string
+    nullable: true
+  currentDigest:
+    type: string
+    nullable: true
+  incomingDigest:
+    type: string
+  currentSourceKey:
+    type: string
+    nullable: true
+  incomingSourceKey:
+    type: string
+    nullable: true
+  currentSourceCommit:
+    type: string
+    nullable: true
+  incomingSourceCommit:
+    type: string
+    nullable: true
+  reason:
+    type: string
+validation:
+  same_content:
+    description: Equal content merges provenance and never creates a second logical entry.
+  ordered_versions:
+    description: Differing valid Semantic Versions upgrade only to the greater version and block downgrade.
+  unresolved_difference:
+    description: Equal, missing, or invalid versions with differing content produce a blocking conflict.
+  explicit_selection:
+    description: A matching CatalogSourceSelection produces source-selected; stale source or digest evidence remains blocking.

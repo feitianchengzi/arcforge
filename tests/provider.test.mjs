@@ -24,7 +24,7 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
   try {
     await mkdir(path.join(sourceRoot, "skills", "rare-tool"), { recursive: true });
     await mkdir(consumerRoot, { recursive: true });
-    await writeFile(path.join(sourceRoot, "skills", "rare-tool", "SKILL.md"), "---\nname: rare-tool\ndescription: Provider fixture.\n---\n\n# Rare tool\n");
+    await writeFile(path.join(sourceRoot, "skills", "rare-tool", "SKILL.md"), "---\nname: rare-tool\ndescription: Provider fixture.\nversion: 1.2.0\n---\n\n# Rare tool\n");
     await writeFile(path.join(sourceRoot, "arcforge.config.json"), `${JSON.stringify({
       version: 1,
       sourceDir: "skills",
@@ -35,11 +35,19 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
       sourceDir: "skills",
       availability: { skills: [{ path: "skills/rare-tool", mode: "user-on-demand", aliases: ["rare"] }] }
     }, null, 2)}\n`);
+    await writeFile(path.join(sourceRoot, "payload.manifest.json"), `${JSON.stringify({
+      schemaVersion: "fixture-payload/v1",
+      sourceCommit: "0123456789abcdef0123456789abcdef01234567",
+      sourceManifestDigest: "f".repeat(64)
+    }, null, 2)}\n`);
 
     const options = { sourceRoot, consumerRoot, stateRoot, homeDir, profile: "default", agentTargetIds: ["codex"] };
     const planned = await provider.createProvisioningPlan(options);
     assert.match(planned.planDigest, /^[a-f0-9]{64}$/);
+    assert.equal(planned.plan.sourceProvenance.sourceCommit, "0123456789abcdef0123456789abcdef01234567");
+    assert.match(planned.plan.sourceIdentity, /^payload:fixture-payload\/v1:/);
     const catalogPath = planned.plan.items[0].destinations[0].path;
+    assert.equal(catalogPath, path.join(stateRoot, "catalog", "rare-tool"));
     assert.equal(catalogPath.startsWith(path.join(stateRoot, "catalog")), true);
     assert.equal(catalogPath.startsWith(path.join(homeDir, ".arcforge")), false);
 
@@ -50,6 +58,10 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
     await provider.applyProvisioningPlan({ ...options, expectedPlanDigest: planned.planDigest, confirm: true });
     assert.equal((await provider.listProvisioningRelations({ consumerRoot, stateRoot, sourceRoot })).length, 1);
     await access(path.join(stateRoot, "catalog", "index.json"));
+    const appliedCatalog = JSON.parse(await readFile(path.join(stateRoot, "catalog", "index.json"), "utf8"));
+    assert.equal(appliedCatalog.version, 2);
+    assert.equal(appliedCatalog.entries[0].version, "1.2.0");
+    assert.equal(appliedCatalog.entries[0].sourceClaims[0].sourceCommit, "0123456789abcdef0123456789abcdef01234567");
     await assert.rejects(access(path.join(decoyStateRoot, "projects")));
 
     const removal = await provider.removeManagedProvisioning({ consumerRoot, stateRoot, sourceRoot, managedPaths: [catalogPath] });

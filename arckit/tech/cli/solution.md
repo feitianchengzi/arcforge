@@ -40,7 +40,7 @@ CLI 不提供初始化命令，不提供来源登记命令，也不保留 `apply
 
 `drift` 调用 `driftFromSource`。用户通过 `--from` 指定来源 Skill 项目；未指定时使用当前 `--root`。
 
-`catalog list` 调用 `listCatalogSkills`，只返回已校验 catalog index 中的名称、限定名称、来源 key 和摘要，供已显式触发的 Agent 做语义选择。`catalog resolve --query <name>` 调用 `resolveCatalogSkill`，默认 exact 模式；保留 `--mode search` 作为确定性字段子串过滤，不把它当作语义搜索。Resolve 在返回一个确定条目前校验路径和内容摘要，不执行 skill。
+`catalog list` 调用 `listCatalogSkills`，只返回已校验 catalog index 中唯一逻辑名称、兼容限定名称、版本、状态和摘要，供已显式触发的 Agent 做语义选择。`catalog resolve --query <name>` 调用 `resolveCatalogSkill`，默认 exact 模式；保留 `--mode search` 作为确定性字段子串过滤，不把它当作语义搜索。Resolve 只接受无版本冲突的 `ready` 条目，并在返回前校验扁平 catalog 路径和内容摘要，不执行 skill。
 
 `publish-plan` 调用 `createPublishPlan`，只对当前 `--root` 生成发布就绪清单。
 

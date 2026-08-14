@@ -1,0 +1,37 @@
+metadata:
+  path: tech/_shared/models/CatalogSourceSelection.yaml
+  domain: profiles-sync
+  entity_name: CatalogSourceSelection
+  storage: in_memory
+  owner: core/skill-availability
+  version: 1
+  created: 2026-08-14
+  updated: 2026-08-14
+type: object
+required:
+  - skill
+  - sourceKey
+  - contentDigest
+  - expectedCurrentDigest
+properties:
+  skill:
+    type: string
+    description: Normalized-name catalog skill whose incoming source the caller explicitly selected.
+  sourceKey:
+    type: string
+    description: Fresh plan sourceKey; it identifies provenance and must match the incoming source.
+  contentDigest:
+    type: string
+    description: Digest of the explicitly selected incoming source content.
+  expectedCurrentDigest:
+    type: string
+    description: Catalog digest observed when the caller made the selection.
+validation:
+  selected_incoming_source:
+    description: sourceKey and contentDigest must match the incoming source in the fresh plan.
+  snapshot_binding:
+    description: expectedCurrentDigest must match the freshly loaded logical catalog record or the selection is stale.
+  explicit_only:
+    description: The selection is caller input and is never inferred from source type, path, commit, time, or directory order.
+  one_per_skill:
+    description: A fresh plan accepts at most one selection for each normalized on-demand skill name.

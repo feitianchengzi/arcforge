@@ -17,8 +17,8 @@
 - AppliedSourceRecord.yaml 保存当前项目对来源 Skill 项目配置组的应用关系、来源策略摘要、最终模式和受管理目标历史。
 - AuditReport.yaml 嵌入技能摘要结构，并由 workspace-scan 返回。
 - SkillProjectManifest.yaml 是 Git 跟踪的维护源推荐事实，由 workspace-scan 读取，并由共享流程按所选 skill 归一化交付。
-- SkillProjectApplicabilityAssessment.yaml 是 Agent 或用户提供的项目适用性决定；SkillAvailabilityPlan.yaml 引用它，并由 apply-plan、apply-run 和 availability-aware drift 共用。
-- UserSkillCatalog.yaml 是用户级按需安装索引，由 apply-run 原子更新并由 catalog-resolve 只读解析。
+- SkillProjectApplicabilityAssessment.yaml 是 Agent 或用户提供的项目适用性决定；CatalogSourceSelection.yaml 保存绑定 fresh source 与当前摘要的显式来源选择；CatalogVersionDecision.yaml 保存同名内容的版本比较和选择结果；SkillAvailabilityPlan.yaml 引用这些结果，并由 apply-plan、apply-run 和 availability-aware drift 共用。
+- UserSkillCatalog.yaml 是用户级按需安装索引，以规范化 skill 名聚合来源声明和版本决议，由 apply-run 原子更新并由 catalog-resolve 只读解析。
 - DriftReport.yaml 由 apply-drift、applied drift 和 share-drift 返回，并区分内容漂移和策略漂移，供主进程渲染差异窗口。
 - ApplyProfileResult.yaml 由 apply-run 和 applied run 返回，包含实际应用计划、目标写入、catalog 更新与确认清理结果。
 - PublishPlan.yaml 携带发布事实、归一化维护源清单摘要和可选 Agent readiness assessment，并嵌入 SharePlanResult.yaml；SharePlanResult.yaml 由 share-plan 返回，ShareResult.yaml 由 share-run 返回。
@@ -29,8 +29,8 @@
 ## 契约关系
 
 - workspace-scan 是桌面端大部分页面的数据入口。
-- apply-plan、apply-run 和 apply-drift 复用相同的可用性解析器；from 为空时使用当前工作区，非空时解析为来源 Skill 项目。单一 targetDir 保留为不生成策略历史的兼容直接模式。
-- catalog-resolve 仅在用户显式触发入口后读取用户级 catalog，校验路径和摘要后返回一个确定 skill；它不执行 skill，也不扫描其它目录。
+- apply-plan、apply-run 和 apply-drift 复用相同的可用性解析器；from 为空时使用当前工作区，非空时解析为来源 Skill 项目。显式 CatalogSourceSelection 只有在 fresh sourceKey、传入摘要和当前 catalog 摘要都匹配时解除对应冲突；单一 targetDir 保留为不生成策略历史的兼容直接模式。
+- catalog-resolve 仅在用户显式触发入口后读取用户级 catalog，拒绝版本冲突并校验扁平路径和摘要后返回一个确定 skill；它不执行 skill，也不扫描其它目录。
 - workspace-add-remote 下载或复用远程 Skill 项目并返回本地根目录，桌面端随后直接打开或使用该路径。
 - share-plan 只预检权限并生成包含可发布维护源清单摘要的交付计划；share-run 与 CLI share run 共用共享 core，原子同步所选技能与清单后执行 Git 写入、推送和 Pull Request 创建。
 - system-environment 独立于工作区，用于桌面端环境提示、CLI shim 状态和可选第三方工具检测。

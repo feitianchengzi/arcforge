@@ -14,8 +14,9 @@ import {
   catalogDirectoryDigest,
   catalogQualifiedName,
   loadUserSkillCatalog,
+  readUserSkillCatalogIndex,
+  restoreUserSkillCatalogIndex,
   saveUserSkillCatalog,
-  userSkillCatalogPath
 } from "./skill-catalog.js";
 
 export type AvailabilityApplyFailurePoint = "after-directories" | "after-catalog" | "after-record";
@@ -74,7 +75,7 @@ export async function executeSkillAvailabilityPlan(options: ExecuteSkillAvailabi
   const cleanupPaths = validateCleanupPaths(options.plan, options.cleanupPaths ?? []);
   const skillByPath = new Map(options.source.skills.map((skill) => [toPosixPath(skill.relativePath), skill]));
   const replacements = createReplacements(options.source, options.plan, skillByPath, options.loaderSourcePath);
-  const previousCatalogExists = await pathExists(userSkillCatalogPath({ catalogRoot: options.catalogRoot }));
+  const previousCatalogRaw = await readUserSkillCatalogIndex({ catalogRoot: options.catalogRoot });
   const previousCatalog = await loadUserSkillCatalog({ catalogRoot: options.catalogRoot });
   const nextEntries = createCatalogEntries(options, previousCatalog.entries, cleanupPaths, skillByPath);
   const retainedCatalogPaths = new Set(nextEntries.map((entry) => path.resolve(entry.installedPath)));
@@ -127,16 +128,8 @@ export async function executeSkillAvailabilityPlan(options: ExecuteSkillAvailabi
       await options.rollbackRecord().catch((rollbackError) => rollbackErrors.push(rollbackError));
     }
     if (catalogChanged) {
-      if (previousCatalogExists) {
-        await saveUserSkillCatalog(previousCatalog.entries, {
-          catalogRoot: options.catalogRoot,
-          now: new Date(previousCatalog.updatedAt)
-        }).catch((rollbackError) => rollbackErrors.push(rollbackError));
-      } else {
-        await fs.unlink(userSkillCatalogPath({ catalogRoot: options.catalogRoot })).catch((rollbackError) => {
-          if (!isNodeError(rollbackError, "ENOENT")) rollbackErrors.push(rollbackError);
-        });
-      }
+      await restoreUserSkillCatalogIndex(previousCatalogRaw, { catalogRoot: options.catalogRoot })
+        .catch((rollbackError) => rollbackErrors.push(rollbackError));
     }
     await rollbackCleanups(cleanups).catch((rollbackError) => rollbackErrors.push(rollbackError));
     await rollbackReplacements(replacements).catch((rollbackError) => rollbackErrors.push(rollbackError));
@@ -279,9 +272,9 @@ function createCatalogEntries(
   const recordId = options.recordCandidate?.id;
   const confirmedCleanup = new Set(cleanupPaths.map((item) => path.resolve(item)));
   const entries = previousEntries
-    .map((entry) => recordId ? { ...entry, appliedRecordIds: entry.appliedRecordIds.filter((id) => id !== recordId) } : entry)
+    .map((entry) => recordId ? removeCatalogRecordClaim(entry, recordId) : entry)
     .filter((entry) => entry.appliedRecordIds.length > 0 || !confirmedCleanup.has(path.resolve(entry.installedPath)));
-  const bySourcePath = new Map(entries.map((entry) => [`${entry.sourceKey}\u0000${entry.skillPath}`, entry]));
+  const byName = new Map(entries.map((entry) => [normalizeCatalogName(entry.skillName), entry]));
   const manifestByPath = new Map(options.source.sourceManifest?.availability.skills.map((item) => [item.path, item]) ?? []);
   const now = (options.now ?? new Date()).toISOString();
 
@@ -289,26 +282,67 @@ function createCatalogEntries(
     const destination = item.destinations.find((candidate) => candidate.kind === "user-catalog");
     const skill = skillByPath.get(item.sourcePath);
     if (!destination || !skill) throw new AvailabilityApplyError("APPLY_PLAN_INVALID", `On-demand catalog destination is incomplete: ${item.skill}`);
-    const key = `${options.plan.sourceKey}\u0000${item.sourcePath}`;
-    const existing = bySourcePath.get(key);
-    const appliedRecordIds = [...new Set([...(existing?.appliedRecordIds ?? []), ...(recordId ? [recordId] : [])])].sort();
-    bySourcePath.set(key, {
-      qualifiedName: catalogQualifiedName(options.plan.sourceKey, item.skill),
+    const decision = item.catalogDecision;
+    if (!decision || decision.action === "conflict" || decision.action === "downgrade-blocked") {
+      throw new AvailabilityApplyError("APPLY_PLAN_INVALID", `On-demand catalog decision is not executable: ${item.skill}`);
+    }
+    const key = normalizeCatalogName(item.skill);
+    const existing = byName.get(key);
+    const existingClaim = existing?.sourceClaims.find((claim) => claim.sourceKey === options.plan.sourceKey && claim.skillPath === item.sourcePath);
+    const claimRecordIds = [...new Set([...(existingClaim?.appliedRecordIds ?? []), ...(recordId ? [recordId] : [])])].sort();
+    const sourceClaim = {
       sourceKey: options.plan.sourceKey,
-      skillName: item.skill,
-      aliases: manifestByPath.get(item.sourcePath)?.aliases,
-      summary: skill.description || undefined,
       sourceRoot: path.resolve(options.source.root),
-      sourceRemoteUrl: options.recordCandidate?.sourceRemoteUrl,
-      sourceCommit: options.recordCandidate?.sourceCommit,
+      sourceRemoteUrl: options.plan.sourceProvenance?.sourceRemoteUrl ?? options.recordCandidate?.sourceRemoteUrl,
+      sourceCommit: options.plan.sourceProvenance?.sourceCommit ?? options.recordCandidate?.sourceCommit,
       skillPath: item.sourcePath,
-      installedPath: path.resolve(destination.path),
+      version: item.version,
       contentDigest: item.contentDigest,
+      appliedRecordIds: claimRecordIds,
+      observedAt: now
+    };
+    const sourceClaims = [
+      ...(existing?.sourceClaims.filter((claim) => !(claim.sourceKey === sourceClaim.sourceKey && claim.skillPath === sourceClaim.skillPath)) ?? []),
+      sourceClaim
+    ];
+    const incomingBecomesActive = !existing || decision.action === "install" || decision.action === "upgrade" || decision.action === "source-selected";
+    const activeSourceKey = incomingBecomesActive ? options.plan.sourceKey : existing.activeSourceKey;
+    const activeClaim = incomingBecomesActive
+      ? sourceClaim
+      : sourceClaims.find((claim) => claim.sourceKey === activeSourceKey && claim.contentDigest === existing?.contentDigest) ?? sourceClaim;
+    const appliedRecordIds = [...new Set(sourceClaims.flatMap((claim) => claim.appliedRecordIds))].sort();
+    byName.set(key, {
+      qualifiedName: catalogQualifiedName(item.skill),
+      skillName: item.skill,
+      version: activeClaim.version,
+      status: "ready",
+      activeSourceKey,
+      aliases: [...new Set([...(existing?.aliases ?? []), ...(manifestByPath.get(item.sourcePath)?.aliases ?? [])])].sort(),
+      summary: incomingBecomesActive ? skill.description || undefined : existing?.summary,
+      installedPath: path.resolve(destination.path),
+      contentDigest: incomingBecomesActive ? item.contentDigest : existing?.contentDigest ?? item.contentDigest,
+      sourceClaims,
       appliedRecordIds,
-      installedAt: now
+      installedAt: incomingBecomesActive ? now : existing?.installedAt ?? now
     });
   }
-  return [...bySourcePath.values()].sort((left, right) => left.qualifiedName.localeCompare(right.qualifiedName));
+  return [...byName.values()].sort((left, right) => left.qualifiedName.localeCompare(right.qualifiedName));
+}
+
+function removeCatalogRecordClaim(entry: UserSkillCatalogEntry, recordId: string): UserSkillCatalogEntry {
+  const sourceClaims = entry.sourceClaims.map((claim) => ({
+    ...claim,
+    appliedRecordIds: claim.appliedRecordIds.filter((id) => id !== recordId)
+  }));
+  return {
+    ...entry,
+    sourceClaims,
+    appliedRecordIds: [...new Set(sourceClaims.flatMap((claim) => claim.appliedRecordIds))].sort()
+  };
+}
+
+function normalizeCatalogName(value: string): string {
+  return value.trim().toLowerCase();
 }
 
 function validateCleanupPaths(plan: SkillAvailabilityPlan, requested: string[]): string[] {

@@ -72,7 +72,7 @@
         </details>
 
         <details>
-            <summary>审查三类 Skill 可用性计划</summary>
+            <summary>审查可用性计划与单一 Catalog 候选</summary>
             <div class="state-content">
                 <div class="state-description"><strong>触发条件：</strong>标准 Agent 目标已有漂移报告，用户点击审查应用计划。</div>
                 <div class="wireframe-canvas">
@@ -81,15 +81,38 @@
                             <div class="modal-content" data-label="Application plan" data-kit="ConfirmationDialog">
                                 <div class="card"><div class="card-title">review-code <span class="badge active">User · ambient</span></div><div>Source: User · ambient · Policy: source recommendation</div><div class="list-item-subtitle">~/.codex/skills/review-code</div></div>
                                 <div class="card"><div class="card-title">project-release <span class="badge active">Project · ambient</span></div><div>Source: Project · ambient · Policy: profile override</div><div class="list-item-subtitle">customer-app/.claude/skills/project-release</div><div class="placeholder-box">Applicability: workflow present · evidence bound to customer-app</div></div>
-                                <div class="card"><div class="card-title">rare-audit <span class="badge active">User · on demand</span></div><div>Source: User · on demand · Policy: source recommendation</div><div class="list-item-subtitle">~/.arcforge/catalog/source-key/rare-audit</div></div>
+                                <div class="card"><div class="card-title">rare-audit <span class="badge active">User · on demand</span></div><div>Catalog: ready · Version: 1.3.0 · Decision: upgrade 1.2.0 → 1.3.0</div><div class="list-item-subtitle">~/.arcforge/catalog/rare-audit · 2 source claims merged</div></div>
                                 <div class="group-box"><div class="group-box-title">On-demand entry skill</div><div>Codex: ~/.codex/skills/arcforge-on-demand</div></div>
                                 <div class="button primary">Confirm application</div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="component-list"><h3>组件清单</h3><ul><li>ConfirmationDialog</li><li>PlanPreview</li><li>mode badge</li><li>policy origin</li><li>applicability evidence</li><li>resolved paths</li><li>loader targets</li></ul></div>
-                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">每个 skill 同时展示来源推荐、最终模式、策略来源与实际目录；项目级项展示绑定当前项目根的 assessment，按需入口与 catalog 目录分开展示。</div></div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>ConfirmationDialog</li><li>PlanPreview</li><li>VersionDecision</li><li>mode badge</li><li>policy origin</li><li>applicability evidence</li><li>resolved paths</li><li>loader targets</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">每个 skill 展示来源推荐、最终模式、策略来源与实际目录；同名同内容合并来源声明，有效 SemVer 的高版本升级到唯一平铺 catalog 路径。</div></div>
+            </div>
+        </details>
+
+        <details>
+            <summary>Catalog 冲突与降级阻断</summary>
+            <div class="state-content">
+                <div class="state-description"><strong>触发条件：</strong>同名来源内容不同且版本不能唯一判定新旧，或传入版本低于当前版本。</div>
+                <div class="wireframe-canvas">
+                    <div class="device-frame desktop">
+                        <div class="modal-overlay">
+                            <div class="modal-content" data-label="Catalog source conflict" data-kit="ConfirmationDialog">
+                                <div class="group-box"><div class="group-box-title">arckit-git-branching · catalog conflict</div><div>Same logical name, different content. Loading and application are disabled.</div></div>
+                                <div class="list-item"><span class="badge active">Current 1.4.0</span><div class="list-item-text"><div class="list-item-title">Direct source · digest a0a…</div><div class="list-item-subtitle">Commit 35ce765 · ~/.arcforge/catalog/arckit-git-branching</div></div><div class="toggle-track"></div></div>
+                                <div class="list-item"><span class="badge active">Incoming unknown</span><div class="list-item-text"><div class="list-item-title">Provider source · digest 9c95…</div><div class="list-item-subtitle">Version cannot establish newest; sourceKey retained only as evidence.</div></div><div class="toggle-track"></div></div>
+                                <div class="placeholder-box">Choose one source, then regenerate the plan. A lower version cannot replace the current version through ordinary confirmation.</div>
+                                <div class="button">Cancel and keep current</div>
+                                <div class="button primary">Regenerate with selected source</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="component-list"><h3>组件清单</h3><ul><li>ConflictList</li><li>version badge</li><li>content digest</li><li>source evidence</li><li>SourceChoice</li><li>DisabledAction</li></ul></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">冲突未选择时 Agent、CLI 与 Desktop 均 fail closed；选择绑定当前快照并触发重新计划，不能把低版本或未知版本自动称为最新。</div></div>
             </div>
         </details>
 
@@ -121,13 +144,14 @@
         <details>
             <summary>确认旧路径清理与关系保存</summary>
             <div class="state-content">
-                <div class="state-description"><strong>触发条件：</strong>模式或来源身份变化使旧 managed 目标进入 cleanup 候选。</div>
+                <div class="state-description"><strong>触发条件：</strong>模式或来源身份变化使旧 managed 目标，或旧 sourceKey 分层 catalog 目录进入 cleanup 候选。</div>
                 <div class="wireframe-canvas">
                     <div class="device-frame desktop">
                         <div class="modal-overlay">
                             <div class="modal-content" data-label="Cleanup confirmation" data-kit="ConfirmationDialog">
                                 <div class="section-header">Stale managed destinations</div>
                                 <div class="toggle-row"><span>rare-audit · ~/.codex/skills/rare-audit</span><div class="toggle-track"></div></div>
+                                <div class="toggle-row"><span>arckit-git-branching · ~/.arcforge/catalog/e3a18…/arckit-git-branching</span><div class="toggle-track"></div></div>
                                 <div class="toggle-row"><span>Save application relationship</span><div class="toggle-track on"></div></div>
                                 <div class="placeholder-box">Select every stale path before saving the updated relationship, or turn relationship saving off.</div>
                                 <div class="button">Cancel</div>
@@ -137,7 +161,7 @@
                     </div>
                 </div>
                 <div class="component-list"><h3>组件清单</h3><ul><li>cleanup checklist</li><li>relationship toggle</li><li>field hint</li><li>ConfirmationDialog</li></ul></div>
-                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">保存关系要求全部 cleanup 候选获得确认；关闭关系保存时只处理明确选择的路径。</div></div>
+                <div class="interactions"><h3>交互行为</h3><div class="interaction-item">新平铺目录的写入与旧 sourceKey 目录删除分开确认；保存关系要求全部 cleanup 候选获得确认，关闭关系保存时只处理明确选择的路径。</div></div>
             </div>
         </details>
 

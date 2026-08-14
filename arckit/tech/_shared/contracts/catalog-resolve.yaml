@@ -2,7 +2,7 @@ metadata:
   path: tech/_shared/contracts/catalog-resolve.yaml
   domain: profiles-sync
   owner: core/skill-catalog
-  version: 2
+  version: 3
   created: 2026-07-30
   updated: 2026-08-14
 endpoints:
@@ -13,7 +13,7 @@ endpoints:
   method_names:
     - listCatalogSkills
     - resolveCatalogSkill
-  summary: Expose minimal local candidates for Agent semantic selection, then deterministically resolve one selected user-level on-demand skill.
+  summary: Expose one versioned logical candidate per skill name for Agent semantic selection, then deterministically resolve one conflict-free user-level on-demand skill.
   auth_required: false
 requests:
   list:
@@ -45,7 +45,7 @@ responses:
             - empty
         candidates:
           type: array
-          description: Sorted minimal skillName, qualifiedName, sourceKey, and summary metadata for Agent semantic selection.
+          description: Sorted minimal skillName, qualifiedName, version, status, and summary metadata for Agent semantic selection.
           items:
             type: object
   success:
@@ -67,7 +67,7 @@ responses:
           description: Validated UserSkillCatalog entry returned only for resolved status.
         candidates:
           type: array
-          description: Minimal name, qualifiedName, sourceKey, and summary fields; full SKILL.md content is never returned for candidate listing.
+          description: Minimal name, qualifiedName, version, status, and summary fields; full SKILL.md content is never returned for candidate listing.
           items:
             type: object
   errors:
@@ -77,13 +77,18 @@ responses:
       message: The selected installed path escapes its declared source catalog root.
     - code: CATALOG_CONTENT_DRIFT
       message: The selected installed skill digest differs from the catalog entry.
+    - code: CATALOG_VERSION_CONFLICT
+      message: The logical skill has differing same-name content that cannot be resolved by trustworthy Semantic Version metadata.
 business_logic:
   flow:
     - Read only ~/.arcforge/catalog/index.json and never scan arbitrary filesystem roots.
     - List validates the catalog index and returns sorted minimal metadata without sourceRoot, installedPath, contentDigest, or SKILL.md content.
+    - Catalog identity is normalized skillName; sourceKey remains provenance and never creates a second candidate or directory for the same logical skill.
+    - Equal same-name content merges provenance; differing content selects a higher valid Semantic Version, blocks downgrade, and marks equal-version or unknown-version differences as conflict.
     - The explicitly invoked Agent compares the complete user intent with candidate metadata; core does not generate keywords, scores, rankings, or semantic conclusions.
     - An arbitrary task prompt is never passed to resolve as a literal query; after semantic selection the Agent resolves the selected qualifiedName in exact mode.
-    - Exact mode matches qualifiedName, skillName, or alias; ambiguous unqualified matches return candidates without choosing by directory order.
+    - Exact mode matches qualifiedName, skillName, a compatible legacy qualified name, or alias; ambiguous aliases across different logical skills return candidates without choosing by directory order.
     - Search mode remains a deterministic normalized substring filter over name, alias, and summary fields and is not semantic selection.
-    - Resolve installedPath realpath, enforce catalog-root containment, and verify contentDigest.
+    - Resolve only ready entries, require installedPath realpath to equal ~/.arcforge/catalog/<skillName>/, and verify contentDigest.
+    - Conflict entries fail closed with CATALOG_VERSION_CONFLICT and retain provenance for an explicit governance decision.
     - Return one validated entry or a non-resolved status; never execute the selected skill.

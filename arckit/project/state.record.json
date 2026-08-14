@@ -5,8 +5,8 @@
     "status": "active",
     "intent": "Local-first, GitHub-first governance workspace for AI agent skills",
     "created_at": "2026-07-30T08:50:08.647Z",
-    "updated_at": "2026-08-14T06:47:16.799Z",
-    "revision": 1
+    "updated_at": "2026-08-14T12:36:22.011Z",
+    "revision": 3
   },
   "advancement": {
     "active_iteration_ref": "",
@@ -15,7 +15,7 @@
     ],
     "project_gaps": [],
     "selection_context": {
-      "current_focus": "Correct arcforge-on-demand so an arbitrary user action prompt is semantically matched to the most suitable validated on-demand skill instead of being treated as a literal catalog query.",
+      "current_focus": "Analyze why ArcForge catalog exposes two arckit-git-branching entries from different installation paths, then optimize catalog storage and identity so one logical skill is shown while version evidence helps select the newest differing copy.",
       "project_priorities": []
     }
   },

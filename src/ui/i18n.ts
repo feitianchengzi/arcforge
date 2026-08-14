@@ -255,6 +255,12 @@ export interface Dictionary {
   availabilityPolicyOrigin: (origin: string) => string;
   sourceRecommendation: string;
   noSourceRecommendation: string;
+  catalogDecision: string;
+  catalogDecisionAction: (action: string) => string;
+  catalogVersionPair: (current: string, incoming: string) => string;
+  catalogSourceEvidence: (sourceKey: string, digest: string, commit: string) => string;
+  explicitCatalogSourceSelection: string;
+  explicitCatalogSourceSelectionHelp: string;
   noAvailabilityDestinations: string;
   projectApplicability: string;
   applicabilityEvidenceGuidance: string;
@@ -594,6 +600,12 @@ export const dictionaries: Record<Language, Dictionary> = {
     availabilityPolicyOrigin: (origin: string) => ({ invocation: "This operation", "profile-skill": "Profile override", "profile-default": "Profile default", "source-skill": "Source recommendation", "source-default": "Source default", unclassified: "Unclassified" }[origin] ?? origin),
     sourceRecommendation: "Source recommendation",
     noSourceRecommendation: "Not classified by source",
+    catalogDecision: "Catalog decision",
+    catalogDecisionAction: (action: string) => ({ install: "Install", "merge-provenance": "Merge provenance", upgrade: "Upgrade", "source-selected": "Explicit source selected", "downgrade-blocked": "Downgrade blocked", conflict: "Conflict" }[action] ?? action),
+    catalogVersionPair: (current: string, incoming: string) => `Current ${current} → incoming ${incoming}`,
+    catalogSourceEvidence: (sourceKey: string, digest: string, commit: string) => `Source ${sourceKey} · digest ${digest} · commit ${commit}`,
+    explicitCatalogSourceSelection: "Use this incoming source",
+    explicitCatalogSourceSelectionHelp: "Binds your choice to the current catalog digest; a fresh apply rejects it if the source or catalog changed.",
     noAvailabilityDestinations: "No destination resolved.",
     projectApplicability: "Source-maintained applicability guidance",
     applicabilityEvidenceGuidance: "Evidence guidance",
@@ -931,6 +943,12 @@ export const dictionaries: Record<Language, Dictionary> = {
     availabilityPolicyOrigin: (origin: string) => ({ invocation: "本次操作", "profile-skill": "配置组逐项覆盖", "profile-default": "配置组默认", "source-skill": "来源逐项推荐", "source-default": "来源默认", unclassified: "未分类" }[origin] ?? origin),
     sourceRecommendation: "来源推荐",
     noSourceRecommendation: "来源未分类",
+    catalogDecision: "Catalog 决策",
+    catalogDecisionAction: (action: string) => ({ install: "新增", "merge-provenance": "合并来源声明", upgrade: "升级", "source-selected": "已显式选择来源", "downgrade-blocked": "已阻止降级", conflict: "冲突" }[action] ?? action),
+    catalogVersionPair: (current: string, incoming: string) => `当前 ${current} → 传入 ${incoming}`,
+    catalogSourceEvidence: (sourceKey: string, digest: string, commit: string) => `来源 ${sourceKey} · 摘要 ${digest} · 提交 ${commit}`,
+    explicitCatalogSourceSelection: "显式使用这个传入来源",
+    explicitCatalogSourceSelectionHelp: "选择会绑定当前 catalog 摘要；重新应用时如果来源或 catalog 已变化，系统会拒绝旧选择。",
     noAvailabilityDestinations: "未解析出目标位置。",
     projectApplicability: "维护源提供的适用性说明",
     applicabilityEvidenceGuidance: "证据指引",

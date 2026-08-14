@@ -59,9 +59,26 @@
 
 `sourceIdentity` 优先使用规范化 Git remote canonical key 和工作区相对 Git 根目录的子路径。没有 Git identity 时使用本地 realpath。
 
-`sourceKey` 是 `sourceIdentity` 的 SHA-256 前 24 个十六进制字符。它只用于本机路径隔离和限定名称，不建立公共命名空间，也不替代 Git remote 作为来源事实。
+`sourceKey` 是 `sourceIdentity` 的 SHA-256 前 24 个十六进制字符。它只用于 provenance、应用关系和来源完整性，不建立公共命名空间，不参与 catalog 逻辑身份或目录层级，也不替代 Git remote 作为来源事实。
 
-来源身份变化会产生新的 `sourceKey`。应用计划把旧 sourceKey 管理的目标列为需确认的 cleanup，不静默合并两个身份。
+来源身份变化会产生新的 `sourceKey`，但同名 skill 仍映射到同一个用户级 catalog 逻辑身份。应用计划保留所有来源声明；来源身份变化本身不创建第二个活动副本，也不证明哪个内容更新。
+
+App 或 provider 传入的 payload provenance 可以携带规范化上游 remote、source commit 和 payload version。该 provenance 进入来源声明和版本判断证据；解包目录 realpath 只在没有上游身份时作为来源标识，不把临时或 App 管理路径提升为新的 skill 逻辑身份。
+
+## Skill 逻辑身份与版本
+
+Catalog 逻辑身份是规范化后的 `SkillSummary.name`。规范化使用去除首尾空白后的大小写不敏感比较，安装目录使用已校验的规范名称；同一 catalog 不允许两个不同活动条目共享该身份。
+
+`SkillSummary.version` 来自 `SKILL.md` frontmatter 的 `version`。合法版本使用 Semantic Versioning，并在 availability plan、catalog 来源声明、候选投影和漂移结果中原样携带。版本不从 `installedAt`、文件 mtime、source commit、sourceKey 或路径推导；source commit 只作为 provenance，不提供跨分支的全序关系。
+
+同名输入按以下规则得到一个 catalog 决议：
+
+- 内容摘要相同：合并来源声明和应用关系，活动内容不重复复制。
+- 内容摘要不同且两侧版本合法且不相等：选择较高版本；低版本输入记录为 `downgrade-blocked`，不能覆盖活动副本。
+- 内容摘要不同且版本相同：记录 `same-version-content-conflict`。
+- 内容摘要不同且任一侧没有合法版本：记录 `version-unknown-conflict`。
+
+冲突保留一个逻辑 catalog record 和全部来源声明，状态为 `conflict`。Resolver 对冲突 fail closed。Agent 或用户通过 `CatalogSourceSelection` 显式选择当前计划的传入来源；选择携带 skill、传入 sourceKey、传入内容摘要和选择时观察到的当前 catalog 摘要。Fresh plan 只有在四项证据仍匹配时产生 `source-selected`，否则返回 stale selection 阻断；Core 不用安装时间、目录顺序或来源类型自动裁决。
 
 ## 可用性应用计划
 
@@ -77,7 +94,7 @@
 
 - `user-ambient`：每个选中 agent 的用户级原生 skill 目录。
 - `project-ambient`：每个选中 agent 与每个项目根目录组成的项目级原生 skill 目录。
-- `user-on-demand`：`~/.arcforge/catalog/<sourceKey>/<skill-name>/`。
+- `user-on-demand`：`~/.arcforge/catalog/<skill-name>/`。
 
 未分类、`project-ambient` 没有项目目标、常驻模式没有 agent target、同一来源出现重复 skill 名、别名无法唯一解析、项目适用性未通过或清单含 error 时，计划包含阻塞诊断。包含 error 的计划不能执行。
 
@@ -123,13 +140,15 @@ Availability-aware apply 把共享资产复制到计划中去重后的 ambient �
 
 ## 用户级按需 Catalog
 
-Catalog 索引固定为 `~/.arcforge/catalog/index.json`，skill 副本位于 `~/.arcforge/catalog/<sourceKey>/<skill-name>/`。
+Catalog 索引固定为 `~/.arcforge/catalog/index.json`，skill 活动副本位于 `~/.arcforge/catalog/<skill-name>/`。
 
-`UserSkillCatalog` 条目以 `sourceKey + skillPath` 唯一，限定名称由 `sourceKey` 和 skill 名组成。条目保存来源根、可选 remote/commit、源内路径、安装路径、内容摘要、别名、简短描述和管理它的应用关系 ID。
+`UserSkillCatalog` v2 条目以规范化 skill 名唯一。`qualifiedName` 保留为兼容字段并等于稳定 catalog 名称，不再编码 sourceKey。条目保存活动版本、活动来源 key、状态、安装路径、内容摘要、别名、简短描述、聚合应用关系 ID 和全部来源声明；每个来源声明保存 sourceKey、来源根、可选 remote/commit、源内路径、版本、内容摘要和自己的应用关系 ID。
 
-同一来源 skill 被多个 profile 使用时共享一个物理副本，并合并 `appliedRecordIds`。只有最后一个应用关系移除且 cleanup 明确确认后才能删除条目和目录。
+同名同内容 skill 被多个来源或 profile 使用时共享一个物理副本，并合并 provenance 与 `appliedRecordIds`。只有最后一个应用关系移除且 cleanup 明确确认后才能删除条目和目录。较低版本来源关系仍保留 provenance，但 reapply 不得使活动副本降级。
 
 目录复制和 index 更新组成一个可回滚提交：先准备同级临时目录，校验内容摘要，再替换 skill 目录并原子替换 index。任一步失败时恢复旧目录和旧索引。
+
+读取 v1 index 时，迁移器按规范化 skill 名聚合条目。摘要相同的条目直接合并；摘要不同的条目使用显式版本规则。无法自动选择时保留现有目录作为 cleanup evidence，写入单一 `conflict` record 并停止 resolver 加载，不静默删除或按 `installedAt` 选择。只要来源声明对应的旧 `<sourceKey>/<skill-name>` 路径仍存在，v1 或 v2 index 的后续计划都会继续把它作为 cleanup candidate；它只通过已确认 cleanup 移除。
 
 ## 按需入口与解析
 
@@ -137,11 +156,11 @@ ArcForge 分发一个固定名称的用户级入口 skill。Availability plan �
 
 计划读取固定入口的来源摘要和现有目标，将 loader target 标记为 `missing`、`same`、`managed-update` 或 `conflict`。缺失目标可以新增；内容完全一致的目标可以复用；只有同一用户目录、同一 agent 的已保存 on-demand 应用关系才能证明内容不同的旧入口归 ArcForge 管理并允许升级。其它同名目标产生 `ON_DEMAND_LOADER_CONFLICT` 阻断诊断，ArcForge 不替换未知内容。执行在提交任何目录前再次校验目标仍与计划时的缺失状态或内容摘要一致，避免计划后被替换的入口遭到覆盖。
 
-入口只在用户显式调用后读取 catalog。用户明确给出限定名称、skill 名或别名时，入口直接执行 `arcforge catalog resolve`。用户给出任意任务意图时，入口先执行 `arcforge catalog list`，只获取 name、qualifiedName、sourceKey 和 summary；当前 Agent 根据完整意图做语义适配，选中一个 `qualifiedName` 后再 exact resolve。
+入口只在用户显式调用后读取 catalog。用户明确给出 catalog 名称、兼容限定名称、skill 名或别名时，入口直接执行 `arcforge catalog resolve`。用户给出任意任务意图时，入口先执行 `arcforge catalog list`，只获取 name、qualifiedName、version、status 和 summary；当前 Agent 根据完整意图做语义适配，选中一个 `qualifiedName` 后再 exact resolve。
 
-Core 不根据任务 prompt 生成关键词、分数或排名，也不把 search 子串匹配伪装成语义选择。`catalog-resolve` exact 模式按限定名称、skill 名和别名匹配；未限定名称存在多个来源时返回 ambiguous，不按目录顺序选择。Search 模式只保留为对 name、alias 和 summary 的确定性子串过滤。
+Core 不根据任务 prompt 生成关键词、分数或排名，也不把 search 子串匹配伪装成语义选择。`catalog-resolve` exact 模式按 catalog 名称、skill 名、兼容限定名称和别名匹配；不同逻辑 skill 的别名冲突返回 ambiguous。同名来源差异由 catalog 决议处理，不作为多个候选返回。Search 模式只保留为对 name、alias 和 summary 的确定性子串过滤。
 
-List 和 Resolver 只读取 catalog index，不扫描任意目录。List 严格校验 index 结构并返回排序稳定的最小候选，不暴露 sourceRoot、installedPath、contentDigest 或完整 `SKILL.md`。Resolver 返回 resolved 前校验 installedPath realpath 位于声明的 sourceKey 目录内，并重新计算内容摘要。路径逃逸、索引损坏或内容摘要不一致时停止，不把目标 `SKILL.md` 返回给入口。
+List 和 Resolver 只读取 catalog index，不扫描任意目录。List 严格校验 index 结构并返回排序稳定的最小候选，不暴露 sourceRoot、installedPath、contentDigest 或完整 `SKILL.md`。Resolver 只接受 `ready` 条目；返回 resolved 前校验 installedPath realpath 等于 catalog 根内预期的 `<skill-name>` 目录，并重新计算内容摘要。冲突、路径逃逸、索引损坏或内容摘要不一致时停止，不把目标 `SKILL.md` 返回给入口。
 
 Resolver 不执行 skill。入口拿到唯一且已校验的路径后读取 `SKILL.md` 和其明确引用，当前 agent 继续执行并沿用原有权限边界。
 
