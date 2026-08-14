@@ -210,6 +210,20 @@ npm run package
 
 发布包内置同一套 CLI 引擎。应用启动后会安装用户级 `arcforge` shim，并提示 shim 是否已经在 PATH 中可用。
 
+## Governed packages and embedded provider
+
+`.github/workflows/package.yml` is the only governed remote packaging entry. It is manually dispatched with an existing immutable release-intent tag and an explicit artifact selection. Accepted tags are `tf/vx.x.x-bN`, `beta/vx.x.x-rcN`, and `appstore/vx.x.x`; the workflow validates the tag commit, product version, active `release/*` baseline, and higher release lines before any build starts. It never creates or moves a tag. Publishing is also explicit and can only create or update a draft release for that existing tag.
+
+The `provider` target produces an immutable `arcforge-provider-<semver>.tgz` together with `arcforge-provider.manifest.json` and `checksums.txt`. Its `arcforge-embedded-provider/v1` ESM entrypoint exposes plan, drift, apply, relation inspection, and confirmed managed removal for hosts such as Arckit Runtime. Embedded calls pass absolute `stateRoot` and `homeDir` values; they do not mutate `ARCFORGE_HOME`. The archive bundles the on-demand loader and the exact core/shared modules used by the provider.
+
+For local provider verification only:
+
+```bash
+npm run package:provider
+```
+
+Local packaging is not a substitute for a governed release artifact; Runtime distribution locks must reference the exact release tag and SHA-256 from the remote provider artifact.
+
 ## CLI
 
 CLI 是 ArcForge 的可复现执行层，主要给 agent、CI 和调试场景使用。

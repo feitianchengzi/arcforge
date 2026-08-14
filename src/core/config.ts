@@ -19,9 +19,9 @@ export async function loadConfig(root: string): Promise<ArcForgeConfig> {
   return mergeConfig(fallback, localState?.config);
 }
 
-export async function loadConfigReadOnly(root: string): Promise<ArcForgeConfig> {
+export async function loadConfigReadOnly(root: string, stateRoot?: string): Promise<ArcForgeConfig> {
   const fallback = await defaultConfigForRoot(root);
-  const localState = await loadLocalProjectState(root);
+  const localState = await loadLocalProjectState(root, { stateRoot });
   if (localState?.config) return mergeConfig(fallback, localState.config);
   const repositoryConfigPath = configPath(root);
   if (!(await pathExists(repositoryConfigPath))) return fallback;

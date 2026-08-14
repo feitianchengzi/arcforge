@@ -520,11 +520,17 @@ test("release workflow publishes cli-only install assets", async () => {
   const pkgText = await readFile(new URL("../package.json", import.meta.url), "utf8");
 
   assert.match(pkgText, /"build:cli"/);
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /\n\s+push:/);
+  assert.match(workflow, /"os":"macos-15","script":"package:mac:arm64"/);
+  assert.match(workflow, /macos-15-intel/);
   assert.match(workflow, /CLI package/);
   assert.match(workflow, /darwin-x64 darwin-arm64 linux-x64/);
   assert.match(workflow, /arcforge-cli-\$\{target\}\.tar\.gz/);
   assert.match(workflow, /arcforge-cli-win-x64\.zip/);
   assert.match(workflow, /checksums\.txt/);
+  assert.match(workflow, /--verify-tag/);
+  assert.doesNotMatch(workflow, /git tag|git push/);
   assert.match(buildScript, /install\.sh/);
   assert.match(buildScript, /install\.ps1/);
   assert.match(buildScript, /while \[ -h "\$PRG" \]/);

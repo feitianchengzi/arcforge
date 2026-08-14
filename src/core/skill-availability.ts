@@ -38,6 +38,7 @@ export interface CreateSkillAvailabilityPlanOptions {
   projectAssessments?: SkillProjectApplicabilityAssessment[];
   appliedRecords?: AppliedSourceRecord[];
   homeDir?: string;
+  catalogRoot?: string;
   loaderSourcePath?: string;
 }
 
@@ -161,7 +162,7 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
     if (!skill) throw new Error(`Resolved availability item has no source skill: ${item.skill}`);
     return {
       ...item,
-      destinations: availabilityDestinations(item.effectiveMode, item.skill, sourceKey, homeDir, agentTargetIds, projectRoots),
+      destinations: availabilityDestinations(item.effectiveMode, item.skill, sourceKey, homeDir, agentTargetIds, projectRoots, options.catalogRoot),
       contentDigest: await directoryDigest(skill.path)
     };
   }));
@@ -359,12 +360,13 @@ function availabilityDestinations(
   sourceKey: string,
   homeDir: string,
   agentTargetIds: string[],
-  projectRoots: string[]
+  projectRoots: string[],
+  catalogRoot?: string
 ): SkillAvailabilityDestination[] {
   if (!mode) return [];
   if (!isSafePathSegment(skillName)) return [];
   if (mode === "user-on-demand") {
-    return [{ kind: "user-catalog", path: path.join(homeDir, ".arcforge", "catalog", sourceKey, skillName) }];
+    return [{ kind: "user-catalog", path: path.join(path.resolve(catalogRoot ?? path.join(homeDir, ".arcforge", "catalog")), sourceKey, skillName) }];
   }
   if (mode === "user-ambient") {
     return agentTargetIds.map((agentId) => ({

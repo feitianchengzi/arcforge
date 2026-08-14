@@ -1,4 +1,4 @@
 {
   "extends": "./tsconfig.node.json",
-  "include": ["src/core", "src/commands", "src/cli", "src/shared"]
+  "include": ["src/core", "src/commands", "src/cli", "src/provider", "src/shared"]
 }

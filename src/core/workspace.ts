@@ -1,5 +1,5 @@
 import { auditWorkspace, type AuditWorkspaceOptions } from "./audit.js";
-import { loadConfig } from "./config.js";
+import { loadConfig, loadConfigReadOnly } from "./config.js";
 import { discoverSharedAssets, discoverSkills } from "./skills.js";
 import type { WorkspaceSnapshot } from "../shared/types.js";
 import { promises as fs } from "node:fs";
@@ -9,6 +9,8 @@ import { loadSkillProjectManifest, validateSkillProjectManifestSkills } from "./
 export interface ScanWorkspaceOptions {
   sourceDir?: string;
   audit?: AuditWorkspaceOptions;
+  stateRoot?: string;
+  readOnlyConfig?: boolean;
 }
 
 export async function scanWorkspace(root: string, options: ScanWorkspaceOptions = {}): Promise<WorkspaceSnapshot> {
@@ -16,7 +18,10 @@ export async function scanWorkspace(root: string, options: ScanWorkspaceOptions 
   if (!stats.isDirectory()) throw new Error("Workspace root is not a directory.");
   const sourceManifestResult = await loadSkillProjectManifest(root);
   const config = withSourceDirOverride(
-    withManifestSourceDir(await loadConfig(root), sourceManifestResult.manifest?.sourceDir),
+    withManifestSourceDir(
+      options.readOnlyConfig ? await loadConfigReadOnly(root, options.stateRoot) : await loadConfig(root),
+      sourceManifestResult.manifest?.sourceDir
+    ),
     options.sourceDir
   );
   const skills = await discoverSkills(root, config);

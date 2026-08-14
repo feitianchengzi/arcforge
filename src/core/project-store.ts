@@ -35,28 +35,33 @@ export interface ProjectIdentity {
   remote?: string;
 }
 
-export function arcForgeHome(): string {
-  return process.env.ARCFORGE_HOME?.trim() || path.join(os.homedir(), ".arcforge");
+export interface ProjectStoreOptions {
+  stateRoot?: string;
 }
 
-export function projectStoreDir(): string {
-  return path.join(arcForgeHome(), "projects");
+export function arcForgeHome(stateRoot?: string): string {
+  return stateRoot ? path.resolve(stateRoot) : process.env.ARCFORGE_HOME?.trim() || path.join(os.homedir(), ".arcforge");
 }
 
-export async function loadLocalProjectState(root: string): Promise<LocalProjectState | undefined> {
-  const filePath = await localProjectStatePath(root);
+export function projectStoreDir(options: ProjectStoreOptions = {}): string {
+  return path.join(arcForgeHome(options.stateRoot), "projects");
+}
+
+export async function loadLocalProjectState(root: string, options: ProjectStoreOptions = {}): Promise<LocalProjectState | undefined> {
+  const filePath = await localProjectStatePath(root, options);
   if (!(await pathExists(filePath))) return undefined;
   const raw = await fs.readFile(filePath, "utf8");
   return JSON.parse(raw) as LocalProjectState;
 }
 
-export async function listLocalProjectStates(): Promise<LocalProjectState[]> {
-  const entries = await fs.readdir(projectStoreDir(), { withFileTypes: true }).catch(() => []);
+export async function listLocalProjectStates(options: ProjectStoreOptions = {}): Promise<LocalProjectState[]> {
+  const storeDir = projectStoreDir(options);
+  const entries = await fs.readdir(storeDir, { withFileTypes: true }).catch(() => []);
   const states: LocalProjectState[] = [];
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
     try {
-      const raw = await fs.readFile(path.join(projectStoreDir(), entry.name), "utf8");
+      const raw = await fs.readFile(path.join(storeDir, entry.name), "utf8");
       const parsed = JSON.parse(raw) as Partial<LocalProjectState>;
       if (parsed.version !== 1 || !parsed.root || !parsed.projectKey || !parsed.updatedAt) continue;
       states.push(parsed as LocalProjectState);
@@ -76,13 +81,13 @@ export async function saveLocalProjectConfig(root: string, config: ArcForgeConfi
   });
 }
 
-export async function saveLocalProjectAppliedSources(root: string, appliedSources: AppliedSourceRecord[]): Promise<LocalProjectState> {
-  const current = await loadLocalProjectState(root);
+export async function saveLocalProjectAppliedSources(root: string, appliedSources: AppliedSourceRecord[], options: ProjectStoreOptions = {}): Promise<LocalProjectState> {
+  const current = await loadLocalProjectState(root, options);
   return saveLocalProjectState(root, {
     config: current?.config,
     appliedSources,
     list: current?.list
-  });
+  }, options);
 }
 
 export async function saveLocalProjectListMetadata(root: string, list: ProjectListMetadata): Promise<LocalProjectState> {
@@ -104,7 +109,7 @@ export async function hideLocalProjectInList(root: string): Promise<void> {
   await saveLocalProjectListMetadata(root, { hidden: true });
 }
 
-async function saveLocalProjectState(root: string, patch: Partial<Pick<LocalProjectState, "config" | "appliedSources" | "list">>): Promise<LocalProjectState> {
+async function saveLocalProjectState(root: string, patch: Partial<Pick<LocalProjectState, "config" | "appliedSources" | "list">>, options: ProjectStoreOptions = {}): Promise<LocalProjectState> {
   const identity = await identifyProject(root);
   const projectKey = projectKeyForIdentity(identity);
   const state: LocalProjectState = {
@@ -117,15 +122,15 @@ async function saveLocalProjectState(root: string, patch: Partial<Pick<LocalProj
     list: patch.list,
     updatedAt: new Date().toISOString()
   };
-  const filePath = path.join(projectStoreDir(), `${projectKey}.json`);
+  const filePath = path.join(projectStoreDir(options), `${projectKey}.json`);
   await writeJson(filePath, state);
-  await removeDuplicateProjectStateFiles(state, filePath);
+  await removeDuplicateProjectStateFiles(state, filePath, options);
   return state;
 }
 
-export async function localProjectStatePath(root: string): Promise<string> {
+export async function localProjectStatePath(root: string, options: ProjectStoreOptions = {}): Promise<string> {
   const identity = await identifyProject(root);
-  return path.join(projectStoreDir(), `${projectKeyForIdentity(identity)}.json`);
+  return path.join(projectStoreDir(options), `${projectKeyForIdentity(identity)}.json`);
 }
 
 export async function identifyProject(root: string): Promise<ProjectIdentity> {
@@ -166,13 +171,14 @@ async function dedupeProjectStates(states: LocalProjectState[]): Promise<LocalPr
   return Array.from(byRoot.values());
 }
 
-async function removeDuplicateProjectStateFiles(state: LocalProjectState, currentFilePath: string): Promise<void> {
-  const entries = await fs.readdir(projectStoreDir(), { withFileTypes: true }).catch(() => []);
+async function removeDuplicateProjectStateFiles(state: LocalProjectState, currentFilePath: string, options: ProjectStoreOptions): Promise<void> {
+  const storeDir = projectStoreDir(options);
+  const entries = await fs.readdir(storeDir, { withFileTypes: true }).catch(() => []);
   const rootKey = await canonicalProjectRootKey(state.root);
   const current = normalizeLocalPath(currentFilePath);
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
-    const filePath = path.join(projectStoreDir(), entry.name);
+    const filePath = path.join(storeDir, entry.name);
     if (normalizeLocalPath(filePath) === current) continue;
     try {
       const raw = await fs.readFile(filePath, "utf8");

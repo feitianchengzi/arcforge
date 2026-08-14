@@ -12,6 +12,7 @@
     "build": "tsc -p tsconfig.node.json && vite build",
     "build:cli": "tsc -p tsconfig.cli.json",
     "package:cli": "npm run build:cli && node scripts/build-cli-package.mjs",
+    "package:provider": "npm run build:cli && node scripts/build-provider-package.mjs",
     "version:set": "node scripts/set-app-version.mjs",
     "package:config": "node scripts/build-package-config.mjs",
     "package": "npm run build && npm run package:config && electron-builder --config dist-package/electron-builder.generated.json --publish=never",

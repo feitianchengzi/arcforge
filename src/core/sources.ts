@@ -9,7 +9,7 @@ import type { AppliedSourceRecord, ApplyFromSourceResult, CleanupLocalSkillPlan,
 import { defaultConfigForRoot, loadConfig, saveConfig } from "./config.js";
 import { copyDirectory, pathExists } from "./fs.js";
 import { applyProfile, compareDirectory, driftReport } from "./profiles.js";
-import { listLocalProjectStates, loadLocalProjectState, saveLocalProjectAppliedSources } from "./project-store.js";
+import { arcForgeHome, listLocalProjectStates, loadLocalProjectState, saveLocalProjectAppliedSources } from "./project-store.js";
 import { downloadSource } from "./share.js";
 import { selectProfileSkills } from "./share-sync.js";
 import { currentCommit } from "./share-git.js";
@@ -88,6 +88,7 @@ export interface AvailabilityPlanFromSourceOptions {
   projectAssessments?: SkillProjectApplicabilityAssessment[];
   cacheDir?: string;
   homeDir?: string;
+  stateRoot?: string;
 }
 
 export interface AvailabilityApplyFromSourceOptions extends AvailabilityPlanFromSourceOptions {
@@ -116,8 +117,8 @@ export async function createAvailabilityPlanFromSource(options: AvailabilityPlan
   const sourceRoot = options.from
     ? await resolveSkillProjectRoot(options.from, cacheDirForInput(options.from, options.cacheDir))
     : consumerRoot;
-  const source = await scanWorkspace(sourceRoot);
-  const records = await listAppliedSources(consumerRoot);
+  const source = await scanWorkspace(sourceRoot, { stateRoot: options.stateRoot, readOnlyConfig: Boolean(options.stateRoot) });
+  const records = await listAppliedSources(consumerRoot, options.stateRoot);
   const loaderSourcePath = await bundledOnDemandSkillPath();
   return createSkillAvailabilityPlan({
     source,
@@ -130,6 +131,7 @@ export async function createAvailabilityPlanFromSource(options: AvailabilityPlan
     projectAssessments: options.projectAssessments ?? reusableProjectAssessments(records, sourceRoot, consumerRoot, options.profile ?? "default", options.agentTargetIds, options.projectTargetDirs ?? [], skillAvailabilitySourcePolicyDigest(source.sourceManifest)),
     appliedRecords: records,
     homeDir: options.homeDir,
+    catalogRoot: path.join(arcForgeHome(options.stateRoot), "catalog"),
     loaderSourcePath
   });
 }
@@ -139,8 +141,8 @@ export async function driftAvailabilityFromSource(options: AvailabilityDriftFrom
   const sourceRoot = options.from
     ? await resolveSkillProjectRoot(options.from, cacheDirForInput(options.from, options.cacheDir))
     : consumerRoot;
-  const source = await scanWorkspace(sourceRoot);
-  const records = await listAppliedSources(consumerRoot);
+  const source = await scanWorkspace(sourceRoot, { stateRoot: options.stateRoot, readOnlyConfig: Boolean(options.stateRoot) });
+  const records = await listAppliedSources(consumerRoot, options.stateRoot);
   const loaderSourcePath = await bundledOnDemandSkillPath();
   const plan = await createSkillAvailabilityPlan({
     source,
@@ -153,6 +155,7 @@ export async function driftAvailabilityFromSource(options: AvailabilityDriftFrom
     projectAssessments: options.projectAssessments ?? reusableProjectAssessments(records, sourceRoot, consumerRoot, options.profile ?? "default", options.agentTargetIds, options.projectTargetDirs ?? [], skillAvailabilitySourcePolicyDigest(source.sourceManifest)),
     appliedRecords: records,
     homeDir: options.homeDir,
+    catalogRoot: path.join(arcForgeHome(options.stateRoot), "catalog"),
     loaderSourcePath
   });
   const record = availabilityRecordFor(records, sourceRoot, plan);
@@ -169,8 +172,8 @@ export async function applyAvailabilityFromSource(options: AvailabilityApplyFrom
   const sourceRoot = options.from
     ? await resolveSkillProjectRoot(options.from, cacheDirForInput(options.from, options.cacheDir))
     : consumerRoot;
-  const source = await scanWorkspace(sourceRoot);
-  const previousRecords = await listAppliedSources(consumerRoot);
+  const source = await scanWorkspace(sourceRoot, { stateRoot: options.stateRoot, readOnlyConfig: Boolean(options.stateRoot) });
+  const previousRecords = await listAppliedSources(consumerRoot, options.stateRoot);
   const loaderSourcePath = await bundledOnDemandSkillPath();
   const plan = await createSkillAvailabilityPlan({
     source,
@@ -183,6 +186,7 @@ export async function applyAvailabilityFromSource(options: AvailabilityApplyFrom
     projectAssessments: options.projectAssessments ?? reusableProjectAssessments(previousRecords, sourceRoot, consumerRoot, options.profile ?? "default", options.agentTargetIds, options.projectTargetDirs ?? [], skillAvailabilitySourcePolicyDigest(source.sourceManifest)),
     appliedRecords: previousRecords,
     homeDir: options.homeDir,
+    catalogRoot: path.join(arcForgeHome(options.stateRoot), "catalog"),
     loaderSourcePath
   });
   if (!options.confirm) {
@@ -202,7 +206,7 @@ export async function applyAvailabilityFromSource(options: AvailabilityApplyFrom
       );
     }
   }
-  const catalogRoot = path.join(path.resolve(options.homeDir ?? os.homedir()), ".arcforge", "catalog");
+  const catalogRoot = path.join(arcForgeHome(options.stateRoot), "catalog");
   const execution = await executeSkillAvailabilityPlan({
     source,
     plan,
@@ -210,8 +214,8 @@ export async function applyAvailabilityFromSource(options: AvailabilityApplyFrom
     catalogRoot,
     loaderSourcePath: plan.loaderTargets.length > 0 ? loaderSourcePath : undefined,
     recordCandidate,
-    commitRecord: recordCandidate ? () => upsertAppliedSource(consumerRoot, recordCandidate) : undefined,
-    rollbackRecord: recordCandidate ? async () => { await saveLocalProjectAppliedSources(consumerRoot, previousRecords); } : undefined,
+    commitRecord: recordCandidate ? () => upsertAppliedSource(consumerRoot, recordCandidate, options.stateRoot) : undefined,
+    rollbackRecord: recordCandidate ? async () => { await saveLocalProjectAppliedSources(consumerRoot, previousRecords, { stateRoot: options.stateRoot }); } : undefined,
     faultInjector: options.faultInjector
   });
   return {
@@ -495,8 +499,8 @@ export async function cleanupLocalSkills(options: CleanupLocalSkillOptions): Pro
   };
 }
 
-export async function listAppliedSources(root: string): Promise<AppliedSourceRecord[]> {
-  return [...((await loadLocalProjectState(root))?.appliedSources ?? [])].sort(compareAppliedRecord);
+export async function listAppliedSources(root: string, stateRoot?: string): Promise<AppliedSourceRecord[]> {
+  return [...((await loadLocalProjectState(root, { stateRoot }))?.appliedSources ?? [])].sort(compareAppliedRecord);
 }
 
 export async function addAppliedSource(options: AppliedSourceOptions): Promise<AppliedSourceRecord> {
@@ -761,13 +765,13 @@ function recordRelationKind(record: AppliedSourceRecord): AppliedRelationKind {
   return record.relationKind === "maintenanceImport" ? "maintenanceImport" : "profileApply";
 }
 
-async function upsertAppliedSource(root: string, record: AppliedSourceRecord): Promise<AppliedSourceRecord> {
-  const records = await listAppliedSources(root);
+async function upsertAppliedSource(root: string, record: AppliedSourceRecord, stateRoot?: string): Promise<AppliedSourceRecord> {
+  const records = await listAppliedSources(root, stateRoot);
   const next = [
     ...records.filter((item) => item.id !== record.id),
     { ...record, updatedAt: new Date().toISOString() }
   ].sort(compareAppliedRecord);
-  await saveLocalProjectAppliedSources(root, next);
+  await saveLocalProjectAppliedSources(root, next, { stateRoot });
   return next.find((item) => item.id === record.id) ?? record;
 }
 
