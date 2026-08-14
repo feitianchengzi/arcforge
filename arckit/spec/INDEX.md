@@ -11,7 +11,7 @@
 - profile/ 配置组与应用：按配置组选择技能、复制到目标目录、检测漂移。🟢
   - profile-management.md 配置组管理：维护技能集合、目标 agent 标识与默认配置。🟢 (66行)
   - destination-sync.md 目标应用与漂移：复制技能和共享资产、对比目录差异，并按 Agent 显式决定整理已安装 skill。🟡 (121行)
-  - skill-availability.md Skill 可用性策略：管理维护源推荐、自然语言适用条件、Agent 评估及三类 skill 的应用与显式加载。🟡 (167行)
+  - skill-availability.md Skill 可用性策略：管理维护源推荐、自然语言适用条件、Agent 语义选择及三类 skill 的应用与显式加载。🟡 (169行)
 - share/ 共享发布：生成发布计划、检测 GitHub 权限、同步到 GitHub 仓库并创建 PR。🟢
   - github-sharing.md GitHub 共享：解析来源地址、输出发布事实、检查共享漂移，并按显式交付计划推送或创建 PR。🟡 (167行)
 - interface/ 使用界面：Agent Skill 编排 CLI 与桌面 UI，暴露扫描、审计、归并、应用、漂移和共享工作流。🟡

@@ -1,245 +1,311 @@
 {
-  "schema_version": "project-state-record/v3",
+  "schema_version": "project-state-record/v5",
   "project": {
     "name": "ArcForge",
     "status": "active",
+    "intent": "Local-first, GitHub-first governance workspace for AI agent skills",
     "created_at": "2026-07-30T08:50:08.647Z",
-    "updated_at": "2026-08-01T04:55:47.128Z",
-    "original_intent": "Local-first, GitHub-first governance workspace for AI agent skills",
-    "current_phase": "runtime-loop"
+    "updated_at": "2026-08-14T06:47:16.799Z",
+    "revision": 1
   },
-  "active_iteration_ref": "",
-  "active_case_refs": [],
-  "completeness_dimensions": {
-    "project_intent": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "users_and_stakeholders": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "problem_scenarios": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "product_behavior": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "user_experience": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "runtime_surfaces": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "identity_access": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "data_state": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "integration_boundaries": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "architecture_foundation": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "implementation_coverage": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "quality_validation": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "security_privacy": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "delivery_operation": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "observability_support": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "maintainability_handoff": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
-    },
-    "iteration_governance": {
-      "current_state": "unknown",
-      "target_state": "unknown",
-      "state_reason": "",
-      "evidence": [],
-      "evidence_maturity": "none",
-      "gap": "",
-      "next_transition": "",
-      "blockers": [],
-      "priority": "none",
-      "confidence": "medium"
+  "advancement": {
+    "active_iteration_ref": "",
+    "active_case_refs": [
+      "arckit/cases/active/CASE-20260814-001-make-on-demand-skill-selection-semantic.md"
+    ],
+    "project_gaps": [],
+    "selection_context": {
+      "current_focus": "Correct arcforge-on-demand so an arbitrary user action prompt is semantically matched to the most suitable validated on-demand skill instead of being treated as a literal catalog query.",
+      "project_priorities": []
     }
   },
-  "state_gaps": [],
-  "case_control": {
-    "selected_case_ref": "",
-    "selection_reason": "Resolved Case arckit/cases/closed/CASE-20260801-001-arcforge-agent.md.",
-    "next_case_intent": "",
-    "priority_basis": "No remaining Project state gap requires selection.",
-    "stop_condition": "Stop when no further project-level advancement is intended."
+  "software_definition": {
+    "summary": "Local-first, GitHub-first governance workspace for AI agent skills",
+    "decision_areas": [
+      {
+        "id": "product_intent_and_scope",
+        "question": "What problem does the software solve, for whom, with what success outcome and scope boundary?",
+        "decision_expectation": "State the project outcome, intended users, primary scenarios, success basis, and important non-goals.",
+        "evidence_expectation": "Durable product evidence sufficient to recover the intended outcome and scope.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      },
+      {
+        "id": "product_capabilities",
+        "question": "What core product capabilities must the software provide?",
+        "decision_expectation": "State the capability set, the problem each capability solves, and important capabilities intentionally excluded.",
+        "evidence_expectation": "Durable product evidence sufficient to recover the capability decisions.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      },
+      {
+        "id": "runtime_surfaces",
+        "question": "Which clients, applications, services, or runtime surfaces comprise the software?",
+        "decision_expectation": "State which desktop, web, mobile, server, admin, CLI, extension, or other surfaces exist and the responsibility of each.",
+        "evidence_expectation": "Durable evidence sufficient to recover the system surfaces and their responsibilities.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      },
+      {
+        "id": "experience_and_interaction",
+        "question": "How do users complete the main journeys and recover from interaction states?",
+        "decision_expectation": "State the important journeys, navigation, inputs, feedback, error recovery, and accessibility expectations.",
+        "evidence_expectation": "Durable interaction evidence sufficient to understand and verify affected journeys.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      },
+      {
+        "id": "visual_language",
+        "question": "What visual language and presentation adaptations does the software require?",
+        "decision_expectation": "State the theme, brand, layout, token, component, responsive, and platform-presentation expectations that matter.",
+        "evidence_expectation": "Durable visual evidence sufficient to recover the project visual language.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      },
+      {
+        "id": "identity_and_access",
+        "question": "Does the software require identity, login, roles, permissions, sessions, or entitlement?",
+        "decision_expectation": "State the identity subjects, authentication and authorization boundaries, entitlement behavior, and explicitly excluded access capabilities.",
+        "evidence_expectation": "Durable product and technical evidence sufficient to recover access decisions.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      },
+      {
+        "id": "data_and_state",
+        "question": "What data does the software own and how is it stored, synchronized, migrated, backed up, and recovered?",
+        "decision_expectation": "State the important data, sources of truth, local and remote relationships, lifecycle, consistency, migration, and recovery expectations.",
+        "evidence_expectation": "Durable data and technical evidence sufficient to recover the state model.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      },
+      {
+        "id": "external_integrations",
+        "question": "Which external platforms, devices, services, protocols, or data formats does the software integrate with?",
+        "decision_expectation": "State each material dependency, its boundary, failure behavior, and required fallback or recovery behavior.",
+        "evidence_expectation": "Durable contract evidence sufficient to recover material integration boundaries.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      },
+      {
+        "id": "feedback_and_support",
+        "question": "Does the software require user feedback, issue reporting, help, or support loops?",
+        "decision_expectation": "State the feedback entry, context collection, handling, status return, and support boundary, or explicitly decide that it is not required.",
+        "evidence_expectation": "Durable product and operational evidence sufficient to recover the feedback decision.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      },
+      {
+        "id": "commercialization_and_entitlement",
+        "question": "Does the software require payment, subscription, licensing, trials, quotas, or feature entitlement?",
+        "decision_expectation": "State the commercial and entitlement model, recovery rules, and intentionally excluded mechanisms.",
+        "evidence_expectation": "Durable product and technical evidence sufficient to recover commercial and entitlement decisions.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      },
+      {
+        "id": "technical_foundation",
+        "question": "Which technology stack, architecture shape, build system, and engineering organization does the software use?",
+        "decision_expectation": "State the languages, frameworks, build system, architecture boundaries, repository organization, and material technical constraints.",
+        "evidence_expectation": "Durable technical evidence sufficient to recover the engineering foundation.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      },
+      {
+        "id": "security_privacy_compliance",
+        "question": "What security, privacy, permission, and compliance responsibilities apply?",
+        "decision_expectation": "State sensitive data, credentials, trust boundaries, threats, privacy expectations, and applicable compliance requirements.",
+        "evidence_expectation": "Durable risk and technical evidence sufficient to recover the governing protections.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      },
+      {
+        "id": "quality_and_validation",
+        "question": "How must the project prove correct behavior and control regression risk?",
+        "decision_expectation": "State material quality risks, test layers, inspection, real-environment validation, and acceptance responsibility.",
+        "evidence_expectation": "Durable validation evidence proportionate to the identified risks.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      },
+      {
+        "id": "delivery_and_distribution",
+        "question": "How is the software built, released, installed, upgraded, and rolled back?",
+        "decision_expectation": "State target delivery platforms, build artifacts, release channels, version policy, upgrade behavior, and rollback expectations.",
+        "evidence_expectation": "Durable delivery evidence sufficient to recover and verify the release model.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      },
+      {
+        "id": "observability_and_operation",
+        "question": "How are runtime problems detected, diagnosed, supported, and recovered?",
+        "decision_expectation": "State logging, metrics, crashes, alerts, diagnostics, operational support, recovery, and retention expectations.",
+        "evidence_expectation": "Durable operational evidence sufficient to diagnose and support the software.",
+        "decision": {
+          "revision": 0,
+          "status": "open",
+          "statement": "",
+          "reason": "",
+          "evidence": [],
+          "confidence": "medium",
+          "resume_condition": ""
+        },
+        "gap_refs": []
+      }
+    ]
   },
-  "active_constraints": [],
-  "open_questions": [],
-  "canonical_artifact_refs": [
-    "arckit/cases/closed/CASE-20260730-001-skill.md",
-    "arckit/cases/closed/CASE-20260801-001-arcforge-agent.md"
-  ],
-  "last_state_delta": {
-    "changed_dimensions": [],
-    "state_transitions": [],
-    "deferred_dimensions": [],
-    "blocked_dimensions": [],
-    "case_refs": [
-      "arckit/cases/closed/CASE-20260801-001-arcforge-agent.md"
-    ],
-    "iteration_ref": "",
-    "next_project_focus": "",
-    "updated_at": "2026-08-01T04:55:47.128Z"
-  }
+  "software_invariants": [
+    {
+      "id": "product-expectations-remain-recoverable",
+      "applies_when": "Fresh Case facts establish, revise, invalidate, expose a gap in, or conflict with a durable product outcome, capability, business rule, or acceptance meaning.",
+      "must_hold": "Every materially affected product expectation is accurate, unambiguous, and durably recoverable.",
+      "evidence_expectation": "Authoritative durable evidence sufficient to recover the affected product expectation and the basis for accepting it.",
+      "priority": "required"
+    },
+    {
+      "id": "interaction-expectations-remain-recoverable",
+      "applies_when": "Fresh Case facts establish, revise, invalidate, expose a gap in, or conflict with how a person progresses through actions, states, feedback, navigation, or recovery.",
+      "must_hold": "Every materially affected interaction expectation is coherent, complete enough to recover its decisions and states, and durably recoverable.",
+      "evidence_expectation": "Authoritative durable evidence sufficient to recover the affected interaction expectation and its accepted state and response semantics.",
+      "priority": "required"
+    },
+    {
+      "id": "visual-language-remains-consistent",
+      "applies_when": "Fresh Case facts establish, revise, invalidate, expose a gap in, or conflict with a durable visual-language or presentation rule.",
+      "must_hold": "Every materially affected visual expectation remains intentional, internally consistent, and durably recoverable.",
+      "evidence_expectation": "Authoritative durable evidence sufficient to recover the affected visual expectation and its relationship to the project visual language.",
+      "priority": "required"
+    },
+    {
+      "id": "technical-decisions-remain-explainable",
+      "applies_when": "Fresh Case facts establish, revise, invalidate, expose a gap in, or conflict with a durable technical decision, structure, boundary, model, lifecycle, or constraint.",
+      "must_hold": "Every materially affected technical decision remains coherent, explainable, and durably recoverable, including its rationale and affected relationships.",
+      "evidence_expectation": "Authoritative durable evidence sufficient to recover the affected technical decision, rationale, constraints, and relationships.",
+      "priority": "required"
+    },
+    {
+      "id": "accepted-facts-are-realized",
+      "applies_when": "Fresh Case facts or the selected Gap make a material claim about the actual software state relative to accepted durable expectations.",
+      "must_hold": "The accepted software state realizes every materially relevant accepted fact and upheld Project decision and invariant.",
+      "evidence_expectation": "Direct, traceable realization evidence sufficient to show that the actual software state conforms to the governing accepted facts.",
+      "priority": "required"
+    },
+    {
+      "id": "material-risks-have-credible-evidence",
+      "applies_when": "Fresh Case facts or the selected Gap expose a material risk, alter its boundary, or claim that it is controlled.",
+      "must_hold": "Every material risk claim accepted in the Case is supported by credible, repeatable, and proportionate evidence.",
+      "evidence_expectation": "Repeatable, proportionate evidence sufficient to support the accepted risk claim and its scope.",
+      "priority": "required"
+    }
+  ]
 }

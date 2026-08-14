@@ -6,6 +6,7 @@
 
 | ID | Status | Title | Selected Gap | Updated |
 | --- | --- | --- | --- | --- |
+| [CASE-20260814-001](active/CASE-20260814-001-make-on-demand-skill-selection-semantic.md) | handoff | Make on-demand skill selection semantic | none | 2026-08-14T07:05:44.254Z |
 
 ## Closed Cases
 

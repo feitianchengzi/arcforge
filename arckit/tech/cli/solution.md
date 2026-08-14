@@ -40,7 +40,7 @@ CLI 不提供初始化命令，不提供来源登记命令，也不保留 `apply
 
 `drift` 调用 `driftFromSource`。用户通过 `--from` 指定来源 Skill 项目；未指定时使用当前 `--root`。
 
-`catalog resolve --query <name>` 调用 `resolveCatalogSkill`。默认 exact 模式；`--mode search` 只供已显式触发的按需入口使用。命令只读用户级 catalog，校验路径和内容摘要后返回一个确定条目或候选状态，不执行 skill。
+`catalog list` 调用 `listCatalogSkills`，只返回已校验 catalog index 中的名称、限定名称、来源 key 和摘要，供已显式触发的 Agent 做语义选择。`catalog resolve --query <name>` 调用 `resolveCatalogSkill`，默认 exact 模式；保留 `--mode search` 作为确定性字段子串过滤，不把它当作语义搜索。Resolve 在返回一个确定条目前校验路径和内容摘要，不执行 skill。
 
 `publish-plan` 调用 `createPublishPlan`，只对当前 `--root` 生成发布就绪清单。
 
@@ -64,7 +64,7 @@ CLI 不提供初始化命令，不提供来源登记命令，也不保留 `apply
 
 CLI 不写入全局来源注册表。远程来源只下载到缓存并在应用关系中记录解析后的本地根目录和可选远程 URL。Skill 项目自身的 `arcforge.skill-project.json` 是随 Git 维护和共享的来源策略清单，不是 ArcForge registry。
 
-Availability-aware 应用把按需副本和索引写入 `~/.arcforge/catalog`。只有 `apply run` 更新 catalog；`apply plan`、`drift` 和 `catalog resolve` 都是只读操作。
+Availability-aware 应用把按需副本和索引写入 `~/.arcforge/catalog`。只有 `apply run` 更新 catalog；`apply plan`、`drift`、`catalog list` 和 `catalog resolve` 都是只读操作。
 
 应用关系保存到当前项目状态，用于后续 `applied drift` 和 `applied run`。
 
@@ -78,7 +78,7 @@ Availability-aware 应用把按需副本和索引写入 `~/.arcforge/catalog`。
 
 ## 模块依赖
 
-CLI 通过命令编排层调用 `scanWorkspace`、`createPublishPlan`、`createMergePlan`、`mergeIntoProject`、`createSkillAvailabilityPlan`、`applyFromSource`、`driftFromSource`、`resolveCatalogSkill`、`addAppliedSource`、`runAppliedSources`、`checkSourceUpdate`、`updateSource`、`shareProject` 和 `getEnvironmentStatus`。
+CLI 通过命令编排层调用 `scanWorkspace`、`createPublishPlan`、`createMergePlan`、`mergeIntoProject`、`createSkillAvailabilityPlan`、`applyFromSource`、`driftFromSource`、`listCatalogSkills`、`resolveCatalogSkill`、`addAppliedSource`、`runAppliedSources`、`checkSourceUpdate`、`updateSource`、`shareProject` 和 `getEnvironmentStatus`。
 
 Skill 项目解析、归并和应用关系位于 `core/sources`。维护源清单解析位于 `core/skill-project-manifest`；可用性计划位于 `core/skill-availability`；配置组应用和漂移位于 `core/profiles`；用户级 catalog 解析位于 `core/skill-catalog`。Agent 辅助审计位于 `core/agent-audit`。GitHub 来源解析、共享工作树、README 写入、配置合并和 Git 推送位于共享 core 模块。
 

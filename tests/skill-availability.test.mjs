@@ -1234,6 +1234,7 @@ test("user skill catalog saves atomically and resolves exact, alias, qualified, 
   const {
     catalogDirectoryDigest,
     catalogQualifiedName,
+    listCatalogSkills,
     loadUserSkillCatalog,
     resolveCatalogSkill,
     saveUserSkillCatalog
@@ -1265,6 +1266,15 @@ test("user skill catalog saves atomically and resolves exact, alias, qualified, 
     assert.equal(saved.updatedAt, "2026-07-30T01:00:00.000Z");
     assert.deepEqual((await readdir(root)).filter((name) => name.includes(".tmp-")), []);
     assert.deepEqual(await loadUserSkillCatalog({ catalogRoot: root }), saved);
+    assert.deepEqual(await listCatalogSkills({ catalogRoot: root }), {
+      status: "available",
+      candidates: [{
+        skillName: "review",
+        qualifiedName: entry.qualifiedName,
+        sourceKey,
+        summary: "Review a code change"
+      }]
+    });
     for (const [query, mode] of [["review", "exact"], ["code-review", "exact"], [entry.qualifiedName, "exact"], ["code change", "search"]]) {
       const result = await resolveCatalogSkill(query, mode, { catalogRoot: root });
       assert.equal(result.status, "resolved");
@@ -1335,12 +1345,14 @@ test("catalog resolver reports ambiguous names and rejects path escape or conten
   }
 });
 
-test("catalog resolve CLI is wired as a read-only explicit-invocation surface", async () => {
+test("catalog list and resolve CLI are wired as read-only explicit-invocation surfaces", async () => {
   const commands = await readFile(new URL("../src/commands/index.ts", import.meta.url), "utf8");
   const catalog = await readFile(new URL("../src/core/skill-catalog.ts", import.meta.url), "utf8");
   const sharedTypes = await readFile(new URL("../src/shared/types.ts", import.meta.url), "utf8");
 
   assert.match(commands, /arcforge catalog resolve --query/);
+  assert.match(commands, /arcforge catalog list/);
+  assert.match(commands, /listCatalogSkills/);
   assert.match(commands, /resolveCatalogSkill/);
   assert.match(commands, /Catalog mode must be exact or search/);
   assert.match(catalog, /CATALOG_PATH_ESCAPE/);
@@ -1350,7 +1362,7 @@ test("catalog resolve CLI is wired as a read-only explicit-invocation surface", 
   assert.match(sharedTypes, /interface CatalogResolveResult/);
 });
 
-test("on-demand entry skill is explicit-only, resolver-backed, and included in distributable packages", async () => {
+test("on-demand entry skill delegates natural-language selection to the Agent and is included in distributable packages", async () => {
   const skill = await readFile(new URL("../skills/arcforge-on-demand/SKILL.md", import.meta.url), "utf8");
   const agentMetadata = await readFile(new URL("../skills/arcforge-on-demand/agents/openai.yaml", import.meta.url), "utf8");
   const cliPackage = await readFile(new URL("../scripts/build-cli-package.mjs", import.meta.url), "utf8");
@@ -1358,12 +1370,16 @@ test("on-demand entry skill is explicit-only, resolver-backed, and included in d
   const availability = await readFile(new URL("../src/core/skill-availability.ts", import.meta.url), "utf8");
 
   assert.match(skill, /^---\nname: arcforge-on-demand\n/);
-  assert.match(skill, /只处理用户本轮明确提出的加载或 catalog 搜索意图/);
+  assert.match(skill, /任意任务 prompt 不得作为 `catalog resolve --query` 的硬字符串/);
+  assert.match(skill, /arcforge catalog list/);
+  assert.match(skill, /将完整用户意图与每个候选/);
+  assert.match(skill, /qualifiedName/);
   assert.match(skill, /arcforge catalog resolve --query/);
   assert.match(skill, /not-found/);
   assert.match(skill, /ambiguous/);
   assert.match(skill, /resolved\.installedPath/);
   assert.match(agentMetadata, /\$arcforge-on-demand/);
+  assert.match(agentMetadata, /不得把完整 prompt 当作硬 query/);
   assert.match(cliPackage, /skills["'], "arcforge-on-demand/);
   assert.match(desktopPackage, /skills\/arcforge-on-demand\/\*\*\/\*/);
   assert.match(availability, /RESERVED_LOADER_SKILL/);

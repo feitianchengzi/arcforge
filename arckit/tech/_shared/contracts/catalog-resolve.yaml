@@ -2,28 +2,52 @@ metadata:
   path: tech/_shared/contracts/catalog-resolve.yaml
   domain: profiles-sync
   owner: core/skill-catalog
-  version: 1
+  version: 2
   created: 2026-07-30
-  updated: 2026-07-30
-endpoint:
+  updated: 2026-08-14
+endpoints:
   transport: core-and-cli
-  command: arcforge catalog resolve
-  method_name: resolveCatalogSkill
-  summary: Resolve one user-level on-demand skill after the ArcForge entry skill is explicitly invoked.
+  commands:
+    - arcforge catalog list
+    - arcforge catalog resolve
+  method_names:
+    - listCatalogSkills
+    - resolveCatalogSkill
+  summary: Expose minimal local candidates for Agent semantic selection, then deterministically resolve one selected user-level on-demand skill.
   auth_required: false
-request:
-  args:
-    - name: query
-      type: string
-      required: true
-    - name: mode
-      type: string
-      required: false
-      enum:
-        - exact
-        - search
-      default: exact
+requests:
+  list:
+    args: []
+  resolve:
+    args:
+      - name: query
+        type: string
+        required: true
+      - name: mode
+        type: string
+        required: false
+        enum:
+          - exact
+          - search
+        default: exact
 responses:
+  list:
+    schema:
+      type: object
+      required:
+        - status
+        - candidates
+      properties:
+        status:
+          type: string
+          enum:
+            - available
+            - empty
+        candidates:
+          type: array
+          description: Sorted minimal skillName, qualifiedName, sourceKey, and summary metadata for Agent semantic selection.
+          items:
+            type: object
   success:
     schema:
       type: object
@@ -56,7 +80,10 @@ responses:
 business_logic:
   flow:
     - Read only ~/.arcforge/catalog/index.json and never scan arbitrary filesystem roots.
+    - List validates the catalog index and returns sorted minimal metadata without sourceRoot, installedPath, contentDigest, or SKILL.md content.
+    - The explicitly invoked Agent compares the complete user intent with candidate metadata; core does not generate keywords, scores, rankings, or semantic conclusions.
+    - An arbitrary task prompt is never passed to resolve as a literal query; after semantic selection the Agent resolves the selected qualifiedName in exact mode.
     - Exact mode matches qualifiedName, skillName, or alias; ambiguous unqualified matches return candidates without choosing by directory order.
-    - Search mode is available only after explicit entry-skill invocation and matches normalized name, alias, and summary fields.
+    - Search mode remains a deterministic normalized substring filter over name, alias, and summary fields and is not semantic selection.
     - Resolve installedPath realpath, enforce catalog-root containment, and verify contentDigest.
     - Return one validated entry or a non-resolved status; never execute the selected skill.

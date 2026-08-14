@@ -93,7 +93,7 @@ The new usage model is agent-first:
 | Part | Role |
 |---|---|
 | `skills/install-arcforge` | Lets a user clone this repository and complete local installation through a coding agent. |
-| `arcforge-on-demand` skill | Resolves and loads one user-catalog skill only after an explicit user invocation. |
+| `arcforge-on-demand` skill | After an explicit invocation, lets the Agent semantically choose one user-catalog candidate, then validates and loads it. |
 | `arcforge-skill-creator` skill | Creates, maintains, and splits ArcForge skills, taking priority over generic skill creators. |
 | `arcforge-skill-first` skill | Captures a working pattern as a skill and validates it with sub-agent preflight/retest loops. |
 | `arcforge` skill | The governance workflow entry point for audit, formalization, profiles, apply, drift, and release prep. |

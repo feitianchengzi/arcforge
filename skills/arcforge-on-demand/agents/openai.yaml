@@ -1,5 +1,5 @@
 interface:
   display_name: "ArcForge On Demand"
-  short_description: "仅在用户显式调用后，从 ArcForge 用户级 catalog 解析并加载一个已校验 skill。"
+  short_description: "显式调用后由 Agent 语义选择，再从 ArcForge catalog 校验并加载一个 skill。"
   default_prompt: >-
-    使用 $arcforge-on-demand 处理用户明确提出的 ArcForge 按需 skill 加载或 catalog 搜索。先区分 exact 与显式 search，调用 `arcforge catalog resolve`；not-found 时停止并提示先 apply，ambiguous 时展示最小候选并等待限定名称，resolved 时只完整读取返回路径下的 SKILL.md 和其当前任务所需引用。不要主动搜索 catalog、代替用户选择同名来源、加载多个 skill、提升权限或执行安装与治理写入。
+    使用 $arcforge-on-demand 处理用户的显式按需调用。明确名称走 exact resolve；任意任务意图先调用 `arcforge catalog list`，由 Agent 根据最小 metadata 语义选择，不得把完整 prompt 当作硬 query，再用选中的 qualifiedName exact resolve。只加载一个经路径和内容 digest 校验的 skill；无唯一合适候选时说明或请用户澄清，不执行安装、权限提升或治理写入。

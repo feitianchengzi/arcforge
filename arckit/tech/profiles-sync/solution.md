@@ -137,9 +137,11 @@ ArcForge 分发一个固定名称的用户级入口 skill。Availability plan �
 
 计划读取固定入口的来源摘要和现有目标，将 loader target 标记为 `missing`、`same`、`managed-update` 或 `conflict`。缺失目标可以新增；内容完全一致的目标可以复用；只有同一用户目录、同一 agent 的已保存 on-demand 应用关系才能证明内容不同的旧入口归 ArcForge 管理并允许升级。其它同名目标产生 `ON_DEMAND_LOADER_CONFLICT` 阻断诊断，ArcForge 不替换未知内容。执行在提交任何目录前再次校验目标仍与计划时的缺失状态或内容摘要一致，避免计划后被替换的入口遭到覆盖。
 
-入口只在用户显式调用后执行 `arcforge catalog resolve`。`catalog-resolve` exact 模式按限定名称、skill 名和别名匹配；未限定名称存在多个来源时返回 ambiguous，不按目录顺序选择。Search 模式只在入口已触发后查询索引中的 name、alias 和 summary。
+入口只在用户显式调用后读取 catalog。用户明确给出限定名称、skill 名或别名时，入口直接执行 `arcforge catalog resolve`。用户给出任意任务意图时，入口先执行 `arcforge catalog list`，只获取 name、qualifiedName、sourceKey 和 summary；当前 Agent 根据完整意图做语义适配，选中一个 `qualifiedName` 后再 exact resolve。
 
-Resolver 只读取 catalog index，不扫描任意目录。返回 resolved 前校验 installedPath realpath 位于声明的 sourceKey 目录内，并重新计算内容摘要。路径逃逸、索引损坏或内容摘要不一致时停止，不把目标 `SKILL.md` 返回给入口。
+Core 不根据任务 prompt 生成关键词、分数或排名，也不把 search 子串匹配伪装成语义选择。`catalog-resolve` exact 模式按限定名称、skill 名和别名匹配；未限定名称存在多个来源时返回 ambiguous，不按目录顺序选择。Search 模式只保留为对 name、alias 和 summary 的确定性子串过滤。
+
+List 和 Resolver 只读取 catalog index，不扫描任意目录。List 严格校验 index 结构并返回排序稳定的最小候选，不暴露 sourceRoot、installedPath、contentDigest 或完整 `SKILL.md`。Resolver 返回 resolved 前校验 installedPath realpath 位于声明的 sourceKey 目录内，并重新计算内容摘要。路径逃逸、索引损坏或内容摘要不一致时停止，不把目标 `SKILL.md` 返回给入口。
 
 Resolver 不执行 skill。入口拿到唯一且已校验的路径后读取 `SKILL.md` 和其明确引用，当前 agent 继续执行并沿用原有权限边界。
 

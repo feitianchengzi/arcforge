@@ -93,7 +93,7 @@ ArcForge 的新使用理念是 agent-first：
 | 组成部分 | 角色 |
 |---|---|
 | `skills/install-arcforge` | 让用户 clone 仓库后，通过 coding agent 完成本地安装。 |
-| `arcforge-on-demand` skill | 仅在用户显式调用时，从用户级 ArcForge catalog 解析并加载一个按需 skill。 |
+| `arcforge-on-demand` skill | 仅在用户显式调用时，由 Agent 按任务语义从用户级 ArcForge catalog 选择一个候选，再校验并加载。 |
 | `arcforge-skill-creator` skill | 创建、维护和拆分 ArcForge skill，并优先于通用 skill creator。 |
 | `arcforge-skill-first` skill | 把工作模式沉淀成 skill，并用子代理前测/复测验证。 |
 | `arcforge` skill | 后续治理流程入口，负责审计、正式化、profile、应用、漂移和发布准备。 |

@@ -49,7 +49,7 @@ properties:
         summary:
           type: string
           nullable: true
-          description: Short source description used only after the on-demand entry is explicitly invoked.
+          description: Short source description exposed with minimal candidate metadata only after the on-demand entry is explicitly invoked, for Agent-owned semantic selection.
         sourceRoot:
           type: string
           description: Last resolved maintenance source root.
@@ -76,6 +76,8 @@ properties:
           type: string
           format: date-time
 validation:
+  candidate_projection:
+    description: Catalog list returns only skillName, qualifiedName, sourceKey, and summary in stable qualified-name order; it does not expose local source or installation paths and does not rank candidates.
   unique_entry:
     description: qualifiedName and the pair sourceKey plus skillPath are unique.
   contained_path:

@@ -11,11 +11,11 @@
 - audit/ 审计技术：本地规则引擎输出事实覆盖，可选 Agent 独立完成语义诊断。🔬
   - solution.md 规则审计方案：密钥规则、危险指令、结构校验、发现定位和规则覆盖摘要。🔬 (89行)
 - profiles-sync/ 配置组同步技术：维护源推荐、Agent 项目评估、显式可用性解析、用户级 catalog 和 evidence-only 整理。🔬
-  - solution.md 配置组同步方案：未分类门禁、适用性评估、应用计划、按需入口、显式整理、原子复制和漂移。🔬 (196行)
+  - solution.md 配置组同步方案：未分类门禁、适用性评估、应用计划、按需语义选择、显式整理、原子复制和漂移。🔬 (200行)
 - sharing-ipc/ 共享与 IPC 技术：Electron 桥、发布事实、Agent readiness 输入、权限预检、共享漂移和 Git/PR 执行。🔬
   - solution.md 共享与 IPC 方案：安全桥接、来源下载、发布事实与评估、共享漂移、共享推送、编辑和差异窗口。🔬 (177行)
 - cli/ 命令行技术：JSON 输出、命令参数、退出码、source/merge/applied/apply/drift/share/doctor 命令和桌面 --cli 模式。✅
-  - solution.md CLI 方案：scan、audit、source、merge、applied、apply plan/run、drift、catalog resolve、publish-plan、share、doctor 命令和确认边界。✅ (87行)
+  - solution.md CLI 方案：scan、audit、source、merge、applied、apply plan/run、drift、catalog list/resolve、publish-plan、share、doctor 命令和确认边界。✅ (87行)
 - _shared/models/ 数据模型：跨领域 TypeScript DTO 与持久化配置结构。✅
   - ArcForgeConfig.yaml 用户级项目配置模型：来源目录、团队仓库、共享模式、配置组、消费端可用性覆盖和目标组合列表。✅ (176行)
   - LocalProjectState.yaml 本地项目状态模型：项目身份、用户级配置覆盖、应用关系和更新时间。✅ (72行)
@@ -33,13 +33,13 @@
   - SkillProjectManifest.yaml Skill 项目维护源清单模型：版本、来源目录、项目默认推荐、逐 skill 推荐和自然语言适用条件。🟡 (116行)
   - SkillProjectApplicabilityAssessment.yaml 项目适用性评估模型：由 Agent 或用户提供结论、目标项目绑定、逐条件证据和未决项。🟡 (87行)
   - SkillAvailabilityPlan.yaml Skill 可用性计划模型：未分类状态、项目评估、目标映射、入口目标、诊断和待确认清理。🟡 (197行)
-  - UserSkillCatalog.yaml 用户级按需 catalog 模型：来源隔离、索引条目、内容摘要和应用关系归属。✅ (88行)
+  - UserSkillCatalog.yaml 用户级按需 catalog 模型：来源隔离、最小候选投影、内容摘要和应用关系归属。✅ (90行)
 - _shared/contracts/ IPC 契约：渲染层通过 preload 调用主进程和 core 能力。✅
   - workspace-scan.yaml 工作区扫描契约：输入根目录，加载可选维护源清单并输出工作区快照。✅ (37行)
   - apply-plan.yaml 可用性应用计划契约：解析来源推荐、消费端覆盖、调用方项目评估、三类目标和待确认清理。🟡 (84行)
   - apply-run.yaml 应用执行契约：重验显式评估并执行可用性计划或 legacy direct 目标模式。🟡 (91行)
   - apply-drift.yaml 漂移检查契约：复用可用性计划并输出内容漂移与策略漂移。✅ (65行)
-  - catalog-resolve.yaml 按需 catalog 解析契约：显式触发后按名称或搜索解析并校验单个已安装 skill，不执行 skill。✅ (62行)
+  - catalog-resolve.yaml 按需 catalog 契约：显式触发后列出最小候选供 Agent 语义选择，并确定性校验单个已安装 skill。✅ (89行)
   - workspace-add-remote.yaml 远程工作区添加契约：输入 GitHub/Git 来源，返回本地缓存 Skill 项目根目录。✅ (36行)
   - share-plan.yaml 共享计划契约：输入远端、目标与可选 Agent readiness，输出发布事实和共享交付计划。🟡 (75行)
   - share-run.yaml 共享执行契约：输入远端、配置组、可选 Agent readiness 和交付参数，同步技能与维护源清单并输出共享结果。🟡 (106行)

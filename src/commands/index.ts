@@ -11,7 +11,7 @@ import { createInstalledSkillOrganizePlan, organizeInstalledSkills, scanInstalle
 import { arcForgeHome } from "../core/project-store.js";
 import { addAppliedSource, applyAvailabilityFromSource, applyFromSource, cleanupLocalSkills, createAvailabilityPlanFromSource, createImportSkillsPlan, createLocalSkillWorkflowPlan, createMergePlan, driftAppliedSources, driftAvailabilityFromSource, driftFromSource, importSkillsIntoProject, listAppliedSources, mergeIntoProject, removeAppliedSource, resolveSkillProject, runAppliedSources } from "../core/sources.js";
 import { checkSourceUpdate, updateSource } from "../core/source-update.js";
-import { resolveCatalogSkill } from "../core/skill-catalog.js";
+import { listCatalogSkills, resolveCatalogSkill } from "../core/skill-catalog.js";
 import { createSkillProjectAvailabilityPlan, executeSkillProjectAvailabilityPlan, type SkillProjectAliasUpdate } from "../core/skill-project-availability.js";
 import { loadSkillProjectManifest, validateSkillProjectManifestSkills } from "../core/skill-project-manifest.js";
 import type { CliShimOptions } from "../core/cli-install.js";
@@ -46,7 +46,7 @@ Commands:
   import           Import skills from another Skill project into this project
   applied          Manage applied source records for the current project
   installed        Scan locally installed and cached agent skills
-  catalog          Resolve explicitly requested user-level on-demand skills
+  catalog          List metadata or resolve user-level on-demand skills
   apply            Plan availability targets or copy a profile into a direct target
   drift            Compare a profile against an installed target
   publish-plan     Collect release facts and preserve an optional Agent assessment
@@ -74,6 +74,7 @@ Examples:
   arcforge applied drift --root .
   arcforge installed scan
   arcforge installed organize plan
+  arcforge catalog list
   arcforge catalog resolve --query review
   arcforge apply plan --from ../team-skills --profile default --agent-targets codex,claude --project-targets ../app
   arcforge apply --from ../team-skills --profile default --target ~/.codex/skills
@@ -219,13 +220,15 @@ Options:
 `,
   catalog: `ArcForge CLI - catalog
 
-Resolve an explicitly requested user-level on-demand skill from the local ArcForge catalog. Outputs JSON.
-This command reads only the catalog index and selected skill directory. It never scans arbitrary roots or executes a skill.
+List minimal candidate metadata or resolve one selected user-level on-demand skill from the local ArcForge catalog. Outputs JSON.
+These commands read only the catalog index and, for a resolved selection, its skill directory. They never scan arbitrary roots, rank candidates semantically, or execute a skill.
 
 Usage:
+  arcforge catalog list
   arcforge catalog resolve --query <name-or-qualified-name> [--mode exact|search]
 
 Options:
+  list             Return validated name, qualified name, source key, and summary metadata for Agent semantic selection.
   --query <query>  Skill qualified name, name, or alias. Required.
   --mode <mode>    exact is the default. search also matches indexed summaries after explicit entry-skill invocation.
 `,
@@ -352,6 +355,7 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
   if (command === "installed") return runInstalledCommand(args, runtime);
   if (command === "catalog") {
     const action = args[1] ?? "resolve";
+    if (action === "list") return { exitCode: 0, value: await listCatalogSkills() };
     if (action !== "resolve") throw new Error(`Unknown catalog action: ${action}`);
     const mode = arg(args, "--mode") ?? "exact";
     if (mode !== "exact" && mode !== "search") throw new Error("Catalog mode must be exact or search.");

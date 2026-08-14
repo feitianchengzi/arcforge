@@ -175,6 +175,11 @@ export interface CatalogResolveCandidate {
   summary?: string;
 }
 
+export interface CatalogListResult {
+  status: "available" | "empty";
+  candidates: CatalogResolveCandidate[];
+}
+
 export interface CatalogResolveResult {
   status: "resolved" | "ambiguous" | "not-found";
   resolved?: UserSkillCatalogEntry;

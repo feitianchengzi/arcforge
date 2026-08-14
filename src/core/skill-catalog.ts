@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import type {
+  CatalogListResult,
   CatalogResolveCandidate,
   CatalogResolveMode,
   CatalogResolveResult,
@@ -101,6 +102,14 @@ export async function resolveCatalogSkill(
 
   await validateResolvedCatalogEntry(matches[0], options);
   return { status: "resolved", resolved: matches[0], candidates };
+}
+
+export async function listCatalogSkills(options: SkillCatalogOptions = {}): Promise<CatalogListResult> {
+  const catalog = await loadUserSkillCatalog(options);
+  const candidates = catalog.entries
+    .map(toCandidate)
+    .sort((left, right) => left.qualifiedName.localeCompare(right.qualifiedName));
+  return { status: candidates.length > 0 ? "available" : "empty", candidates };
 }
 
 export async function catalogDirectoryDigest(root: string): Promise<string> {
