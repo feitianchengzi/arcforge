@@ -197,6 +197,16 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
       ...(catalogDecision ? { catalogDecision } : {})
     };
   }));
+  const assetDestinations = ambientAssetDestinations(planItems);
+  const assets = await Promise.all(options.source.assets.map(async (asset) => ({
+    name: asset.name,
+    sourcePath: toPosixPath(asset.relativePath),
+    destinations: assetDestinations.map((destination) => ({
+      ...destination,
+      path: path.join(destination.path, asset.name)
+    })),
+    contentDigest: await directoryDigest(asset.path)
+  })));
 
   const loaderTargets = planItems.some((item) => item.effectiveMode === "user-on-demand")
     ? await resolveLoaderTargets(
@@ -225,11 +235,24 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
     profile: options.profileName,
     sourcePolicyDigest: skillAvailabilitySourcePolicyDigest(options.source.sourceManifest),
     items: planItems,
+    assets,
     loaderTargets,
     cleanup,
     diagnostics: dedupeDiagnostics(diagnostics),
     requiresConfirm: true
   };
+}
+
+function ambientAssetDestinations(items: SkillAvailabilityPlan["items"]): SkillAvailabilityDestination[] {
+  const byRoot = new Map<string, SkillAvailabilityDestination>();
+  for (const item of items) {
+    for (const destination of item.destinations) {
+      if (destination.kind === "user-catalog") continue;
+      const root = path.dirname(destination.path);
+      if (!byRoot.has(root)) byRoot.set(root, { ...destination, path: root });
+    }
+  }
+  return [...byRoot.values()].sort((left, right) => left.path.localeCompare(right.path));
 }
 
 async function resolveLoaderTargets(

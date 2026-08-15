@@ -13,6 +13,7 @@ const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 test("embedded provider isolates state, confirms fresh plans, and removes only proven managed paths", async () => {
   await execFileAsync(process.execPath, [path.join(repoRoot, "node_modules", "typescript", "bin", "tsc"), "-p", path.join(repoRoot, "tsconfig.cli.json")], { cwd: repoRoot });
   const provider = await import(`${pathToFileURL(path.join(repoRoot, "dist", "provider", "index.js")).href}?test=${Date.now()}`);
+  const core = await import(`${pathToFileURL(path.join(repoRoot, "dist", "core", "sources.js")).href}?test=${Date.now()}`);
   const fixture = await mkdtemp(path.join(tmpdir(), "arcforge-provider-"));
   const sourceRoot = path.join(fixture, "source");
   const consumerRoot = path.join(fixture, "consumer");
@@ -23,30 +24,56 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
   process.env.ARCFORGE_HOME = decoyStateRoot;
   try {
     await mkdir(path.join(sourceRoot, "skills", "rare-tool"), { recursive: true });
+    await mkdir(path.join(sourceRoot, "skills", "ambient-tool"), { recursive: true });
+    await mkdir(path.join(sourceRoot, "definition", "skills", "_declared_shared"), { recursive: true });
     await mkdir(consumerRoot, { recursive: true });
     await writeFile(path.join(sourceRoot, "skills", "rare-tool", "SKILL.md"), "---\nname: rare-tool\ndescription: Provider fixture.\nversion: 1.2.0\n---\n\n# Rare tool\n");
+    await writeFile(path.join(sourceRoot, "skills", "ambient-tool", "SKILL.md"), "---\nname: ambient-tool\ndescription: Ambient provider fixture.\n---\n");
+    await writeFile(path.join(sourceRoot, "definition", "skills", "_declared_shared", "contract.md"), "declared shared contract\n");
     await writeFile(path.join(sourceRoot, "arcforge.config.json"), `${JSON.stringify({
       version: 1,
       sourceDir: "skills",
-      profiles: [{ name: "default", skills: ["rare-tool"], targets: ["codex"] }]
+      profiles: [{ name: "default", skills: ["rare-tool", "ambient-tool"], targets: ["codex"] }]
     }, null, 2)}\n`);
     await writeFile(path.join(sourceRoot, "arcforge.skill-project.json"), `${JSON.stringify({
       version: 1,
       sourceDir: "skills",
-      availability: { skills: [{ path: "skills/rare-tool", mode: "user-on-demand", aliases: ["rare"] }] }
+      availability: { defaultMode: "user-ambient", skills: [{ path: "skills/rare-tool", mode: "user-on-demand", aliases: ["rare"] }] }
     }, null, 2)}\n`);
     await writeFile(path.join(sourceRoot, "payload.manifest.json"), `${JSON.stringify({
       schemaVersion: "fixture-payload/v1",
       sourceCommit: "0123456789abcdef0123456789abcdef01234567",
-      sourceManifestDigest: "f".repeat(64)
+      sourceManifestDigest: "f".repeat(64),
+      sharedAssetPaths: ["definition/skills/_declared_shared"]
     }, null, 2)}\n`);
 
     const options = { sourceRoot, consumerRoot, stateRoot, homeDir, profile: "default", agentTargetIds: ["codex"] };
     const planned = await provider.createProvisioningPlan(options);
+    const canonicalPlan = await core.createAvailabilityPlanFromSource({
+      root: consumerRoot,
+      from: sourceRoot,
+      stateRoot,
+      homeDir,
+      profile: "default",
+      agentTargetIds: ["codex"],
+      declaredSharedAssetPaths: ["definition/skills/_declared_shared"],
+      sourceProvenance: {
+        sourceIdentity: `payload:fixture-payload/v1:0123456789abcdef0123456789abcdef01234567:${"f".repeat(64)}`,
+        sourceCommit: "0123456789abcdef0123456789abcdef01234567"
+      }
+    });
+    assert.deepEqual(planned.plan, canonicalPlan);
     assert.match(planned.planDigest, /^[a-f0-9]{64}$/);
     assert.equal(planned.plan.sourceProvenance.sourceCommit, "0123456789abcdef0123456789abcdef01234567");
     assert.match(planned.plan.sourceIdentity, /^payload:fixture-payload\/v1:/);
-    const catalogPath = planned.plan.items[0].destinations[0].path;
+    assert.deepEqual((await provider.inspectProvider()).capabilities, ["declared-shared-assets/v1"]);
+    assert.equal(planned.plan.assets.length, 1);
+    assert.equal(planned.plan.assets[0].sourcePath, "definition/skills/_declared_shared");
+    assert.equal(planned.sharedAssets.length, 1);
+    assert.equal(planned.sharedAssets[0].name, "_declared_shared");
+    assert.equal(planned.sharedAssets[0].sourcePath, "definition/skills/_declared_shared");
+    assert.deepEqual(planned.sharedAssets[0].destinations, [path.join(homeDir, ".codex", "skills", "_declared_shared")]);
+    const catalogPath = planned.plan.items.find((item) => item.skill === "rare-tool").destinations[0].path;
     assert.equal(catalogPath, path.join(stateRoot, "catalog", "rare-tool"));
     assert.equal(catalogPath.startsWith(path.join(stateRoot, "catalog")), true);
     assert.equal(catalogPath.startsWith(path.join(homeDir, ".arcforge")), false);
@@ -55,8 +82,26 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
       provider.applyProvisioningPlan({ ...options, expectedPlanDigest: "0".repeat(64), confirm: true }),
       /plan changed after confirmation/
     );
-    await provider.applyProvisioningPlan({ ...options, expectedPlanDigest: planned.planDigest, confirm: true });
+    await writeFile(path.join(sourceRoot, "definition", "skills", "_declared_shared", "contract.md"), "changed after confirmation\n");
+    await assert.rejects(
+      provider.applyProvisioningPlan({ ...options, expectedPlanDigest: planned.planDigest, confirm: true }),
+      /plan changed after confirmation/
+    );
+    await writeFile(path.join(sourceRoot, "definition", "skills", "_declared_shared", "contract.md"), "declared shared contract\n");
+    const before = await provider.driftProvisioningPlan(options);
+    assert.equal(before.items.find((item) => item.kind === "asset" && item.skill === "_declared_shared").status, "missing");
+    const applied = await provider.applyProvisioningPlan({ ...options, expectedPlanDigest: planned.planDigest, confirm: true });
+    assert.deepEqual(applied.result.copiedAssets, ["_declared_shared"]);
+    await access(path.join(homeDir, ".codex", "skills", "_declared_shared", "contract.md"));
+    const after = await provider.driftProvisioningPlan(options);
+    assert.equal(after.items.find((item) => item.kind === "asset" && item.skill === "_declared_shared").status, "same");
     assert.equal((await provider.listProvisioningRelations({ consumerRoot, stateRoot, sourceRoot })).length, 1);
+    const relation = (await provider.listProvisioningRelations({ consumerRoot, stateRoot, sourceRoot }))[0];
+    assert.deepEqual(relation.availabilityAssets, [{
+      name: "_declared_shared",
+      sourcePath: "definition/skills/_declared_shared",
+      destinations: [path.join(homeDir, ".codex", "skills", "_declared_shared")]
+    }]);
     await access(path.join(stateRoot, "catalog", "index.json"));
     const appliedCatalog = JSON.parse(await readFile(path.join(stateRoot, "catalog", "index.json"), "utf8"));
     assert.equal(appliedCatalog.version, 2);
@@ -64,18 +109,20 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
     assert.equal(appliedCatalog.entries[0].sourceClaims[0].sourceCommit, "0123456789abcdef0123456789abcdef01234567");
     await assert.rejects(access(path.join(decoyStateRoot, "projects")));
 
-    const removal = await provider.removeManagedProvisioning({ consumerRoot, stateRoot, sourceRoot, managedPaths: [catalogPath] });
+    const sharedPath = path.join(homeDir, ".codex", "skills", "_declared_shared");
+    const removal = await provider.removeManagedProvisioning({ consumerRoot, stateRoot, sourceRoot, managedPaths: [catalogPath, sharedPath] });
     assert.match(removal.confirmationDigest, /^[a-f0-9]{64}$/);
     const result = await provider.removeManagedProvisioning({
       consumerRoot,
       stateRoot,
       sourceRoot,
-      managedPaths: [catalogPath],
+      managedPaths: [catalogPath, sharedPath],
       confirmationDigest: removal.confirmationDigest,
       confirm: true
     });
-    assert.deepEqual(result.removedPaths, [catalogPath]);
+    assert.deepEqual(result.removedPaths, [catalogPath, sharedPath].sort());
     await assert.rejects(access(catalogPath));
+    await assert.rejects(access(sharedPath));
     const catalog = JSON.parse(await readFile(path.join(stateRoot, "catalog", "index.json"), "utf8"));
     assert.deepEqual(catalog.entries, []);
   } finally {

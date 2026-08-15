@@ -91,6 +91,7 @@ export interface AvailabilityPlanFromSourceOptions {
   stateRoot?: string;
   sourceProvenance?: SkillSourceProvenance;
   catalogSourceSelections?: CatalogSourceSelection[];
+  declaredSharedAssetPaths?: string[];
 }
 
 export interface AvailabilityApplyFromSourceOptions extends AvailabilityPlanFromSourceOptions {
@@ -119,7 +120,7 @@ export async function createAvailabilityPlanFromSource(options: AvailabilityPlan
   const sourceRoot = options.from
     ? await resolveSkillProjectRoot(options.from, cacheDirForInput(options.from, options.cacheDir))
     : consumerRoot;
-  const source = await scanWorkspace(sourceRoot, { stateRoot: options.stateRoot, readOnlyConfig: Boolean(options.stateRoot) });
+  const source = await scanAvailabilitySource(sourceRoot, options);
   const records = await listAppliedSources(consumerRoot, options.stateRoot);
   const loaderSourcePath = await bundledOnDemandSkillPath();
   return createSkillAvailabilityPlan({
@@ -145,7 +146,7 @@ export async function driftAvailabilityFromSource(options: AvailabilityDriftFrom
   const sourceRoot = options.from
     ? await resolveSkillProjectRoot(options.from, cacheDirForInput(options.from, options.cacheDir))
     : consumerRoot;
-  const source = await scanWorkspace(sourceRoot, { stateRoot: options.stateRoot, readOnlyConfig: Boolean(options.stateRoot) });
+  const source = await scanAvailabilitySource(sourceRoot, options);
   const records = await listAppliedSources(consumerRoot, options.stateRoot);
   const loaderSourcePath = await bundledOnDemandSkillPath();
   const plan = await createSkillAvailabilityPlan({
@@ -178,7 +179,7 @@ export async function applyAvailabilityFromSource(options: AvailabilityApplyFrom
   const sourceRoot = options.from
     ? await resolveSkillProjectRoot(options.from, cacheDirForInput(options.from, options.cacheDir))
     : consumerRoot;
-  const source = await scanWorkspace(sourceRoot, { stateRoot: options.stateRoot, readOnlyConfig: Boolean(options.stateRoot) });
+  const source = await scanAvailabilitySource(sourceRoot, options);
   const previousRecords = await listAppliedSources(consumerRoot, options.stateRoot);
   const loaderSourcePath = await bundledOnDemandSkillPath();
   const plan = await createSkillAvailabilityPlan({
@@ -232,6 +233,36 @@ export async function applyAvailabilityFromSource(options: AvailabilityApplyFrom
     copiedThisRun: execution.result.copied,
     selectedSkillsThisRun: plan.items.map((item) => item.skill),
     managedSkillNamesHistorical: execution.record?.managedSkillNames ?? []
+  };
+}
+
+async function scanAvailabilitySource(sourceRoot: string, options: AvailabilityPlanFromSourceOptions): Promise<WorkspaceSnapshot> {
+  const source = await scanWorkspace(sourceRoot, { stateRoot: options.stateRoot, readOnlyConfig: Boolean(options.stateRoot) });
+  if (!options.declaredSharedAssetPaths?.length) return source;
+  const assetsByPath = new Map(source.assets.map((asset) => [path.resolve(asset.path), asset]));
+  for (const declaredPath of options.declaredSharedAssetPaths) {
+    const normalized = declaredPath.trim().replaceAll("\\", "/").replace(/^\.\//, "");
+    if (!normalized || path.posix.isAbsolute(normalized) || normalized.split("/").includes("..")) {
+      throw new Error(`Declared shared asset path must stay inside the source root: ${declaredPath}`);
+    }
+    const assetPath = path.resolve(sourceRoot, ...normalized.split("/"));
+    const relative = path.relative(sourceRoot, assetPath);
+    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+      throw new Error(`Declared shared asset path must resolve below the source root: ${declaredPath}`);
+    }
+    const stats = await fs.lstat(assetPath);
+    if (!stats.isDirectory() || stats.isSymbolicLink()) {
+      throw new Error(`Declared shared asset path must be a physical directory: ${declaredPath}`);
+    }
+    assetsByPath.set(assetPath, {
+      name: path.basename(assetPath),
+      path: assetPath,
+      relativePath: relative
+    });
+  }
+  return {
+    ...source,
+    assets: [...assetsByPath.values()].sort((left, right) => left.name.localeCompare(right.name) || left.relativePath.localeCompare(right.relativePath))
   };
 }
 
@@ -711,11 +742,19 @@ async function availabilityAppliedRecordFor(
     profile: plan.profile,
     targetDir: "",
     skills: plan.items.map((item) => item.skill),
-    managedSkillNames: mergeNames(existing?.managedSkillNames ?? existing?.skills ?? [], plan.items.map((item) => item.skill)),
+    managedSkillNames: mergeNames(existing?.managedSkillNames ?? existing?.skills ?? [], [
+      ...plan.items.map((item) => item.skill),
+      ...plan.assets.map((item) => item.name)
+    ]),
     availabilityItems: plan.items.map((item) => ({
       skill: item.skill,
       mode: requiredEffectiveMode(item),
       policyOrigin: item.policyOrigin,
+      destinations: item.destinations.map((destination) => path.resolve(destination.path))
+    })),
+    availabilityAssets: plan.assets.map((item) => ({
+      name: item.name,
+      sourcePath: item.sourcePath,
       destinations: item.destinations.map((destination) => path.resolve(destination.path))
     })),
     availabilityContext: {

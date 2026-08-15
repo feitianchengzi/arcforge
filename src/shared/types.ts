@@ -119,6 +119,13 @@ export interface SkillAvailabilityPlanItem extends ResolvedSkillAvailability {
   catalogDecision?: CatalogVersionDecision;
 }
 
+export interface SkillAvailabilityAssetPlanItem {
+  name: string;
+  sourcePath: string;
+  destinations: SkillAvailabilityDestination[];
+  contentDigest: string;
+}
+
 export type CatalogVersionDecisionAction = "install" | "merge-provenance" | "upgrade" | "source-selected" | "downgrade-blocked" | "conflict";
 
 export interface CatalogSourceSelection {
@@ -170,6 +177,7 @@ export interface SkillAvailabilityPlan {
   profile: string;
   sourcePolicyDigest?: string;
   items: SkillAvailabilityPlanItem[];
+  assets: SkillAvailabilityAssetPlanItem[];
   loaderTargets: SkillAvailabilityLoaderTarget[];
   cleanup: SkillAvailabilityCleanupItem[];
   diagnostics: SkillProjectManifestDiagnostic[];
@@ -479,6 +487,11 @@ export interface AppliedSourceRecord {
     skill: string;
     mode: SkillAvailabilityMode;
     policyOrigin: SkillAvailabilityPolicyOrigin | "compatibility";
+    destinations: string[];
+  }>;
+  availabilityAssets?: Array<{
+    name: string;
+    sourcePath: string;
     destinations: string[];
   }>;
   availabilityContext?: {

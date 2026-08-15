@@ -5,7 +5,6 @@ import type {
   DriftPolicyItem,
   DriftReport,
   DriftTargetExtra,
-  SkillAvailabilityDestinationKind,
   SkillAvailabilityPlan,
   WorkspaceSnapshot
 } from "../shared/types.js";
@@ -24,9 +23,9 @@ export async function createSkillAvailabilityDriftReport(options: CreateSkillAva
   if (options.plan.loaderTargets.length > 0 && !options.loaderSourcePath) throw new Error("On-demand loader source is unavailable for drift.");
 
   const skillByPath = new Map(options.source.skills.map((skill) => [toPosixPath(skill.relativePath), skill]));
+  const assetByPath = new Map(options.source.assets.map((asset) => [toPosixPath(asset.relativePath), asset]));
   const items: DriftItem[] = [];
   const expectedByRoot = new Map<string, Set<string>>();
-  const ambientRoots = new Map<string, SkillAvailabilityDestinationKind>();
 
   for (const item of options.plan.items) {
     const skill = skillByPath.get(item.sourcePath);
@@ -34,15 +33,16 @@ export async function createSkillAvailabilityDriftReport(options: CreateSkillAva
     for (const destination of item.destinations) {
       items.push(await driftItem(item.skill, "skill", skill.path, destination.path));
       expectTarget(expectedByRoot, destination.path);
-      if (destination.kind !== "user-catalog") ambientRoots.set(path.dirname(destination.path), destination.kind);
     }
   }
 
-  for (const asset of options.source.assets) {
-    for (const root of ambientRoots.keys()) {
-      const targetPath = path.join(root, asset.name);
-      items.push(await driftItem(asset.name, "asset", asset.path, targetPath));
-      expectTarget(expectedByRoot, targetPath);
+  for (const item of options.plan.assets ?? []) {
+    const asset = assetByPath.get(item.sourcePath);
+    if (!asset || asset.name !== item.name) throw new Error(`Plan asset is absent from the fresh source snapshot: ${item.sourcePath}`);
+    for (const destination of item.destinations) {
+      if (destination.kind === "user-catalog") throw new Error(`Shared asset cannot target the user catalog: ${item.name}`);
+      items.push(await driftItem(item.name, "asset", asset.path, destination.path));
+      expectTarget(expectedByRoot, destination.path);
     }
   }
 

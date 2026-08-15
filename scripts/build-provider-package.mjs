@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import { cp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -17,6 +17,9 @@ const artifactName = `arcforge-provider-${providerVersion}.tgz`;
 
 assertVersion(providerVersion);
 await assertBuilt();
+const providerModule = await import(pathToFileURL(path.join(rootDir, "dist", "provider", "index.js")).href);
+const apiVersion = providerModule.ARCFORGE_EMBEDDED_PROVIDER_API_VERSION;
+const capabilities = [...providerModule.ARCFORGE_EMBEDDED_PROVIDER_CAPABILITIES];
 await rm(path.dirname(workRoot), { recursive: true, force: true });
 await rm(outputRoot, { recursive: true, force: true });
 await mkdir(workRoot, { recursive: true });
@@ -30,7 +33,8 @@ await cp(path.join(rootDir, "LICENSE"), path.join(workRoot, "LICENSE"));
 
 const providerManifest = {
   schemaVersion: "arcforge-provider-package/v1",
-  apiVersion: "arcforge-embedded-provider/v1",
+  apiVersion,
+  capabilities,
   providerVersion,
   buildCommit,
   releaseTag: options.tag ?? null,

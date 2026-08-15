@@ -74,7 +74,8 @@ export async function executeSkillAvailabilityPlan(options: ExecuteSkillAvailabi
   }
   const cleanupPaths = validateCleanupPaths(options.plan, options.cleanupPaths ?? []);
   const skillByPath = new Map(options.source.skills.map((skill) => [toPosixPath(skill.relativePath), skill]));
-  const replacements = createReplacements(options.source, options.plan, skillByPath, options.loaderSourcePath);
+  const assetByPath = new Map(options.source.assets.map((asset) => [toPosixPath(asset.relativePath), asset]));
+  const replacements = createReplacements(options.plan, skillByPath, assetByPath, options.loaderSourcePath);
   const previousCatalogRaw = await readUserSkillCatalogIndex({ catalogRoot: options.catalogRoot });
   const previousCatalog = await loadUserSkillCatalog({ catalogRoot: options.catalogRoot });
   const nextEntries = createCatalogEntries(options, previousCatalog.entries, cleanupPaths, skillByPath);
@@ -141,9 +142,9 @@ export async function executeSkillAvailabilityPlan(options: ExecuteSkillAvailabi
 }
 
 function createReplacements(
-  source: WorkspaceSnapshot,
   plan: SkillAvailabilityPlan,
   skillByPath: Map<string, WorkspaceSnapshot["skills"][number]>,
+  assetByPath: Map<string, WorkspaceSnapshot["assets"][number]>,
   loaderSourcePath: string | undefined
 ): DirectoryReplacement[] {
   const replacements: DirectoryReplacement[] = [];
@@ -156,16 +157,12 @@ function createReplacements(
     }
   }
 
-  const ambientRoots = new Map<string, SkillAvailabilityDestinationKind>();
-  for (const item of plan.items) {
+  for (const item of plan.assets ?? []) {
+    const asset = assetByPath.get(item.sourcePath);
+    if (!asset || asset.name !== item.name) throw new AvailabilityApplyError("APPLY_PLAN_INVALID", `Plan asset is absent from the fresh source snapshot: ${item.sourcePath}`);
     for (const destination of item.destinations) {
-      if (destination.kind === "user-catalog") continue;
-      ambientRoots.set(path.dirname(destination.path), destination.kind);
-    }
-  }
-  for (const asset of source.assets) {
-    for (const [root, kind] of ambientRoots) {
-      addReplacement(replacements, targets, asset.name, kind, asset.path, path.join(root, asset.name));
+      if (destination.kind === "user-catalog") throw new AvailabilityApplyError("APPLY_PLAN_INVALID", `Shared asset cannot target the user catalog: ${item.name}`);
+      addReplacement(replacements, targets, item.name, destination.kind, asset.path, destination.path, item.contentDigest);
     }
   }
   if (plan.loaderTargets.length > 0 && !loaderSourcePath) {
@@ -366,7 +363,7 @@ function buildApplyResult(
 ): ApplyProfileResult {
   const skillNames = new Set(options.plan.items.map((item) => item.skill));
   const copiedAssets = [...new Set(replacements.filter((item) => item.kind !== "loader" && !skillNames.has(item.skill)).map((item) => item.skill))].sort();
-  const skippedAssets = options.source.assets.filter((asset) => !copiedAssets.includes(asset.name)).map((asset) => asset.name).sort();
+  const skippedAssets = (options.plan.assets ?? []).filter((asset) => !copiedAssets.includes(asset.name)).map((asset) => asset.name).sort();
   return {
     profile: options.plan.profile,
     targetDir: null,

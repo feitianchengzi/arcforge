@@ -24,6 +24,7 @@ import { saveLocalProjectAppliedSources } from "../core/project-store.js";
 import { pathExists } from "../core/fs.js";
 
 export const ARCFORGE_EMBEDDED_PROVIDER_API_VERSION = "arcforge-embedded-provider/v1";
+export const ARCFORGE_EMBEDDED_PROVIDER_CAPABILITIES = ["declared-shared-assets/v1"] as const;
 
 export interface ProvisioningOptions {
   sourceRoot: string;
@@ -44,7 +45,15 @@ export interface ProvisioningPlanEnvelope {
   apiVersion: typeof ARCFORGE_EMBEDDED_PROVIDER_API_VERSION;
   planDigest: string;
   plan: SkillAvailabilityPlan;
+  sharedAssets: ProvisionedSharedAsset[];
   targetEvidence: ManagedPathEvidence[];
+}
+
+export interface ProvisionedSharedAsset {
+  name: string;
+  sourcePath: string;
+  contentDigest: string;
+  destinations: string[];
 }
 
 export interface ApplyProvisioningOptions extends ProvisioningOptions {
@@ -94,6 +103,7 @@ export async function inspectProvider(): Promise<{
   providerVersion: string;
   buildCommit: string;
   loaderDigest: string;
+  capabilities: string[];
 }> {
   const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
   const manifest = await readJsonIfPresent(path.join(packageRoot, "arcforge-provider.manifest.json"));
@@ -102,14 +112,25 @@ export async function inspectProvider(): Promise<{
     apiVersion: ARCFORGE_EMBEDDED_PROVIDER_API_VERSION,
     providerVersion: stringValue(manifest?.providerVersion) || stringValue(packageJson?.version) || "0.0.0-development",
     buildCommit: stringValue(manifest?.buildCommit) || "development",
-    loaderDigest: await catalogDirectoryDigest(path.join(packageRoot, "skills", "arcforge-on-demand"))
+    loaderDigest: await catalogDirectoryDigest(path.join(packageRoot, "skills", "arcforge-on-demand")),
+    capabilities: [...ARCFORGE_EMBEDDED_PROVIDER_CAPABILITIES]
   };
 }
 
 export async function createProvisioningPlan(options: ProvisioningOptions): Promise<ProvisioningPlanEnvelope> {
   assertProvisioningRoots(options);
-  const plan = await createAvailabilityPlanFromSource(await toAvailabilityOptions(options));
-  return envelope(plan, await inspectPaths(plan.items.flatMap((item) => item.destinations.map((destination) => destination.path))));
+  const availabilityOptions = await toAvailabilityOptions(options);
+  const plan = await createAvailabilityPlanFromSource(availabilityOptions);
+  const sharedAssets = plan.assets.map((asset) => ({
+    name: asset.name,
+    sourcePath: asset.sourcePath,
+    contentDigest: asset.contentDigest,
+    destinations: asset.destinations.map((destination) => destination.path)
+  }));
+  return envelope(plan, sharedAssets, await inspectPaths([
+    ...plan.items.flatMap((item) => item.destinations.map((destination) => destination.path)),
+    ...sharedAssets.flatMap((asset) => asset.destinations)
+  ]));
 }
 
 export async function driftProvisioningPlan(options: ProvisioningOptions): Promise<DriftReport> {
@@ -198,7 +219,10 @@ export async function removeManagedProvisioning(options: RemoveManagedProvisioni
 
 async function createManagedRemovalPlan(options: RemoveManagedProvisioningOptions): Promise<ManagedRemovalPlan> {
   const records = await listProvisioningRelations(options);
-  const allowed = new Set(records.flatMap((record) => record.availabilityItems?.flatMap((item) => item.destinations.map((destination) => path.resolve(destination))) ?? []));
+  const allowed = new Set(records.flatMap((record) => [
+    ...(record.availabilityItems?.flatMap((item) => item.destinations) ?? []),
+    ...(record.availabilityAssets?.flatMap((item) => item.destinations) ?? [])
+  ].map((destination) => path.resolve(destination))));
   const managedPaths = [...new Set(options.managedPaths.map((item) => path.resolve(item)))].sort();
   if (!managedPaths.length) throw new Error("Managed removal requires at least one explicit managed path.");
   for (const managedPath of managedPaths) {
@@ -206,7 +230,10 @@ async function createManagedRemovalPlan(options: RemoveManagedProvisioningOption
     if (path.dirname(managedPath) === managedPath) throw new Error(`Refusing to remove a filesystem root: ${managedPath}`);
   }
   const relationIds = records
-    .filter((record) => record.availabilityItems?.some((item) => item.destinations.some((destination) => managedPaths.includes(path.resolve(destination)))))
+    .filter((record) => [
+      ...(record.availabilityItems?.flatMap((item) => item.destinations) ?? []),
+      ...(record.availabilityAssets?.flatMap((item) => item.destinations) ?? [])
+    ].some((destination) => managedPaths.includes(path.resolve(destination))))
     .map((record) => record.id)
     .sort();
   const pathEvidence = await inspectPaths(managedPaths);
@@ -226,12 +253,21 @@ function withoutManagedPaths(record: AppliedSourceRecord, removed: Set<string>):
     ...item,
     destinations: item.destinations.filter((destination) => !removed.has(path.resolve(destination)))
   })).filter((item) => item.destinations.length > 0);
+  const availabilityAssets = record.availabilityAssets?.map((item) => ({
+    ...item,
+    destinations: item.destinations.filter((destination) => !removed.has(path.resolve(destination)))
+  })).filter((item) => item.destinations.length > 0);
   const retainedSkills = new Set(availabilityItems?.map((item) => item.skill) ?? record.skills);
+  const retainedManagedNames = new Set([
+    ...retainedSkills,
+    ...(availabilityAssets?.map((item) => item.name) ?? [])
+  ]);
   return {
     ...record,
     skills: record.skills.filter((skill) => retainedSkills.has(skill)),
-    managedSkillNames: (record.managedSkillNames ?? []).filter((skill) => retainedSkills.has(skill)),
+    managedSkillNames: (record.managedSkillNames ?? []).filter((name) => retainedManagedNames.has(name)),
     availabilityItems,
+    availabilityAssets,
     updatedAt: new Date().toISOString()
   };
 }
@@ -260,11 +296,14 @@ async function toAvailabilityOptions(options: ProvisioningOptions) {
   const inferredIdentity = sourceCommit && sourceManifestDigest
     ? `payload:${schemaVersion || "unknown"}:${sourceCommit}:${sourceManifestDigest}`
     : undefined;
+  const sourceIdentity = options.sourceProvenance?.sourceIdentity ?? inferredIdentity;
+  const sourceRemoteUrl = options.sourceProvenance?.sourceRemoteUrl ?? (stringValue(payloadManifest?.sourceRemoteUrl) || undefined);
+  const payloadVersion = options.sourceProvenance?.payloadVersion ?? (stringValue(payloadManifest?.payloadVersion ?? payloadManifest?.version) || undefined);
   const sourceProvenance: SkillSourceProvenance | undefined = options.sourceProvenance || payloadManifest ? {
-    sourceIdentity: options.sourceProvenance?.sourceIdentity ?? inferredIdentity,
-    sourceRemoteUrl: options.sourceProvenance?.sourceRemoteUrl ?? (stringValue(payloadManifest?.sourceRemoteUrl) || undefined),
-    sourceCommit,
-    payloadVersion: options.sourceProvenance?.payloadVersion ?? (stringValue(payloadManifest?.payloadVersion ?? payloadManifest?.version) || undefined)
+    ...(sourceIdentity ? { sourceIdentity } : {}),
+    ...(sourceRemoteUrl ? { sourceRemoteUrl } : {}),
+    ...(sourceCommit ? { sourceCommit } : {}),
+    ...(payloadVersion ? { payloadVersion } : {})
   } : undefined;
   return {
     root: path.resolve(options.consumerRoot),
@@ -278,7 +317,8 @@ async function toAvailabilityOptions(options: ProvisioningOptions) {
     homeDir: path.resolve(options.homeDir),
     stateRoot: path.resolve(options.stateRoot),
     sourceProvenance,
-    catalogSourceSelections: options.catalogSourceSelections
+    catalogSourceSelections: options.catalogSourceSelections,
+    declaredSharedAssetPaths: stringArray(payloadManifest?.sharedAssetPaths)
   };
 }
 
@@ -293,8 +333,8 @@ function assertAbsoluteDirectoryInput(name: string, value: string): void {
   if (!value || !path.isAbsolute(value)) throw new Error(`${name} must be an explicit absolute path.`);
 }
 
-function envelope(plan: SkillAvailabilityPlan, targetEvidence: ManagedPathEvidence[]): ProvisioningPlanEnvelope {
-  return { apiVersion: ARCFORGE_EMBEDDED_PROVIDER_API_VERSION, planDigest: digest({ plan, targetEvidence }), plan, targetEvidence };
+function envelope(plan: SkillAvailabilityPlan, sharedAssets: ProvisionedSharedAsset[], targetEvidence: ManagedPathEvidence[]): ProvisioningPlanEnvelope {
+  return { apiVersion: ARCFORGE_EMBEDDED_PROVIDER_API_VERSION, planDigest: digest({ plan, targetEvidence }), plan, sharedAssets, targetEvidence };
 }
 
 async function inspectPaths(values: string[]): Promise<ManagedPathEvidence[]> {
@@ -334,4 +374,9 @@ async function readJsonIfPresent(filePath: string): Promise<Record<string, unkno
 
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function stringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).map((item) => item.trim());
 }
