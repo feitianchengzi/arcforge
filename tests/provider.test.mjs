@@ -14,6 +14,7 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
   await execFileAsync(process.execPath, [path.join(repoRoot, "node_modules", "typescript", "bin", "tsc"), "-p", path.join(repoRoot, "tsconfig.cli.json")], { cwd: repoRoot });
   const provider = await import(`${pathToFileURL(path.join(repoRoot, "dist", "provider", "index.js")).href}?test=${Date.now()}`);
   const core = await import(`${pathToFileURL(path.join(repoRoot, "dist", "core", "sources.js")).href}?test=${Date.now()}`);
+  const projectStore = await import(`${pathToFileURL(path.join(repoRoot, "dist", "core", "project-store.js")).href}?test=${Date.now()}`);
   const fixture = await mkdtemp(path.join(tmpdir(), "arcforge-provider-"));
   const sourceRoot = path.join(fixture, "source");
   const consumerRoot = path.join(fixture, "consumer");
@@ -66,7 +67,7 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
     assert.match(planned.planDigest, /^[a-f0-9]{64}$/);
     assert.equal(planned.plan.sourceProvenance.sourceCommit, "0123456789abcdef0123456789abcdef01234567");
     assert.match(planned.plan.sourceIdentity, /^payload:fixture-payload\/v1:/);
-    assert.deepEqual((await provider.inspectProvider()).capabilities, ["declared-shared-assets/v1"]);
+    assert.deepEqual((await provider.inspectProvider()).capabilities, ["declared-shared-assets/v1", "source-upgrade-recovery/v1"]);
     assert.equal(planned.plan.assets.length, 1);
     assert.equal(planned.plan.assets[0].sourcePath, "definition/skills/_declared_shared");
     assert.equal(planned.sharedAssets.length, 1);
@@ -102,6 +103,75 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
       sourcePath: "definition/skills/_declared_shared",
       destinations: [path.join(homeDir, ".codex", "skills", "_declared_shared")]
     }]);
+    assert.deepEqual(relation.provisioningEvidence.providerCapabilities, ["declared-shared-assets/v1", "source-upgrade-recovery/v1"]);
+    assert.equal(relation.provisioningEvidence.targets.some((item) => item.kind === "loader" && item.name === "arcforge-on-demand"), true);
+    assert.equal(relation.provisioningEvidence.targets.every((item) => /^[a-f0-9]{64}$/.test(item.contentDigest)), true);
+
+    await rm(catalogPath, { recursive: true, force: true });
+    const repairAssessment = await provider.assessProvisioningUpgrade(options);
+    assert.equal(repairAssessment.canProceed, true);
+    assert.equal(repairAssessment.writeState, "not_started");
+    assert.equal(repairAssessment.items.some((item) => item.disposition === "managed-repair" && item.path === catalogPath), true);
+    await provider.applyProvisioningPlan({ ...options, expectedPlanDigest: (await provider.createProvisioningPlan(options)).planDigest, confirm: true });
+
+    await writeFile(path.join(homeDir, ".codex", "skills", "ambient-tool", "SKILL.md"), "local edit\n");
+    const conflictAssessment = await provider.assessProvisioningUpgrade(options);
+    assert.equal(conflictAssessment.canProceed, false);
+    assert.equal(conflictAssessment.canBackupAndRestore, true);
+    assert.equal(conflictAssessment.items.some((item) => item.disposition === "local-content-conflict" && item.name === "ambient-tool"), true);
+    const recovered = await provider.recoverProvisioningUpgrade({
+      ...options,
+      expectedAssessmentDigest: conflictAssessment.assessmentDigest,
+      action: "backup-and-restore",
+      backupRoot: path.join(fixture, "recovery-backups"),
+      confirm: true
+    });
+    assert.equal(await readFile(path.join(homeDir, ".codex", "skills", "ambient-tool", "SKILL.md"), "utf8"), "---\nname: ambient-tool\ndescription: Ambient provider fixture.\n---\n");
+    assert.equal(await readFile(path.join(recovered.backupPath, "items", "001-ambient-tool", "SKILL.md"), "utf8"), "local edit\n");
+    assert.equal((await provider.assessProvisioningUpgrade(options)).canProceed, true);
+
+    const legacyCatalogPath = path.join(stateRoot, "catalog", "legacy-source-key", "rare-tool");
+    const legacyRelation = {
+      ...(await provider.listProvisioningRelations({ consumerRoot, stateRoot, sourceRoot }))[0],
+      availabilityItems: relation.availabilityItems.map((item) => item.skill === "rare-tool" ? { ...item, destinations: [legacyCatalogPath] } : item),
+      provisioningEvidence: undefined
+    };
+    await projectStore.saveLocalProjectAppliedSources(consumerRoot, [legacyRelation], { stateRoot });
+    await rm(catalogPath, { recursive: true, force: true });
+    const loaderPath = planned.plan.loaderTargets[0].path;
+    await writeFile(path.join(loaderPath, "SKILL.md"), "provider-managed loader update\n");
+    await mkdir(legacyCatalogPath, { recursive: true });
+    await writeFile(path.join(legacyCatalogPath, "SKILL.md"), "legacy local edit\n");
+    const unverifiedLegacy = await provider.assessProvisioningUpgrade(options);
+    const legacyConflict = unverifiedLegacy.items.find((item) => item.path === legacyCatalogPath);
+    assert.equal(legacyConflict.disposition, "unverified-managed");
+    assert.equal(legacyConflict.files.some((item) => item.path === "SKILL.md" && item.status === "changed"), true);
+    assert.equal(unverifiedLegacy.canBackupAndRestore, true);
+    await provider.recoverProvisioningUpgrade({
+      ...options,
+      expectedAssessmentDigest: unverifiedLegacy.assessmentDigest,
+      action: "backup-and-restore",
+      backupRoot: path.join(fixture, "legacy-recovery-backups"),
+      confirm: true
+    });
+    assert.match(await readFile(path.join(legacyCatalogPath, "SKILL.md"), "utf8"), /Rare tool/);
+
+    await mkdir(catalogPath, { recursive: true });
+    await writeFile(path.join(catalogPath, "SKILL.md"), "unmanaged new-path content\n");
+    const newPathConflict = await provider.assessProvisioningUpgrade(options);
+    assert.equal(newPathConflict.canProceed, false);
+    assert.equal(newPathConflict.canBackupAndRestore, false);
+    assert.equal(newPathConflict.items.some((item) => item.disposition === "unmanaged-conflict" && item.path === catalogPath), true);
+    await rm(catalogPath, { recursive: true, force: true });
+    await rm(legacyCatalogPath, { recursive: true, force: true });
+    const legacyAssessment = await provider.assessProvisioningUpgrade(options);
+    assert.equal(legacyAssessment.canProceed, true);
+    assert.equal(legacyAssessment.items.some((item) => item.disposition === "managed-repair" && item.path === legacyCatalogPath), true);
+    assert.equal(legacyAssessment.items.some((item) => item.disposition === "managed-migration" && item.path === catalogPath), true);
+    assert.equal(legacyAssessment.items.some((item) => item.disposition === "managed-migration" && item.path === loaderPath), true);
+    const legacyPlan = await provider.createProvisioningPlan(options);
+    await provider.applyProvisioningPlan({ ...options, expectedPlanDigest: legacyPlan.planDigest, cleanupPaths: [legacyCatalogPath], confirm: true });
+    assert.equal((await provider.assessProvisioningUpgrade(options)).canProceed, true);
     await access(path.join(stateRoot, "catalog", "index.json"));
     const appliedCatalog = JSON.parse(await readFile(path.join(stateRoot, "catalog", "index.json"), "utf8"));
     assert.equal(appliedCatalog.version, 2);

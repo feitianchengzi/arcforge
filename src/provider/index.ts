@@ -6,6 +6,7 @@ import type {
   AppliedSourceRecord,
   ApplyFromSourceResult,
   CatalogSourceSelection,
+  DriftFileDiff,
   DriftReport,
   SkillAvailabilityOverride,
   SkillAvailabilityPlan,
@@ -22,9 +23,54 @@ import {
 import { catalogDirectoryDigest, loadUserSkillCatalog, readUserSkillCatalogIndex, restoreUserSkillCatalogIndex, saveUserSkillCatalog } from "../core/skill-catalog.js";
 import { saveLocalProjectAppliedSources } from "../core/project-store.js";
 import { pathExists } from "../core/fs.js";
+import { compareDirectory } from "../core/profiles.js";
 
 export const ARCFORGE_EMBEDDED_PROVIDER_API_VERSION = "arcforge-embedded-provider/v1";
-export const ARCFORGE_EMBEDDED_PROVIDER_CAPABILITIES = ["declared-shared-assets/v1"] as const;
+export const ARCFORGE_EMBEDDED_PROVIDER_CAPABILITIES = ["declared-shared-assets/v1", "source-upgrade-recovery/v1"] as const;
+
+export type ProvisioningUpgradeDisposition =
+  | "managed-repair"
+  | "managed-migration"
+  | "local-content-conflict"
+  | "unverified-managed"
+  | "unmanaged-conflict";
+
+export interface ProvisioningUpgradeItem {
+  disposition: ProvisioningUpgradeDisposition;
+  name: string;
+  kind: "skill" | "asset" | "loader" | "policy";
+  path: string;
+  sourcePath?: string;
+  observedStatus: "missing" | "changed";
+  expectedDigest?: string;
+  observedDigest?: string;
+  files?: DriftFileDiff[];
+  reason: string;
+}
+
+export interface ProvisioningUpgradeAssessment {
+  apiVersion: typeof ARCFORGE_EMBEDDED_PROVIDER_API_VERSION;
+  assessmentDigest: string;
+  sourceRoot: string;
+  relationIds: string[];
+  items: ProvisioningUpgradeItem[];
+  canProceed: boolean;
+  canBackupAndRestore: boolean;
+  writeState: "not_started";
+}
+
+export interface RecoverProvisioningUpgradeOptions extends ProvisioningOptions {
+  expectedAssessmentDigest: string;
+  action: "backup-and-restore";
+  backupRoot: string;
+  confirm: true;
+}
+
+export interface RecoverProvisioningUpgradeResult {
+  assessment: ProvisioningUpgradeAssessment;
+  backupPath: string;
+  restoredPaths: string[];
+}
 
 export interface ProvisioningOptions {
   sourceRoot: string;
@@ -150,7 +196,8 @@ export async function applyProvisioningPlan(options: ApplyProvisioningOptions): 
     confirm: true,
     save: true,
     cleanupPaths: options.cleanupPaths,
-    allowUnrelatedRoot: true
+    allowUnrelatedRoot: true,
+    providerCapabilities: [...ARCFORGE_EMBEDDED_PROVIDER_CAPABILITIES]
   });
 }
 
@@ -160,6 +207,211 @@ export async function listProvisioningRelations(options: ListProvisioningRelatio
   const sourceRoot = options.sourceRoot ? path.resolve(options.sourceRoot) : undefined;
   const records = await listAppliedSources(path.resolve(options.consumerRoot), path.resolve(options.stateRoot));
   return sourceRoot ? records.filter((record) => path.resolve(record.sourceRoot) === sourceRoot) : records;
+}
+
+export async function assessProvisioningUpgrade(options: ProvisioningOptions): Promise<ProvisioningUpgradeAssessment> {
+  assertProvisioningRoots(options);
+  const envelope = await createProvisioningPlan(options);
+  const relations = await listProvisioningRelations({
+    consumerRoot: options.consumerRoot,
+    stateRoot: options.stateRoot,
+    sourceRoot: options.sourceRoot
+  });
+  const relationIds = relations.map((record) => record.id).sort();
+  const ownedPaths = managedRelationPaths(relations);
+  const evidenceByPath = new Map(relations.flatMap((record) => record.provisioningEvidence?.targets ?? [])
+    .map((item) => [path.resolve(item.path), item] as const));
+  const blocking = envelope.plan.diagnostics.filter((item) => item.severity === "error");
+  const items: ProvisioningUpgradeItem[] = blocking.map((diagnostic) => ({
+    disposition: "unmanaged-conflict",
+    name: diagnostic.code,
+    kind: diagnostic.code === "ON_DEMAND_LOADER_CONFLICT" ? "loader" : "policy",
+    path: diagnostic.path ? path.resolve(diagnostic.path) : path.resolve(options.sourceRoot),
+    observedStatus: "changed",
+    reason: diagnostic.message
+  }));
+
+  if (!blocking.length) {
+    const drift = await driftProvisioningPlan(options);
+    const policyBySkill = new Map((drift.policyDrift ?? []).map((item) => [item.skill, item]));
+    for (const item of drift.items) {
+      if (item.status === "same") continue;
+      const targetPath = path.resolve(item.targetPath);
+      const evidence = evidenceByPath.get(targetPath);
+      const owned = ownedPaths.has(targetPath);
+      const policy = policyBySkill.get(item.skill);
+      const policyProvesMigration = policy?.status === "changed"
+        && item.status === "missing"
+        && policy.currentPaths.map((value) => path.resolve(value)).includes(targetPath)
+        && (policy.recordedPaths ?? []).some((value) => ownedPaths.has(path.resolve(value)));
+      let observedDigest: string | undefined;
+      if (item.status === "changed") {
+        observedDigest = (await inspectPaths([targetPath]))[0]?.digest;
+      }
+      let disposition: ProvisioningUpgradeDisposition;
+      let reason: string;
+      if (!owned && policyProvesMigration) {
+        disposition = "managed-migration";
+        reason = "The saved relationship owns the recorded destination and the provider policy moved it to this new target.";
+      } else if (!owned) {
+        disposition = "unmanaged-conflict";
+        reason = "The target is not owned by the saved provisioning relationship.";
+      } else if (item.status === "missing") {
+        disposition = "managed-repair";
+        reason = "The saved relationship owns this missing target; a confirmed apply may recreate it.";
+      } else if (item.kind === "loader" && envelope.plan.loaderTargets.some((loader) => path.resolve(loader.path) === targetPath && loader.status === "managed-update")) {
+        disposition = "managed-migration";
+        reason = "The saved target context proves this loader is provider-managed and eligible for migration.";
+      } else if (!evidence) {
+        disposition = "unverified-managed";
+        reason = "The saved relationship owns this target but predates last-applied content evidence.";
+      } else if (observedDigest === evidence.contentDigest) {
+        disposition = "managed-migration";
+        reason = "The target still matches the last-applied digest and differs only from the current provider source.";
+      } else {
+        disposition = "local-content-conflict";
+        reason = "The target differs from its recorded last-applied digest; preserve it before restoring managed content.";
+      }
+      items.push({
+        disposition,
+        name: item.skill,
+        kind: item.kind ?? "skill",
+        path: targetPath,
+        sourcePath: path.resolve(item.sourcePath),
+        observedStatus: item.status,
+        expectedDigest: evidence?.contentDigest,
+        observedDigest,
+        files: item.files,
+        reason
+      });
+    }
+    for (const policy of drift.policyDrift ?? []) {
+      if (policy.status === "same") continue;
+      const recordedPaths = policy.recordedPaths ?? [];
+      if (!recordedPaths.length) {
+        items.push({ disposition: "unverified-managed", name: policy.skill, kind: "policy", path: policy.currentPaths[0] ?? path.resolve(options.sourceRoot), observedStatus: "changed", reason: policy.reason });
+        continue;
+      }
+      for (const recordedPath of recordedPaths) {
+        const resolved = path.resolve(recordedPath);
+        const observed = (await inspectPaths([resolved]))[0];
+        const planned = envelope.plan.items.find((item) => item.skill === policy.skill);
+        const evidence = evidenceByPath.get(resolved);
+        const sourcePath = planned ? path.resolve(options.sourceRoot, planned.sourcePath) : undefined;
+        const expectedDigest = evidence?.contentDigest ?? planned?.contentDigest;
+        const matchesExpected = Boolean(observed?.exists && observed.digest && expectedDigest && observed.digest === expectedDigest);
+        const comparison = observed?.exists && sourcePath ? await compareDirectory(sourcePath, resolved) : undefined;
+        const disposition: ProvisioningUpgradeDisposition = !observed?.exists
+          ? "managed-repair"
+          : matchesExpected
+            ? "managed-migration"
+            : evidence
+              ? "local-content-conflict"
+              : "unverified-managed";
+        items.push({
+          disposition,
+          name: policy.skill,
+          kind: "policy",
+          path: resolved,
+          sourcePath,
+          observedStatus: observed?.exists ? "changed" : "missing",
+          expectedDigest,
+          observedDigest: observed?.digest,
+          files: comparison?.files,
+          reason: !observed?.exists
+            ? `The relationship-owned recorded destination is missing while the provider policy moves it: ${policy.reason}`
+            : matchesExpected
+              ? `The provider policy moved this unchanged relationship-owned destination: ${policy.reason}`
+              : evidence
+                ? `The recorded destination changed after its last applied digest and must be preserved before migration: ${policy.reason}`
+                : `The recorded destination predates last-applied digest evidence and must be preserved before migration: ${policy.reason}`
+        });
+      }
+    }
+    for (const extra of drift.targetExtras ?? []) {
+      if (extra.classification !== "managed-stale") continue;
+      items.push({
+        disposition: ownedPaths.has(path.resolve(extra.targetPath)) ? "managed-migration" : "unmanaged-conflict",
+        name: extra.name,
+        kind: "skill",
+        path: path.resolve(extra.targetPath),
+        observedStatus: "changed",
+        reason: extra.reason
+      });
+    }
+  }
+
+  const normalizedItems = dedupeUpgradeItems(items);
+  const blockingItems = normalizedItems.filter((item) => ["local-content-conflict", "unverified-managed", "unmanaged-conflict"].includes(item.disposition));
+  const assessmentBase = {
+    apiVersion: ARCFORGE_EMBEDDED_PROVIDER_API_VERSION as typeof ARCFORGE_EMBEDDED_PROVIDER_API_VERSION,
+    sourceRoot: path.resolve(options.sourceRoot),
+    relationIds,
+    items: normalizedItems,
+    canProceed: blockingItems.length === 0,
+    canBackupAndRestore: blockingItems.length > 0 && blockingItems.every((item) => ["local-content-conflict", "unverified-managed"].includes(item.disposition)),
+    writeState: "not_started" as const
+  };
+  return { ...assessmentBase, assessmentDigest: digest(assessmentBase) };
+}
+
+export async function recoverProvisioningUpgrade(options: RecoverProvisioningUpgradeOptions): Promise<RecoverProvisioningUpgradeResult> {
+  assertProvisioningRoots(options);
+  assertAbsoluteDirectoryInput("backupRoot", options.backupRoot);
+  if (!options.confirm || options.action !== "backup-and-restore") throw new Error("Source-upgrade recovery requires an explicit backup-and-restore confirmation.");
+  const assessment = await assessProvisioningUpgrade(options);
+  if (!safeDigestEqual(assessment.assessmentDigest, options.expectedAssessmentDigest)) {
+    throw new Error("Source-upgrade assessment changed after confirmation; inspect a fresh assessment.");
+  }
+  if (!assessment.canBackupAndRestore) throw new Error("Source-upgrade assessment is not eligible for managed backup-and-restore.");
+  const recoverable = assessment.items.filter((item) => ["local-content-conflict", "unverified-managed"].includes(item.disposition));
+  if (recoverable.some((item) => !item.sourcePath)) throw new Error("Source-upgrade recovery is missing a provider source path.");
+
+  const recoveryId = `${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID()}`;
+  const staging = path.join(path.resolve(options.backupRoot), `.stage-${recoveryId}`);
+  const backupPath = path.join(path.resolve(options.backupRoot), recoveryId);
+  const replacements: Array<{ target: string; source: string; temporary: string; rollback: string; committed: boolean }> = [];
+  await fs.mkdir(path.join(staging, "items"), { recursive: true });
+  try {
+    for (const [index, item] of recoverable.entries()) {
+      const target = path.resolve(item.path);
+      const source = path.resolve(item.sourcePath as string);
+      if (path.dirname(target) === target || target === source) throw new Error(`Refusing unsafe source-upgrade recovery target: ${target}`);
+      const label = `${String(index + 1).padStart(3, "0")}-${safePathSegment(item.name)}`;
+      await fs.cp(target, path.join(staging, "items", label), { recursive: true, errorOnExist: true });
+      const temporary = path.join(path.dirname(target), `.${path.basename(target)}.restore-${crypto.randomUUID()}`);
+      const rollback = path.join(path.dirname(target), `.${path.basename(target)}.rollback-${crypto.randomUUID()}`);
+      await fs.cp(source, temporary, { recursive: true, errorOnExist: true });
+      replacements.push({ target, source, temporary, rollback, committed: false });
+    }
+    await fs.writeFile(path.join(staging, "recovery.json"), `${JSON.stringify({ assessment, createdAt: new Date().toISOString() }, null, 2)}\n`);
+    for (const replacement of replacements) {
+      await fs.rename(replacement.target, replacement.rollback);
+      try {
+        await fs.rename(replacement.temporary, replacement.target);
+        replacement.committed = true;
+      } catch (error) {
+        await fs.rename(replacement.rollback, replacement.target);
+        throw error;
+      }
+    }
+    await fs.mkdir(path.dirname(backupPath), { recursive: true });
+    await fs.rename(staging, backupPath);
+    for (const replacement of replacements) await fs.rm(replacement.rollback, { recursive: true, force: true }).catch(() => undefined);
+    return { assessment, backupPath, restoredPaths: replacements.map((item) => item.target).sort() };
+  } catch (error) {
+    const rollbackErrors: unknown[] = [];
+    for (const replacement of replacements.reverse()) {
+      if (replacement.committed) {
+        await fs.rm(replacement.target, { recursive: true, force: true }).catch((item) => rollbackErrors.push(item));
+        await fs.rename(replacement.rollback, replacement.target).catch((item) => rollbackErrors.push(item));
+      }
+      await fs.rm(replacement.temporary, { recursive: true, force: true }).catch((item) => rollbackErrors.push(item));
+    }
+    await fs.rm(staging, { recursive: true, force: true }).catch((item) => rollbackErrors.push(item));
+    if (rollbackErrors.length) throw new AggregateError([error, ...rollbackErrors], "Source-upgrade recovery failed and rollback was incomplete.");
+    throw error;
+  }
 }
 
 export async function removeManagedProvisioning(options: RemoveManagedProvisioningOptions): Promise<ManagedRemovalPlan | ManagedRemovalResult> {
@@ -286,6 +538,49 @@ function updateCatalogEntries(entries: UserSkillCatalogEntry[], relationIds: Set
     const appliedRecordIds = [...new Set(sourceClaims.flatMap((claim) => claim.appliedRecordIds))].sort();
     return appliedRecordIds.length ? [{ ...entry, sourceClaims, appliedRecordIds }] : [];
   });
+}
+
+function managedRelationPaths(records: AppliedSourceRecord[]): Set<string> {
+  const result = new Set<string>();
+  const agentSkillDirs: Record<string, string[]> = {
+    codex: [".codex", "skills"],
+    claude: [".claude", "skills"],
+    cursor: [".cursor", "skills"]
+  };
+  for (const record of records) {
+    for (const destination of record.availabilityItems?.flatMap((item) => item.destinations) ?? []) result.add(path.resolve(destination));
+    for (const destination of record.availabilityAssets?.flatMap((item) => item.destinations) ?? []) result.add(path.resolve(destination));
+    if (record.availabilityItems?.some((item) => item.mode === "user-on-demand") && record.availabilityContext) {
+      for (const agentId of record.availabilityContext.agentTargetIds) {
+        const segments = agentSkillDirs[agentId.trim().toLowerCase()];
+        if (segments) result.add(path.join(path.resolve(record.availabilityContext.homeDir), ...segments, "arcforge-on-demand"));
+      }
+    }
+    for (const evidence of record.provisioningEvidence?.targets ?? []) result.add(path.resolve(evidence.path));
+  }
+  return result;
+}
+
+function dedupeUpgradeItems(items: ProvisioningUpgradeItem[]): ProvisioningUpgradeItem[] {
+  const priority: Record<ProvisioningUpgradeDisposition, number> = {
+    "unmanaged-conflict": 5,
+    "local-content-conflict": 4,
+    "unverified-managed": 3,
+    "managed-migration": 2,
+    "managed-repair": 1
+  };
+  const unique = new Map<string, ProvisioningUpgradeItem>();
+  for (const item of items) {
+    const key = `${item.kind}:${path.resolve(item.path)}`;
+    const existing = unique.get(key);
+    if (!existing || priority[item.disposition] > priority[existing.disposition]) unique.set(key, item);
+  }
+  return [...unique.values()].sort((left, right) => left.disposition.localeCompare(right.disposition) || left.path.localeCompare(right.path));
+}
+
+function safePathSegment(value: string): string {
+  const normalized = value.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+  return normalized || "target";
 }
 
 async function toAvailabilityOptions(options: ProvisioningOptions) {

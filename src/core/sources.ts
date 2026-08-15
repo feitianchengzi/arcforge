@@ -100,6 +100,7 @@ export interface AvailabilityApplyFromSourceOptions extends AvailabilityPlanFrom
   cleanupPaths?: string[];
   allowUnrelatedRoot?: boolean;
   faultInjector?: (point: AvailabilityApplyFailurePoint) => void | Promise<void>;
+  providerCapabilities?: string[];
 }
 
 export type AvailabilityDriftFromSourceOptions = AvailabilityPlanFromSourceOptions;
@@ -720,7 +721,7 @@ async function availabilityAppliedRecordFor(
   plan: SkillAvailabilityPlan,
   records: AppliedSourceRecord[],
   from: string,
-  context: AvailabilityPlanFromSourceOptions
+  context: AvailabilityApplyFromSourceOptions
 ): Promise<AppliedSourceRecord> {
   const now = new Date().toISOString();
   const normalizedSourceRoot = path.resolve(source.root);
@@ -770,6 +771,31 @@ async function availabilityAppliedRecordFor(
       }] : []),
       homeDir: path.resolve(context.homeDir ?? os.homedir())
     },
+    ...(context.providerCapabilities ? {
+      provisioningEvidence: {
+        providerCapabilities: [...new Set(context.providerCapabilities)].sort(),
+        targets: [
+          ...plan.items.flatMap((item) => item.destinations.map((destination) => ({
+            name: item.skill,
+            kind: "skill" as const,
+            path: path.resolve(destination.path),
+            contentDigest: item.contentDigest
+          }))),
+          ...plan.assets.flatMap((item) => item.destinations.map((destination) => ({
+            name: item.name,
+            kind: "asset" as const,
+            path: path.resolve(destination.path),
+            contentDigest: item.contentDigest
+          }))),
+          ...plan.loaderTargets.map((item) => ({
+            name: "arcforge-on-demand",
+            kind: "loader" as const,
+            path: path.resolve(item.path),
+            contentDigest: item.expectedDigest
+          }))
+        ].sort((left, right) => left.path.localeCompare(right.path) || left.name.localeCompare(right.name))
+      }
+    } : {}),
     sourceCommit: context.sourceProvenance?.sourceCommit ?? await sourceCommit(normalizedSourceRoot),
     appliedAt: now,
     updatedAt: now

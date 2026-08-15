@@ -501,6 +501,15 @@ export interface AppliedSourceRecord {
     projectAssessments?: SkillProjectApplicabilityAssessment[];
     homeDir: string;
   };
+  provisioningEvidence?: {
+    providerCapabilities: string[];
+    targets: Array<{
+      name: string;
+      kind: "skill" | "asset" | "loader";
+      path: string;
+      contentDigest: string;
+    }>;
+  };
   sourceCommit?: string;
   appliedAt?: string;
   updatedAt: string;
