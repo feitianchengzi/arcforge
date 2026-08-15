@@ -97,6 +97,9 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
     const after = await provider.driftProvisioningPlan(options);
     assert.equal(after.items.find((item) => item.kind === "asset" && item.skill === "_declared_shared").status, "same");
     assert.equal((await provider.listProvisioningRelations({ consumerRoot, stateRoot, sourceRoot })).length, 1);
+    if (process.platform === "win32" || process.platform === "darwin") {
+      assert.equal((await provider.listProvisioningRelations({ consumerRoot, stateRoot, sourceRoot: sourceRoot.toUpperCase() })).length, 1);
+    }
     const relation = (await provider.listProvisioningRelations({ consumerRoot, stateRoot, sourceRoot }))[0];
     assert.deepEqual(relation.availabilityAssets, [{
       name: "_declared_shared",

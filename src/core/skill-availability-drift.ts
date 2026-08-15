@@ -104,7 +104,7 @@ function policyDrift(plan: SkillAvailabilityPlan, record?: AppliedSourceRecord):
         reason: "The current availability plan has no matching saved relationship item."
       };
     }
-    if (recorded.mode !== currentMode || !sameValues(recordedPaths ?? [], currentPaths)) {
+    if (recorded.mode !== currentMode || !samePathValues(recordedPaths ?? [], currentPaths)) {
       return {
         skill: item.skill,
         status: "changed" as const,
@@ -135,16 +135,28 @@ function requiredEffectiveMode(item: SkillAvailabilityPlan["items"][number]) {
 }
 
 function normalizedPaths(values: string[]): string[] {
-  return [...new Set(values.map((value) => path.resolve(value)))].sort((left, right) => left.localeCompare(right));
+  const unique = new Map<string, string>();
+  for (const value of values) {
+    const resolved = path.resolve(value);
+    unique.set(localPathIdentity(resolved), resolved);
+  }
+  return [...unique.values()].sort((left, right) => localPathIdentity(left).localeCompare(localPathIdentity(right)));
 }
 
-function sameValues(left: string[], right: string[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
+function samePathValues(left: string[], right: string[]): boolean {
+  const leftIdentities = left.map(localPathIdentity).sort();
+  const rightIdentities = right.map(localPathIdentity).sort();
+  return leftIdentities.length === rightIdentities.length && leftIdentities.every((value, index) => value === rightIdentities[index]);
 }
 
 function dedupeTargetExtras(values: DriftTargetExtra[]): DriftTargetExtra[] {
-  const unique = new Map(values.map((item) => [path.resolve(item.targetPath), item]));
+  const unique = new Map(values.map((item) => [localPathIdentity(item.targetPath), item]));
   return [...unique.values()].sort((left, right) => left.classification.localeCompare(right.classification) || left.targetPath.localeCompare(right.targetPath));
+}
+
+function localPathIdentity(value: string): string {
+  const resolved = path.resolve(value);
+  return process.platform === "win32" || process.platform === "darwin" ? resolved.toLowerCase() : resolved;
 }
 
 function toPosixPath(value: string): string {

@@ -699,7 +699,7 @@ type AppliedRelationKind = NonNullable<AppliedSourceRecord["relationKind"]>;
 async function appliedRecordFor(root: string, sourceRoot: string, sourceName: string | undefined, profile: string, targetDir: string, skills: string[], relationKind: AppliedRelationKind): Promise<AppliedSourceRecord> {
   const now = new Date().toISOString();
   const normalizedSourceRoot = path.resolve(sourceRoot);
-  const existing = (await listAppliedSources(root)).find((item) => path.resolve(item.sourceRoot) === normalizedSourceRoot && item.profile === profile && item.targetDir === targetDir && recordRelationKind(item) === relationKind);
+  const existing = (await listAppliedSources(root)).find((item) => localPathIdentity(item.sourceRoot) === localPathIdentity(normalizedSourceRoot) && item.profile === profile && item.targetDir === targetDir && recordRelationKind(item) === relationKind);
   return {
     id: existing?.id || `${slug(sourceName || path.basename(normalizedSourceRoot) || "source")}-${slug(profile)}-${crypto.createHash("sha256").update(`${relationKind}:${normalizedSourceRoot}:${targetDir}`).digest("hex").slice(0, 8)}`,
     relationKind,
@@ -726,7 +726,7 @@ async function availabilityAppliedRecordFor(
   const now = new Date().toISOString();
   const normalizedSourceRoot = path.resolve(source.root);
   const existing = records.find((item) =>
-    path.resolve(item.sourceRoot) === normalizedSourceRoot
+    localPathIdentity(item.sourceRoot) === localPathIdentity(normalizedSourceRoot)
     && item.profile === plan.profile
     && recordRelationKind(item) === "profileApply"
     && (item.sourceKey === plan.sourceKey || item.targetDir === "")
@@ -812,7 +812,7 @@ function availabilityRecordFor(records: AppliedSourceRecord[], sourceRoot: strin
   return records.find((record) =>
     record.profile === plan.profile
     && recordRelationKind(record) === "profileApply"
-    && (record.sourceKey === plan.sourceKey || path.resolve(record.sourceRoot) === normalizedSourceRoot)
+    && (record.sourceKey === plan.sourceKey || localPathIdentity(record.sourceRoot) === localPathIdentity(normalizedSourceRoot))
   );
 }
 
@@ -945,7 +945,7 @@ function reusableProjectAssessments(
   const expectedAgents = normalizedStringSet(agentTargetIds);
   const expectedProjects = normalizedPathSet(projectTargetDirs.map((item) => path.resolve(consumerRoot, item)));
   const matching = records
-    .filter((record) => path.resolve(record.sourceRoot) === path.resolve(sourceRoot)
+    .filter((record) => localPathIdentity(record.sourceRoot) === localPathIdentity(sourceRoot)
       && record.profile === profile
       && Boolean(currentPolicyDigest)
       && record.sourcePolicyDigest === currentPolicyDigest
@@ -961,10 +961,12 @@ function normalizedStringSet(values: string[]): string[] {
 }
 
 function normalizedPathSet(values: string[]): string[] {
-  return [...new Set(values.map((item) => {
-    const resolved = path.resolve(item);
-    return process.platform === "win32" || process.platform === "darwin" ? resolved.toLowerCase() : resolved;
-  }))].sort();
+  return [...new Set(values.map(localPathIdentity))].sort();
+}
+
+function localPathIdentity(value: string): string {
+  const resolved = path.resolve(value);
+  return process.platform === "win32" || process.platform === "darwin" ? resolved.toLowerCase() : resolved;
 }
 
 function sameStringSet(left: string[], right: string[]): boolean {

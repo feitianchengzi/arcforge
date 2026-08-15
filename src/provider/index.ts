@@ -206,7 +206,7 @@ export async function listProvisioningRelations(options: ListProvisioningRelatio
   assertAbsoluteDirectoryInput("stateRoot", options.stateRoot);
   const sourceRoot = options.sourceRoot ? path.resolve(options.sourceRoot) : undefined;
   const records = await listAppliedSources(path.resolve(options.consumerRoot), path.resolve(options.stateRoot));
-  return sourceRoot ? records.filter((record) => path.resolve(record.sourceRoot) === sourceRoot) : records;
+  return sourceRoot ? records.filter((record) => localPathIdentity(record.sourceRoot) === localPathIdentity(sourceRoot)) : records;
 }
 
 export async function assessProvisioningUpgrade(options: ProvisioningOptions): Promise<ProvisioningUpgradeAssessment> {
@@ -220,7 +220,7 @@ export async function assessProvisioningUpgrade(options: ProvisioningOptions): P
   const relationIds = relations.map((record) => record.id).sort();
   const ownedPaths = managedRelationPaths(relations);
   const evidenceByPath = new Map(relations.flatMap((record) => record.provisioningEvidence?.targets ?? [])
-    .map((item) => [path.resolve(item.path), item] as const));
+    .map((item) => [localPathIdentity(item.path), item] as const));
   const blocking = envelope.plan.diagnostics.filter((item) => item.severity === "error");
   const items: ProvisioningUpgradeItem[] = blocking.map((diagnostic) => ({
     disposition: "unmanaged-conflict",
@@ -237,13 +237,14 @@ export async function assessProvisioningUpgrade(options: ProvisioningOptions): P
     for (const item of drift.items) {
       if (item.status === "same") continue;
       const targetPath = path.resolve(item.targetPath);
-      const evidence = evidenceByPath.get(targetPath);
-      const owned = ownedPaths.has(targetPath);
+      const targetIdentity = localPathIdentity(targetPath);
+      const evidence = evidenceByPath.get(targetIdentity);
+      const owned = ownedPaths.has(targetIdentity);
       const policy = policyBySkill.get(item.skill);
       const policyProvesMigration = policy?.status === "changed"
         && item.status === "missing"
-        && policy.currentPaths.map((value) => path.resolve(value)).includes(targetPath)
-        && (policy.recordedPaths ?? []).some((value) => ownedPaths.has(path.resolve(value)));
+        && policy.currentPaths.some((value) => localPathIdentity(value) === targetIdentity)
+        && (policy.recordedPaths ?? []).some((value) => ownedPaths.has(localPathIdentity(value)));
       let observedDigest: string | undefined;
       if (item.status === "changed") {
         observedDigest = (await inspectPaths([targetPath]))[0]?.digest;
@@ -259,7 +260,7 @@ export async function assessProvisioningUpgrade(options: ProvisioningOptions): P
       } else if (item.status === "missing") {
         disposition = "managed-repair";
         reason = "The saved relationship owns this missing target; a confirmed apply may recreate it.";
-      } else if (item.kind === "loader" && envelope.plan.loaderTargets.some((loader) => path.resolve(loader.path) === targetPath && loader.status === "managed-update")) {
+      } else if (item.kind === "loader" && envelope.plan.loaderTargets.some((loader) => localPathIdentity(loader.path) === targetIdentity && loader.status === "managed-update")) {
         disposition = "managed-migration";
         reason = "The saved target context proves this loader is provider-managed and eligible for migration.";
       } else if (!evidence) {
@@ -296,7 +297,7 @@ export async function assessProvisioningUpgrade(options: ProvisioningOptions): P
         const resolved = path.resolve(recordedPath);
         const observed = (await inspectPaths([resolved]))[0];
         const planned = envelope.plan.items.find((item) => item.skill === policy.skill);
-        const evidence = evidenceByPath.get(resolved);
+        const evidence = evidenceByPath.get(localPathIdentity(resolved));
         const sourcePath = planned ? path.resolve(options.sourceRoot, planned.sourcePath) : undefined;
         const expectedDigest = evidence?.contentDigest ?? planned?.contentDigest;
         const matchesExpected = Boolean(observed?.exists && observed.digest && expectedDigest && observed.digest === expectedDigest);
@@ -331,7 +332,7 @@ export async function assessProvisioningUpgrade(options: ProvisioningOptions): P
     for (const extra of drift.targetExtras ?? []) {
       if (extra.classification !== "managed-stale") continue;
       items.push({
-        disposition: ownedPaths.has(path.resolve(extra.targetPath)) ? "managed-migration" : "unmanaged-conflict",
+        disposition: ownedPaths.has(localPathIdentity(extra.targetPath)) ? "managed-migration" : "unmanaged-conflict",
         name: extra.name,
         kind: "skill",
         path: path.resolve(extra.targetPath),
@@ -426,14 +427,14 @@ export async function removeManagedProvisioning(options: RemoveManagedProvisioni
   const catalogRoot = path.join(stateRoot, "catalog");
   const previousRecords = await listAppliedSources(consumerRoot, stateRoot);
   const selectedIds = new Set(plan.relationIds);
-  const selectedPaths = new Set(plan.managedPaths);
+  const selectedPaths = new Set(plan.managedPaths.map(localPathIdentity));
   const nextRecords = previousRecords.map((record) => selectedIds.has(record.id) ? withoutManagedPaths(record, selectedPaths) : record);
   const previousCatalogRaw = await readUserSkillCatalogIndex({ catalogRoot });
   const previousCatalog = await loadUserSkillCatalog({ catalogRoot });
   const nextCatalogEntries = updateCatalogEntries(previousCatalog.entries, selectedIds, selectedPaths, catalogRoot);
   const catalogChanged = stableJson(previousCatalog.entries) !== stableJson(nextCatalogEntries);
-  const retainedSharedPaths = new Set(nextCatalogEntries.map((entry) => path.resolve(entry.installedPath)));
-  const removablePaths = plan.managedPaths.filter((managedPath) => !retainedSharedPaths.has(managedPath));
+  const retainedSharedPaths = new Set(nextCatalogEntries.map((entry) => localPathIdentity(entry.installedPath)));
+  const removablePaths = plan.managedPaths.filter((managedPath) => !retainedSharedPaths.has(localPathIdentity(managedPath)));
   const staged: Array<{ target: string; backup: string }> = [];
   let catalogWritten = false;
   let recordsWritten = false;
@@ -464,7 +465,7 @@ export async function removeManagedProvisioning(options: RemoveManagedProvisioni
   return {
     plan,
     removedPaths: staged.map((item) => item.target).sort(),
-    retainedSharedPaths: plan.managedPaths.filter((item) => retainedSharedPaths.has(item)).sort(),
+    retainedSharedPaths: plan.managedPaths.filter((item) => retainedSharedPaths.has(localPathIdentity(item))).sort(),
     updatedRelationIds: plan.relationIds
   };
 }
@@ -474,18 +475,23 @@ async function createManagedRemovalPlan(options: RemoveManagedProvisioningOption
   const allowed = new Set(records.flatMap((record) => [
     ...(record.availabilityItems?.flatMap((item) => item.destinations) ?? []),
     ...(record.availabilityAssets?.flatMap((item) => item.destinations) ?? [])
-  ].map((destination) => path.resolve(destination))));
-  const managedPaths = [...new Set(options.managedPaths.map((item) => path.resolve(item)))].sort();
+  ].map(localPathIdentity)));
+  const managedPathByIdentity = new Map(options.managedPaths.map((item) => {
+    const resolved = path.resolve(item);
+    return [localPathIdentity(resolved), resolved] as const;
+  }));
+  const managedPaths = [...managedPathByIdentity.values()].sort();
+  const managedPathIdentities = new Set(managedPathByIdentity.keys());
   if (!managedPaths.length) throw new Error("Managed removal requires at least one explicit managed path.");
   for (const managedPath of managedPaths) {
-    if (!allowed.has(managedPath)) throw new Error(`Managed removal path is not proven by the selected relation: ${managedPath}`);
+    if (!allowed.has(localPathIdentity(managedPath))) throw new Error(`Managed removal path is not proven by the selected relation: ${managedPath}`);
     if (path.dirname(managedPath) === managedPath) throw new Error(`Refusing to remove a filesystem root: ${managedPath}`);
   }
   const relationIds = records
     .filter((record) => [
       ...(record.availabilityItems?.flatMap((item) => item.destinations) ?? []),
       ...(record.availabilityAssets?.flatMap((item) => item.destinations) ?? [])
-    ].some((destination) => managedPaths.includes(path.resolve(destination))))
+    ].some((destination) => managedPathIdentities.has(localPathIdentity(destination))))
     .map((record) => record.id)
     .sort();
   const pathEvidence = await inspectPaths(managedPaths);
@@ -503,11 +509,11 @@ async function createManagedRemovalPlan(options: RemoveManagedProvisioningOption
 function withoutManagedPaths(record: AppliedSourceRecord, removed: Set<string>): AppliedSourceRecord {
   const availabilityItems = record.availabilityItems?.map((item) => ({
     ...item,
-    destinations: item.destinations.filter((destination) => !removed.has(path.resolve(destination)))
+    destinations: item.destinations.filter((destination) => !removed.has(localPathIdentity(destination)))
   })).filter((item) => item.destinations.length > 0);
   const availabilityAssets = record.availabilityAssets?.map((item) => ({
     ...item,
-    destinations: item.destinations.filter((destination) => !removed.has(path.resolve(destination)))
+    destinations: item.destinations.filter((destination) => !removed.has(localPathIdentity(destination)))
   })).filter((item) => item.destinations.length > 0);
   const retainedSkills = new Set(availabilityItems?.map((item) => item.skill) ?? record.skills);
   const retainedManagedNames = new Set([
@@ -530,7 +536,7 @@ function updateCatalogEntries(entries: UserSkillCatalogEntry[], relationIds: Set
       path.resolve(entry.installedPath),
       ...entry.sourceClaims.map((claim) => path.resolve(catalogRoot, claim.sourceKey, entry.skillName))
     ];
-    if (!associatedPaths.some((candidate) => removed.has(candidate))) return [entry];
+    if (!associatedPaths.some((candidate) => removed.has(localPathIdentity(candidate)))) return [entry];
     const sourceClaims = entry.sourceClaims.map((claim) => ({
       ...claim,
       appliedRecordIds: claim.appliedRecordIds.filter((id) => !relationIds.has(id))
@@ -548,15 +554,15 @@ function managedRelationPaths(records: AppliedSourceRecord[]): Set<string> {
     cursor: [".cursor", "skills"]
   };
   for (const record of records) {
-    for (const destination of record.availabilityItems?.flatMap((item) => item.destinations) ?? []) result.add(path.resolve(destination));
-    for (const destination of record.availabilityAssets?.flatMap((item) => item.destinations) ?? []) result.add(path.resolve(destination));
+    for (const destination of record.availabilityItems?.flatMap((item) => item.destinations) ?? []) result.add(localPathIdentity(destination));
+    for (const destination of record.availabilityAssets?.flatMap((item) => item.destinations) ?? []) result.add(localPathIdentity(destination));
     if (record.availabilityItems?.some((item) => item.mode === "user-on-demand") && record.availabilityContext) {
       for (const agentId of record.availabilityContext.agentTargetIds) {
         const segments = agentSkillDirs[agentId.trim().toLowerCase()];
-        if (segments) result.add(path.join(path.resolve(record.availabilityContext.homeDir), ...segments, "arcforge-on-demand"));
+        if (segments) result.add(localPathIdentity(path.join(path.resolve(record.availabilityContext.homeDir), ...segments, "arcforge-on-demand")));
       }
     }
-    for (const evidence of record.provisioningEvidence?.targets ?? []) result.add(path.resolve(evidence.path));
+    for (const evidence of record.provisioningEvidence?.targets ?? []) result.add(localPathIdentity(evidence.path));
   }
   return result;
 }
@@ -571,11 +577,16 @@ function dedupeUpgradeItems(items: ProvisioningUpgradeItem[]): ProvisioningUpgra
   };
   const unique = new Map<string, ProvisioningUpgradeItem>();
   for (const item of items) {
-    const key = `${item.kind}:${path.resolve(item.path)}`;
+    const key = `${item.kind}:${localPathIdentity(item.path)}`;
     const existing = unique.get(key);
     if (!existing || priority[item.disposition] > priority[existing.disposition]) unique.set(key, item);
   }
   return [...unique.values()].sort((left, right) => left.disposition.localeCompare(right.disposition) || left.path.localeCompare(right.path));
+}
+
+function localPathIdentity(value: string): string {
+  const resolved = path.resolve(value);
+  return process.platform === "win32" || process.platform === "darwin" ? resolved.toLowerCase() : resolved;
 }
 
 function safePathSegment(value: string): string {

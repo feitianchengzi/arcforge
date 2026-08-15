@@ -1690,7 +1690,12 @@ test("availability drift separates content, policy, loader, cleanup, and target-
       targetDir: "",
       skills: ["ambient", "rare"],
       availabilityItems: [
-        { skill: "ambient", mode: "user-ambient", policyOrigin: "source-skill", destinations: [ambientTarget] },
+        {
+          skill: "ambient",
+          mode: "user-ambient",
+          policyOrigin: "source-skill",
+          destinations: [process.platform === "win32" || process.platform === "darwin" ? ambientTarget.toUpperCase() : ambientTarget]
+        },
         { skill: "rare", mode: "user-ambient", policyOrigin: "source-skill", destinations: [oldRareTarget] }
       ],
       updatedAt: "2026-07-31T00:00:00.000Z"

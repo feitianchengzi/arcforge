@@ -486,17 +486,18 @@ function cleanupItems(
   items: SkillAvailabilityPlan["items"],
   records: AppliedSourceRecord[]
 ): SkillAvailabilityPlan["cleanup"] {
-  const current = new Map(items.map((item) => [item.skill, new Set(item.destinations.map((destination) => path.resolve(destination.path)))]));
-  const normalizedSourceRoot = path.resolve(sourceRoot);
+  const current = new Map(items.map((item) => [item.skill, new Set(item.destinations.map((destination) => normalizeLocalPath(path.resolve(destination.path))))]));
+  const normalizedSourceRoot = normalizeLocalPath(path.resolve(sourceRoot));
   const cleanup = new Map<string, SkillAvailabilityPlan["cleanup"][number]>();
   for (const record of records) {
-    const sameSource = record.sourceKey === sourceKey || path.resolve(record.sourceRoot) === normalizedSourceRoot;
+    const sameSource = record.sourceKey === sourceKey || normalizeLocalPath(path.resolve(record.sourceRoot)) === normalizedSourceRoot;
     if (!sameSource || record.profile !== profileName) continue;
     for (const history of record.availabilityItems ?? []) {
       for (const destination of history.destinations) {
         const resolved = path.resolve(destination);
-        if (current.get(history.skill)?.has(resolved)) continue;
-        cleanup.set(resolved, {
+        const identity = normalizeLocalPath(resolved);
+        if (current.get(history.skill)?.has(identity)) continue;
+        cleanup.set(identity, {
           skill: history.skill,
           path: resolved,
           reason: record.sourceKey && record.sourceKey !== sourceKey
