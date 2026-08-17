@@ -67,7 +67,7 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
     assert.match(planned.planDigest, /^[a-f0-9]{64}$/);
     assert.equal(planned.plan.sourceProvenance.sourceCommit, "0123456789abcdef0123456789abcdef01234567");
     assert.match(planned.plan.sourceIdentity, /^payload:fixture-payload\/v1:/);
-    assert.deepEqual((await provider.inspectProvider()).capabilities, ["declared-shared-assets/v1", "source-upgrade-recovery/v1"]);
+    assert.deepEqual((await provider.inspectProvider()).capabilities, ["declared-shared-assets/v1", "source-upgrade-recovery/v1", "conflict-reinstall-recovery/v1"]);
     assert.equal(planned.plan.assets.length, 1);
     assert.equal(planned.plan.assets[0].sourcePath, "definition/skills/_declared_shared");
     assert.equal(planned.sharedAssets.length, 1);
@@ -106,7 +106,7 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
       sourcePath: "definition/skills/_declared_shared",
       destinations: [path.join(homeDir, ".codex", "skills", "_declared_shared")]
     }]);
-    assert.deepEqual(relation.provisioningEvidence.providerCapabilities, ["declared-shared-assets/v1", "source-upgrade-recovery/v1"]);
+    assert.deepEqual(relation.provisioningEvidence.providerCapabilities, ["conflict-reinstall-recovery/v1", "declared-shared-assets/v1", "source-upgrade-recovery/v1"]);
     assert.equal(relation.provisioningEvidence.targets.some((item) => item.kind === "loader" && item.name === "arcforge-on-demand"), true);
     assert.equal(relation.provisioningEvidence.targets.every((item) => /^[a-f0-9]{64}$/.test(item.contentDigest)), true);
 
@@ -132,6 +132,40 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
     assert.equal(await readFile(path.join(homeDir, ".codex", "skills", "ambient-tool", "SKILL.md"), "utf8"), "---\nname: ambient-tool\ndescription: Ambient provider fixture.\n---\n");
     assert.equal(await readFile(path.join(recovered.backupPath, "items", "001-ambient-tool", "SKILL.md"), "utf8"), "local edit\n");
     assert.equal((await provider.assessProvisioningUpgrade(options)).canProceed, true);
+
+    const renamedConsumerRoot = path.join(fixture, "renamed-consumer");
+    const renamedOptions = { ...options, consumerRoot: renamedConsumerRoot };
+    await writeFile(path.join(homeDir, ".codex", "skills", "ambient-tool", "SKILL.md"), "renamed consumer local edit\n");
+    await rm(catalogPath, { recursive: true, force: true });
+    const unmanagedAssessment = await provider.assessProvisioningUpgrade(renamedOptions);
+    assert.equal(unmanagedAssessment.relationIds.length, 0);
+    assert.equal(unmanagedAssessment.canProceed, false);
+    assert.equal(unmanagedAssessment.canBackupAndRestore, false);
+    assert.equal(unmanagedAssessment.canBackupAndReinstall, true);
+    assert.deepEqual(unmanagedAssessment.items.map((item) => [item.name, item.disposition]), [["rare-tool", "managed-repair"], ["ambient-tool", "unmanaged-conflict"]]);
+    await writeFile(path.join(homeDir, ".codex", "skills", "ambient-tool", "SKILL.md"), "stale confirmation edit\n");
+    await assert.rejects(
+      provider.recoverProvisioningUpgrade({
+        ...renamedOptions,
+        expectedAssessmentDigest: unmanagedAssessment.assessmentDigest,
+        action: "backup-and-reinstall",
+        backupRoot: path.join(fixture, "stale-reinstall-backups"),
+        confirm: true
+      }),
+      /assessment changed after confirmation/
+    );
+    const freshUnmanagedAssessment = await provider.assessProvisioningUpgrade(renamedOptions);
+    const reinstalled = await provider.recoverProvisioningUpgrade({
+      ...renamedOptions,
+      expectedAssessmentDigest: freshUnmanagedAssessment.assessmentDigest,
+      action: "backup-and-reinstall",
+      backupRoot: path.join(fixture, "reinstall-backups"),
+      confirm: true
+    });
+    assert.equal(await readFile(path.join(homeDir, ".codex", "skills", "ambient-tool", "SKILL.md"), "utf8"), "---\nname: ambient-tool\ndescription: Ambient provider fixture.\n---\n");
+    assert.equal(await readFile(path.join(reinstalled.backupPath, "items", "001-ambient-tool", "SKILL.md"), "utf8"), "stale confirmation edit\n");
+    assert.equal((await provider.listProvisioningRelations({ consumerRoot: renamedConsumerRoot, stateRoot, sourceRoot })).length, 1);
+    assert.equal((await provider.assessProvisioningUpgrade(renamedOptions)).canProceed, true);
 
     const legacyCatalogPath = path.join(stateRoot, "catalog", "legacy-source-key", "rare-tool");
     const legacyRelation = {
