@@ -9,6 +9,7 @@ import type {
   DriftFileDiff,
   DriftReport,
   SkillAvailabilityOverride,
+  SkillAvailabilityDestinationPolicy,
   SkillAvailabilityPlan,
   SkillProjectApplicabilityAssessment,
   SkillSourceProvenance,
@@ -26,7 +27,7 @@ import { pathExists } from "../core/fs.js";
 import { compareDirectory } from "../core/profiles.js";
 
 export const ARCFORGE_EMBEDDED_PROVIDER_API_VERSION = "arcforge-embedded-provider/v1";
-export const ARCFORGE_EMBEDDED_PROVIDER_CAPABILITIES = ["declared-shared-assets/v1", "source-upgrade-recovery/v1", "conflict-reinstall-recovery/v1"] as const;
+export const ARCFORGE_EMBEDDED_PROVIDER_CAPABILITIES = ["declared-shared-assets/v1", "source-upgrade-recovery/v1", "conflict-reinstall-recovery/v1", "project-only-provisioning/v1"] as const;
 
 export type ProvisioningUpgradeDisposition =
   | "managed-repair"
@@ -82,6 +83,7 @@ export interface ProvisioningOptions {
   skills?: string[];
   agentTargetIds: string[];
   projectTargetDirs?: string[];
+  destinationPolicy?: SkillAvailabilityDestinationPolicy;
   availabilityOverrides?: SkillAvailabilityOverride[];
   projectAssessments?: SkillProjectApplicabilityAssessment[];
   sourceProvenance?: SkillSourceProvenance;
@@ -656,6 +658,7 @@ async function toAvailabilityOptions(options: ProvisioningOptions) {
     skills: options.skills,
     agentTargetIds: options.agentTargetIds,
     projectTargetDirs: options.projectTargetDirs,
+    destinationPolicy: options.destinationPolicy,
     availabilityOverrides: options.availabilityOverrides,
     projectAssessments: options.projectAssessments,
     homeDir: path.resolve(options.homeDir),

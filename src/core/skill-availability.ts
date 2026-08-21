@@ -6,6 +6,7 @@ import type {
   AppliedSourceRecord,
   ArcForgeProfile,
   SkillAvailabilityDestination,
+  SkillAvailabilityDestinationPolicy,
   SkillAvailabilityPlan,
   SkillAvailabilityMode,
   SkillAvailabilityOverride,
@@ -39,6 +40,7 @@ export interface CreateSkillAvailabilityPlanOptions {
   skills?: string[];
   agentTargetIds: string[];
   projectTargetDirs?: string[];
+  destinationPolicy?: SkillAvailabilityDestinationPolicy;
   invocationOverrides?: SkillAvailabilityOverride[];
   projectAssessments?: SkillProjectApplicabilityAssessment[];
   appliedRecords?: AppliedSourceRecord[];
@@ -161,7 +163,8 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
   const sourceKey = crypto.createHash("sha256").update(sourceIdentity).digest("hex").slice(0, 24);
   const agentTargetIds = normalizeAgentTargets(options.agentTargetIds, diagnostics);
   const projectRoots = normalizeProjectRoots(consumerRoot, options.projectTargetDirs);
-  validateTargetContext(resolution.items, agentTargetIds, projectRoots, diagnostics);
+  const destinationPolicy = options.destinationPolicy ?? "standard";
+  validateTargetContext(resolution.items, agentTargetIds, projectRoots, destinationPolicy, diagnostics);
   validateAssessmentProjectRoots(resolution.items, projectRoots, diagnostics);
   validateCatalogAliases(selectedSkills, resolution.items, options.source.sourceManifest, diagnostics);
 
@@ -192,12 +195,16 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
     }
     return {
       ...item,
-      destinations: availabilityDestinations(item.effectiveMode, item.skill, homeDir, agentTargetIds, projectRoots, catalogRoot),
+      destinations: availabilityDestinations(item.effectiveMode, item.skill, homeDir, agentTargetIds, projectRoots, catalogRoot, destinationPolicy),
       contentDigest,
       ...(catalogDecision ? { catalogDecision } : {})
     };
   }));
-  const assetDestinations = ambientAssetDestinations(planItems);
+  const projectOnlyAssetDestinations = destinationPolicy === "project-only" && planItems.length
+    ? projectAgentDestinations(agentTargetIds, projectRoots, "_shared")
+      .map((destination) => ({ ...destination, path: path.dirname(destination.path) }))
+    : [];
+  const assetDestinations = ambientAssetDestinations(planItems, projectOnlyAssetDestinations);
   const assets = await Promise.all(options.source.assets.map(async (asset) => ({
     name: asset.name,
     sourcePath: toPosixPath(asset.relativePath),
@@ -214,16 +221,26 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
       homeDir,
       options.loaderSourcePath,
       options.appliedRecords ?? [],
-      diagnostics
+      diagnostics,
+      projectRoots,
+      destinationPolicy
     )
     : [];
   const cleanup = dedupeCleanupItems([
     ...cleanupItems(
-    options.source.root,
-    options.profileName,
-    sourceKey,
-    planItems,
-    options.appliedRecords ?? []
+      options.source.root,
+      options.profileName,
+      sourceKey,
+      planItems,
+      options.appliedRecords ?? []
+    ),
+    ...auxiliaryCleanupItems(
+      options.source.root,
+      options.profileName,
+      sourceKey,
+      assets,
+      loaderTargets,
+      options.appliedRecords ?? []
     ),
     ...await legacyCatalogCleanupItems(catalog, planItems, catalogRoot)
   ]);
@@ -233,6 +250,7 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
     sourceIdentity,
     ...(options.sourceProvenance ? { sourceProvenance: options.sourceProvenance } : {}),
     profile: options.profileName,
+    destinationPolicy,
     sourcePolicyDigest: skillAvailabilitySourcePolicyDigest(options.source.sourceManifest),
     items: planItems,
     assets,
@@ -243,7 +261,7 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
   };
 }
 
-function ambientAssetDestinations(items: SkillAvailabilityPlan["items"]): SkillAvailabilityDestination[] {
+function ambientAssetDestinations(items: SkillAvailabilityPlan["items"], additional: SkillAvailabilityDestination[] = []): SkillAvailabilityDestination[] {
   const byRoot = new Map<string, SkillAvailabilityDestination>();
   for (const item of items) {
     for (const destination of item.destinations) {
@@ -251,6 +269,9 @@ function ambientAssetDestinations(items: SkillAvailabilityPlan["items"]): SkillA
       const root = path.dirname(destination.path);
       if (!byRoot.has(root)) byRoot.set(root, { ...destination, path: root });
     }
+  }
+  for (const destination of additional) {
+    if (!byRoot.has(destination.path)) byRoot.set(destination.path, destination);
   }
   return [...byRoot.values()].sort((left, right) => left.path.localeCompare(right.path));
 }
@@ -260,7 +281,9 @@ async function resolveLoaderTargets(
   homeDir: string,
   loaderSourcePath: string | undefined,
   appliedRecords: AppliedSourceRecord[],
-  diagnostics: SkillProjectManifestDiagnostic[]
+  diagnostics: SkillProjectManifestDiagnostic[],
+  projectRoots: string[],
+  destinationPolicy: SkillAvailabilityDestinationPolicy
 ): Promise<SkillAvailabilityPlan["loaderTargets"]> {
   if (!loaderSourcePath) {
     diagnostics.push({
@@ -270,15 +293,21 @@ async function resolveLoaderTargets(
     });
   }
   const expectedDigest = loaderSourcePath ? await directoryDigest(path.resolve(loaderSourcePath)) : "";
-  return Promise.all(agentTargetIds.map(async (agentId) => {
-    const targetPath = path.join(homeDir, ...AGENT_SKILL_DIRS[agentId], ARCFORGE_ON_DEMAND_SKILL_NAME);
+  const targets = destinationPolicy === "project-only"
+    ? projectRoots.flatMap((projectRoot) => agentTargetIds.map((agentId) => ({ agentId, projectRoot })))
+    : agentTargetIds.map((agentId) => ({ agentId, projectRoot: undefined }));
+  return Promise.all(targets.map(async ({ agentId, projectRoot }) => {
+    const targetPath = projectRoot
+      ? path.join(projectRoot, ...AGENT_SKILL_DIRS[agentId], ARCFORGE_ON_DEMAND_SKILL_NAME)
+      : path.join(homeDir, ...AGENT_SKILL_DIRS[agentId], ARCFORGE_ON_DEMAND_SKILL_NAME);
     const inspection = await inspectLoaderTarget(targetPath);
     if (!inspection.exists) {
-      return { agentId, path: targetPath, status: "missing" as const, expectedDigest };
+      return { agentId, ...(projectRoot ? { projectRoot } : {}), path: targetPath, status: "missing" as const, expectedDigest };
     }
     if (inspection.digest && inspection.digest === expectedDigest) {
       return {
         agentId,
+        ...(projectRoot ? { projectRoot } : {}),
         path: targetPath,
         status: "same" as const,
         expectedDigest,
@@ -288,6 +317,7 @@ async function resolveLoaderTargets(
     if (inspection.digest && isManagedLoaderTarget(agentId, targetPath, appliedRecords)) {
       return {
         agentId,
+        ...(projectRoot ? { projectRoot } : {}),
         path: targetPath,
         status: "managed-update" as const,
         expectedDigest,
@@ -302,6 +332,7 @@ async function resolveLoaderTargets(
     });
     return {
       agentId,
+      ...(projectRoot ? { projectRoot } : {}),
       path: targetPath,
       status: "conflict" as const,
       expectedDigest,
@@ -324,6 +355,7 @@ async function inspectLoaderTarget(targetPath: string): Promise<{ exists: boolea
 function isManagedLoaderTarget(agentId: string, targetPath: string, records: AppliedSourceRecord[]): boolean {
   const normalizedTarget = normalizeLocalPath(path.resolve(targetPath));
   return records.some((record) => {
+    if (record.provisioningEvidence?.targets.some((item) => item.kind === "loader" && normalizeLocalPath(path.resolve(item.path)) === normalizedTarget)) return true;
     if (!record.availabilityItems?.some((item) => item.mode === "user-on-demand")) return false;
     const context = record.availabilityContext;
     if (!context?.agentTargetIds.map((item) => item.trim().toLowerCase()).includes(agentId)) return false;
@@ -399,8 +431,14 @@ function validateTargetContext(
   items: SkillAvailabilityResolution["items"],
   agentTargetIds: string[],
   projectRoots: string[],
+  destinationPolicy: SkillAvailabilityDestinationPolicy,
   diagnostics: SkillProjectManifestDiagnostic[]
 ): void {
+  if (destinationPolicy === "project-only" && items.length > 0) {
+    if (agentTargetIds.length === 0) diagnostics.push({ severity: "error", code: "PROJECT_AGENT_TARGET_REQUIRED", message: "Project-only provisioning requires at least one agent target." });
+    if (projectRoots.length === 0) diagnostics.push({ severity: "error", code: "PROJECT_TARGET_REQUIRED", message: "Project-only provisioning requires at least one project target directory." });
+    return;
+  }
   if (items.some((item) => item.effectiveMode === "user-ambient") && agentTargetIds.length === 0) {
     diagnostics.push({ severity: "error", code: "USER_AGENT_TARGET_REQUIRED", message: "User ambient skills require at least one agent target." });
   }
@@ -419,13 +457,15 @@ function availabilityDestinations(
   homeDir: string,
   agentTargetIds: string[],
   projectRoots: string[],
-  catalogRoot?: string
+  catalogRoot?: string,
+  destinationPolicy: SkillAvailabilityDestinationPolicy = "standard"
 ): SkillAvailabilityDestination[] {
   if (!mode) return [];
   if (!isSafePathSegment(skillName)) return [];
   if (mode === "user-on-demand") {
     return [{ kind: "user-catalog", path: path.join(path.resolve(catalogRoot ?? path.join(homeDir, ".arcforge", "catalog")), skillName) }];
   }
+  if (destinationPolicy === "project-only") return projectAgentDestinations(agentTargetIds, projectRoots, skillName);
   if (mode === "user-ambient") {
     return agentTargetIds.map((agentId) => ({
       kind: "user-agent",
@@ -433,6 +473,15 @@ function availabilityDestinations(
       path: path.join(homeDir, ...AGENT_SKILL_DIRS[agentId], skillName)
     }));
   }
+  return projectRoots.flatMap((projectRoot) => agentTargetIds.map((agentId) => ({
+    kind: "project-agent" as const,
+    agentId,
+    projectRoot,
+    path: path.join(projectRoot, ...AGENT_SKILL_DIRS[agentId], skillName)
+  })));
+}
+
+function projectAgentDestinations(agentTargetIds: string[], projectRoots: string[], skillName: string): SkillAvailabilityDestination[] {
   return projectRoots.flatMap((projectRoot) => agentTargetIds.map((agentId) => ({
     kind: "project-agent" as const,
     agentId,
@@ -509,6 +558,50 @@ function cleanupItems(
     }
   }
   return [...cleanup.values()].sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function auxiliaryCleanupItems(
+  sourceRoot: string,
+  profileName: string,
+  sourceKey: string,
+  assets: SkillAvailabilityPlan["assets"],
+  loaderTargets: SkillAvailabilityPlan["loaderTargets"],
+  records: AppliedSourceRecord[]
+): SkillAvailabilityPlan["cleanup"] {
+  const current = new Set([
+    ...assets.flatMap((item) => item.destinations.map((destination) => normalizeLocalPath(path.resolve(destination.path)))),
+    ...loaderTargets.map((item) => normalizeLocalPath(path.resolve(item.path)))
+  ]);
+  const normalizedSourceRoot = normalizeLocalPath(path.resolve(sourceRoot));
+  const cleanup: SkillAvailabilityPlan["cleanup"] = [];
+  for (const record of records) {
+    const sameSource = record.sourceKey === sourceKey || normalizeLocalPath(path.resolve(record.sourceRoot)) === normalizedSourceRoot;
+    if (!sameSource || record.profile !== profileName) continue;
+    for (const asset of record.availabilityAssets ?? []) {
+      for (const destination of asset.destinations) {
+        const resolved = path.resolve(destination);
+        if (current.has(normalizeLocalPath(resolved))) continue;
+        cleanup.push({
+          skill: asset.name,
+          path: resolved,
+          reason: "The previously managed shared asset destination is absent from the current availability plan.",
+          requiresConfirm: true
+        });
+      }
+    }
+    for (const evidence of record.provisioningEvidence?.targets ?? []) {
+      if (evidence.kind !== "loader") continue;
+      const resolved = path.resolve(evidence.path);
+      if (current.has(normalizeLocalPath(resolved))) continue;
+      cleanup.push({
+        skill: evidence.name,
+        path: resolved,
+        reason: "The previously managed loader destination is absent from the current availability plan.",
+        requiresConfirm: true
+      });
+    }
+  }
+  return cleanup;
 }
 
 async function legacyCatalogCleanupItems(

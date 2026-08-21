@@ -67,7 +67,7 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
     assert.match(planned.planDigest, /^[a-f0-9]{64}$/);
     assert.equal(planned.plan.sourceProvenance.sourceCommit, "0123456789abcdef0123456789abcdef01234567");
     assert.match(planned.plan.sourceIdentity, /^payload:fixture-payload\/v1:/);
-    assert.deepEqual((await provider.inspectProvider()).capabilities, ["declared-shared-assets/v1", "source-upgrade-recovery/v1", "conflict-reinstall-recovery/v1"]);
+    assert.deepEqual((await provider.inspectProvider()).capabilities, ["declared-shared-assets/v1", "source-upgrade-recovery/v1", "conflict-reinstall-recovery/v1", "project-only-provisioning/v1"]);
     assert.equal(planned.plan.assets.length, 1);
     assert.equal(planned.plan.assets[0].sourcePath, "definition/skills/_declared_shared");
     assert.equal(planned.sharedAssets.length, 1);
@@ -78,6 +78,26 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
     assert.equal(catalogPath, path.join(stateRoot, "catalog", "rare-tool"));
     assert.equal(catalogPath.startsWith(path.join(stateRoot, "catalog")), true);
     assert.equal(catalogPath.startsWith(path.join(homeDir, ".arcforge")), false);
+
+    const projectRoot = path.join(fixture, "project-target");
+    const projectOnlyOptions = {
+      ...options,
+      projectTargetDirs: [projectRoot],
+      destinationPolicy: "project-only"
+    };
+    const projectOnly = await provider.createProvisioningPlan(projectOnlyOptions);
+    assert.equal(projectOnly.plan.destinationPolicy, "project-only");
+    assert.deepEqual(
+      projectOnly.plan.items.find((item) => item.skill === "ambient-tool").destinations.map((item) => item.path),
+      [path.join(projectRoot, ".codex", "skills", "ambient-tool")]
+    );
+    assert.deepEqual(
+      projectOnly.plan.items.find((item) => item.skill === "rare-tool").destinations.map((item) => item.path),
+      [path.join(stateRoot, "catalog", "rare-tool")]
+    );
+    assert.deepEqual(projectOnly.sharedAssets[0].destinations, [path.join(projectRoot, ".codex", "skills", "_declared_shared")]);
+    assert.deepEqual(projectOnly.plan.loaderTargets.map((item) => item.path), [path.join(projectRoot, ".codex", "skills", "arcforge-on-demand")]);
+    assert.equal(projectOnly.targetEvidence.some((item) => item.path.startsWith(path.join(homeDir, ".codex", "skills"))), false);
 
     await assert.rejects(
       provider.applyProvisioningPlan({ ...options, expectedPlanDigest: "0".repeat(64), confirm: true }),
@@ -106,7 +126,7 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
       sourcePath: "definition/skills/_declared_shared",
       destinations: [path.join(homeDir, ".codex", "skills", "_declared_shared")]
     }]);
-    assert.deepEqual(relation.provisioningEvidence.providerCapabilities, ["conflict-reinstall-recovery/v1", "declared-shared-assets/v1", "source-upgrade-recovery/v1"]);
+    assert.deepEqual(relation.provisioningEvidence.providerCapabilities, ["conflict-reinstall-recovery/v1", "declared-shared-assets/v1", "project-only-provisioning/v1", "source-upgrade-recovery/v1"]);
     assert.equal(relation.provisioningEvidence.targets.some((item) => item.kind === "loader" && item.name === "arcforge-on-demand"), true);
     assert.equal(relation.provisioningEvidence.targets.every((item) => /^[a-f0-9]{64}$/.test(item.contentDigest)), true);
 
@@ -216,7 +236,33 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
     assert.equal(appliedCatalog.entries[0].sourceClaims[0].sourceCommit, "0123456789abcdef0123456789abcdef01234567");
     await assert.rejects(access(path.join(decoyStateRoot, "projects")));
 
-    const sharedPath = path.join(homeDir, ".codex", "skills", "_declared_shared");
+    const unrelatedPath = path.join(homeDir, ".codex", "skills", "unrelated-local-skill");
+    await mkdir(unrelatedPath, { recursive: true });
+    await writeFile(path.join(unrelatedPath, "SKILL.md"), "unrelated\n");
+    const migrationPlan = await provider.createProvisioningPlan(projectOnlyOptions);
+    const legacyAmbientPath = path.join(homeDir, ".codex", "skills", "ambient-tool");
+    const legacySharedPath = path.join(homeDir, ".codex", "skills", "_declared_shared");
+    const legacyLoaderPath = path.join(homeDir, ".codex", "skills", "arcforge-on-demand");
+    assert.deepEqual(migrationPlan.plan.cleanup.map((item) => item.path), [legacySharedPath, legacyAmbientPath, legacyLoaderPath].sort());
+    const migrationAssessment = await provider.assessProvisioningUpgrade(projectOnlyOptions);
+    assert.equal(migrationAssessment.canProceed, true);
+    assert.equal(migrationAssessment.items.some((item) => item.disposition === "managed-migration" && item.path === legacyAmbientPath), true);
+    const migrated = await provider.applyProvisioningPlan({
+      ...projectOnlyOptions,
+      expectedPlanDigest: migrationPlan.planDigest,
+      cleanupPaths: migrationPlan.plan.cleanup.map((item) => item.path),
+      confirm: true
+    });
+    assert.equal(migrated.record.availabilityContext.destinationPolicy, "project-only");
+    await access(path.join(projectRoot, ".codex", "skills", "ambient-tool", "SKILL.md"));
+    await access(path.join(projectRoot, ".codex", "skills", "_declared_shared", "contract.md"));
+    await access(path.join(projectRoot, ".codex", "skills", "arcforge-on-demand", "SKILL.md"));
+    await assert.rejects(access(legacyAmbientPath));
+    await assert.rejects(access(legacySharedPath));
+    await assert.rejects(access(legacyLoaderPath));
+    await access(path.join(unrelatedPath, "SKILL.md"));
+
+    const sharedPath = path.join(projectRoot, ".codex", "skills", "_declared_shared");
     const removal = await provider.removeManagedProvisioning({ consumerRoot, stateRoot, sourceRoot, managedPaths: [catalogPath, sharedPath] });
     assert.match(removal.confirmationDigest, /^[a-f0-9]{64}$/);
     const result = await provider.removeManagedProvisioning({

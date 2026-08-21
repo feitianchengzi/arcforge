@@ -5,7 +5,7 @@ import os from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
-import type { AppliedSourceRecord, ApplyFromSourceResult, CatalogSourceSelection, CleanupLocalSkillPlan, CleanupLocalSkillResult, DriftReport, ImportSkillsPlan, ImportSkillsResult, LocalSkillWorkflowPlan, MergePlan, MergeResult, ProjectResolveCandidate, ProjectResolveResult, ArcForgeConfig, SkillAvailabilityOverride, SkillAvailabilityPlan, SkillProjectApplicabilityAssessment, SkillSourceProvenance, SkillSummary, WorkspaceSnapshot } from "../shared/types.js";
+import type { AppliedSourceRecord, ApplyFromSourceResult, CatalogSourceSelection, CleanupLocalSkillPlan, CleanupLocalSkillResult, DriftReport, ImportSkillsPlan, ImportSkillsResult, LocalSkillWorkflowPlan, MergePlan, MergeResult, ProjectResolveCandidate, ProjectResolveResult, ArcForgeConfig, SkillAvailabilityDestinationPolicy, SkillAvailabilityOverride, SkillAvailabilityPlan, SkillProjectApplicabilityAssessment, SkillSourceProvenance, SkillSummary, WorkspaceSnapshot } from "../shared/types.js";
 import { defaultConfigForRoot, loadConfig, saveConfig } from "./config.js";
 import { copyDirectory, pathExists } from "./fs.js";
 import { applyProfile, compareDirectory, driftReport } from "./profiles.js";
@@ -84,6 +84,7 @@ export interface AvailabilityPlanFromSourceOptions {
   skills?: string[];
   agentTargetIds: string[];
   projectTargetDirs?: string[];
+  destinationPolicy?: SkillAvailabilityDestinationPolicy;
   availabilityOverrides?: SkillAvailabilityOverride[];
   projectAssessments?: SkillProjectApplicabilityAssessment[];
   cacheDir?: string;
@@ -131,6 +132,7 @@ export async function createAvailabilityPlanFromSource(options: AvailabilityPlan
     skills: options.skills,
     agentTargetIds: options.agentTargetIds,
     projectTargetDirs: options.projectTargetDirs,
+    destinationPolicy: options.destinationPolicy,
     invocationOverrides: options.availabilityOverrides,
     projectAssessments: options.projectAssessments ?? reusableProjectAssessments(records, sourceRoot, consumerRoot, options.profile ?? "default", options.agentTargetIds, options.projectTargetDirs ?? [], skillAvailabilitySourcePolicyDigest(source.sourceManifest)),
     appliedRecords: records,
@@ -157,6 +159,7 @@ export async function driftAvailabilityFromSource(options: AvailabilityDriftFrom
     skills: options.skills,
     agentTargetIds: options.agentTargetIds,
     projectTargetDirs: options.projectTargetDirs,
+    destinationPolicy: options.destinationPolicy,
     invocationOverrides: options.availabilityOverrides,
     projectAssessments: options.projectAssessments ?? reusableProjectAssessments(records, sourceRoot, consumerRoot, options.profile ?? "default", options.agentTargetIds, options.projectTargetDirs ?? [], skillAvailabilitySourcePolicyDigest(source.sourceManifest)),
     appliedRecords: records,
@@ -190,6 +193,7 @@ export async function applyAvailabilityFromSource(options: AvailabilityApplyFrom
     skills: options.skills,
     agentTargetIds: options.agentTargetIds,
     projectTargetDirs: options.projectTargetDirs,
+    destinationPolicy: options.destinationPolicy,
     invocationOverrides: options.availabilityOverrides,
     projectAssessments: options.projectAssessments ?? reusableProjectAssessments(previousRecords, sourceRoot, consumerRoot, options.profile ?? "default", options.agentTargetIds, options.projectTargetDirs ?? [], skillAvailabilitySourcePolicyDigest(source.sourceManifest)),
     appliedRecords: previousRecords,
@@ -761,6 +765,7 @@ async function availabilityAppliedRecordFor(
     availabilityContext: {
       agentTargetIds: [...new Set(context.agentTargetIds.map((item) => item.trim().toLowerCase()).filter(Boolean))].sort(),
       projectTargetDirs: [...new Set((context.projectTargetDirs ?? []).map((item) => path.resolve(root, item)))].sort(),
+      destinationPolicy: context.destinationPolicy,
       availabilityOverrides: context.availabilityOverrides?.map((item) => ({ skill: item.skill, mode: item.mode })),
       projectAssessments: plan.items.flatMap((item) => item.projectAssessment ? [{
         ...item.projectAssessment,

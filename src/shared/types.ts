@@ -12,6 +12,7 @@ export interface SkillSummary {
 }
 
 export type SkillAvailabilityMode = "user-ambient" | "project-ambient" | "user-on-demand";
+export type SkillAvailabilityDestinationPolicy = "standard" | "project-only";
 
 export interface SkillAvailabilityOverride {
   skill: string;
@@ -150,6 +151,7 @@ export interface CatalogVersionDecision {
 
 export interface SkillAvailabilityLoaderTarget {
   agentId: string;
+  projectRoot?: string;
   path: string;
   status: "missing" | "same" | "managed-update" | "conflict";
   expectedDigest: string;
@@ -175,6 +177,7 @@ export interface SkillAvailabilityPlan {
   sourceIdentity: string;
   sourceProvenance?: SkillSourceProvenance;
   profile: string;
+  destinationPolicy?: SkillAvailabilityDestinationPolicy;
   sourcePolicyDigest?: string;
   items: SkillAvailabilityPlanItem[];
   assets: SkillAvailabilityAssetPlanItem[];
@@ -497,6 +500,7 @@ export interface AppliedSourceRecord {
   availabilityContext?: {
     agentTargetIds: string[];
     projectTargetDirs: string[];
+    destinationPolicy?: SkillAvailabilityDestinationPolicy;
     availabilityOverrides?: SkillAvailabilityOverride[];
     projectAssessments?: SkillProjectApplicabilityAssessment[];
     homeDir: string;
