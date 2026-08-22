@@ -499,10 +499,7 @@ export async function removeManagedProvisioning(options: RemoveManagedProvisioni
 
 async function createManagedRemovalPlan(options: RemoveManagedProvisioningOptions): Promise<ManagedRemovalPlan> {
   const records = await listProvisioningRelations(options);
-  const allowed = new Set(records.flatMap((record) => [
-    ...(record.availabilityItems?.flatMap((item) => item.destinations) ?? []),
-    ...(record.availabilityAssets?.flatMap((item) => item.destinations) ?? [])
-  ].map(localPathIdentity)));
+  const allowed = managedRelationPaths(records);
   const managedPathByIdentity = new Map(options.managedPaths.map((item) => {
     const resolved = path.resolve(item);
     return [localPathIdentity(resolved), resolved] as const;
@@ -515,10 +512,7 @@ async function createManagedRemovalPlan(options: RemoveManagedProvisioningOption
     if (path.dirname(managedPath) === managedPath) throw new Error(`Refusing to remove a filesystem root: ${managedPath}`);
   }
   const relationIds = records
-    .filter((record) => [
-      ...(record.availabilityItems?.flatMap((item) => item.destinations) ?? []),
-      ...(record.availabilityAssets?.flatMap((item) => item.destinations) ?? [])
-    ].some((destination) => managedPathIdentities.has(localPathIdentity(destination))))
+    .filter((record) => [...managedRelationPaths([record])].some((destination) => managedPathIdentities.has(destination)))
     .map((record) => record.id)
     .sort();
   const pathEvidence = await inspectPaths(managedPaths);
@@ -547,12 +541,17 @@ function withoutManagedPaths(record: AppliedSourceRecord, removed: Set<string>):
     ...retainedSkills,
     ...(availabilityAssets?.map((item) => item.name) ?? [])
   ]);
+  const provisioningEvidence = record.provisioningEvidence ? {
+    ...record.provisioningEvidence,
+    targets: record.provisioningEvidence.targets.filter((item) => !removed.has(localPathIdentity(item.path)))
+  } : undefined;
   return {
     ...record,
     skills: record.skills.filter((skill) => retainedSkills.has(skill)),
     managedSkillNames: (record.managedSkillNames ?? []).filter((name) => retainedManagedNames.has(name)),
     availabilityItems,
     availabilityAssets,
+    provisioningEvidence,
     updatedAt: new Date().toISOString()
   };
 }

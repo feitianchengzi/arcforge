@@ -262,6 +262,22 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
     await assert.rejects(access(legacyLoaderPath));
     await access(path.join(unrelatedPath, "SKILL.md"));
 
+    await mkdir(legacyLoaderPath, { recursive: true });
+    await writeFile(path.join(legacyLoaderPath, "SKILL.md"), "relationship-proven stale loader\n");
+    const loaderRemoval = await provider.removeManagedProvisioning({ consumerRoot, stateRoot, sourceRoot, managedPaths: [legacyLoaderPath] });
+    assert.match(loaderRemoval.confirmationDigest, /^[a-f0-9]{64}$/);
+    assert.equal(loaderRemoval.relationIds.length, 1);
+    const loaderRemovalResult = await provider.removeManagedProvisioning({
+      consumerRoot,
+      stateRoot,
+      sourceRoot,
+      managedPaths: [legacyLoaderPath],
+      confirmationDigest: loaderRemoval.confirmationDigest,
+      confirm: true
+    });
+    assert.deepEqual(loaderRemovalResult.removedPaths, [legacyLoaderPath]);
+    await assert.rejects(access(legacyLoaderPath));
+
     const sharedPath = path.join(projectRoot, ".codex", "skills", "_declared_shared");
     const removal = await provider.removeManagedProvisioning({ consumerRoot, stateRoot, sourceRoot, managedPaths: [catalogPath, sharedPath] });
     assert.match(removal.confirmationDigest, /^[a-f0-9]{64}$/);
