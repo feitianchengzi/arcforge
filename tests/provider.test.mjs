@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -297,6 +297,95 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
   } finally {
     if (previousArcForgeHome === undefined) delete process.env.ARCFORGE_HOME;
     else process.env.ARCFORGE_HOME = previousArcForgeHome;
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
+
+test("embedded provider exposes unversioned catalog conflicts and overwrites only explicitly selected same-name skills after backup", async () => {
+  await execFileAsync(process.execPath, [path.join(repoRoot, "node_modules", "typescript", "bin", "tsc"), "-p", path.join(repoRoot, "tsconfig.cli.json")], { cwd: repoRoot });
+  const provider = await import(`${pathToFileURL(path.join(repoRoot, "dist", "provider", "index.js")).href}?catalog-recovery=${Date.now()}`);
+  const fixture = await mkdtemp(path.join(tmpdir(), "arcforge-provider-catalog-recovery-"));
+  const sourceRoot = path.join(fixture, "source");
+  const consumerRoot = path.join(fixture, "consumer");
+  const stateRoot = path.join(fixture, "state");
+  const homeDir = path.join(fixture, "home");
+  const projectRoot = path.join(fixture, "project");
+  const skillNames = ["alpha-skill", "beta-skill", "gamma-skill", "delta-skill", "epsilon-skill"];
+  try {
+    for (const name of skillNames) {
+      await mkdir(path.join(sourceRoot, "skills", name), { recursive: true });
+      await writeFile(path.join(sourceRoot, "skills", name, "SKILL.md"), `---\nname: ${name}\ndescription: Initial ${name}.\n---\n`);
+    }
+    await writeFile(path.join(sourceRoot, "arcforge.config.json"), `${JSON.stringify({
+      version: 1,
+      sourceDir: "skills",
+      profiles: [{ name: "default", skills: ["*"], targets: ["codex"] }]
+    }, null, 2)}\n`);
+    await writeFile(path.join(sourceRoot, "arcforge.skill-project.json"), `${JSON.stringify({
+      version: 1,
+      sourceDir: "skills",
+      availability: { defaultMode: "user-on-demand", skills: [] }
+    }, null, 2)}\n`);
+    await writeFile(path.join(sourceRoot, "payload.manifest.json"), `${JSON.stringify({
+      schemaVersion: "fixture-payload/v1",
+      sourceCommit: "0123456789abcdef0123456789abcdef01234567",
+      sourceManifestDigest: "e".repeat(64)
+    }, null, 2)}\n`);
+    const options = {
+      sourceRoot, consumerRoot, stateRoot, homeDir, profile: "default", agentTargetIds: ["codex"],
+      projectTargetDirs: [projectRoot], destinationPolicy: "project-only"
+    };
+    const initial = await provider.createProvisioningPlan(options);
+    await provider.applyProvisioningPlan({ ...options, expectedPlanDigest: initial.planDigest, confirm: true });
+    const catalogPaths = new Map(initial.plan.items.map((item) => [item.skill, item.destinations.find((destination) => destination.kind === "user-catalog").path]));
+    for (const name of skillNames) {
+      await writeFile(path.join(sourceRoot, "skills", name, "SKILL.md"), `---\nname: ${name}\ndescription: Bundled replacement ${name}.\n---\n`);
+    }
+
+    const blockedPlan = await provider.createProvisioningPlan(options);
+    assert.equal(blockedPlan.plan.diagnostics.filter((item) => item.code === "CATALOG_VERSION_CONFLICT").length, 5);
+    const assessment = await provider.assessProvisioningUpgrade(options);
+    assert.equal(assessment.canProceed, false);
+    assert.equal(assessment.canBackupAndOverwriteSelected, true);
+    assert.equal(assessment.items.length, 5);
+    assert.equal(assessment.items.every((item) => item.kind === "catalog" && item.diagnosticCode === "CATALOG_VERSION_CONFLICT" && item.recoveryEligible), true);
+    assert.equal(assessment.items.every((item) => item.path === catalogPaths.get(item.name)), true);
+    assert.equal(assessment.items.every((item) => /^[a-f0-9]{64}$/.test(item.observedDigest) && /^[a-f0-9]{64}$/.test(item.incomingDigest)), true);
+
+    const selectedItems = assessment.items.slice(0, 2);
+    const recovery = await provider.recoverProvisioningUpgrade({
+      ...options,
+      expectedAssessmentDigest: assessment.assessmentDigest,
+      action: "backup-and-overwrite-selected",
+      selectedPaths: selectedItems.map((item) => item.path),
+      backupRoot: path.join(fixture, "recovery-backups"),
+      confirm: true
+    });
+    assert.equal((await stat(recovery.backupPath)).mode & 0o077, 0);
+    assert.equal((await stat(recovery.recoveryManifestPath)).mode & 0o077, 0);
+    assert.deepEqual(recovery.restoredPaths, selectedItems.map((item) => item.path).sort());
+    for (const item of selectedItems) {
+      assert.match(await readFile(path.join(item.path, "SKILL.md"), "utf8"), /Bundled replacement/);
+    }
+    for (const item of assessment.items.slice(2)) {
+      assert.match(await readFile(path.join(item.path, "SKILL.md"), "utf8"), /Initial/);
+    }
+    const manifest = JSON.parse(await readFile(recovery.recoveryManifestPath, "utf8"));
+    assert.deepEqual(manifest.selectedItems.map((item) => item.path).sort(), selectedItems.map((item) => item.path).sort());
+
+    const remaining = await provider.assessProvisioningUpgrade(options);
+    assert.equal(remaining.items.filter((item) => item.diagnosticCode === "CATALOG_VERSION_CONFLICT").length, 3);
+    assert.equal(remaining.canBackupAndOverwriteSelected, true);
+    await provider.recoverProvisioningUpgrade({
+      ...options,
+      expectedAssessmentDigest: remaining.assessmentDigest,
+      action: "backup-and-overwrite-selected",
+      selectedPaths: remaining.items.map((item) => item.path),
+      backupRoot: path.join(fixture, "recovery-backups"),
+      confirm: true
+    });
+    assert.equal((await provider.assessProvisioningUpgrade(options)).canProceed, true);
+  } finally {
     await rm(fixture, { recursive: true, force: true });
   }
 });

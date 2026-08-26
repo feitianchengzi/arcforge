@@ -39,12 +39,19 @@ export type ProvisioningUpgradeDisposition =
 export interface ProvisioningUpgradeItem {
   disposition: ProvisioningUpgradeDisposition;
   name: string;
-  kind: "skill" | "asset" | "loader" | "policy";
+  kind: "skill" | "catalog" | "asset" | "loader" | "policy";
   path: string;
   sourcePath?: string;
   observedStatus: "missing" | "changed";
   expectedDigest?: string;
   observedDigest?: string;
+  incomingDigest?: string;
+  diagnosticCode?: string;
+  incomingSourceKey?: string;
+  incomingVersion?: string;
+  incomingSourceCommit?: string;
+  recoveryEligible?: boolean;
+  recoveryBlockedReason?: string;
   files?: DriftFileDiff[];
   reason: string;
 }
@@ -58,12 +65,14 @@ export interface ProvisioningUpgradeAssessment {
   canProceed: boolean;
   canBackupAndRestore: boolean;
   canBackupAndReinstall: boolean;
+  canBackupAndOverwriteSelected: boolean;
   writeState: "not_started";
 }
 
 export interface RecoverProvisioningUpgradeOptions extends ProvisioningOptions {
   expectedAssessmentDigest: string;
-  action: "backup-and-restore" | "backup-and-reinstall";
+  action: "backup-and-restore" | "backup-and-reinstall" | "backup-and-overwrite-selected";
+  selectedPaths?: string[];
   backupRoot: string;
   confirm: true;
 }
@@ -71,6 +80,7 @@ export interface RecoverProvisioningUpgradeOptions extends ProvisioningOptions {
 export interface RecoverProvisioningUpgradeResult {
   assessment: ProvisioningUpgradeAssessment;
   backupPath: string;
+  recoveryManifestPath: string;
   restoredPaths: string[];
 }
 
@@ -225,14 +235,38 @@ export async function assessProvisioningUpgrade(options: ProvisioningOptions): P
   const evidenceByPath = new Map(relations.flatMap((record) => record.provisioningEvidence?.targets ?? [])
     .map((item) => [localPathIdentity(item.path), item] as const));
   const blocking = envelope.plan.diagnostics.filter((item) => item.severity === "error");
-  const items: ProvisioningUpgradeItem[] = blocking.map((diagnostic) => ({
-    disposition: "unmanaged-conflict",
-    name: diagnostic.code,
-    kind: diagnostic.code === "ON_DEMAND_LOADER_CONFLICT" ? "loader" : "policy",
-    path: diagnostic.path ? path.resolve(diagnostic.path) : path.resolve(options.sourceRoot),
-    observedStatus: "changed",
-    reason: diagnostic.message
-  }));
+  const items: ProvisioningUpgradeItem[] = blocking.map((diagnostic) => {
+    const planned = envelope.plan.items.find((item) => item.skill === diagnostic.path);
+    const catalogDestination = planned?.destinations.find((destination) => destination.kind === "user-catalog");
+    if (diagnostic.code === "CATALOG_VERSION_CONFLICT" && planned && catalogDestination) {
+      return {
+        disposition: "unmanaged-conflict",
+        name: planned.skill,
+        kind: "catalog",
+        path: path.resolve(catalogDestination.path),
+        sourcePath: path.resolve(options.sourceRoot, planned.sourcePath),
+        observedStatus: "changed",
+        expectedDigest: planned.contentDigest,
+        observedDigest: planned.catalogDecision?.currentDigest,
+        incomingDigest: planned.contentDigest,
+        diagnosticCode: diagnostic.code,
+        incomingSourceKey: planned.catalogDecision?.incomingSourceKey ?? envelope.plan.sourceKey,
+        incomingVersion: planned.version,
+        incomingSourceCommit: planned.catalogDecision?.incomingSourceCommit,
+        reason: diagnostic.message
+      };
+    }
+    return {
+      disposition: "unmanaged-conflict",
+      name: planned?.skill ?? diagnostic.path ?? diagnostic.code,
+      kind: diagnostic.code === "ON_DEMAND_LOADER_CONFLICT" ? "loader" : "policy",
+      path: diagnostic.path && path.isAbsolute(diagnostic.path) ? path.resolve(diagnostic.path) : path.resolve(options.sourceRoot),
+      ...(planned ? { sourcePath: path.resolve(options.sourceRoot, planned.sourcePath), expectedDigest: planned.contentDigest, incomingDigest: planned.contentDigest } : {}),
+      observedStatus: "changed",
+      diagnosticCode: diagnostic.code,
+      reason: diagnostic.message
+    };
+  });
 
   if (!blocking.length) {
     const drift = await driftProvisioningPlan(options);
@@ -348,13 +382,10 @@ export async function assessProvisioningUpgrade(options: ProvisioningOptions): P
     }
   }
 
-  const normalizedItems = dedupeUpgradeItems(items);
+  const normalizedItems = await Promise.all(dedupeUpgradeItems(items).map((item) => annotateRecoveryEligibility(item, envelope, options, ownedPaths)));
   const blockingItems = normalizedItems.filter((item) => ["local-content-conflict", "unverified-managed", "unmanaged-conflict"].includes(item.disposition));
   const canBackupAndReinstall = blockingItems.length > 0 && blockingItems.every((item) => (
-    item.observedStatus === "changed"
-    && Boolean(item.sourcePath)
-    && path.dirname(path.resolve(item.path)) !== path.resolve(item.path)
-    && localPathIdentity(item.path) !== localPathIdentity(item.sourcePath as string)
+    item.recoveryEligible === true
   ));
   const assessmentBase = {
     apiVersion: ARCFORGE_EMBEDDED_PROVIDER_API_VERSION as typeof ARCFORGE_EMBEDDED_PROVIDER_API_VERSION,
@@ -364,6 +395,7 @@ export async function assessProvisioningUpgrade(options: ProvisioningOptions): P
     canProceed: blockingItems.length === 0,
     canBackupAndRestore: blockingItems.length > 0 && blockingItems.every((item) => ["local-content-conflict", "unverified-managed"].includes(item.disposition)),
     canBackupAndReinstall,
+    canBackupAndOverwriteSelected: blockingItems.some((item) => item.recoveryEligible === true),
     writeState: "not_started" as const
   };
   return { ...assessmentBase, assessmentDigest: digest(assessmentBase) };
@@ -372,7 +404,7 @@ export async function assessProvisioningUpgrade(options: ProvisioningOptions): P
 export async function recoverProvisioningUpgrade(options: RecoverProvisioningUpgradeOptions): Promise<RecoverProvisioningUpgradeResult> {
   assertProvisioningRoots(options);
   assertAbsoluteDirectoryInput("backupRoot", options.backupRoot);
-  if (!options.confirm || !["backup-and-restore", "backup-and-reinstall"].includes(options.action)) {
+  if (!options.confirm || !["backup-and-restore", "backup-and-reinstall", "backup-and-overwrite-selected"].includes(options.action)) {
     throw new Error("Provisioning recovery requires an explicit supported recovery confirmation.");
   }
   const assessment = await assessProvisioningUpgrade(options);
@@ -380,21 +412,33 @@ export async function recoverProvisioningUpgrade(options: RecoverProvisioningUpg
     throw new Error("Provisioning recovery assessment changed after confirmation; inspect a fresh assessment.");
   }
   const managedRestore = options.action === "backup-and-restore";
+  const selectedOverwrite = options.action === "backup-and-overwrite-selected";
   if (managedRestore && !assessment.canBackupAndRestore) throw new Error("Provisioning assessment is not eligible for managed backup-and-restore.");
-  if (!managedRestore && !assessment.canBackupAndReinstall) throw new Error("Provisioning assessment is not eligible for backup-and-reinstall.");
-  const recoverable = dedupeRecoveryItems(assessment.items.filter((item) => (
+  if (!managedRestore && !selectedOverwrite && !assessment.canBackupAndReinstall) throw new Error("Provisioning assessment is not eligible for backup-and-reinstall.");
+  if (selectedOverwrite && !assessment.canBackupAndOverwriteSelected) throw new Error("Provisioning assessment has no selectable same-name overwrite target.");
+  const eligible = dedupeRecoveryItems(assessment.items.filter((item) => (
     managedRestore
       ? ["local-content-conflict", "unverified-managed"].includes(item.disposition)
       : ["local-content-conflict", "unverified-managed", "unmanaged-conflict"].includes(item.disposition)
   )));
+  const selected = new Set((options.selectedPaths ?? []).map(localPathIdentity));
+  if (selectedOverwrite && selected.size === 0) throw new Error("Same-name overwrite recovery requires at least one explicitly selected target.");
+  const recoverable = selectedOverwrite ? eligible.filter((item) => selected.has(localPathIdentity(item.path))) : eligible;
+  if (selectedOverwrite && recoverable.length !== selected.size) throw new Error("Same-name overwrite selection contains a stale or ineligible target.");
+  if (recoverable.some((item) => item.recoveryEligible !== true)) throw new Error("Provisioning recovery contains a target outside the safe overwrite boundary.");
   if (recoverable.some((item) => !item.sourcePath)) throw new Error("Provisioning recovery is missing a provider source path.");
 
   const recoveryId = `${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID()}`;
   const staging = path.join(path.resolve(options.backupRoot), `.stage-${recoveryId}`);
   const backupPath = path.join(path.resolve(options.backupRoot), recoveryId);
+  const recoveryManifestPath = path.join(backupPath, "recovery.json");
   const replacements: Array<{ target: string; source: string; temporary: string; rollback: string; committed: boolean }> = [];
   let backupCommitted = false;
-  await fs.mkdir(path.join(staging, "items"), { recursive: true });
+  const catalogRoot = path.join(path.resolve(options.stateRoot), "catalog");
+  const previousCatalogRaw = await readUserSkillCatalogIndex({ catalogRoot });
+  let catalogWrittenDirectly = false;
+  await fs.mkdir(path.join(staging, "items"), { recursive: true, mode: 0o700 });
+  await fs.chmod(staging, 0o700);
   try {
     for (const [index, item] of recoverable.entries()) {
       const target = path.resolve(item.path);
@@ -407,8 +451,9 @@ export async function recoverProvisioningUpgrade(options: RecoverProvisioningUpg
       await fs.cp(source, temporary, { recursive: true, errorOnExist: true });
       replacements.push({ target, source, temporary, rollback, committed: false });
     }
-    await fs.writeFile(path.join(staging, "recovery.json"), `${JSON.stringify({ assessment, action: options.action, createdAt: new Date().toISOString() }, null, 2)}\n`);
-    await fs.mkdir(path.dirname(backupPath), { recursive: true });
+    await fs.writeFile(path.join(staging, "recovery.json"), `${JSON.stringify({ assessmentDigest: assessment.assessmentDigest, action: options.action, selectedItems: recoverable, createdAt: new Date().toISOString() }, null, 2)}\n`, { mode: 0o600 });
+    await fs.mkdir(path.dirname(backupPath), { recursive: true, mode: 0o700 });
+    await fs.chmod(path.dirname(backupPath), 0o700);
     await fs.rename(staging, backupPath);
     backupCommitted = true;
     for (const replacement of replacements) {
@@ -422,13 +467,37 @@ export async function recoverProvisioningUpgrade(options: RecoverProvisioningUpg
       }
     }
     if (!managedRestore) {
-      const fresh = await createProvisioningPlan(options);
-      await applyProvisioningPlan({ ...options, expectedPlanDigest: fresh.planDigest, confirm: true });
+      const catalogSourceSelections = recoverable.filter((item) => item.kind === "catalog").map((item) => ({
+        skill: item.name,
+        sourceKey: item.incomingSourceKey as string,
+        contentDigest: item.incomingDigest as string,
+        expectedCurrentDigest: item.observedDigest as string
+      }));
+      if (catalogSourceSelections.some((item) => !item.sourceKey || !item.contentDigest || !item.expectedCurrentDigest)) {
+        throw new Error("Same-name catalog overwrite is missing fresh source or digest confirmation data.");
+      }
+      const selectedAllBlocking = recoverable.length === eligible.length;
+      if (!selectedAllBlocking && recoverable.some((item) => !["skill", "catalog"].includes(item.kind))) {
+        throw new Error("Partial same-name overwrite is only available for independently planned skill or catalog targets.");
+      }
+      if (selectedAllBlocking) {
+        const applyOptions = { ...options, catalogSourceSelections };
+        const fresh = await createProvisioningPlan(applyOptions);
+        await applyProvisioningPlan({ ...applyOptions, expectedPlanDigest: fresh.planDigest, confirm: true });
+      } else {
+        const catalogItems = recoverable.filter((item) => item.kind === "catalog");
+        if (catalogItems.length) {
+          const currentCatalog = await loadUserSkillCatalog({ catalogRoot });
+          await saveUserSkillCatalog(selectCatalogOverwriteEntries(currentCatalog.entries, catalogItems, options), { catalogRoot });
+          catalogWrittenDirectly = true;
+        }
+      }
     }
     for (const replacement of replacements) await fs.rm(replacement.rollback, { recursive: true, force: true }).catch(() => undefined);
-    return { assessment, backupPath, restoredPaths: replacements.map((item) => item.target).sort() };
+    return { assessment, backupPath, recoveryManifestPath, restoredPaths: replacements.map((item) => item.target).sort() };
   } catch (error) {
     const rollbackErrors: unknown[] = [];
+    if (catalogWrittenDirectly) await restoreUserSkillCatalogIndex(previousCatalogRaw, { catalogRoot }).catch((item) => rollbackErrors.push(item));
     for (const replacement of replacements.reverse()) {
       if (replacement.committed) {
         await fs.rm(replacement.target, { recursive: true, force: true }).catch((item) => rollbackErrors.push(item));
@@ -437,7 +506,12 @@ export async function recoverProvisioningUpgrade(options: RecoverProvisioningUpg
       await fs.rm(replacement.temporary, { recursive: true, force: true }).catch((item) => rollbackErrors.push(item));
     }
     if (!backupCommitted) await fs.rm(staging, { recursive: true, force: true }).catch((item) => rollbackErrors.push(item));
-    if (rollbackErrors.length) throw new AggregateError([error, ...rollbackErrors], "Source-upgrade recovery failed and rollback was incomplete.");
+    if (rollbackErrors.length) {
+      const aggregate = new AggregateError([error, ...rollbackErrors], "Source-upgrade recovery failed and rollback was incomplete.");
+      Object.assign(aggregate, { code: "RECOVERY_ROLLBACK_INCOMPLETE", details: { backupPath: backupCommitted ? backupPath : null, recoveryManifestPath: backupCommitted ? recoveryManifestPath : null } });
+      throw aggregate;
+    }
+    if (error && typeof error === "object") Object.assign(error, { code: (error as { code?: string }).code ?? "RECOVERY_FAILED", details: { backupPath: backupCommitted ? backupPath : null, recoveryManifestPath: backupCommitted ? recoveryManifestPath : null } });
     throw error;
   }
 }
@@ -621,6 +695,102 @@ function dedupeRecoveryItems(items: ProvisioningUpgradeItem[]): ProvisioningUpgr
     if (!existing || (!existing.sourcePath && item.sourcePath)) unique.set(key, item);
   }
   return [...unique.values()].sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function selectCatalogOverwriteEntries(
+  entries: UserSkillCatalogEntry[],
+  selectedItems: ProvisioningUpgradeItem[],
+  options: ProvisioningOptions
+): UserSkillCatalogEntry[] {
+  const selected = new Map(selectedItems.map((item) => [item.name.trim().toLowerCase(), item]));
+  const now = new Date().toISOString();
+  return entries.map((entry) => {
+    const item = selected.get(entry.skillName.trim().toLowerCase());
+    if (!item) return entry;
+    if (!item.incomingSourceKey || !item.incomingDigest || !item.sourcePath) {
+      throw new Error(`Same-name catalog overwrite is missing source identity for ${entry.skillName}.`);
+    }
+    const skillPath = path.relative(path.resolve(options.sourceRoot), path.resolve(item.sourcePath)).replaceAll(path.sep, "/");
+    if (!skillPath || skillPath.startsWith("../") || path.posix.isAbsolute(skillPath)) {
+      throw new Error(`Same-name catalog overwrite source escapes the locked source root: ${item.sourcePath}`);
+    }
+    const existingClaim = entry.sourceClaims.find((claim) => claim.sourceKey === item.incomingSourceKey && claim.skillPath === skillPath);
+    const sourceClaim = {
+      sourceKey: item.incomingSourceKey,
+      sourceRoot: path.resolve(options.sourceRoot),
+      sourceRemoteUrl: options.sourceProvenance?.sourceRemoteUrl,
+      sourceCommit: item.incomingSourceCommit ?? options.sourceProvenance?.sourceCommit,
+      skillPath,
+      version: item.incomingVersion,
+      contentDigest: item.incomingDigest,
+      appliedRecordIds: [...(existingClaim?.appliedRecordIds ?? [])],
+      observedAt: now
+    };
+    const sourceClaims = [
+      ...entry.sourceClaims.filter((claim) => !(claim.sourceKey === sourceClaim.sourceKey && claim.skillPath === sourceClaim.skillPath)),
+      sourceClaim
+    ];
+    return {
+      ...entry,
+      version: item.incomingVersion,
+      status: "ready" as const,
+      conflictReason: undefined,
+      activeSourceKey: item.incomingSourceKey,
+      installedPath: path.resolve(item.path),
+      contentDigest: item.incomingDigest,
+      sourceClaims,
+      appliedRecordIds: [...new Set(sourceClaims.flatMap((claim) => claim.appliedRecordIds))].sort(),
+      installedAt: now
+    };
+  });
+}
+
+async function annotateRecoveryEligibility(
+  item: ProvisioningUpgradeItem,
+  envelope: ProvisioningPlanEnvelope,
+  options: ProvisioningOptions,
+  ownedPaths: Set<string>
+): Promise<ProvisioningUpgradeItem> {
+  if (item.observedStatus !== "changed" || !item.sourcePath) {
+    return { ...item, recoveryEligible: false, recoveryBlockedReason: "The conflict has no replaceable current target and unique bundled source." };
+  }
+  const target = path.resolve(item.path);
+  const source = path.resolve(item.sourcePath);
+  if (path.dirname(target) === target || localPathIdentity(target) === localPathIdentity(source)) {
+    return { ...item, recoveryEligible: false, recoveryBlockedReason: "The resolved target is a filesystem root or aliases the bundled source." };
+  }
+  const sourceRoot = path.resolve(options.sourceRoot);
+  if (!isSameOrChild(sourceRoot, source)) {
+    return { ...item, recoveryEligible: false, recoveryBlockedReason: "The bundled source resolves outside the locked source root." };
+  }
+  const plannedTargets = new Set([
+    ...envelope.plan.items.flatMap((planItem) => planItem.destinations.map((destination) => localPathIdentity(destination.path))),
+    ...envelope.plan.assets.flatMap((asset) => asset.destinations.map((destination) => localPathIdentity(destination.path))),
+    ...envelope.plan.loaderTargets.map((loader) => localPathIdentity(loader.path))
+  ]);
+  const catalogRoot = path.join(path.resolve(options.stateRoot), "catalog");
+  const targetIsAllowed = plannedTargets.has(localPathIdentity(target))
+    || ownedPaths.has(localPathIdentity(target))
+    || (item.kind === "catalog" && isSameOrChild(catalogRoot, target) && localPathIdentity(catalogRoot) !== localPathIdentity(target));
+  if (!targetIsAllowed) {
+    return { ...item, recoveryEligible: false, recoveryBlockedReason: "The target is outside the fresh plan, catalog, and relationship-owned boundaries." };
+  }
+  try {
+    const stats = await fs.lstat(target);
+    if (!stats.isDirectory() || stats.isSymbolicLink()) {
+      return { ...item, recoveryEligible: false, recoveryBlockedReason: "The target must be a physical directory and cannot be a symbolic link." };
+    }
+  } catch (error) {
+    return { ...item, recoveryEligible: false, recoveryBlockedReason: `The current target cannot be inspected: ${error instanceof Error ? error.message : String(error)}` };
+  }
+  const incomingDigest = item.incomingDigest ?? await catalogDirectoryDigest(source);
+  const observedDigest = item.observedDigest ?? await catalogDirectoryDigest(target);
+  return { ...item, incomingDigest, observedDigest, recoveryEligible: true, recoveryBlockedReason: undefined };
+}
+
+function isSameOrChild(root: string, candidate: string): boolean {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
 function localPathIdentity(value: string): string {
