@@ -67,7 +67,7 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
     assert.match(planned.planDigest, /^[a-f0-9]{64}$/);
     assert.equal(planned.plan.sourceProvenance.sourceCommit, "0123456789abcdef0123456789abcdef01234567");
     assert.match(planned.plan.sourceIdentity, /^payload:fixture-payload\/v1:/);
-    assert.deepEqual((await provider.inspectProvider()).capabilities, ["declared-shared-assets/v1", "source-upgrade-recovery/v1", "conflict-reinstall-recovery/v1", "project-only-provisioning/v1"]);
+    assert.deepEqual((await provider.inspectProvider()).capabilities, ["declared-shared-assets/v1", "source-upgrade-recovery/v1", "conflict-reinstall-recovery/v1", "project-only-provisioning/v1", "stable-catalog/v1", "project-skill-migration/v1"]);
     assert.equal(planned.plan.assets.length, 1);
     assert.equal(planned.plan.assets[0].sourcePath, "definition/skills/_declared_shared");
     assert.equal(planned.sharedAssets.length, 1);
@@ -126,7 +126,7 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
       sourcePath: "definition/skills/_declared_shared",
       destinations: [path.join(homeDir, ".codex", "skills", "_declared_shared")]
     }]);
-    assert.deepEqual(relation.provisioningEvidence.providerCapabilities, ["conflict-reinstall-recovery/v1", "declared-shared-assets/v1", "project-only-provisioning/v1", "source-upgrade-recovery/v1"]);
+    assert.deepEqual(relation.provisioningEvidence.providerCapabilities, ["conflict-reinstall-recovery/v1", "declared-shared-assets/v1", "project-only-provisioning/v1", "project-skill-migration/v1", "source-upgrade-recovery/v1", "stable-catalog/v1"]);
     assert.equal(relation.provisioningEvidence.targets.some((item) => item.kind === "loader" && item.name === "arcforge-on-demand"), true);
     assert.equal(relation.provisioningEvidence.targets.every((item) => /^[a-f0-9]{64}$/.test(item.contentDigest)), true);
 
@@ -289,11 +289,13 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
       confirmationDigest: removal.confirmationDigest,
       confirm: true
     });
-    assert.deepEqual(result.removedPaths, [catalogPath, sharedPath].sort());
-    await assert.rejects(access(catalogPath));
+    assert.deepEqual(result.removedPaths, [sharedPath]);
+    // The renamed consumer still holds its own claim on this shared installation.
+    await access(catalogPath);
     await assert.rejects(access(sharedPath));
     const catalog = JSON.parse(await readFile(path.join(stateRoot, "catalog", "index.json"), "utf8"));
-    assert.deepEqual(catalog.entries, []);
+    assert.equal(catalog.entries.length, 1);
+    assert.equal(catalog.entries[0].appliedRecordIds.length, 1);
   } finally {
     if (previousArcForgeHome === undefined) delete process.env.ARCFORGE_HOME;
     else process.env.ARCFORGE_HOME = previousArcForgeHome;

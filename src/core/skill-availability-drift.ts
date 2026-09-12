@@ -40,7 +40,7 @@ export async function createSkillAvailabilityDriftReport(options: CreateSkillAva
     const asset = assetByPath.get(item.sourcePath);
     if (!asset || asset.name !== item.name) throw new Error(`Plan asset is absent from the fresh source snapshot: ${item.sourcePath}`);
     for (const destination of item.destinations) {
-      if (destination.kind === "user-catalog") throw new Error(`Shared asset cannot target the user catalog: ${item.name}`);
+      if (destination.kind === "user-catalog" && options.plan.destinationPolicy !== "catalog-only") throw new Error(`Shared asset cannot target the user catalog: ${item.name}`);
       items.push(await driftItem(item.name, "asset", asset.path, destination.path));
       expectTarget(expectedByRoot, destination.path);
     }

@@ -93,7 +93,7 @@ ArcForge 的新使用理念是 agent-first：
 | 组成部分 | 角色 |
 |---|---|
 | `skills/install-arcforge` | 让用户 clone 仓库后，通过 coding agent 完成本地安装。 |
-| `arcforge-on-demand` skill | 仅在用户显式调用时，由 Agent 按任务语义从用户级 ArcForge catalog 选择一个候选，再校验并加载。 |
+| `arcforge-on-demand` skill | 仅由用户显式调用或宿主程序显式配置调用，从当前允许的 catalog 候选中语义选择、校验并加载。 |
 | `arcforge-skill-creator` skill | 创建、维护和拆分 ArcForge skill，并优先于通用 skill creator。 |
 | `arcforge-skill-first` skill | 把工作模式沉淀成 skill，并用子代理前测/复测验证。 |
 | `arcforge` skill | 后续治理流程入口，负责审计、正式化、profile、应用、漂移和发布准备。 |
@@ -273,3 +273,15 @@ arcforge doctor
 - [架构说明](docs/architecture.md)
 - [路线图](docs/roadmap.md)
 - [发布记录](docs/release-notes.md)
+
+### Shared user catalog and consumer discovery
+
+`stable-catalog/v1` extends the existing availability plan/apply engine with `catalog-only` storage. Skills use `stateRoot/catalog/<skillName>`; shared assets use sibling directories. Source availability recommendations remain metadata. No consumer-specific or content-version installation directory is created, and no native agent copy is installed by this target policy.
+
+The same catalog v2 index and applied source records power CLI, Provider and host apps. `catalog list/resolve` reads the user catalog; `--state-root` selects an explicit state directory. Hosts use `inspectCatalogEntries` for configuration facts and `queryCatalog` with an optional exact allowedSkills scope for on-demand lookup. Scopes do not mutate the canonical index. Local modifications and unrelated destination conflicts block writes; same-source updates require a fresh reviewed plan.
+
+`project-skill-migration/v1` plans project cleanup separately. Replacement installation must be verified, and deletion needs a fresh digest and confirmation. Previously recorded version/consumer targets are retained as retiredTargets and offered for cleanup only with unchanged complete package evidence and no other active installation references. Unknown, modified or linked contents are preserved. Installation does not authorize cleanup.
+
+The `arcforge-on-demand` skill may be installed through the same catalog-only plan. It runs only after an explicit user invocation or an explicit host-configured invocation. Hosts may expose the entry through native skill discovery and provide scoped read-only catalog tools; availability of the entry or tool does not authorize the Agent to discover hidden skills on its own. Outside scoped hosts the existing global CLI remains available after an explicit invocation. Source selection after invocation stays with the Agent; ArcForge performs deterministic identity and integrity checks.
+
+Payload consumers can supply declaredSkillPaths and declaredSharedAssetPaths to exclude historical source copies. Complete packageDigest evidence covers dist and other installable resources without changing the legacy contentDigest meaning. Catalog installation and update are independent of whether consumer tasks are active; consumers decide when later turns or runs adopt a fresh binding.

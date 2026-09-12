@@ -23,9 +23,10 @@ import type {
   WorkspaceSnapshot
 } from "../shared/types.js";
 import { pathExists } from "./fs.js";
-import { decideCatalogVersion, loadUserSkillCatalog } from "./skill-catalog.js";
+import { catalogPackageDigest, decideCatalogVersion, loadUserSkillCatalog } from "./skill-catalog.js";
 
 export interface ResolveSkillAvailabilityOptions {
+  storageOnly?: boolean;
   skills: Pick<SkillSummary, "name" | "relativePath" | "version">[];
   profile?: Pick<ArcForgeProfile, "availability">;
   sourceManifest?: SkillProjectManifest;
@@ -109,7 +110,7 @@ export function resolveSkillAvailability(options: ResolveSkillAvailabilityOption
     }
     const effectiveMode = selected?.[0];
     const projectAssessment = effectiveMode === "project-ambient" ? assessments.get(skill.name) : undefined;
-    if (effectiveMode === "project-ambient") {
+    if (effectiveMode === "project-ambient" && !options.storageOnly) {
       validateProjectAssessment(skill.name, sourcePolicy?.projectApplicability, projectAssessment, diagnostics);
     }
     return {
@@ -149,8 +150,10 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
   const homeDir = path.resolve(options.homeDir ?? os.homedir());
   const consumerRoot = path.resolve(options.consumerRoot ?? options.source.root);
   const diagnostics = [...(options.source.sourceManifestDiagnostics ?? [])];
-  const selectedSkills = selectPlanSkills(options.source.skills, profile.skills, options.skills, diagnostics);
+  const selectedSkills = selectPlanSkills(options.source.skills, profile.skills, options.skills, diagnostics, options.destinationPolicy === "catalog-only");
+  const storageOnly = options.destinationPolicy === "catalog-only";
   const resolution = resolveSkillAvailability({
+    storageOnly,
     skills: selectedSkills,
     profile,
     sourceManifest: options.source.sourceManifest,
@@ -165,27 +168,39 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
   const projectRoots = normalizeProjectRoots(consumerRoot, options.projectTargetDirs);
   const destinationPolicy = options.destinationPolicy ?? "standard";
   validateTargetContext(resolution.items, agentTargetIds, projectRoots, destinationPolicy, diagnostics);
-  validateAssessmentProjectRoots(resolution.items, projectRoots, diagnostics);
+  if (!storageOnly) validateAssessmentProjectRoots(resolution.items, projectRoots, diagnostics);
   validateCatalogAliases(selectedSkills, resolution.items, options.source.sourceManifest, diagnostics);
 
   const catalogRoot = path.resolve(options.catalogRoot ?? path.join(homeDir, ".arcforge", "catalog"));
-  const catalog = resolution.items.some((item) => item.effectiveMode === "user-on-demand")
+  const catalog = (storageOnly || resolution.items.some((item) => item.effectiveMode === "user-on-demand"))
     ? await loadUserSkillCatalog({ catalogRoot })
     : undefined;
   const catalogByName = new Map(catalog?.entries.map((entry) => [normalizeCatalogName(entry.skillName), entry]) ?? []);
-  const catalogSelections = catalogSelectionMap(options.catalogSourceSelections, resolution.items, diagnostics);
+  const catalogSelections = catalogSelectionMap(options.catalogSourceSelections, resolution.items, diagnostics, storageOnly);
   const planItems = await Promise.all(resolution.items.map(async (item) => {
     const skill = selectedSkills.find((candidate) => candidate.name === item.skill && toPosixPath(candidate.relativePath) === item.sourcePath);
     if (!skill) throw new Error(`Resolved availability item has no source skill: ${item.skill}`);
     const contentDigest = await directoryDigest(skill.path);
+    const packageDigest = storageOnly ? await catalogPackageDigest(skill.path) : undefined;
     const selection = catalogSelections.get(normalizeCatalogName(item.skill));
-    const catalogDecision = item.effectiveMode === "user-on-demand"
+    let catalogDecision = (storageOnly || item.effectiveMode === "user-on-demand")
       ? decideCatalogVersion(catalogByName.get(normalizeCatalogName(item.skill)), skill.version, contentDigest, {
         incomingSourceKey: sourceKey,
         incomingSourceCommit: options.sourceProvenance?.sourceCommit,
         selection
       })
       : undefined;
+    const current = catalogByName.get(normalizeCatalogName(item.skill));
+    if (storageOnly && current && current.activeSourceKey === sourceKey && catalogDecision?.action === "conflict") {
+      catalogDecision = { ...catalogDecision, action: "upgrade", reason: "Changed content from the same source; requires confirmation." };
+    }
+    if (storageOnly && current) {
+      if (!await pathExists(current.installedPath) || (current.packageDigest ? await catalogPackageDigest(current.installedPath) !== current.packageDigest : await directoryDigest(current.installedPath) !== current.contentDigest)) diagnostics.push({ severity: "error", code: "CATALOG_CONTENT_DRIFT", path: current.installedPath, message: "Installed catalog content changed or is missing; preserve it and resolve drift before updating." });
+    }
+    if (storageOnly) {
+      const target = path.join(catalogRoot, item.skill);
+      if (await pathExists(target) && target !== current?.installedPath && await catalogPackageDigest(target) !== packageDigest) diagnostics.push({ severity: "error", code: "CATALOG_CONTENT_DRIFT", path: target, message: "Unowned catalog destination has different content; preserve it before installing." });
+    }
     if (selection && catalogDecision?.action !== "source-selected") {
       diagnostics.push({ severity: "error", code: "CATALOG_SOURCE_SELECTION_STALE", path: item.skill, message: "The selected catalog source no longer matches the fresh source or current catalog digest; review the new plan and select again." });
     } else if (catalogDecision?.action === "downgrade-blocked") {
@@ -195,8 +210,9 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
     }
     return {
       ...item,
-      destinations: availabilityDestinations(item.effectiveMode, item.skill, homeDir, agentTargetIds, projectRoots, catalogRoot, destinationPolicy),
+      destinations: storageOnly ? [{ kind: "user-catalog" as const, path: path.join(catalogRoot, item.skill) }] : availabilityDestinations(item.effectiveMode, item.skill, homeDir, agentTargetIds, projectRoots, catalogRoot, destinationPolicy),
       contentDigest,
+      ...(packageDigest ? { packageDigest } : {}),
       ...(catalogDecision ? { catalogDecision } : {})
     };
   }));
@@ -205,17 +221,29 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
       .map((destination) => ({ ...destination, path: path.dirname(destination.path) }))
     : [];
   const assetDestinations = ambientAssetDestinations(planItems, projectOnlyAssetDestinations);
-  const assets = await Promise.all(options.source.assets.map(async (asset) => ({
+  const assets = await Promise.all(options.source.assets.map(async (asset) => {
+    const contentDigest = await directoryDigest(asset.path);
+    const packageDigest = storageOnly ? await catalogPackageDigest(asset.path) : undefined;
+    if (storageOnly) {
+      const target = path.join(catalogRoot, asset.name);
+      if (await pathExists(target)) {
+        const observed = await catalogPackageDigest(target);
+        const baseline = (options.appliedRecords ?? []).flatMap(r => r.provisioningEvidence?.targets ?? []).find(t => t.path === target);
+        if (observed !== packageDigest && (!baseline || (baseline.packageDigest ? observed !== baseline.packageDigest : await directoryDigest(target) !== baseline.contentDigest))) diagnostics.push({ severity: "error", code: "CATALOG_CONTENT_DRIFT", path: target, message: "Shared catalog resource is modified or unowned; preserve it before updating." });
+      }
+    }
+    return ({
     name: asset.name,
     sourcePath: toPosixPath(asset.relativePath),
-    destinations: assetDestinations.map((destination) => ({
+    destinations: storageOnly ? [{ kind: "user-catalog" as const, path: path.join(catalogRoot, asset.name) }] : assetDestinations.map((destination) => ({
       ...destination,
       path: path.join(destination.path, asset.name)
     })),
-    contentDigest: await directoryDigest(asset.path)
-  })));
+    contentDigest,
+    ...(packageDigest ? { packageDigest } : {})
+  }); }));
 
-  const loaderTargets = planItems.some((item) => item.effectiveMode === "user-on-demand")
+  const loaderTargets = !storageOnly && planItems.some((item) => item.effectiveMode === "user-on-demand")
     ? await resolveLoaderTargets(
       agentTargetIds,
       homeDir,
@@ -226,7 +254,7 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
       destinationPolicy
     )
     : [];
-  const cleanup = dedupeCleanupItems([
+  const cleanup = storageOnly ? [] : dedupeCleanupItems([
     ...cleanupItems(
       options.source.root,
       options.profileName,
@@ -246,6 +274,7 @@ export async function createSkillAvailabilityPlan(options: CreateSkillAvailabili
   ]);
 
   return {
+    ...(storageOnly ? { catalogRoot } : {}),
     sourceKey,
     sourceIdentity,
     ...(options.sourceProvenance ? { sourceProvenance: options.sourceProvenance } : {}),
@@ -380,10 +409,10 @@ function selectPlanSkills(
   skills: SkillSummary[],
   profileSkills: string[],
   explicitSkills: string[] | undefined,
-  diagnostics: SkillProjectManifestDiagnostic[]
+  diagnostics: SkillProjectManifestDiagnostic[], allowEntry = false
 ): SkillSummary[] {
   const selection = explicitSkills?.length ? explicitSkills : profileSkills;
-  if (explicitSkills?.includes(ARCFORGE_ON_DEMAND_SKILL_NAME)) {
+  if (!allowEntry && explicitSkills?.includes(ARCFORGE_ON_DEMAND_SKILL_NAME)) {
     diagnostics.push({
       severity: "error",
       code: "RESERVED_LOADER_SKILL",
@@ -391,9 +420,9 @@ function selectPlanSkills(
       message: `${ARCFORGE_ON_DEMAND_SKILL_NAME} is an ArcForge-managed entry skill and cannot be selected as a profile skill.`
     });
   }
-  const selectableSkills = skills.filter((skill) => skill.name !== ARCFORGE_ON_DEMAND_SKILL_NAME);
+  const selectableSkills = skills.filter((skill) => allowEntry || skill.name !== ARCFORGE_ON_DEMAND_SKILL_NAME);
   if (selection.includes("*")) return selectableSkills;
-  const requested = [...new Set(selection.map((item) => item.trim()).filter((item) => item && item !== ARCFORGE_ON_DEMAND_SKILL_NAME))];
+  const requested = [...new Set(selection.map((item) => item.trim()).filter((item) => item && (allowEntry || item !== ARCFORGE_ON_DEMAND_SKILL_NAME)))];
   const requestedSet = new Set(requested);
   const selected = selectableSkills.filter((skill) => requestedSet.has(skill.name));
   const found = new Set(selected.map((skill) => skill.name));
@@ -434,6 +463,7 @@ function validateTargetContext(
   destinationPolicy: SkillAvailabilityDestinationPolicy,
   diagnostics: SkillProjectManifestDiagnostic[]
 ): void {
+  if (destinationPolicy === "catalog-only") return;
   if (destinationPolicy === "project-only" && items.length > 0) {
     if (agentTargetIds.length === 0) diagnostics.push({ severity: "error", code: "PROJECT_AGENT_TARGET_REQUIRED", message: "Project-only provisioning requires at least one agent target." });
     if (projectRoots.length === 0) diagnostics.push({ severity: "error", code: "PROJECT_TARGET_REQUIRED", message: "Project-only provisioning requires at least one project target directory." });
@@ -640,9 +670,10 @@ function normalizeCatalogName(value: string): string {
 function catalogSelectionMap(
   selections: CatalogSourceSelection[] | undefined,
   items: SkillAvailabilityResolution["items"],
-  diagnostics: SkillProjectManifestDiagnostic[]
+  diagnostics: SkillProjectManifestDiagnostic[],
+  storageOnly = false
 ): Map<string, CatalogSourceSelection> {
-  const onDemand = new Set(items.filter((item) => item.effectiveMode === "user-on-demand").map((item) => normalizeCatalogName(item.skill)));
+  const onDemand = new Set(items.filter((item) => storageOnly || item.effectiveMode === "user-on-demand").map((item) => normalizeCatalogName(item.skill)));
   const result = new Map<string, CatalogSourceSelection>();
   for (const selection of selections ?? []) {
     const key = normalizeCatalogName(selection.skill);
@@ -654,7 +685,7 @@ function catalogSelectionMap(
         severity: "error",
         code: "CATALOG_SOURCE_SELECTION_INVALID",
         path: selection.skill,
-        message: `Catalog source selection is malformed, duplicated, or does not target a selected on-demand skill: ${selection.skill}`
+        message: `Catalog source selection is malformed, duplicated, or does not target a selected catalog skill: ${selection.skill}`
       });
       continue;
     }

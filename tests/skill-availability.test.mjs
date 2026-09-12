@@ -1611,16 +1611,20 @@ test("on-demand entry skill delegates natural-language selection to the Agent an
   const availability = await readFile(new URL("../src/core/skill-availability.ts", import.meta.url), "utf8");
 
   assert.match(skill, /^---\nname: arcforge-on-demand\n/);
-  assert.match(skill, /任意任务 prompt 不得作为 `catalog resolve --query` 的硬字符串/);
+  assert.match(skill, /完整任务描述用于语义判断，不作为名称 query/);
   assert.match(skill, /arcforge catalog list/);
-  assert.match(skill, /将完整用户意图与每个候选/);
+  assert.match(skill, /根据候选的名称、摘要、版本和状态/);
   assert.match(skill, /qualifiedName/);
   assert.match(skill, /arcforge catalog resolve --query/);
   assert.match(skill, /not-found/);
   assert.match(skill, /ambiguous/);
   assert.match(skill, /resolved\.installedPath/);
   assert.match(agentMetadata, /\$arcforge-on-demand/);
-  assert.match(agentMetadata, /不得把完整 prompt 当作硬 query/);
+  assert.match(agentMetadata, /最小元数据语义选择/);
+  assert.match(agentMetadata, /allow_implicit_invocation: false/);
+  assert.match(skill, /宿主程序.*显式/);
+  assert.match(skill, /Agent 自行判断缺少能力不触发/);
+  assert.doesNotMatch(skill, /arcforge_catalog|旧线程|ArcOrbit/);
   assert.match(cliPackage, /skills["'], "arcforge-on-demand/);
   assert.match(desktopPackage, /skills\/arcforge-on-demand\/\*\*\/\*/);
   assert.match(availability, /RESERVED_LOADER_SKILL/);

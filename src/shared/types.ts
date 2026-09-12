@@ -12,7 +12,7 @@ export interface SkillSummary {
 }
 
 export type SkillAvailabilityMode = "user-ambient" | "project-ambient" | "user-on-demand";
-export type SkillAvailabilityDestinationPolicy = "standard" | "project-only";
+export type SkillAvailabilityDestinationPolicy = "standard" | "project-only" | "catalog-only";
 
 export interface SkillAvailabilityOverride {
   skill: string;
@@ -115,12 +115,14 @@ export interface SkillAvailabilityDestination {
 }
 
 export interface SkillAvailabilityPlanItem extends ResolvedSkillAvailability {
+  packageDigest?: string;
   destinations: SkillAvailabilityDestination[];
   contentDigest: string;
   catalogDecision?: CatalogVersionDecision;
 }
 
 export interface SkillAvailabilityAssetPlanItem {
+  packageDigest?: string;
   name: string;
   sourcePath: string;
   destinations: SkillAvailabilityDestination[];
@@ -173,6 +175,7 @@ export interface SkillSourceProvenance {
 }
 
 export interface SkillAvailabilityPlan {
+  catalogRoot?: string;
   sourceKey: string;
   sourceIdentity: string;
   sourceProvenance?: SkillSourceProvenance;
@@ -202,6 +205,9 @@ export interface UserSkillCatalogSourceClaim {
 export type UserSkillCatalogConflictReason = "same-version-content-conflict" | "version-unknown-conflict";
 
 export interface UserSkillCatalogEntry {
+  availabilityMode?: SkillAvailabilityMode;
+  catalogVersion?: string;
+  packageDigest?: string;
   qualifiedName: string;
   skillName: string;
   version?: string;
@@ -475,6 +481,8 @@ export interface ArcForgeConfig {
 }
 
 export interface AppliedSourceRecord {
+  retiredTargets?: Array<{name: string; path: string; contentDigest: string; packageDigest?: string}>;
+  catalogVersions?: Array<{ root: string; version: string }>;
   id: string;
   relationKind?: "profileApply" | "maintenanceImport";
   sourceRoot: string;
@@ -498,6 +506,8 @@ export interface AppliedSourceRecord {
     destinations: string[];
   }>;
   availabilityContext?: {
+    declaredSkillPaths?: string[];
+    sourceProvenance?: SkillSourceProvenance;
     agentTargetIds: string[];
     projectTargetDirs: string[];
     destinationPolicy?: SkillAvailabilityDestinationPolicy;
@@ -512,6 +522,7 @@ export interface AppliedSourceRecord {
       kind: "skill" | "asset" | "loader";
       path: string;
       contentDigest: string;
+      packageDigest?: string;
     }>;
   };
   sourceCommit?: string;

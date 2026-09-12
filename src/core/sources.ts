@@ -78,6 +78,7 @@ export interface CleanupLocalSkillOptions {
 }
 
 export interface AvailabilityPlanFromSourceOptions {
+  declaredSkillPaths?: string[];
   root: string;
   from?: string;
   profile?: string;
@@ -242,7 +243,15 @@ export async function applyAvailabilityFromSource(options: AvailabilityApplyFrom
 }
 
 async function scanAvailabilitySource(sourceRoot: string, options: AvailabilityPlanFromSourceOptions): Promise<WorkspaceSnapshot> {
-  const source = await scanWorkspace(sourceRoot, { stateRoot: options.stateRoot, readOnlyConfig: Boolean(options.stateRoot) });
+  let source = await scanWorkspace(sourceRoot, { stateRoot: options.stateRoot, readOnlyConfig: Boolean(options.stateRoot) });
+  if (options.declaredSkillPaths) {
+    const selected = new Set(options.declaredSkillPaths.map(p => p.replaceAll("\\", "/")));
+    for (const relative of selected) {
+      if (!relative || path.posix.isAbsolute(relative) || relative.split("/").includes("..")) throw Error(`Invalid declared skill path: ${relative}`);
+      if (!source.skills.some(s => s.relativePath.split(path.sep).join("/") === relative)) throw Error(`Declared source skill not found: ${relative}`);
+    }
+    source = { ...source, skills: source.skills.filter(s => selected.has(s.relativePath.split(path.sep).join("/"))), assets: [] };
+  }
   if (!options.declaredSharedAssetPaths?.length) return source;
   const assetsByPath = new Map(source.assets.map((asset) => [path.resolve(asset.path), asset]));
   for (const declaredPath of options.declaredSharedAssetPaths) {
@@ -567,8 +576,8 @@ export async function removeAppliedSource(root: string, id: string): Promise<App
   return record;
 }
 
-export async function driftAppliedSources(root: string, id?: string): Promise<DriftReport[]> {
-  const records = selectAppliedRecords(await listAppliedSources(root), id);
+export async function driftAppliedSources(root: string, id?: string, stateRoot?: string): Promise<DriftReport[]> {
+  const records = selectAppliedRecords(await listAppliedSources(root, stateRoot), id);
   const reports: DriftReport[] = [];
   for (const record of records) {
     if (record.availabilityItems?.length) {
@@ -580,6 +589,11 @@ export async function driftAppliedSources(root: string, id?: string): Promise<Dr
         skills: record.skills,
         agentTargetIds: context.agentTargetIds,
         projectTargetDirs: context.projectTargetDirs,
+        destinationPolicy: context.destinationPolicy,
+        sourceProvenance: context.sourceProvenance,
+        declaredSkillPaths: context.declaredSkillPaths,
+        declaredSharedAssetPaths: record.availabilityAssets?.map(a => a.sourcePath),
+        stateRoot,
         availabilityOverrides: context.availabilityOverrides,
         projectAssessments: context.projectAssessments,
         homeDir: context.homeDir
@@ -595,10 +609,10 @@ export async function driftAppliedSources(root: string, id?: string): Promise<Dr
   return reports;
 }
 
-export async function runAppliedSources(root: string, id: string | undefined, confirm: boolean, cleanupPaths: string[] = []) {
+export async function runAppliedSources(root: string, id: string | undefined, confirm: boolean, cleanupPaths: string[] = [], stateRoot?: string) {
   if (!confirm) throw new Error("Applied source run requires --confirm after reviewing drift.");
   if (cleanupPaths.length > 0 && !id) throw new Error("Applied source cleanup paths require one explicit --id.");
-  const records = selectAppliedRecords(await listAppliedSources(root), id);
+  const records = selectAppliedRecords(await listAppliedSources(root, stateRoot), id);
   const results = [];
   for (const record of records) {
     if (record.availabilityItems?.length) {
@@ -610,10 +624,17 @@ export async function runAppliedSources(root: string, id: string | undefined, co
         skills: record.skills,
         agentTargetIds: context.agentTargetIds,
         projectTargetDirs: context.projectTargetDirs,
+        destinationPolicy: context.destinationPolicy,
+        sourceProvenance: context.sourceProvenance,
+        declaredSkillPaths: context.declaredSkillPaths,
+        declaredSharedAssetPaths: record.availabilityAssets?.map(a => a.sourcePath),
+        stateRoot,
         availabilityOverrides: context.availabilityOverrides,
         projectAssessments: context.projectAssessments,
         homeDir: context.homeDir,
         cleanupPaths,
+        allowUnrelatedRoot: context.destinationPolicy === "catalog-only",
+        providerCapabilities: record.provisioningEvidence?.providerCapabilities,
         confirm: true,
         save: true
       });
@@ -735,7 +756,7 @@ async function availabilityAppliedRecordFor(
     && recordRelationKind(item) === "profileApply"
     && (item.sourceKey === plan.sourceKey || item.targetDir === "")
   );
-  const id = existing?.id || `${slug(path.basename(normalizedSourceRoot) || "source")}-${slug(plan.profile)}-${crypto.createHash("sha256").update(`availability:${normalizedSourceRoot}:${plan.profile}`).digest("hex").slice(0, 8)}`;
+  const id = existing?.id || `${slug(path.basename(normalizedSourceRoot) || "source")}-${slug(plan.profile)}-${crypto.createHash("sha256").update(`availability:${path.resolve(root)}:${normalizedSourceRoot}:${plan.profile}`).digest("hex").slice(0, 8)}`;
   return {
     id,
     relationKind: "profileApply",
@@ -751,6 +772,8 @@ async function availabilityAppliedRecordFor(
       ...plan.items.map((item) => item.skill),
       ...plan.assets.map((item) => item.name)
     ]),
+    retiredTargets: [...(existing?.retiredTargets ?? []), ...(existing?.provisioningEvidence?.targets ?? []).filter(t => ![...plan.items, ...plan.assets].some(i => i.destinations.some(d => path.resolve(d.path) === path.resolve(t.path))) && (t.path.includes(`${path.sep}catalog${path.sep}versions${path.sep}`) || t.path.includes(`${path.sep}catalog${path.sep}consumers${path.sep}`)))],
+    ...(existing?.catalogVersions ? { catalogVersions: existing.catalogVersions } : {}),
     availabilityItems: plan.items.map((item) => ({
       skill: item.skill,
       mode: requiredEffectiveMode(item),
@@ -763,6 +786,8 @@ async function availabilityAppliedRecordFor(
       destinations: item.destinations.map((destination) => path.resolve(destination.path))
     })),
     availabilityContext: {
+      declaredSkillPaths: context.declaredSkillPaths,
+      sourceProvenance: context.sourceProvenance,
       agentTargetIds: [...new Set(context.agentTargetIds.map((item) => item.trim().toLowerCase()).filter(Boolean))].sort(),
       projectTargetDirs: [...new Set((context.projectTargetDirs ?? []).map((item) => path.resolve(root, item)))].sort(),
       destinationPolicy: context.destinationPolicy,
@@ -784,13 +809,15 @@ async function availabilityAppliedRecordFor(
             name: item.skill,
             kind: "skill" as const,
             path: path.resolve(destination.path),
-            contentDigest: item.contentDigest
+            contentDigest: item.contentDigest,
+            ...(item.packageDigest ? { packageDigest: item.packageDigest } : {})
           }))),
           ...plan.assets.flatMap((item) => item.destinations.map((destination) => ({
             name: item.name,
             kind: "asset" as const,
             path: path.resolve(destination.path),
-            contentDigest: item.contentDigest
+            contentDigest: item.contentDigest,
+            ...(item.packageDigest ? { packageDigest: item.packageDigest } : {})
           }))),
           ...plan.loaderTargets.map((item) => ({
             name: "arcforge-on-demand",
@@ -822,7 +849,14 @@ function availabilityRecordFor(records: AppliedSourceRecord[], sourceRoot: strin
 }
 
 function requiredAvailabilityContext(record: AppliedSourceRecord): NonNullable<AppliedSourceRecord["availabilityContext"]> {
-  if (record.availabilityContext) return record.availabilityContext;
+  if (record.availabilityContext) {
+    const context = record.availabilityContext;
+    // Older embedded providers stored consumer-scoped catalogs. Reapply now plans
+    // the shared destination, while historical physical roots remain untouched.
+    return ["consumer-catalog", "versioned-catalog"].includes(String(context.destinationPolicy))
+      ? { ...context, destinationPolicy: "catalog-only" }
+      : context;
+  }
   throw new Error(`Applied availability source '${record.id}' predates saved target context. Re-run an explicit availability apply before using applied drift or reapply.`);
 }
 

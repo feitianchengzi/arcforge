@@ -1,3 +1,4 @@
+export { planProjectSkillMigration, applyProjectSkillMigration } from "./project-skill-migration.js";
 import crypto from "node:crypto";
 import path from "node:path";
 import { promises as fs } from "node:fs";
@@ -21,13 +22,13 @@ import {
   driftAvailabilityFromSource,
   listAppliedSources
 } from "../core/sources.js";
-import { catalogDirectoryDigest, loadUserSkillCatalog, readUserSkillCatalogIndex, restoreUserSkillCatalogIndex, saveUserSkillCatalog } from "../core/skill-catalog.js";
+import { listCatalogSkills, resolveCatalogSkill, catalogPackageDigest, catalogDirectoryDigest, loadUserSkillCatalog, readUserSkillCatalogIndex, restoreUserSkillCatalogIndex, saveUserSkillCatalog } from "../core/skill-catalog.js";
 import { saveLocalProjectAppliedSources } from "../core/project-store.js";
 import { pathExists } from "../core/fs.js";
 import { compareDirectory } from "../core/profiles.js";
 
 export const ARCFORGE_EMBEDDED_PROVIDER_API_VERSION = "arcforge-embedded-provider/v1";
-export const ARCFORGE_EMBEDDED_PROVIDER_CAPABILITIES = ["declared-shared-assets/v1", "source-upgrade-recovery/v1", "conflict-reinstall-recovery/v1", "project-only-provisioning/v1"] as const;
+export const ARCFORGE_EMBEDDED_PROVIDER_CAPABILITIES = ["declared-shared-assets/v1", "source-upgrade-recovery/v1", "conflict-reinstall-recovery/v1", "project-only-provisioning/v1", "stable-catalog/v1", "project-skill-migration/v1"] as const;
 
 export type ProvisioningUpgradeDisposition =
   | "managed-repair"
@@ -85,6 +86,8 @@ export interface RecoverProvisioningUpgradeResult {
 }
 
 export interface ProvisioningOptions {
+  declaredSkillPaths?: string[];
+  declaredSharedAssetPaths?: string[];
   sourceRoot: string;
   consumerRoot: string;
   stateRoot: string;
@@ -109,6 +112,7 @@ export interface ProvisioningPlanEnvelope {
 }
 
 export interface ProvisionedSharedAsset {
+  packageDigest?: string;
   name: string;
   sourcePath: string;
   contentDigest: string;
@@ -148,6 +152,7 @@ export interface ManagedPathEvidence {
   path: string;
   exists: boolean;
   digest?: string;
+  packageDigest?: string;
 }
 
 export interface ManagedRemovalResult {
@@ -162,6 +167,8 @@ export async function inspectProvider(): Promise<{
   providerVersion: string;
   buildCommit: string;
   loaderDigest: string;
+  sourceRoot: string;
+  entrypoint: string;
   capabilities: string[];
 }> {
   const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -171,6 +178,8 @@ export async function inspectProvider(): Promise<{
     apiVersion: ARCFORGE_EMBEDDED_PROVIDER_API_VERSION,
     providerVersion: stringValue(manifest?.providerVersion) || stringValue(packageJson?.version) || "0.0.0-development",
     buildCommit: stringValue(manifest?.buildCommit) || "development",
+    sourceRoot: packageRoot,
+    entrypoint: fileURLToPath(import.meta.url),
     loaderDigest: await catalogDirectoryDigest(path.join(packageRoot, "skills", "arcforge-on-demand")),
     capabilities: [...ARCFORGE_EMBEDDED_PROVIDER_CAPABILITIES]
   };
@@ -184,12 +193,40 @@ export async function createProvisioningPlan(options: ProvisioningOptions): Prom
     name: asset.name,
     sourcePath: asset.sourcePath,
     contentDigest: asset.contentDigest,
+    ...(asset.packageDigest ? { packageDigest: asset.packageDigest } : {}),
     destinations: asset.destinations.map((destination) => destination.path)
   }));
-  return envelope(plan, sharedAssets, await inspectPaths([
+  const evidence = await inspectPaths([
     ...plan.items.flatMap((item) => item.destinations.map((destination) => destination.path)),
     ...sharedAssets.flatMap((asset) => asset.destinations)
-  ]));
+  ]);
+  if (options.destinationPolicy === "catalog-only") for (const item of evidence) if (item.exists) item.packageDigest = await catalogPackageDigest(item.path);
+  return envelope(plan, sharedAssets, evidence);
+}
+
+/** Read-only plan plus per-item installation state, shared by embedded clients. */
+export async function inspectProvisioningPlan(options: ProvisioningOptions) {
+  const envelope = await createProvisioningPlan(options);
+  const records = await listProvisioningRelations(options);
+  const items = envelope.plan.items.map(item => {
+    const target = item.destinations[0]?.path;
+    const evidence = envelope.targetEvidence.find(e => e.path === target);
+    const owned = records.some(r => r.provisioningEvidence?.targets.some(t => t.path === target && t.contentDigest === item.contentDigest));
+    const status = envelope.plan.diagnostics.some(d => d.severity === "error" && (d.path === item.skill || d.path === target)) ? "conflict"
+      : evidence?.exists ? (evidence.digest !== item.contentDigest || (item.packageDigest && evidence.packageDigest !== item.packageDigest)) ? item.catalogDecision?.currentDigest ? "update" : "conflict" : owned && item.catalogDecision?.action !== "install" && item.catalogDecision?.action !== "upgrade" ? "same" : "adopt"
+      : item.catalogDecision?.currentDigest ? "update" : "install";
+    return { skill: item.skill, mode: item.effectiveMode, sourcePath: path.resolve(options.sourceRoot,item.sourcePath), path: target, status,
+      currentDigest: item.catalogDecision?.currentDigest, incomingDigest: item.contentDigest,
+      currentVersion: item.catalogDecision?.currentVersion, incomingVersion: item.version };
+  });
+  const blocking = envelope.plan.diagnostics.filter(d => d.severity === "error");
+  const assets = envelope.sharedAssets.flatMap(a => a.destinations.map(target => {
+    const evidence = envelope.targetEvidence.find(e => e.path === target);
+    return { name: a.name, path: target, sourcePath: a.sourcePath, status: evidence?.exists ? evidence.digest === a.contentDigest && (!("packageDigest" in a) || evidence.packageDigest === a.packageDigest) ? "same" : "update" : "install" };
+  }));
+  const assetChanges = assets.some(a => a.status !== "same");
+  const needsApply = !blocking.length && (assetChanges || items.some(i => i.status !== "same"));
+  return { ...envelope, items, assets, blocking, needsApply, ready: !blocking.length && !needsApply };
 }
 
 export async function driftProvisioningPlan(options: ProvisioningOptions): Promise<DriftReport> {
@@ -525,9 +562,9 @@ export async function removeManagedProvisioning(options: RemoveManagedProvisioni
 
   const stateRoot = path.resolve(options.stateRoot);
   const consumerRoot = path.resolve(options.consumerRoot);
-  const catalogRoot = path.join(stateRoot, "catalog");
   const previousRecords = await listAppliedSources(consumerRoot, stateRoot);
   const selectedIds = new Set(plan.relationIds);
+  const catalogRoot = path.join(stateRoot, "catalog");
   const selectedPaths = new Set(plan.managedPaths.map(localPathIdentity));
   const nextRecords = previousRecords.map((record) => selectedIds.has(record.id) ? withoutManagedPaths(record, selectedPaths) : record);
   const previousCatalogRaw = await readUserSkillCatalogIndex({ catalogRoot });
@@ -834,7 +871,8 @@ async function toAvailabilityOptions(options: ProvisioningOptions) {
     stateRoot: path.resolve(options.stateRoot),
     sourceProvenance,
     catalogSourceSelections: options.catalogSourceSelections,
-    declaredSharedAssetPaths: stringArray(payloadManifest?.sharedAssetPaths)
+    declaredSkillPaths: options.declaredSkillPaths ?? (Array.isArray(payloadManifest?.skillPaths) ? stringArray(payloadManifest.skillPaths) : undefined),
+    declaredSharedAssetPaths: options.declaredSharedAssetPaths ?? stringArray(payloadManifest?.sharedAssetPaths)
   };
 }
 
@@ -895,4 +933,25 @@ function stringValue(value: unknown): string {
 function stringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).map((item) => item.trim());
+}
+
+
+/** Shared catalog facts for consumer configuration; consumers do not parse or hash installations. */
+export async function inspectCatalogEntries(options: {stateRoot: string}) {
+  const catalogRoot = path.join(path.resolve(options.stateRoot), "catalog");
+  const catalog = await loadUserSkillCatalog({catalogRoot});
+  return Promise.all(catalog.entries.map(async entry => {
+    try {
+      await resolveCatalogSkill(entry.qualifiedName, "exact", {catalogRoot});
+      return {...entry, available: true, error: ""};
+    } catch (error) { return {...entry, available: false, error: (error as Error).message}; }
+  }));
+}
+
+/** Scope affects this query only; the user's canonical catalog remains complete. */
+export async function queryCatalog(options: {stateRoot: string; allowedSkills?: string[]; action: "list" | "resolve"; query?: string}) {
+  const scope = {catalogRoot: path.join(path.resolve(options.stateRoot), "catalog"), allowedSkills: options.allowedSkills};
+  if (options.action === "list") return listCatalogSkills(scope);
+  if (options.action !== "resolve") throw Error("Unknown catalog action.");
+  return resolveCatalogSkill(options.query || "", "exact", scope);
 }

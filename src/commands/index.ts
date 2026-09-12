@@ -74,7 +74,7 @@ Examples:
   arcforge applied drift --root .
   arcforge installed scan
   arcforge installed organize plan
-  arcforge catalog list
+  arcforge catalog list [--state-root <absolute>]
   arcforge catalog resolve --query review
   arcforge apply plan --from ../team-skills --profile default --agent-targets codex,claude --project-targets ../app
   arcforge apply --from ../team-skills --profile default --target ~/.codex/skills
@@ -224,8 +224,8 @@ List minimal candidate metadata or resolve one selected user-level on-demand ski
 These commands read only the catalog index and, for a resolved selection, its skill directory. They never scan arbitrary roots, rank candidates semantically, or execute a skill.
 
 Usage:
-  arcforge catalog list
-  arcforge catalog resolve --query <name-or-qualified-name> [--mode exact|search]
+  arcforge catalog list [--state-root <absolute>]
+  arcforge catalog resolve --query <name-or-qualified-name> [--mode exact|search] [--state-root <absolute>]
 
 Options:
   list             Return validated name, qualified name, source key, and summary metadata for Agent semantic selection.
@@ -354,12 +354,13 @@ export async function runArcForgeCommand(args: string[], runtime: CommandRuntime
   if (command === "applied") return runAppliedCommand(args, runtime);
   if (command === "installed") return runInstalledCommand(args, runtime);
   if (command === "catalog") {
+    const catalogOptions = arg(args, "--state-root") ? { catalogRoot: path.join(path.resolve(requiredArg(args, "--state-root")), "catalog") } : {};
     const action = args[1] ?? "resolve";
-    if (action === "list") return { exitCode: 0, value: await listCatalogSkills() };
+    if (action === "list") return { exitCode: 0, value: await listCatalogSkills(catalogOptions) };
     if (action !== "resolve") throw new Error(`Unknown catalog action: ${action}`);
     const mode = arg(args, "--mode") ?? "exact";
     if (mode !== "exact" && mode !== "search") throw new Error("Catalog mode must be exact or search.");
-    return { exitCode: 0, value: await resolveCatalogSkill(requiredArg(args, "--query"), mode) };
+    return { exitCode: 0, value: await resolveCatalogSkill(requiredArg(args, "--query"), mode, catalogOptions) };
   }
 
   if (command === "apply") {
@@ -708,7 +709,7 @@ async function runImportCommand(args: string[], runtime: CommandRuntime): Promis
 async function runAppliedCommand(args: string[], runtime: CommandRuntime): Promise<CommandExecution> {
   const action = args[1] ?? "list";
   const root = arg(args, "--root") ?? runtime.cwd;
-  if (action === "list") return { exitCode: 0, value: await listAppliedSources(root) };
+  if (action === "list") return { exitCode: 0, value: await listAppliedSources(root, arg(args, "--state-root")) };
   if (action === "add") {
     return {
       exitCode: 0,
@@ -724,8 +725,8 @@ async function runAppliedCommand(args: string[], runtime: CommandRuntime): Promi
     };
   }
   if (action === "remove") return { exitCode: 0, value: await removeAppliedSource(root, requiredPositional(args[2], "applied record id")) };
-  if (action === "drift") return { exitCode: 0, value: await driftAppliedSources(root, arg(args, "--id")) };
-  if (action === "run") return { exitCode: 0, value: await runAppliedSources(root, arg(args, "--id"), hasFlag(args, "--confirm"), parseCsv(arg(args, "--cleanup-paths"))) };
+  if (action === "drift") return { exitCode: 0, value: await driftAppliedSources(root, arg(args, "--id"), arg(args, "--state-root")) };
+  if (action === "run") return { exitCode: 0, value: await runAppliedSources(root, arg(args, "--id"), hasFlag(args, "--confirm"), parseCsv(arg(args, "--cleanup-paths")), arg(args, "--state-root")) };
   throw new Error(`Unknown applied action: ${action}`);
 }
 

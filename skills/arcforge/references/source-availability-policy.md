@@ -33,7 +33,7 @@
 
 - `user-ambient`：安装到所选 agent 的用户级发现目录，适合日常普遍使用。
 - `project-ambient`：安装到明确项目的 agent skill 目录，适合项目专属能力。
-- `user-on-demand`：只保存到用户级 ArcForge catalog，由 `arcforge-on-demand` 在用户显式调用后解析；不使用项目级按需目录。
+- `user-on-demand`：只保存到用户级 ArcForge catalog，由 `arcforge-on-demand` 在用户显式调用或宿主程序显式配置调用后查询、解析；不使用项目级按需目录。
 
 `defaultMode` 是未逐项配置 skill 的来源推荐。`skills` 中的条目按相对路径覆盖默认值。`aliases` 只用于 `user-on-demand` 条目，并应保持短、稳定且无重复；所有最终属于用户按需模式的 skill 名称和 aliases 按大小写不敏感规则保持唯一，包括由 `defaultMode` 覆盖的 skill。
 

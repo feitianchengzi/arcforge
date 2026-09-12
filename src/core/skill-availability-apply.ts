@@ -12,6 +12,7 @@ import type {
 import { copyDirectory, pathExists } from "./fs.js";
 import {
   catalogDirectoryDigest,
+  catalogPackageDigest,
   catalogQualifiedName,
   loadUserSkillCatalog,
   readUserSkillCatalogIndex,
@@ -47,6 +48,7 @@ interface DirectoryReplacement {
   temporary: string;
   backup: string;
   expectedDigest?: string;
+  packageDigest?: string;
   plannedTargetStatus?: SkillAvailabilityPlan["loaderTargets"][number]["status"];
   plannedTargetDigest?: string;
   hadTarget: boolean;
@@ -154,6 +156,7 @@ function createReplacements(
     if (!skill) throw new AvailabilityApplyError("APPLY_PLAN_INVALID", `Plan skill is absent from the fresh source snapshot: ${item.sourcePath}`);
     for (const destination of item.destinations) {
       addReplacement(replacements, targets, item.skill, destination.kind, skill.path, destination.path, item.contentDigest);
+      replacements[replacements.length-1].packageDigest = item.packageDigest;
     }
   }
 
@@ -161,8 +164,9 @@ function createReplacements(
     const asset = assetByPath.get(item.sourcePath);
     if (!asset || asset.name !== item.name) throw new AvailabilityApplyError("APPLY_PLAN_INVALID", `Plan asset is absent from the fresh source snapshot: ${item.sourcePath}`);
     for (const destination of item.destinations) {
-      if (destination.kind === "user-catalog") throw new AvailabilityApplyError("APPLY_PLAN_INVALID", `Shared asset cannot target the user catalog: ${item.name}`);
+      if (destination.kind === "user-catalog" && plan.destinationPolicy !== "catalog-only") throw new AvailabilityApplyError("APPLY_PLAN_INVALID", `Shared asset cannot target the user catalog: ${item.name}`);
       addReplacement(replacements, targets, item.name, destination.kind, asset.path, destination.path, item.contentDigest);
+      replacements[replacements.length-1].packageDigest = item.packageDigest;
     }
   }
   if (plan.loaderTargets.length > 0 && !loaderSourcePath) {
@@ -242,6 +246,7 @@ async function prepareReplacement(replacement: DirectoryReplacement): Promise<vo
   if (replacement.source === replacement.target) throw new AvailabilityApplyError("TARGET_WRITE_FAILED", `Refusing to replace source directory: ${replacement.source}`);
   await fs.mkdir(path.dirname(replacement.target), { recursive: true });
   await copyDirectory(replacement.source, replacement.temporary);
+  if (replacement.packageDigest && await catalogPackageDigest(replacement.temporary) !== replacement.packageDigest) throw new AvailabilityApplyError("TARGET_WRITE_FAILED", "Complete staged package changed after planning.");
   if (replacement.expectedDigest) {
     const stagedDigest = await catalogDirectoryDigest(replacement.temporary);
     if (stagedDigest !== replacement.expectedDigest) {
@@ -275,7 +280,7 @@ function createCatalogEntries(
   const manifestByPath = new Map(options.source.sourceManifest?.availability.skills.map((item) => [item.path, item]) ?? []);
   const now = (options.now ?? new Date()).toISOString();
 
-  for (const item of options.plan.items.filter((candidate) => candidate.effectiveMode === "user-on-demand")) {
+  for (const item of options.plan.items.filter((candidate) => options.plan.destinationPolicy === "catalog-only" || candidate.effectiveMode === "user-on-demand")) {
     const destination = item.destinations.find((candidate) => candidate.kind === "user-catalog");
     const skill = skillByPath.get(item.sourcePath);
     if (!destination || !skill) throw new AvailabilityApplyError("APPLY_PLAN_INVALID", `On-demand catalog destination is incomplete: ${item.skill}`);
@@ -309,6 +314,8 @@ function createCatalogEntries(
       : sourceClaims.find((claim) => claim.sourceKey === activeSourceKey && claim.contentDigest === existing?.contentDigest) ?? sourceClaim;
     const appliedRecordIds = [...new Set(sourceClaims.flatMap((claim) => claim.appliedRecordIds))].sort();
     byName.set(key, {
+      availabilityMode: item.effectiveMode,
+      ...(item.packageDigest ? { packageDigest: item.packageDigest } : {}),
       qualifiedName: catalogQualifiedName(item.skill),
       skillName: item.skill,
       version: activeClaim.version,

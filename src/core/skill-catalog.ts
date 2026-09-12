@@ -16,6 +16,7 @@ import type {
 } from "../shared/types.js";
 
 export interface SkillCatalogOptions {
+  allowedSkills?: string[];
   catalogRoot?: string;
 }
 
@@ -47,6 +48,22 @@ export class SkillCatalogError extends Error {
     super(message);
     this.name = "SkillCatalogError";
   }
+}
+
+/** Complete installable package digest; legacy catalog digests retain their original semantics. */
+export async function catalogPackageDigest(root: string): Promise<string> {
+  const files: Array<[string,string]> = [];
+  if ((await fs.lstat(root)).isSymbolicLink()) throw Error(`Linked skill root: ${root}`);
+  async function walk(folder: string): Promise<void> {
+    for (const entry of (await fs.readdir(folder, {withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))) {
+      if ([".git", ".DS_Store", "Thumbs.db", ".Spotlight-V100", ".Trashes"].includes(entry.name)) continue;
+      const file=path.join(folder,entry.name);
+      if(entry.isDirectory()) await walk(file);
+      else if(entry.isFile()) files.push([path.relative(root,file).split(path.sep).join("/"),crypto.createHash("sha256").update(await fs.readFile(file)).digest("hex")]);
+      else throw Error(`Unsupported or linked package entry: ${file}`);
+    }
+  }
+  await walk(root);return crypto.createHash("sha256").update(JSON.stringify(files)).digest("hex");
 }
 
 export function userSkillCatalogRoot(options: SkillCatalogOptions = {}): string {
@@ -183,7 +200,7 @@ export async function resolveCatalogSkill(
   if (mode !== "exact" && mode !== "search") throw new SkillCatalogError("CATALOG_INVALID", `Unsupported catalog resolve mode: ${mode}`);
 
   const catalog = await loadUserSkillCatalog(options);
-  const matches = catalog.entries.filter((entry) => mode === "exact" ? exactMatch(entry, normalizedQuery) : searchMatch(entry, normalizedQuery));
+  const matches = catalog.entries.filter(entry => !options.allowedSkills || options.allowedSkills.includes(entry.qualifiedName)).filter((entry) => mode === "exact" ? exactMatch(entry, normalizedQuery) : searchMatch(entry, normalizedQuery));
   const candidates = matches.map(toCandidate).sort(compareCandidates);
   if (matches.length === 0) return { status: "not-found", candidates: [] };
   if (matches.length > 1) return { status: "ambiguous", candidates };
@@ -197,7 +214,7 @@ export async function resolveCatalogSkill(
 
 export async function listCatalogSkills(options: SkillCatalogOptions = {}): Promise<CatalogListResult> {
   const catalog = await loadUserSkillCatalog(options);
-  const candidates = catalog.entries.map(toCandidate).sort(compareCandidates);
+  const candidates = catalog.entries.filter(entry => !options.allowedSkills || options.allowedSkills.includes(entry.qualifiedName)).map(toCandidate).sort(compareCandidates);
   return { status: candidates.length > 0 ? "available" : "empty", candidates };
 }
 
@@ -245,7 +262,12 @@ function parseCatalogEntry(value: unknown, index: number): UserSkillCatalogEntry
   const aliases = optionalStringArray(value.aliases, `Catalog entry ${index} aliases`);
   const summary = optionalString(value.summary, `Catalog entry ${index} summary`);
   const appliedRecordIds = requiredStringArray(value.appliedRecordIds, `Catalog entry ${index} appliedRecordIds`);
+  if (value.packageDigest !== undefined && !isDigest(value.packageDigest)) throw new SkillCatalogError("CATALOG_INVALID", "Invalid complete package digest.");
+  if (value.catalogVersion !== undefined && !isDigest(value.catalogVersion)) throw new SkillCatalogError("CATALOG_INVALID", "Invalid catalog content version.");
   return {
+    ...(value.packageDigest ? { packageDigest: value.packageDigest as string } : {}),
+    ...(["user-ambient", "project-ambient", "user-on-demand"].includes(String(value.availabilityMode)) ? { availabilityMode: value.availabilityMode as UserSkillCatalogEntry["availabilityMode"] } : {}),
+    ...(value.catalogVersion ? { catalogVersion: value.catalogVersion as string } : {}),
     qualifiedName: value.qualifiedName as string,
     skillName: value.skillName as string,
     version,
@@ -395,7 +417,9 @@ function validateUniqueEntries(entries: UserSkillCatalogEntry[]): void {
 
 async function validateResolvedCatalogEntry(entry: UserSkillCatalogEntry, options: SkillCatalogOptions): Promise<void> {
   const root = userSkillCatalogRoot(options);
-  const expectedPath = path.join(root, entry.skillName);
+  const claim = entry.sourceClaims.find(c => c.sourceKey === entry.activeSourceKey && c.contentDigest === entry.contentDigest);
+  const relative = entry.catalogVersion && claim ? path.join('versions', entry.catalogVersion, claim.skillPath) : entry.skillName;
+  const expectedPath = path.join(root, relative);
   if (path.resolve(entry.installedPath) !== path.resolve(expectedPath)) {
     throw new SkillCatalogError("CATALOG_PATH_ESCAPE", `Catalog skill path is not its canonical flat destination: ${entry.qualifiedName}`);
   }
@@ -408,7 +432,7 @@ async function validateResolvedCatalogEntry(entry: UserSkillCatalogEntry, option
   } catch {
     throw new SkillCatalogError("CATALOG_CONTENT_DRIFT", `Catalog skill directory is missing: ${entry.qualifiedName}`);
   }
-  const expectedResolvedPath = path.join(resolvedCatalogRoot, entry.skillName);
+  const expectedResolvedPath = path.join(resolvedCatalogRoot, relative);
   if (!stats.isDirectory() || stats.isSymbolicLink() || resolvedInstalledPath !== expectedResolvedPath || !isContainedPath(resolvedCatalogRoot, resolvedInstalledPath)) {
     throw new SkillCatalogError("CATALOG_PATH_ESCAPE", `Catalog skill path escapes its canonical flat destination: ${entry.qualifiedName}`);
   }
@@ -418,6 +442,7 @@ async function validateResolvedCatalogEntry(entry: UserSkillCatalogEntry, option
   } catch {
     throw new SkillCatalogError("CATALOG_CONTENT_DRIFT", `Catalog skill content could not be read consistently: ${entry.qualifiedName}`);
   }
+  if (entry.packageDigest && await catalogPackageDigest(resolvedInstalledPath) !== entry.packageDigest) throw new SkillCatalogError("CATALOG_CONTENT_DRIFT", "Complete package differs from the catalog index.");
   if (digest !== entry.contentDigest) throw new SkillCatalogError("CATALOG_CONTENT_DRIFT", `Catalog skill content digest differs from the index: ${entry.qualifiedName}`);
 }
 
