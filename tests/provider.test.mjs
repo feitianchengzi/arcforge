@@ -67,7 +67,7 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
     assert.match(planned.planDigest, /^[a-f0-9]{64}$/);
     assert.equal(planned.plan.sourceProvenance.sourceCommit, "0123456789abcdef0123456789abcdef01234567");
     assert.match(planned.plan.sourceIdentity, /^payload:fixture-payload\/v1:/);
-    assert.deepEqual((await provider.inspectProvider()).capabilities, ["declared-shared-assets/v1", "source-upgrade-recovery/v1", "conflict-reinstall-recovery/v1", "project-only-provisioning/v1", "stable-catalog/v1", "project-skill-migration/v1"]);
+    assert.deepEqual((await provider.inspectProvider()).capabilities, ["declared-shared-assets/v1", "source-upgrade-recovery/v1", "conflict-reinstall-recovery/v1", "project-only-provisioning/v1", "stable-catalog/v1", "project-skill-migration/v1", "catalog-retirement/v1"]);
     assert.equal(planned.plan.assets.length, 1);
     assert.equal(planned.plan.assets[0].sourcePath, "definition/skills/_declared_shared");
     assert.equal(planned.sharedAssets.length, 1);
@@ -126,7 +126,7 @@ test("embedded provider isolates state, confirms fresh plans, and removes only p
       sourcePath: "definition/skills/_declared_shared",
       destinations: [path.join(homeDir, ".codex", "skills", "_declared_shared")]
     }]);
-    assert.deepEqual(relation.provisioningEvidence.providerCapabilities, ["conflict-reinstall-recovery/v1", "declared-shared-assets/v1", "project-only-provisioning/v1", "project-skill-migration/v1", "source-upgrade-recovery/v1", "stable-catalog/v1"]);
+    assert.deepEqual(relation.provisioningEvidence.providerCapabilities, ["catalog-retirement/v1", "conflict-reinstall-recovery/v1", "declared-shared-assets/v1", "project-only-provisioning/v1", "project-skill-migration/v1", "source-upgrade-recovery/v1", "stable-catalog/v1"]);
     assert.equal(relation.provisioningEvidence.targets.some((item) => item.kind === "loader" && item.name === "arcforge-on-demand"), true);
     assert.equal(relation.provisioningEvidence.targets.every((item) => /^[a-f0-9]{64}$/.test(item.contentDigest)), true);
 
@@ -390,4 +390,28 @@ test("embedded provider exposes unversioned catalog conflicts and overwrites onl
   } finally {
     await rm(fixture, { recursive: true, force: true });
   }
+});
+
+test('catalog installation ignores system metadata consistently and still detects real content drift', async () => {
+  const provider = await import('../dist/provider/index.js');
+  const fixture = await mkdtemp(path.join(tmpdir(), 'arcforge-system-files-'));
+  try {
+    const sourceRoot = path.join(fixture, 'source'), consumerRoot = path.join(fixture, 'consumer');
+    const skill = path.join(sourceRoot, 'skills', 'sample');
+    await mkdir(path.join(skill, 'references'), {recursive:true});await mkdir(consumerRoot);
+    await writeFile(path.join(skill, 'SKILL.md'), '---\nname: sample\ndescription: Sample skill\n---\nInstructions\n');
+    await writeFile(path.join(skill, '.DS_Store'), 'finder metadata');
+    await writeFile(path.join(skill, 'references', 'Thumbs.db'), 'thumbnail metadata');
+    await writeFile(path.join(sourceRoot,'arcforge.skill-project.json'),JSON.stringify({version:1,sourceDir:'.',availability:{defaultMode:'user-ambient',skills:[]}}));
+    const options = {sourceRoot,consumerRoot,stateRoot:path.join(fixture,'state'),homeDir:path.join(fixture,'home'),agentTargetIds:['codex'],destinationPolicy:'catalog-only',skills:['sample']};
+    const plan = await provider.inspectProvisioningPlan(options);
+    await provider.applyProvisioningPlan({...options,expectedPlanDigest:plan.planDigest,confirm:true});
+    assert.equal((await provider.inspectProvisioningPlan(options)).ready,true);
+    const target = path.join(plan.plan.catalogRoot,'sample');
+    await assert.rejects(access(path.join(target,'.DS_Store')));
+    await writeFile(path.join(target,'.DS_Store'),'new local metadata');
+    assert.equal((await provider.inspectProvisioningPlan(options)).ready,true);
+    await writeFile(path.join(target,'SKILL.md'),'actual local change');
+    assert.equal((await provider.inspectProvisioningPlan(options)).ready,false);
+  } finally {await rm(fixture,{recursive:true,force:true});}
 });

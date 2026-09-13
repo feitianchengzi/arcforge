@@ -772,7 +772,7 @@ async function availabilityAppliedRecordFor(
       ...plan.items.map((item) => item.skill),
       ...plan.assets.map((item) => item.name)
     ]),
-    retiredTargets: [...(existing?.retiredTargets ?? []), ...(existing?.provisioningEvidence?.targets ?? []).filter(t => ![...plan.items, ...plan.assets].some(i => i.destinations.some(d => path.resolve(d.path) === path.resolve(t.path))) && (t.path.includes(`${path.sep}catalog${path.sep}versions${path.sep}`) || t.path.includes(`${path.sep}catalog${path.sep}consumers${path.sep}`)))],
+    retiredTargets: [...(existing?.retiredTargets ?? []), ...(existing?.provisioningEvidence?.targets ?? []).filter(t => ![...plan.items, ...plan.assets].some(i => i.destinations.some(d => path.resolve(d.path) === path.resolve(t.path))) && (existing?.availabilityContext?.destinationPolicy === "catalog-only" || t.path.includes(`${path.sep}catalog${path.sep}versions${path.sep}`) || t.path.includes(`${path.sep}catalog${path.sep}consumers${path.sep}`)))],
     ...(existing?.catalogVersions ? { catalogVersions: existing.catalogVersions } : {}),
     availabilityItems: plan.items.map((item) => ({
       skill: item.skill,

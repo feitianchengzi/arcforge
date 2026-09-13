@@ -23,7 +23,7 @@ import type {
   WorkspaceSnapshot
 } from "../shared/types.js";
 import { pathExists } from "./fs.js";
-import { catalogPackageDigest, decideCatalogVersion, loadUserSkillCatalog } from "./skill-catalog.js";
+import { catalogDirectoryDigest as directoryDigest, catalogPackageDigest, decideCatalogVersion, loadUserSkillCatalog } from "./skill-catalog.js";
 
 export interface ResolveSkillAvailabilityOptions {
   storageOnly?: boolean;
@@ -692,30 +692,6 @@ function catalogSelectionMap(
     result.set(key, selection);
   }
   return result;
-}
-
-async function directoryDigest(root: string): Promise<string> {
-  const files = await listDigestFiles(root);
-  const manifest = await Promise.all(files.map(async (filePath) => [
-    toPosixPath(path.relative(root, filePath)),
-    crypto.createHash("sha256").update(await fs.readFile(filePath)).digest("hex")
-  ] as const));
-  return crypto.createHash("sha256").update(JSON.stringify(manifest)).digest("hex");
-}
-
-async function listDigestFiles(root: string): Promise<string[]> {
-  const files: string[] = [];
-  async function walk(directory: string): Promise<void> {
-    const entries = await fs.readdir(directory, { withFileTypes: true });
-    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
-      if ([".git", "node_modules", "dist"].includes(entry.name)) continue;
-      const filePath = path.join(directory, entry.name);
-      if (entry.isDirectory()) await walk(filePath);
-      else if (entry.isFile()) files.push(filePath);
-    }
-  }
-  await walk(root);
-  return files;
 }
 
 export function skillAvailabilitySourcePolicyDigest(manifest: SkillProjectManifest | undefined): string | undefined {

@@ -1,3 +1,4 @@
+import { IGNORED_SYSTEM_ENTRIES } from "./fs.js";
 import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
@@ -56,7 +57,7 @@ export async function catalogPackageDigest(root: string): Promise<string> {
   if ((await fs.lstat(root)).isSymbolicLink()) throw Error(`Linked skill root: ${root}`);
   async function walk(folder: string): Promise<void> {
     for (const entry of (await fs.readdir(folder, {withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))) {
-      if ([".git", ".DS_Store", "Thumbs.db", ".Spotlight-V100", ".Trashes"].includes(entry.name)) continue;
+      if (entry.name === ".git" || IGNORED_SYSTEM_ENTRIES.has(entry.name)) continue;
       const file=path.join(folder,entry.name);
       if(entry.isDirectory()) await walk(file);
       else if(entry.isFile()) files.push([path.relative(root,file).split(path.sep).join("/"),crypto.createHash("sha256").update(await fs.readFile(file)).digest("hex")]);
@@ -545,7 +546,7 @@ async function listDigestFiles(root: string): Promise<string[]> {
   async function walk(directory: string): Promise<void> {
     const entries = await fs.readdir(directory, { withFileTypes: true });
     for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
-      if ([".git", "node_modules", "dist"].includes(entry.name)) continue;
+      if ([".git", "node_modules", "dist"].includes(entry.name) || IGNORED_SYSTEM_ENTRIES.has(entry.name)) continue;
       const filePath = path.join(directory, entry.name);
       if (entry.isDirectory()) await walk(filePath);
       else if (entry.isFile()) files.push(filePath);

@@ -86,3 +86,75 @@ test('relation cleanup retains another destination of the same skill',async t=>{
  const retained=(await loadLocalProjectState(f.consumerRoot,{stateRoot:f.stateRoot})).appliedSources.find(r=>r.id==='multi');
  assert.deepEqual(retained.skills,['sample']);assert.deepEqual(retained.availabilityItems[0].destinations,[other]);
 });
+
+async function retire(t, {upgrade = true} = {}) {
+ const f = await fixture(t);
+ const old = path.join(f.catalog.root,'sample');
+ await rm(path.join(f.sourceRoot,f.relative),{recursive:true});
+ const relative='entry/skills/replacement';
+ await mkdir(path.join(f.sourceRoot,relative),{recursive:true});
+ await writeFile(path.join(f.sourceRoot,relative,'SKILL.md'),'---\nname: replacement\ndescription: Replacement\n---\nNew body\n');
+ f.options.skills=['replacement'];f.migration.skillPaths=[relative];f.migration.projectRoots=[];
+ if(upgrade){const plan=await inspectProvisioningPlan(f.options);await applyProvisioningPlan({...f.options,expectedPlanDigest:plan.planDigest,confirm:true});}
+ return {...f,old};
+}
+test('stable catalog retirement is detected before upgrade and survives installation until separate confirmation',async t=>{
+ const f=await retire(t,{upgrade:false});
+ assert.deepEqual((await planProjectSkillMigration(f.migration)).removed.map(x=>x.path),[f.old]);
+ const installation=await inspectProvisioningPlan(f.options);
+ await applyProvisioningPlan({...f.options,expectedPlanDigest:installation.planDigest,confirm:true});
+ await access(f.old);
+ const record=(await loadLocalProjectState(f.consumerRoot,{stateRoot:f.stateRoot})).appliedSources[0];
+ assert.ok(record.retiredTargets.some(x=>x.path===f.old));
+ const result=await apply(f.migration);assert.deepEqual(result.errors,[]);assert.deepEqual(result.removed.map(x=>x.path),[f.old]);
+ await assert.rejects(access(f.old));
+ const index=JSON.parse(await readFile(path.join(f.catalog.root,'index.json'),'utf8'));
+ assert.ok(!index.entries.some(x=>x.skillName==='sample'));
+ const after=(await loadLocalProjectState(f.consumerRoot,{stateRoot:f.stateRoot})).appliedSources[0];
+ assert.ok(!after.managedSkillNames.includes('sample'));assert.equal(after.retiredTargets.length,0);
+ assert.equal((await apply(f.migration)).removed.length,0);
+});
+test('stable retirement preserves local modifications and invalidates consent on catalog claim changes',async t=>{
+ const f=await retire(t),plan=await planProjectSkillMigration(f.migration);
+ const file=path.join(f.catalog.root,'index.json'),index=JSON.parse(await readFile(file,'utf8'));
+ index.entries.find(x=>x.skillName==='sample').appliedRecordIds.push('another-consumer');
+ await writeFile(file,JSON.stringify(index));
+ await assert.rejects(applyProjectSkillMigration({...f.migration,expectedPlanDigest:plan.planDigest,confirm:true}),/changed/);
+ assert.equal((await planProjectSkillMigration(f.migration)).removed.length,0);
+ index.entries.find(x=>x.skillName==='sample').appliedRecordIds.pop();await writeFile(file,JSON.stringify(index));
+ await writeFile(path.join(f.old,'local.txt'),'user edit');
+ const changed=await planProjectSkillMigration(f.migration);assert.equal(changed.removed.length,0);assert.match(changed.preserved[0].reason,/modified/);
+});
+test('stable retirement repairs missing package metadata and protects packages excluded only by selection',async t=>{
+ const f=await retire(t);await rm(f.old,{recursive:true});
+ assert.equal((await planProjectSkillMigration(f.migration)).removed[0].missing,true);
+ assert.deepEqual((await apply(f.migration)).errors,[]);
+ const g=await fixture(t);g.migration.skillPaths=[];g.migration.projectRoots=[];
+ assert.equal((await planProjectSkillMigration(g.migration)).removed.length,0);
+});
+test('retry repairs relationship after package and catalog entry were already removed',async t=>{
+ const f=await retire(t);await rm(f.old,{recursive:true});
+ const file=path.join(f.catalog.root,'index.json'),index=JSON.parse(await readFile(file,'utf8'));
+ index.entries=index.entries.filter(e=>e.skillName!=='sample');await writeFile(file,JSON.stringify(index));
+ const plan=await planProjectSkillMigration(f.migration);assert.equal(plan.removed[0].missing,true);
+ assert.deepEqual((await apply(f.migration)).errors,[]);
+ const record=(await loadLocalProjectState(f.consumerRoot,{stateRoot:f.stateRoot})).appliedSources[0];
+ assert.equal(record.retiredTargets.length,0);assert.ok(!record.managedSkillNames.includes('sample'));
+});
+test('stable retirement protects another consumer, missing full evidence, and linked packages',async t=>{
+ const f=await retire(t);
+ const other=path.join(f.root,'other-consumer');await mkdir(other);
+ const foreign={...f.installedRecord,id:'other-consumer'};
+ await saveActual(other,[foreign],{stateRoot:f.stateRoot});
+ assert.equal((await planProjectSkillMigration(f.migration)).removed.length,0);
+ await saveActual(other,[],{stateRoot:f.stateRoot});
+ const state=await loadLocalProjectState(f.consumerRoot,{stateRoot:f.stateRoot});
+ const baseline=state.appliedSources[0].retiredTargets[0].packageDigest;
+ delete state.appliedSources[0].retiredTargets[0].packageDigest;
+ await saveActual(f.consumerRoot,state.appliedSources,{stateRoot:f.stateRoot});
+ assert.equal((await planProjectSkillMigration(f.migration)).removed.length,0);
+ state.appliedSources[0].retiredTargets[0].packageDigest=baseline;
+ await saveActual(f.consumerRoot,state.appliedSources,{stateRoot:f.stateRoot});
+ const external=path.join(f.root,'external');await cp(f.old,external,{recursive:true});await rm(f.old,{recursive:true});await symlink(external,f.old);
+ assert.equal((await planProjectSkillMigration(f.migration)).removed.length,0);await access(external);
+});

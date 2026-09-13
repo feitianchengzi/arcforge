@@ -80,3 +80,9 @@ ArcForge 应该编排已有工具，而不是替代它们。
 - `npx skills`：公开安装兼容
 - GitHub CLI 或 GitHub API：仓库创建和 release
 - GitHub Actions：审计检查
+
+## Stable catalog retirement
+
+The embedded provider owns retirement planning for source-removed catalog skills. Installation retains historical target evidence; it does not authorize cleanup. Retirement requires a missing source package, a full matching package baseline, and exclusive source/consumer ownership. Selection changes alone do not establish retirement. Competing claims, modified content, links, and insufficient evidence remain visible as preserved items.
+
+The separately confirmed migration plan binds both relationship and catalog snapshots. Cleanup updates package files, the catalog index, and installation relationships; missing-package and missing-index recovery repairs interrupted metadata writes. Hosts consume the `catalog-retirement/v1` capability and present the plan without maintaining product-specific deletion lists.

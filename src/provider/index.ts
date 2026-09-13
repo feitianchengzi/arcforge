@@ -28,7 +28,7 @@ import { pathExists } from "../core/fs.js";
 import { compareDirectory } from "../core/profiles.js";
 
 export const ARCFORGE_EMBEDDED_PROVIDER_API_VERSION = "arcforge-embedded-provider/v1";
-export const ARCFORGE_EMBEDDED_PROVIDER_CAPABILITIES = ["declared-shared-assets/v1", "source-upgrade-recovery/v1", "conflict-reinstall-recovery/v1", "project-only-provisioning/v1", "stable-catalog/v1", "project-skill-migration/v1"] as const;
+export const ARCFORGE_EMBEDDED_PROVIDER_CAPABILITIES = ["declared-shared-assets/v1", "source-upgrade-recovery/v1", "conflict-reinstall-recovery/v1", "project-only-provisioning/v1", "stable-catalog/v1", "project-skill-migration/v1", "catalog-retirement/v1"] as const;
 
 export type ProvisioningUpgradeDisposition =
   | "managed-repair"

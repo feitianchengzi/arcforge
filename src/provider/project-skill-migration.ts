@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
-import { catalogPackageDigest, catalogDirectoryDigest, resolveCatalogSkill, loadUserSkillCatalog } from "../core/skill-catalog.js";
+import { catalogPackageDigest, catalogDirectoryDigest, resolveCatalogSkill, loadUserSkillCatalog, saveUserSkillCatalog } from "../core/skill-catalog.js";
 import { saveLocalProjectAppliedSources, type LocalProjectState } from "../core/project-store.js";
 import type { AppliedSourceRecord } from "../shared/types.js";
 
@@ -44,8 +44,8 @@ export interface ProjectSkillMigrationOptions {
   trustedSourceRoots: string[];
   skillPaths: string[];
 }
-interface MigrationItem { path: string; reason: string; digest?: string; claims?: string[] }
-interface MigrationPlan { planDigest: string; removed: MigrationItem[]; preserved: MigrationItem[]; errors: Array<{ path: string; message: string }>; relationsDigest: string }
+interface MigrationItem { path: string; reason: string; digest?: string; claims?: string[]; missing?: boolean }
+interface MigrationPlan { planDigest: string; removed: MigrationItem[]; preserved: MigrationItem[]; errors: Array<{ path: string; message: string }>; relationsDigest: string; catalogDigest: string }
 // Read all records, fail closed on malformed evidence instead of silently losing competing claims.
 async function states(stateRoot: string): Promise<LocalProjectState[]> {
   const root = path.join(stateRoot, "projects"); await noLinks(root);
@@ -69,7 +69,7 @@ async function verifiedCatalog(o: ProjectSkillMigrationOptions) {
   const records = await states(o.stateRoot);
   const ownerRecords = records.filter(s => path.resolve(s.root) === path.resolve(o.consumerRoot)).flatMap(s => s.appliedSources || []);
   const relation = ownerRecords.find(r => r.sourceRoot === o.referenceRoot && r.availabilityContext?.destinationPolicy === "catalog-only");
-  const targets = relation?.provisioningEvidence?.targets.filter(t => inside(root, t.path)) || [];
+  const targets = relation?.provisioningEvidence?.targets.filter(t => inside(root, t.path) && (t.kind !== "skill" || o.skillPaths.some(p => path.basename(p) === t.name))) || [];
   if (!targets.length) throw Error("Confirmed catalog installation relation required before cleanup.");
   for (const target of targets) {
     await manifest(target.path);
@@ -93,7 +93,9 @@ export async function planProjectSkillMigration(o: ProjectSkillMigrationOptions)
     expected.set(path.basename(relative), hash(await manifest(folder)));
   }
   const trusted = new Set(o.trustedSourceRoots.map(p => path.resolve(p)));
-  const result: Omit<MigrationPlan, "planDigest"> = { removed: [], preserved: [], errors: [], relationsDigest: hash(records) };
+  await noLinks(path.join(o.catalogRoot, "index.json"));
+  const index = await loadUserSkillCatalog({catalogRoot: o.catalogRoot});
+  const result: Omit<MigrationPlan, "planDigest"> = { removed: [], preserved: [], errors: [], relationsDigest: hash(records), catalogDigest: hash(index) };
   for (const project of [...new Set(o.projectRoots.map(p => path.resolve(p)))].sort()) {
     const root = path.join(project, ".codex", "skills");
     try {
@@ -115,6 +117,62 @@ export async function planProjectSkillMigration(o: ProjectSkillMigrationOptions)
         result.removed.push({ path: target, digest: completeDigest, reason: claims.length ? "unchanged managed installation" : "exact trusted package content", claims: claims.map(({s,r}) => `${s.root}:${r.id}`) });
       }
     } catch (e) { if ((e as NodeJS.ErrnoException).code !== "ENOENT") result.errors.push({ path: root, message: (e as Error).message }); }
+  }
+  // Stable catalog retirement requires both source provenance and full installation evidence.
+  // A missing selection alone is not retirement: the package must be absent from the source.
+  const owners = records.filter(s => path.resolve(s.root) === path.resolve(o.consumerRoot));
+  for (const entry of index.entries) {
+    if (expected.has(entry.skillName)) continue;
+    const target = path.resolve(entry.installedPath);
+    if (target !== path.join(o.catalogRoot, entry.skillName)) continue;
+    const owned = owners.flatMap(s => (s.appliedSources || []).filter(r => trusted.has(path.resolve(r.sourceRoot))
+      && [...(r.provisioningEvidence?.targets || []), ...(r.retiredTargets || [])].some(t => t.path === target)).map(r => ({s,r})));
+    if (!owned.length) continue;
+    const ids = new Set(owned.map(({r}) => r.id));
+    const preserve = (reason: string) => result.preserved.push({path:target,reason});
+    if (entry.sourceClaims.some(c => !trusted.has(path.resolve(c.sourceRoot)) || c.appliedRecordIds.some(id => !ids.has(id)))
+      || entry.appliedRecordIds.some(id => !ids.has(id))
+      || records.some(s => (s.appliedSources || []).some(r => destinations(s,r).includes(target) && !owned.some(o => o.s === s && o.r === r)))) {
+      preserve("catalog target has another consumer or source claim"); continue;
+    }
+    let sourceAbsent = true;
+    for (const claim of entry.sourceClaims) {
+      const sourcePath = path.resolve(o.referenceRoot, claim.skillPath);
+      if (!inside(o.referenceRoot, sourcePath)) { sourceAbsent = false; break; }
+      try { await noLinks(sourcePath); await fs.lstat(sourcePath); sourceAbsent = false; }
+      catch (e) { if ((e as NodeJS.ErrnoException).code !== "ENOENT") sourceAbsent = false; }
+    }
+    if (!sourceAbsent) { preserve("package still exists in source or source absence is unverified"); continue; }
+    const baselines = owned.flatMap(({r}) => [...(r.provisioningEvidence?.targets || []), ...(r.retiredTargets || [])].filter(t => t.path === target));
+    if (entry.status !== "ready" || !entry.packageDigest || baselines.some(t => t.packageDigest !== entry.packageDigest)) {
+      preserve("catalog baseline unavailable or conflicting"); continue;
+    }
+    try {
+      await noLinks(target);
+      let missing = false;
+      try { await fs.lstat(target); } catch (e) { if ((e as NodeJS.ErrnoException).code === "ENOENT") missing = true; else throw e; }
+      if (!missing && await catalogPackageDigest(target) !== entry.packageDigest) { preserve("retired catalog content modified"); continue; }
+      result.removed.push({path:target, ...(missing ? {missing:true} : {digest:hash(await manifest(target))}),
+        reason: missing ? "retired catalog metadata requires cleanup" : "unchanged retired catalog installation",
+        claims:owned.map(({s,r}) => `${s.root}:${r.id}`)});
+    } catch { preserve("unreadable or linked retired catalog target"); }
+  }
+  // Recover a prior successful deletion/index write whose relationship write failed.
+  for (const owner of owners) for (const record of owner.appliedSources || []) {
+    if (!trusted.has(path.resolve(record.sourceRoot))) continue;
+    for (const target of [...(record.retiredTargets || []), ...(record.provisioningEvidence?.targets || [])]) {
+      if (expected.has(target.name) || target.path !== path.join(o.catalogRoot, target.name)
+        || index.entries.some(e => e.installedPath === target.path) || result.removed.some(i => i.path === target.path)) continue;
+      if (records.some(s => (s.appliedSources || []).some(r => destinations(s,r).includes(target.path)
+        && (s !== owner || !trusted.has(path.resolve(r.sourceRoot)))))) continue;
+      try {
+        await noLinks(target.path);
+        await fs.lstat(target.path);
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code === "ENOENT") result.removed.push({path:target.path,missing:true,
+          reason:"retired catalog relationship requires cleanup",claims:[`${owner.root}:${record.id}`]});
+      }
+    }
   }
   // Historical catalog targets are listed separately from installation and never inferred from names.
   const activePaths = new Set((await loadUserSkillCatalog({catalogRoot: o.catalogRoot})).entries.map(e => path.resolve(e.installedPath)));
@@ -146,14 +204,26 @@ export async function applyProjectSkillMigration(o: ProjectSkillMigrationOptions
     try {
       await verifiedCatalog(input);
       const current = await states(o.stateRoot);
-      await manifest(item.path);
-      if (hash(current) !== plan.relationsDigest || hash(await manifest(item.path)) !== item.digest) throw Error("Migration evidence changed.");
-      await fs.rm(item.path, { recursive: true });
+      await noLinks(item.path);
+      const index = await loadUserSkillCatalog({catalogRoot:o.catalogRoot});
+      const unchanged = item.missing ? await fs.lstat(item.path).then(() => false, e => e.code === "ENOENT") : hash(await manifest(item.path)) === item.digest;
+      if (hash(current) !== plan.relationsDigest || hash(index) !== plan.catalogDigest || !unchanged) throw Error("Migration evidence changed.");
+      if (!item.missing) await fs.rm(item.path, { recursive: true });
       result.removed.push(item);
     } catch (e) { result.errors.push({ path: item.path, message: (e as Error).message }); }
   }
   // Remove only successful destinations from all affected relation owners.
   const removed = new Set(result.removed.map(i => i.path));
+  // Persist index removal first. If it fails, retain relationship evidence for retry.
+  try {
+    const index = await loadUserSkillCatalog({catalogRoot:o.catalogRoot});
+    if (hash(index) !== plan.catalogDigest) throw Error("Catalog changed during cleanup.");
+    if (index.entries.some(e => removed.has(e.installedPath)))
+      await saveUserSkillCatalog(index.entries.filter(e => !removed.has(e.installedPath)), {catalogRoot:o.catalogRoot});
+  } catch (e) {
+    result.errors.push({path:o.catalogRoot,message:`Catalog update failed: ${(e as Error).message}`});
+    return result;
+  }
   const latestStates = await states(o.stateRoot);
   // A retry also repairs relations whose target was deleted before a prior state-write failure.
   for (const s of latestStates) for (const r of s.appliedSources || []) for (const target of destinations(s, r)) {
@@ -171,6 +241,7 @@ export async function applyProjectSkillMigration(o: ProjectSkillMigrationOptions
       const keep = (n: string) => {
         if (r.availabilityItems?.some(i => i.skill === n)) return availabilityItems!.some(i => i.skill === n);
         if (r.availabilityAssets?.some(i => i.name === n)) return availabilityAssets!.some(i => i.name === n);
+        if (r.retiredTargets?.some(t => t.name === n)) return r.retiredTargets.some(t => t.name === n && !removed.has(t.path));
         return !r.targetDir || !removed.has(path.resolve(s.root, r.targetDir, n));
       };
       return { ...r, retiredTargets: r.retiredTargets?.filter(t => !removed.has(t.path)), skills: (r.skills || []).filter(keep), managedSkillNames: r.managedSkillNames?.filter(keep), availabilityItems,

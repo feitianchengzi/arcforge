@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-const IGNORED_SYSTEM_ENTRIES = new Set([".DS_Store", "Thumbs.db", ".Spotlight-V100", ".Trashes"]);
+export const IGNORED_SYSTEM_ENTRIES = new Set([".DS_Store", "Thumbs.db", ".Spotlight-V100", ".Trashes"]);
 
 export async function pathExists(filePath: string): Promise<boolean> {
   try {
